@@ -6,7 +6,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { KpiCard } from "@/components/kpi-card";
 import { Card } from "@/components/ui/card";
 import {
-  LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, Bar, Legend, CartesianGrid,
+  LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, AreaChart, Area, Legend, CartesianGrid,
 } from "recharts";
 import { periodoLabel, formatBRLCompact } from "@/lib/format";
 import { useMemo } from "react";
@@ -85,39 +85,57 @@ function DashboardHome() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <KpiCard label="Receita Bruta" value={kpis.receitaBruta.v} previousValue={kpis.receitaBruta.p} />
-        <KpiCard label="Receita Líquida" value={kpis.receitaLiquida.v} previousValue={kpis.receitaLiquida.p} />
-        <KpiCard label="EBITDA" value={kpis.ebitda.v} previousValue={kpis.ebitda.p} />
-        <KpiCard label="Lucro Líquido" value={kpis.lucroLiquido.v} previousValue={kpis.lucroLiquido.p} />
+        <KpiCard label="Receita Bruta" value={kpis.receitaBruta.v} previousValue={kpis.receitaBruta.p} tone="default" sparkline={chartData.map((d) => d.Receita)} />
+        <KpiCard label="Receita Líquida" value={kpis.receitaLiquida.v} previousValue={kpis.receitaLiquida.p} tone="default" sparkline={chartData.map((d) => d.Receita)} />
+        <KpiCard label="EBITDA" value={kpis.ebitda.v} previousValue={kpis.ebitda.p} tone="positive" sparkline={chartData.map((d) => d.Lucro)} />
+        <KpiCard label="Lucro Líquido" value={kpis.lucroLiquido.v} previousValue={kpis.lucroLiquido.p} tone={(kpis.lucroLiquido.v ?? 0) < 0 ? "negative" : "positive"} sparkline={chartData.map((d) => d.Lucro)} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Card className="p-5">
-          <h3 className="font-semibold mb-4">Evolução de Receita vs Custos</h3>
+        <Card className="p-5 shadow-[var(--shadow-soft)]">
+          <h3 className="font-semibold mb-1">Receita vs Custos</h3>
+          <p className="text-xs text-muted-foreground mb-4">Evolução nos períodos selecionados</p>
           <div className="h-72">
             <ResponsiveContainer>
-              <BarChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.92 0.012 260)" />
-                <XAxis dataKey="periodo" fontSize={12} />
-                <YAxis fontSize={12} tickFormatter={(v) => formatBRLCompact(v)} />
-                <Tooltip formatter={(v: any) => formatBRLCompact(v)} />
-                <Legend />
-                <Bar dataKey="Receita" fill="oklch(0.54 0.20 277)" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="Custos" fill="oklch(0.60 0.22 25)" radius={[4, 4, 0, 0]} />
-              </BarChart>
+              <AreaChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="gReceita" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="var(--chart-2)" stopOpacity={0.45} />
+                    <stop offset="100%" stopColor="var(--chart-2)" stopOpacity={0} />
+                  </linearGradient>
+                  <linearGradient id="gCustos" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="var(--chart-5)" stopOpacity={0.35} />
+                    <stop offset="100%" stopColor="var(--chart-5)" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                <XAxis dataKey="periodo" fontSize={11} tickLine={false} axisLine={false} />
+                <YAxis fontSize={11} tickLine={false} axisLine={false} tickFormatter={(v) => formatBRLCompact(v)} />
+                <Tooltip
+                  contentStyle={{ borderRadius: 8, border: "1px solid var(--border)", fontSize: 12 }}
+                  formatter={(v: any) => formatBRLCompact(v)}
+                />
+                <Legend wrapperStyle={{ fontSize: 12, paddingTop: 8 }} />
+                <Area type="monotone" dataKey="Receita" stroke="var(--chart-2)" strokeWidth={2.5} fill="url(#gReceita)" />
+                <Area type="monotone" dataKey="Custos" stroke="var(--chart-5)" strokeWidth={2} fill="url(#gCustos)" />
+              </AreaChart>
             </ResponsiveContainer>
           </div>
         </Card>
-        <Card className="p-5">
-          <h3 className="font-semibold mb-4">Evolução do Lucro Líquido</h3>
+        <Card className="p-5 shadow-[var(--shadow-soft)]">
+          <h3 className="font-semibold mb-1">Lucro Líquido</h3>
+          <p className="text-xs text-muted-foreground mb-4">Tendência do resultado do exercício</p>
           <div className="h-72">
             <ResponsiveContainer>
-              <LineChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.92 0.012 260)" />
-                <XAxis dataKey="periodo" fontSize={12} />
-                <YAxis fontSize={12} tickFormatter={(v) => formatBRLCompact(v)} />
-                <Tooltip formatter={(v: any) => formatBRLCompact(v)} />
-                <Line type="monotone" dataKey="Lucro" stroke="oklch(0.65 0.18 150)" strokeWidth={2.5} dot={{ r: 3 }} />
+              <LineChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                <XAxis dataKey="periodo" fontSize={11} tickLine={false} axisLine={false} />
+                <YAxis fontSize={11} tickLine={false} axisLine={false} tickFormatter={(v) => formatBRLCompact(v)} />
+                <Tooltip
+                  contentStyle={{ borderRadius: 8, border: "1px solid var(--border)", fontSize: 12 }}
+                  formatter={(v: any) => formatBRLCompact(v)}
+                />
+                <Line type="monotone" dataKey="Lucro" stroke="var(--chart-4)" strokeWidth={2.5} dot={{ r: 3, fill: "var(--chart-4)" }} activeDot={{ r: 5 }} />
               </LineChart>
             </ResponsiveContainer>
           </div>

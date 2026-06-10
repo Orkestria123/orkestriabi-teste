@@ -9,38 +9,254 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as AuthRouteImport } from './routes/auth'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as OrkestriaAdminIndexRouteImport } from './routes/orkestria-admin.index'
+import { Route as DashboardIndexRouteImport } from './routes/dashboard.index'
+import { Route as AdminIndexRouteImport } from './routes/admin.index'
+import { Route as OrkestriaAdminTenantsRouteImport } from './routes/orkestria-admin.tenants'
+import { Route as DashboardIndicadoresRouteImport } from './routes/dashboard.indicadores'
+import { Route as DashboardFluxoDeCaixaRouteImport } from './routes/dashboard.fluxo-de-caixa'
+import { Route as DashboardDvaRouteImport } from './routes/dashboard.dva'
+import { Route as DashboardDreRouteImport } from './routes/dashboard.dre'
+import { Route as DashboardDlpaRouteImport } from './routes/dashboard.dlpa'
+import { Route as DashboardBalancoRouteImport } from './routes/dashboard.balanco'
+import { Route as DashboardAnaliseRouteImport } from './routes/dashboard.analise'
+import { Route as AdminUsuariosRouteImport } from './routes/admin.usuarios'
+import { Route as AdminUploadRouteImport } from './routes/admin.upload'
+import { Route as AdminEmpresasRouteImport } from './routes/admin.empresas'
 
+const DashboardRoute = DashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const OrkestriaAdminIndexRoute = OrkestriaAdminIndexRouteImport.update({
+  id: '/orkestria-admin/',
+  path: '/orkestria-admin/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DashboardIndexRoute = DashboardIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const AdminIndexRoute = AdminIndexRouteImport.update({
+  id: '/admin/',
+  path: '/admin/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OrkestriaAdminTenantsRoute = OrkestriaAdminTenantsRouteImport.update({
+  id: '/orkestria-admin/tenants',
+  path: '/orkestria-admin/tenants',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DashboardIndicadoresRoute = DashboardIndicadoresRouteImport.update({
+  id: '/indicadores',
+  path: '/indicadores',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardFluxoDeCaixaRoute = DashboardFluxoDeCaixaRouteImport.update({
+  id: '/fluxo-de-caixa',
+  path: '/fluxo-de-caixa',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardDvaRoute = DashboardDvaRouteImport.update({
+  id: '/dva',
+  path: '/dva',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardDreRoute = DashboardDreRouteImport.update({
+  id: '/dre',
+  path: '/dre',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardDlpaRoute = DashboardDlpaRouteImport.update({
+  id: '/dlpa',
+  path: '/dlpa',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardBalancoRoute = DashboardBalancoRouteImport.update({
+  id: '/balanco',
+  path: '/balanco',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardAnaliseRoute = DashboardAnaliseRouteImport.update({
+  id: '/analise',
+  path: '/analise',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const AdminUsuariosRoute = AdminUsuariosRouteImport.update({
+  id: '/admin/usuarios',
+  path: '/admin/usuarios',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminUploadRoute = AdminUploadRouteImport.update({
+  id: '/admin/upload',
+  path: '/admin/upload',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminEmpresasRoute = AdminEmpresasRouteImport.update({
+  id: '/admin/empresas',
+  path: '/admin/empresas',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
+  '/dashboard': typeof DashboardRouteWithChildren
+  '/admin/empresas': typeof AdminEmpresasRoute
+  '/admin/upload': typeof AdminUploadRoute
+  '/admin/usuarios': typeof AdminUsuariosRoute
+  '/dashboard/analise': typeof DashboardAnaliseRoute
+  '/dashboard/balanco': typeof DashboardBalancoRoute
+  '/dashboard/dlpa': typeof DashboardDlpaRoute
+  '/dashboard/dre': typeof DashboardDreRoute
+  '/dashboard/dva': typeof DashboardDvaRoute
+  '/dashboard/fluxo-de-caixa': typeof DashboardFluxoDeCaixaRoute
+  '/dashboard/indicadores': typeof DashboardIndicadoresRoute
+  '/orkestria-admin/tenants': typeof OrkestriaAdminTenantsRoute
+  '/admin/': typeof AdminIndexRoute
+  '/dashboard/': typeof DashboardIndexRoute
+  '/orkestria-admin/': typeof OrkestriaAdminIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
+  '/admin/empresas': typeof AdminEmpresasRoute
+  '/admin/upload': typeof AdminUploadRoute
+  '/admin/usuarios': typeof AdminUsuariosRoute
+  '/dashboard/analise': typeof DashboardAnaliseRoute
+  '/dashboard/balanco': typeof DashboardBalancoRoute
+  '/dashboard/dlpa': typeof DashboardDlpaRoute
+  '/dashboard/dre': typeof DashboardDreRoute
+  '/dashboard/dva': typeof DashboardDvaRoute
+  '/dashboard/fluxo-de-caixa': typeof DashboardFluxoDeCaixaRoute
+  '/dashboard/indicadores': typeof DashboardIndicadoresRoute
+  '/orkestria-admin/tenants': typeof OrkestriaAdminTenantsRoute
+  '/admin': typeof AdminIndexRoute
+  '/dashboard': typeof DashboardIndexRoute
+  '/orkestria-admin': typeof OrkestriaAdminIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
+  '/dashboard': typeof DashboardRouteWithChildren
+  '/admin/empresas': typeof AdminEmpresasRoute
+  '/admin/upload': typeof AdminUploadRoute
+  '/admin/usuarios': typeof AdminUsuariosRoute
+  '/dashboard/analise': typeof DashboardAnaliseRoute
+  '/dashboard/balanco': typeof DashboardBalancoRoute
+  '/dashboard/dlpa': typeof DashboardDlpaRoute
+  '/dashboard/dre': typeof DashboardDreRoute
+  '/dashboard/dva': typeof DashboardDvaRoute
+  '/dashboard/fluxo-de-caixa': typeof DashboardFluxoDeCaixaRoute
+  '/dashboard/indicadores': typeof DashboardIndicadoresRoute
+  '/orkestria-admin/tenants': typeof OrkestriaAdminTenantsRoute
+  '/admin/': typeof AdminIndexRoute
+  '/dashboard/': typeof DashboardIndexRoute
+  '/orkestria-admin/': typeof OrkestriaAdminIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/auth'
+    | '/dashboard'
+    | '/admin/empresas'
+    | '/admin/upload'
+    | '/admin/usuarios'
+    | '/dashboard/analise'
+    | '/dashboard/balanco'
+    | '/dashboard/dlpa'
+    | '/dashboard/dre'
+    | '/dashboard/dva'
+    | '/dashboard/fluxo-de-caixa'
+    | '/dashboard/indicadores'
+    | '/orkestria-admin/tenants'
+    | '/admin/'
+    | '/dashboard/'
+    | '/orkestria-admin/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/auth'
+    | '/admin/empresas'
+    | '/admin/upload'
+    | '/admin/usuarios'
+    | '/dashboard/analise'
+    | '/dashboard/balanco'
+    | '/dashboard/dlpa'
+    | '/dashboard/dre'
+    | '/dashboard/dva'
+    | '/dashboard/fluxo-de-caixa'
+    | '/dashboard/indicadores'
+    | '/orkestria-admin/tenants'
+    | '/admin'
+    | '/dashboard'
+    | '/orkestria-admin'
+  id:
+    | '__root__'
+    | '/'
+    | '/auth'
+    | '/dashboard'
+    | '/admin/empresas'
+    | '/admin/upload'
+    | '/admin/usuarios'
+    | '/dashboard/analise'
+    | '/dashboard/balanco'
+    | '/dashboard/dlpa'
+    | '/dashboard/dre'
+    | '/dashboard/dva'
+    | '/dashboard/fluxo-de-caixa'
+    | '/dashboard/indicadores'
+    | '/orkestria-admin/tenants'
+    | '/admin/'
+    | '/dashboard/'
+    | '/orkestria-admin/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AuthRoute: typeof AuthRoute
+  DashboardRoute: typeof DashboardRouteWithChildren
+  AdminEmpresasRoute: typeof AdminEmpresasRoute
+  AdminUploadRoute: typeof AdminUploadRoute
+  AdminUsuariosRoute: typeof AdminUsuariosRoute
+  OrkestriaAdminTenantsRoute: typeof OrkestriaAdminTenantsRoute
+  AdminIndexRoute: typeof AdminIndexRoute
+  OrkestriaAdminIndexRoute: typeof OrkestriaAdminIndexRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/dashboard': {
+      id: '/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof DashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -48,22 +264,144 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/orkestria-admin/': {
+      id: '/orkestria-admin/'
+      path: '/orkestria-admin'
+      fullPath: '/orkestria-admin/'
+      preLoaderRoute: typeof OrkestriaAdminIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dashboard/': {
+      id: '/dashboard/'
+      path: '/'
+      fullPath: '/dashboard/'
+      preLoaderRoute: typeof DashboardIndexRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/admin/': {
+      id: '/admin/'
+      path: '/admin'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AdminIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/orkestria-admin/tenants': {
+      id: '/orkestria-admin/tenants'
+      path: '/orkestria-admin/tenants'
+      fullPath: '/orkestria-admin/tenants'
+      preLoaderRoute: typeof OrkestriaAdminTenantsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dashboard/indicadores': {
+      id: '/dashboard/indicadores'
+      path: '/indicadores'
+      fullPath: '/dashboard/indicadores'
+      preLoaderRoute: typeof DashboardIndicadoresRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/fluxo-de-caixa': {
+      id: '/dashboard/fluxo-de-caixa'
+      path: '/fluxo-de-caixa'
+      fullPath: '/dashboard/fluxo-de-caixa'
+      preLoaderRoute: typeof DashboardFluxoDeCaixaRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/dva': {
+      id: '/dashboard/dva'
+      path: '/dva'
+      fullPath: '/dashboard/dva'
+      preLoaderRoute: typeof DashboardDvaRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/dre': {
+      id: '/dashboard/dre'
+      path: '/dre'
+      fullPath: '/dashboard/dre'
+      preLoaderRoute: typeof DashboardDreRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/dlpa': {
+      id: '/dashboard/dlpa'
+      path: '/dlpa'
+      fullPath: '/dashboard/dlpa'
+      preLoaderRoute: typeof DashboardDlpaRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/balanco': {
+      id: '/dashboard/balanco'
+      path: '/balanco'
+      fullPath: '/dashboard/balanco'
+      preLoaderRoute: typeof DashboardBalancoRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/analise': {
+      id: '/dashboard/analise'
+      path: '/analise'
+      fullPath: '/dashboard/analise'
+      preLoaderRoute: typeof DashboardAnaliseRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/admin/usuarios': {
+      id: '/admin/usuarios'
+      path: '/admin/usuarios'
+      fullPath: '/admin/usuarios'
+      preLoaderRoute: typeof AdminUsuariosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/upload': {
+      id: '/admin/upload'
+      path: '/admin/upload'
+      fullPath: '/admin/upload'
+      preLoaderRoute: typeof AdminUploadRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/empresas': {
+      id: '/admin/empresas'
+      path: '/admin/empresas'
+      fullPath: '/admin/empresas'
+      preLoaderRoute: typeof AdminEmpresasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
+interface DashboardRouteChildren {
+  DashboardAnaliseRoute: typeof DashboardAnaliseRoute
+  DashboardBalancoRoute: typeof DashboardBalancoRoute
+  DashboardDlpaRoute: typeof DashboardDlpaRoute
+  DashboardDreRoute: typeof DashboardDreRoute
+  DashboardDvaRoute: typeof DashboardDvaRoute
+  DashboardFluxoDeCaixaRoute: typeof DashboardFluxoDeCaixaRoute
+  DashboardIndicadoresRoute: typeof DashboardIndicadoresRoute
+  DashboardIndexRoute: typeof DashboardIndexRoute
+}
+
+const DashboardRouteChildren: DashboardRouteChildren = {
+  DashboardAnaliseRoute: DashboardAnaliseRoute,
+  DashboardBalancoRoute: DashboardBalancoRoute,
+  DashboardDlpaRoute: DashboardDlpaRoute,
+  DashboardDreRoute: DashboardDreRoute,
+  DashboardDvaRoute: DashboardDvaRoute,
+  DashboardFluxoDeCaixaRoute: DashboardFluxoDeCaixaRoute,
+  DashboardIndicadoresRoute: DashboardIndicadoresRoute,
+  DashboardIndexRoute: DashboardIndexRoute,
+}
+
+const DashboardRouteWithChildren = DashboardRoute._addFileChildren(
+  DashboardRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AuthRoute: AuthRoute,
+  DashboardRoute: DashboardRouteWithChildren,
+  AdminEmpresasRoute: AdminEmpresasRoute,
+  AdminUploadRoute: AdminUploadRoute,
+  AdminUsuariosRoute: AdminUsuariosRoute,
+  OrkestriaAdminTenantsRoute: OrkestriaAdminTenantsRoute,
+  AdminIndexRoute: AdminIndexRoute,
+  OrkestriaAdminIndexRoute: OrkestriaAdminIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

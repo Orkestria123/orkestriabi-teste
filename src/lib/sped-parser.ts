@@ -46,13 +46,15 @@ export interface SpedParseResult {
   warnings: string[];
 }
 
+// J005 ID_DEM → tipo. ECD: 1=BP (Ativo+Passivo), 3=DRE, 4=DLPA, 5=DFC, 6=DVA.
+// Para J100 (BP) usamos IND_GRP_BAL (A/P) para dividir em BP_ATIVO/BP_PASSIVO.
 const TIPO_DEMO_MAP: Record<string, string> = {
-  "01": "BP_ATIVO",
-  "02": "BP_PASSIVO",
-  "03": "DRE",
-  "04": "DLPA",
-  "05": "DFC",
-  "06": "DVA",
+  "1": "BP", "01": "BP",
+  "2": "BP", "02": "BP",
+  "3": "DRE", "03": "DRE",
+  "4": "DLPA", "04": "DLPA",
+  "5": "DFC", "05": "DFC",
+  "6": "DVA", "06": "DVA",
 };
 
 function parseNumber(s: string | undefined): number {

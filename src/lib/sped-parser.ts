@@ -46,13 +46,15 @@ export interface SpedParseResult {
   warnings: string[];
 }
 
+// J005 ID_DEM → tipo. ECD: 1=BP (Ativo+Passivo), 3=DRE, 4=DLPA, 5=DFC, 6=DVA.
+// Para J100 (BP) usamos IND_GRP_BAL (A/P) para dividir em BP_ATIVO/BP_PASSIVO.
 const TIPO_DEMO_MAP: Record<string, string> = {
-  "01": "BP_ATIVO",
-  "02": "BP_PASSIVO",
-  "03": "DRE",
-  "04": "DLPA",
-  "05": "DFC",
-  "06": "DVA",
+  "1": "BP", "01": "BP",
+  "2": "BP", "02": "BP",
+  "3": "DRE", "03": "DRE",
+  "4": "DLPA", "04": "DLPA",
+  "5": "DFC", "05": "DFC",
+  "6": "DVA", "06": "DVA",
 };
 
 function parseNumber(s: string | undefined): number {
@@ -170,25 +172,118 @@ export function parseSpedContabil(content: string): SpedParseResult {
         break;
       }
       case "J100": {
-        // |J100|COD_AGL|NIVEL_AGL|COD_NAT|IND_GRP_BAL|DESCR_COD_AGL|VL_CTA|IND_VL|VL_CTA_REF|IND_VL_REF|
+        // |J100|COD_AGL|IND_GRP_BAL_NAT|NIVEL|COD_AGL_SUP|IND_GRP_BAL|DESCR|VL_CTA|IND_VL|VL_CTA_INI|IND_VL_INI|
+        // IND_GRP_BAL (fields[6]) = "A" (Ativo) ou "P" (Passivo) — usamos para separar BP_ATIVO/BP_PASSIVO
         const codigoAgl = (fields[2] || "").trim() || null;
-        const nivel = parseInt(fields[3] || "0", 10) || 0;
-        const indGrp = (fields[5] || "").trim();
-        const desc = (fields[6] || "").trim();
-        const valor = parseNumber(fields[7]);
-        const indVl = (fields[8] || "").trim();
+        const indGrpTipo = (fields[3] || "").trim(); // T=Totalizador, D=Detalhe
+        const nivel = parseInt(fields[4] || "0", 10) || 0;
+        const indGrpBal = (fields[6] || "").trim().toUpperCase();
+        const desc = (fields[7] || "").trim();
+        const valor = parseNumber(fields[8]);
+        const indVl = (fields[9] || "").trim();
+        const valorAnt = parseNumber(fields[10]);
+        const indVlAnt = (fields[11] || "").trim();
         const signedValor = indVl === "N" ? -valor : valor;
+        const signedValorAnt = indVlAnt === "N" ? -valorAnt : valorAnt;
         demoOrdem++;
-        if (currentDemoTipo && desc) {
+        const tipoBase = currentDemoTipo === "BP"
+          ? (indGrpBal === "P" ? "BP_PASSIVO" : "BP_ATIVO")
+          : currentDemoTipo;
+        const periodoUse = currentDemoPeriodo || periodoFim;
+        if (tipoBase && desc) {
           demonstracoes.push({
-            tipo_demonstracao: currentDemoTipo,
-            periodo: currentDemoPeriodo,
+            tipo_demonstracao: tipoBase,
+            periodo: periodoUse,
             linha_ordem: demoOrdem,
             descricao: desc,
             codigo_conta: codigoAgl,
             valor: signedValor,
             nivel,
-            is_subtotal: indGrp === "S" || indGrp === "T",
+            is_subtotal: indGrpTipo === "T" || indGrpTipo === "S",
+          });
+          // valor do exercício anterior (período anterior) — útil para comparativos
+          if (valorAnt !== 0 && periodoInicio) {
+            // período anterior = um ano antes do período atual
+            const d = new Date(periodoUse);
+            d.setUTCFullYear(d.getUTCFullYear() - 1);
+            const prevPer = d.toISOString().slice(0, 10);
+            demonstracoes.push({
+              tipo_demonstracao: tipoBase,
+              periodo: prevPer,
+              linha_ordem: demoOrdem,
+              descricao: desc,
+              codigo_conta: codigoAgl,
+              valor: signedValorAnt,
+              nivel,
+              is_subtotal: indGrpTipo === "T" || indGrpTipo === "S",
+            });
+          }
+        }
+        break;
+      }
+      case "J150": {
+        // |J150|NUM_ORD|COD_AGL|IND_GRP_BAL|NIVEL|COD_AGL_SUP|DESCR|VL_CTA|IND_VL|VL_CTA_INI|IND_VL_INI|IND_RES_PER|
+        // J150 = DRE — não depende de J005, usa DT_FIN do 0000.
+        const ord = parseInt(fields[2] || "0", 10) || ++demoOrdem;
+        const codigoAgl = (fields[3] || "").trim() || null;
+        const indGrpTipo = (fields[4] || "").trim();
+        const nivel = parseInt(fields[5] || "0", 10) || 0;
+        const desc = (fields[7] || "").trim();
+        const valor = parseNumber(fields[8]);
+        const indVl = (fields[9] || "").trim();
+        const valorAnt = parseNumber(fields[10]);
+        const indVlAnt = (fields[11] || "").trim();
+        // Para DRE: receitas (C) positivas, despesas (D) negativas — convenção comum.
+        const signedValor = indVl === "D" ? -valor : valor;
+        const signedValorAnt = indVlAnt === "D" ? -valorAnt : valorAnt;
+        const periodoUse = periodoFim;
+        if (desc) {
+          demonstracoes.push({
+            tipo_demonstracao: "DRE",
+            periodo: periodoUse,
+            linha_ordem: ord,
+            descricao: desc,
+            codigo_conta: codigoAgl,
+            valor: signedValor,
+            nivel,
+            is_subtotal: indGrpTipo === "T" || indGrpTipo === "S",
+          });
+          if (valorAnt !== 0 && periodoUse) {
+            const d = new Date(periodoUse);
+            d.setUTCFullYear(d.getUTCFullYear() - 1);
+            const prevPer = d.toISOString().slice(0, 10);
+            demonstracoes.push({
+              tipo_demonstracao: "DRE",
+              periodo: prevPer,
+              linha_ordem: ord,
+              descricao: desc,
+              codigo_conta: codigoAgl,
+              valor: signedValorAnt,
+              nivel,
+              is_subtotal: indGrpTipo === "T" || indGrpTipo === "S",
+            });
+          }
+        }
+        break;
+      }
+      case "J200":
+      case "J210":
+      case "J215": {
+        // DLPA / DMPL — implementação simplificada (linha por linha)
+        const codigoAgl = (fields[3] || "").trim() || null;
+        const desc = (fields[4] || fields[5] || "").trim();
+        const valor = parseNumber(fields[6] || fields[7]);
+        if (desc) {
+          demoOrdem++;
+          demonstracoes.push({
+            tipo_demonstracao: "DLPA",
+            periodo: periodoFim,
+            linha_ordem: demoOrdem,
+            descricao: desc,
+            codigo_conta: codigoAgl,
+            valor,
+            nivel: 0,
+            is_subtotal: false,
           });
         }
         break;

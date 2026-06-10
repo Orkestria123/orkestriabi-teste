@@ -22,6 +22,9 @@ export function useDashboardCompany() {
 }
 
 export const Route = createFileRoute("/dashboard")({
+  validateSearch: (s: Record<string, unknown>) => ({
+    company: typeof s.company === "string" ? s.company : undefined,
+  }),
   component: () => (
     <FilterProvider>
       <DashboardLayout />
@@ -44,15 +47,29 @@ function hexToOklchVar(hex?: string | null): string | undefined {
 function DashboardLayout() {
   const { role, profile, tenant } = useAuth();
   const { data: companies } = useMyCompanies();
+  const { company: companyParam } = Route.useSearch();
+  const navigate = Route.useNavigate();
   const [selectedCompany, setSelectedCompany] = useState<string | null>(null);
 
   useEffect(() => {
     if (role === "client" && profile?.company_id) {
       setSelectedCompany(profile.company_id);
-    } else if (companies && companies.length > 0 && !selectedCompany) {
+      return;
+    }
+    if (companyParam && companies?.some((c) => c.id === companyParam)) {
+      setSelectedCompany(companyParam);
+      return;
+    }
+    if (companies && companies.length > 0 && !selectedCompany) {
       setSelectedCompany(companies[0].id);
     }
-  }, [role, profile, companies, selectedCompany]);
+  }, [role, profile, companies, selectedCompany, companyParam]);
+
+  const setCompany = (id: string) => {
+    setSelectedCompany(id);
+    navigate({ search: { company: id } as any, replace: true });
+  };
+
 
   const company = useMemo(
     () => companies?.find((c) => c.id === selectedCompany) ?? null,
@@ -71,12 +88,12 @@ function DashboardLayout() {
         unstyled
         title={company?.name ?? "Dashboard"}
         actions={
-          role !== "client" && companies && companies.length > 1 ? (
+          role !== "client" && companies && companies.length > 0 ? (
             <Select
               value={selectedCompany ?? ""}
-              onValueChange={(v) => setSelectedCompany(v)}
+              onValueChange={(v) => setCompany(v)}
             >
-              <SelectTrigger className="w-[260px]">
+              <SelectTrigger className="w-[280px]">
                 <SelectValue placeholder="Selecione uma empresa" />
               </SelectTrigger>
               <SelectContent>

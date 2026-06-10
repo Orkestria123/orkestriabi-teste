@@ -182,9 +182,18 @@ export function StatementTable({
                       ) : (
                         <span className="inline-block w-5 shrink-0" />
                       )}
-                      <span className={cn(row.nivel >= 3 && !row.is_subtotal && "text-muted-foreground")}>
+                      <button
+                        type="button"
+                        onClick={() => setDrilldown({ codigo: row.codigo_conta, descricao: row.descricao })}
+                        className={cn(
+                          "text-left hover:text-primary hover:underline decoration-dotted underline-offset-4 transition-colors inline-flex items-center gap-1.5 group",
+                          row.nivel >= 3 && !row.is_subtotal && "text-muted-foreground",
+                        )}
+                        title="Ver contas analíticas que compõem esta linha"
+                      >
                         {row.descricao}
-                      </span>
+                        <Search className="h-3 w-3 opacity-0 group-hover:opacity-60 transition-opacity" />
+                      </button>
                     </div>
                   </td>
                   {periods.map((p) => (

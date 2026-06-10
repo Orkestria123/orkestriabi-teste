@@ -223,6 +223,12 @@ export function StatementTable({
           </tbody>
         </table>
       </div>
+      <AccountDrilldownSheet
+        open={drilldown !== null}
+        onOpenChange={(o) => !o && setDrilldown(null)}
+        codigoConta={drilldown?.codigo ?? null}
+        descricao={drilldown?.descricao ?? ""}
+      />
     </div>
   );
 }

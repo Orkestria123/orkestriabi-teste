@@ -170,3 +170,79 @@ export const createClientUser = createServerFn({ method: "POST" })
 
     return { ok: true };
   });
+
+/**
+ * Exclui um usuário (auth + perfil + papéis em cascata).
+ * Requer tenant_admin do mesmo tenant ou orkestria_admin. Não permite excluir a si mesmo.
+ */
+export const deleteUserAccount = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => z.object({ user_id: z.string().uuid() }).parse(input))
+  .handler(async ({ context, data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    if (data.user_id === context.userId) throw new Error("Você não pode excluir a si mesmo");
+
+    const { data: callerRoles } = await supabaseAdmin
+      .from("user_roles")
+      .select("role, tenant_id")
+      .eq("user_id", context.userId);
+    const isOrk = callerRoles?.some((r) => r.role === "orkestria_admin");
+    const tenantAdminOf = callerRoles?.find((r) => r.role === "tenant_admin")?.tenant_id ?? null;
+    if (!isOrk && !tenantAdminOf) throw new Error("Forbidden");
+
+    if (!isOrk) {
+      const { data: target } = await supabaseAdmin
+        .from("profiles")
+        .select("tenant_id")
+        .eq("id", data.user_id)
+        .maybeSingle();
+      if (!target || target.tenant_id !== tenantAdminOf) throw new Error("Forbidden");
+      // tenant_admin não pode excluir um orkestria_admin
+      const { data: targetIsOrk } = await supabaseAdmin
+        .from("user_roles")
+        .select("id")
+        .eq("user_id", data.user_id)
+        .eq("role", "orkestria_admin")
+        .maybeSingle();
+      if (targetIsOrk) throw new Error("Forbidden");
+    }
+
+    const { error } = await supabaseAdmin.auth.admin.deleteUser(data.user_id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+/**
+ * Exclui um arquivo SPED (storage + registro + dados derivados em cascata).
+ * Requer tenant_admin do tenant do arquivo ou orkestria_admin.
+ */
+export const deleteSpedFile = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => z.object({ file_id: z.string().uuid() }).parse(input))
+  .handler(async ({ context, data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { data: file } = await supabaseAdmin
+      .from("sped_files")
+      .select("id, tenant_id, file_url")
+      .eq("id", data.file_id)
+      .maybeSingle();
+    if (!file) throw new Error("Arquivo não encontrado");
+
+    const { data: callerRoles } = await supabaseAdmin
+      .from("user_roles")
+      .select("role, tenant_id")
+      .eq("user_id", context.userId);
+    const isOrk = callerRoles?.some((r) => r.role === "orkestria_admin");
+    const isTenantAdmin = callerRoles?.some(
+      (r) => r.role === "tenant_admin" && r.tenant_id === file.tenant_id,
+    );
+    if (!isOrk && !isTenantAdmin) throw new Error("Forbidden");
+
+    if (file.file_url) {
+      await supabaseAdmin.storage.from("sped-files").remove([file.file_url]);
+    }
+    const { error } = await supabaseAdmin.from("sped_files").delete().eq("id", file.id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });

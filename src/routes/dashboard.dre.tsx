@@ -31,18 +31,16 @@ function buildRows(data: any[]): { rows: StatementRow[]; periods: string[] } {
   };
 }
 
-export function makeStatementPage(tipo: string, title: string, avBase?: string) {
+export function makeStatementPage(tipo: string, title: string, avBase?: string, opts?: { categoryFilter?: boolean }) {
   return function Page() {
     const { companyId, company } = useDashboardCompany();
     const { periodos } = useFilters();
     const { data, isLoading } = useFinancialStatement(companyId, tipo, periodos);
     const [showAV, setShowAV] = useState(false);
     const [showAH, setShowAH] = useState(false);
+    const [category, setCategory] = useState<"all" | "receita" | "despesa">("all");
 
-    const { rows, periods: dataPeriods } = useMemo(() => buildRows(data ?? []), [data]);
-    // If the filter context already knows which periodos are available, intersect
-    // so the user's year selection still narrows columns. Otherwise show whatever
-    // the data returned (typical first render before PeriodSync resolves).
+    const { rows: allRows, periods: dataPeriods } = useMemo(() => buildRows(data ?? []), [data]);
     const periods = useMemo(() => {
       if (periodos.length === 0) return dataPeriods;
       const set = new Set(periodos);
@@ -51,11 +49,40 @@ export function makeStatementPage(tipo: string, title: string, avBase?: string) 
     }, [dataPeriods, periodos]);
     const basePeriod = periods[0];
 
+    const rows = useMemo(() => {
+      if (!opts?.categoryFilter || category === "all") return allRows;
+      const receitaKw = /receita|venda|faturamento|outras receitas|reversão/i;
+      const despesaKw = /despesa|custo|cmv|cpv|cusst|tribut|imposto|deduç|provis|perda|amortizaç|depreciaç|juros pass|financeira/i;
+      return allRows.filter((r) => {
+        const d = r.descricao ?? "";
+        if (category === "receita") return receitaKw.test(d);
+        return despesaKw.test(d);
+      });
+    }, [allRows, category]);
+
     return (
       <div className="space-y-4">
         <div className="flex items-center justify-between flex-wrap gap-3">
           <h2 className="text-2xl font-semibold tracking-tight">{title}</h2>
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            {opts?.categoryFilter && (
+              <div className="inline-flex rounded-lg border border-border bg-card p-0.5 mr-1">
+                {(["all", "receita", "despesa"] as const).map((c) => (
+                  <button
+                    key={c}
+                    onClick={() => setCategory(c)}
+                    className={
+                      "px-3 h-7 text-xs font-medium rounded-md transition-colors " +
+                      (category === c
+                        ? "bg-primary text-primary-foreground"
+                        : "text-muted-foreground hover:text-foreground")
+                    }
+                  >
+                    {c === "all" ? "Todos" : c === "receita" ? "Receitas" : "Despesas"}
+                  </button>
+                ))}
+              </div>
+            )}
             <Button size="sm" variant={showAV ? "default" : "outline"} onClick={() => setShowAV((v) => !v)}>AV%</Button>
             <Button size="sm" variant={showAH ? "default" : "outline"} onClick={() => setShowAH((v) => !v)}>AH%</Button>
             <ExportMenu
@@ -85,5 +112,5 @@ export function makeStatementPage(tipo: string, title: string, avBase?: string) 
 }
 
 export const Route = createFileRoute("/dashboard/dre")({
-  component: makeStatementPage("DRE", "Demonstração do Resultado (DRE)", "Receita Bruta"),
+  component: makeStatementPage("DRE", "Demonstração do Resultado (DRE)", "Receita Bruta", { categoryFilter: true }),
 });

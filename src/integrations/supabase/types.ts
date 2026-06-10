@@ -14,16 +14,485 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      account_balances: {
+        Row: {
+          codigo_conta: string
+          company_id: string
+          creditos: number | null
+          debitos: number | null
+          id: string
+          periodo: string
+          saldo_final: number | null
+          saldo_inicial: number | null
+          sped_file_id: string | null
+          tenant_id: string
+        }
+        Insert: {
+          codigo_conta: string
+          company_id: string
+          creditos?: number | null
+          debitos?: number | null
+          id?: string
+          periodo: string
+          saldo_final?: number | null
+          saldo_inicial?: number | null
+          sped_file_id?: string | null
+          tenant_id: string
+        }
+        Update: {
+          codigo_conta?: string
+          company_id?: string
+          creditos?: number | null
+          debitos?: number | null
+          id?: string
+          periodo?: string
+          saldo_final?: number | null
+          saldo_inicial?: number | null
+          sped_file_id?: string | null
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "account_balances_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "account_balances_sped_file_id_fkey"
+            columns: ["sped_file_id"]
+            isOneToOne: false
+            referencedRelation: "sped_files"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "account_balances_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chart_of_accounts: {
+        Row: {
+          codigo_conta: string
+          company_id: string
+          id: string
+          natureza: string | null
+          nivel: number | null
+          nome_conta: string | null
+          parent_codigo: string | null
+          sped_file_id: string | null
+          tenant_id: string
+          tipo_conta: string | null
+        }
+        Insert: {
+          codigo_conta: string
+          company_id: string
+          id?: string
+          natureza?: string | null
+          nivel?: number | null
+          nome_conta?: string | null
+          parent_codigo?: string | null
+          sped_file_id?: string | null
+          tenant_id: string
+          tipo_conta?: string | null
+        }
+        Update: {
+          codigo_conta?: string
+          company_id?: string
+          id?: string
+          natureza?: string | null
+          nivel?: number | null
+          nome_conta?: string | null
+          parent_codigo?: string | null
+          sped_file_id?: string | null
+          tenant_id?: string
+          tipo_conta?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chart_of_accounts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chart_of_accounts_sped_file_id_fkey"
+            columns: ["sped_file_id"]
+            isOneToOne: false
+            referencedRelation: "sped_files"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chart_of_accounts_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      companies: {
+        Row: {
+          ativo: boolean
+          cnpj: string | null
+          created_at: string
+          id: string
+          name: string
+          razao_social: string | null
+          regime_tributario: string | null
+          tenant_id: string
+        }
+        Insert: {
+          ativo?: boolean
+          cnpj?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          razao_social?: string | null
+          regime_tributario?: string | null
+          tenant_id: string
+        }
+        Update: {
+          ativo?: boolean
+          cnpj?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          razao_social?: string | null
+          regime_tributario?: string | null
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "companies_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      financial_statements: {
+        Row: {
+          codigo_conta: string | null
+          company_id: string
+          descricao: string | null
+          id: string
+          is_subtotal: boolean | null
+          linha_ordem: number | null
+          nivel: number | null
+          periodo: string
+          sped_file_id: string | null
+          tenant_id: string
+          tipo_demonstracao: string
+          valor: number | null
+        }
+        Insert: {
+          codigo_conta?: string | null
+          company_id: string
+          descricao?: string | null
+          id?: string
+          is_subtotal?: boolean | null
+          linha_ordem?: number | null
+          nivel?: number | null
+          periodo: string
+          sped_file_id?: string | null
+          tenant_id: string
+          tipo_demonstracao: string
+          valor?: number | null
+        }
+        Update: {
+          codigo_conta?: string | null
+          company_id?: string
+          descricao?: string | null
+          id?: string
+          is_subtotal?: boolean | null
+          linha_ordem?: number | null
+          nivel?: number | null
+          periodo?: string
+          sped_file_id?: string | null
+          tenant_id?: string
+          tipo_demonstracao?: string
+          valor?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "financial_statements_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "financial_statements_sped_file_id_fkey"
+            columns: ["sped_file_id"]
+            isOneToOne: false
+            referencedRelation: "sped_files"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "financial_statements_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      indicator_configs: {
+        Row: {
+          categoria: string | null
+          company_id: string | null
+          exibir_dashboard: boolean | null
+          formato: string | null
+          formula: string | null
+          id: string
+          meta_valor: number | null
+          nome: string
+          ordem: number | null
+          tenant_id: string
+        }
+        Insert: {
+          categoria?: string | null
+          company_id?: string | null
+          exibir_dashboard?: boolean | null
+          formato?: string | null
+          formula?: string | null
+          id?: string
+          meta_valor?: number | null
+          nome: string
+          ordem?: number | null
+          tenant_id: string
+        }
+        Update: {
+          categoria?: string | null
+          company_id?: string | null
+          exibir_dashboard?: boolean | null
+          formato?: string | null
+          formula?: string | null
+          id?: string
+          meta_valor?: number | null
+          nome?: string
+          ordem?: number | null
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "indicator_configs_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "indicator_configs_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          company_id: string | null
+          created_at: string
+          email: string | null
+          full_name: string | null
+          id: string
+          tenant_id: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          company_id?: string | null
+          created_at?: string
+          email?: string | null
+          full_name?: string | null
+          id: string
+          tenant_id?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          company_id?: string | null
+          created_at?: string
+          email?: string | null
+          full_name?: string | null
+          id?: string
+          tenant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profiles_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profiles_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sped_files: {
+        Row: {
+          company_id: string
+          competencia_fim: string | null
+          competencia_inicio: string | null
+          error_message: string | null
+          file_url: string | null
+          filename: string
+          id: string
+          processed_at: string | null
+          status: string
+          tenant_id: string
+          uploaded_at: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          company_id: string
+          competencia_fim?: string | null
+          competencia_inicio?: string | null
+          error_message?: string | null
+          file_url?: string | null
+          filename: string
+          id?: string
+          processed_at?: string | null
+          status?: string
+          tenant_id: string
+          uploaded_at?: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          company_id?: string
+          competencia_fim?: string | null
+          competencia_inicio?: string | null
+          error_message?: string | null
+          file_url?: string | null
+          filename?: string
+          id?: string
+          processed_at?: string | null
+          status?: string
+          tenant_id?: string
+          uploaded_at?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sped_files_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sped_files_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tenants: {
+        Row: {
+          active: boolean
+          created_at: string
+          id: string
+          logo_url: string | null
+          max_companies: number
+          max_users: number
+          name: string
+          plan: string
+          primary_color: string
+          slug: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          logo_url?: string | null
+          max_companies?: number
+          max_users?: number
+          name: string
+          plan?: string
+          primary_color?: string
+          slug: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          logo_url?: string | null
+          max_companies?: number
+          max_users?: number
+          name?: string
+          plan?: string
+          primary_color?: string
+          slug?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          tenant_id: string | null
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          tenant_id?: string | null
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          tenant_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_roles_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_my_company_id: { Args: never; Returns: string }
+      get_my_role: {
+        Args: never
+        Returns: Database["public"]["Enums"]["app_role"]
+      }
+      get_my_tenant_id: { Args: never; Returns: string }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      is_orkestria_admin: { Args: never; Returns: boolean }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "orkestria_admin" | "tenant_admin" | "client"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +619,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["orkestria_admin", "tenant_admin", "client"],
+    },
   },
 } as const

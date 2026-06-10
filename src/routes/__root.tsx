@@ -64,8 +64,15 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         content:
           "Plataforma de BI contábil multi-tenant para escritórios. Importe SPED e gere dashboards interativos de DRE, Balanço e indicadores.",
       },
-      { property: "og:title", content: "Orkestria BI" },
-      { property: "og:description", content: "BI Contábil a partir do SPED." },
+      { property: "og:title", content: "Orkestria BI — Business Intelligence Contábil" },
+      { property: "og:description", content: "Orkestria BI consolidates SPED Contábil files into interactive financial dashboards." },
+      { name: "twitter:title", content: "Orkestria BI — Business Intelligence Contábil" },
+      { name: "description", content: "Orkestria BI consolidates SPED Contábil files into interactive financial dashboards." },
+      { name: "twitter:description", content: "Orkestria BI consolidates SPED Contábil files into interactive financial dashboards." },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/1adfd8c6-d80a-4b38-97ec-8c959fee0b8a/id-preview-d57da8a0--199593f4-42c7-4ebd-988b-312c02f8120f.lovable.app-1781119197592.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/1adfd8c6-d80a-4b38-97ec-8c959fee0b8a/id-preview-d57da8a0--199593f4-42c7-4ebd-988b-312c02f8120f.lovable.app-1781119197592.png" },
+      { name: "twitter:card", content: "summary_large_image" },
+      { property: "og:type", content: "website" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },

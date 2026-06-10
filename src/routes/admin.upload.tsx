@@ -42,6 +42,7 @@ function Page() {
   const handleFile = async (file: File) => {
     if (!companyId) { toast.error("Selecione uma empresa"); return; }
     if (!profile?.tenant_id) { toast.error("Tenant indefinido"); return; }
+    const tenantId: string = profile.tenant_id;
     setProcessing(true);
     setProgress("Lendo arquivo…");
     try {

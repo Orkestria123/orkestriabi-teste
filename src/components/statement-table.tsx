@@ -83,6 +83,8 @@ export function StatementTable({
   const expandAll = () => setCollapsed(new Set());
   const collapseAll = () => setCollapsed(new Set(allParents));
 
+  const [drilldown, setDrilldown] = useState<{ codigo: string | null; descricao: string } | null>(null);
+
   if (rows.length === 0) {
     return (
       <div className="rounded-lg border bg-card p-10 text-center text-sm text-muted-foreground">

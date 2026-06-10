@@ -108,7 +108,7 @@ function DashboardLayout() {
       >
         <PeriodSync companyId={selectedCompany} />
         <FilterBar />
-        <div className="p-6">
+        <div className="p-3 sm:p-4">
           <Outlet />
         </div>
       </PortalShell>

@@ -16,7 +16,9 @@ interface FilterCtx {
   setMonths: (m: number[]) => void;
   availableYears: number[];
   setAvailableYears: (ys: number[]) => void;
-  periodos: string[]; // ISO yyyy-mm-01
+  availablePeriods: string[];
+  setAvailablePeriods: (ps: string[]) => void;
+  periodos: string[]; // actual DB periods filtered by selected years
 }
 
 const Ctx = createContext<FilterCtx | null>(null);
@@ -28,7 +30,13 @@ export function FilterProvider({ children }: { children: ReactNode }) {
     Array.from({ length: now.getMonth() + 1 }, (_, i) => i + 1),
   );
   const [availableYears, setAvailableYears] = useState<number[]>([now.getFullYear()]);
+  const [availablePeriods, setAvailablePeriods] = useState<string[]>([]);
   const periodos = useMemo(() => {
+    if (availablePeriods.length > 0) {
+      return availablePeriods
+        .filter((p) => years.includes(new Date(p).getUTCFullYear()))
+        .sort();
+    }
     const arr: string[] = [];
     for (const y of years) {
       for (const m of months) {
@@ -36,10 +44,15 @@ export function FilterProvider({ children }: { children: ReactNode }) {
       }
     }
     return arr.sort();
-  }, [years, months]);
+  }, [years, months, availablePeriods]);
   return (
     <Ctx.Provider
-      value={{ years, months, setYears, setMonths, availableYears, setAvailableYears, periodos }}
+      value={{
+        years, months, setYears, setMonths,
+        availableYears, setAvailableYears,
+        availablePeriods, setAvailablePeriods,
+        periodos,
+      }}
     >
       {children}
     </Ctx.Provider>

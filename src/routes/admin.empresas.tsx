@@ -13,9 +13,11 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Plus, Search, BarChart3, ArrowRight } from "lucide-react";
+import { Plus, Search, BarChart3, ArrowRight, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
+import { deleteCompany } from "@/lib/api/orkestria.functions";
+
 
 export const Route = createFileRoute("/admin/empresas")({ component: Page });
 
@@ -61,6 +63,16 @@ function Page() {
   };
 
   const openBI = (id: string) => navigate({ to: "/dashboard", search: { company: id } as any });
+
+  const handleDelete = async (id: string, name: string) => {
+    if (!confirm(`Excluir a empresa "${name}"? Todos os arquivos e demonstrações serão removidos.`)) return;
+    try {
+      await deleteCompany({ data: { company_id: id } });
+      toast.success("Empresa excluída");
+      qc.invalidateQueries({ queryKey: ["companies"] });
+    } catch (e: any) { toast.error(e.message); }
+  };
+
 
   return (
     <PortalShell
@@ -116,16 +128,28 @@ function Page() {
                   <span className="text-xs text-muted-foreground">{spedCount} SPED</span>
                 </div>
               </div>
-              <Button
-                size="sm"
-                className="mt-4 w-full"
-                onClick={() => openBI(c.id)}
-                disabled={spedCount === 0}
-              >
-                <BarChart3 className="h-4 w-4 mr-1.5" />
-                Abrir BI
-                <ArrowRight className="h-3.5 w-3.5 ml-auto" />
-              </Button>
+              <div className="mt-4 flex items-center gap-2">
+                <Button
+                  size="sm"
+                  className="flex-1"
+                  onClick={() => openBI(c.id)}
+                  disabled={spedCount === 0}
+                >
+                  <BarChart3 className="h-4 w-4 mr-1.5" />
+                  Abrir BI
+                  <ArrowRight className="h-3.5 w-3.5 ml-auto" />
+                </Button>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-9 w-9 text-destructive hover:text-destructive"
+                  onClick={() => handleDelete(c.id, c.name)}
+                  title="Excluir empresa"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+
               {spedCount === 0 && (
                 <Link
                   to="/admin/upload"

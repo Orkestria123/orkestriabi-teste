@@ -10,9 +10,10 @@ import { Label } from "@/components/ui/label";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter,
 } from "@/components/ui/dialog";
-import { Plus, Pencil, Upload, Loader2 } from "lucide-react";
+import { Plus, Pencil, Upload, Loader2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { createTenant } from "@/lib/api/orkestria.functions";
+import { createTenant, deleteTenant } from "@/lib/api/orkestria.functions";
+
 
 export const Route = createFileRoute("/orkestria-admin/tenants")({ component: Page });
 
@@ -107,8 +108,9 @@ function Page() {
           </thead>
           <tbody>
             {(tenants ?? []).map((t) => (
-              <TenantRowItem key={t.id} t={t} onEdit={() => setEditing(t)} />
+              <TenantRowItem key={t.id} t={t} onEdit={() => setEditing(t)} onDeleted={() => qc.invalidateQueries({ queryKey: ["tenants"] })} />
             ))}
+
             {(!tenants || tenants.length === 0) && (
               <tr><td colSpan={7} className="px-4 py-10 text-center text-muted-foreground">Nenhum tenant ainda. Crie o primeiro!</td></tr>
             )}
@@ -128,8 +130,9 @@ function Page() {
   );
 }
 
-function TenantRowItem({ t, onEdit }: { t: TenantRow; onEdit: () => void }) {
+function TenantRowItem({ t, onEdit, onDeleted }: { t: TenantRow; onEdit: () => void; onDeleted: () => void }) {
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -142,6 +145,17 @@ function TenantRowItem({ t, onEdit }: { t: TenantRow; onEdit: () => void }) {
     })();
     return () => { cancelled = true; };
   }, [t.logo_url]);
+
+  const handleDelete = async () => {
+    if (!confirm(`Excluir o tenant "${t.name}"? Todos os usuários, empresas, arquivos e dados serão removidos. Esta ação é irreversível.`)) return;
+    setDeleting(true);
+    try {
+      await deleteTenant({ data: { tenant_id: t.id } });
+      toast.success("Tenant excluído");
+      onDeleted();
+    } catch (e: any) { toast.error(e.message); }
+    finally { setDeleting(false); }
+  };
 
   return (
     <tr className="border-t hover:bg-accent/40">
@@ -163,13 +177,19 @@ function TenantRowItem({ t, onEdit }: { t: TenantRow; onEdit: () => void }) {
       </td>
       <td className="px-4 py-3 text-muted-foreground">{new Date(t.created_at).toLocaleDateString("pt-BR")}</td>
       <td className="px-4 py-3 text-right">
-        <Button size="sm" variant="ghost" onClick={onEdit}>
-          <Pencil className="h-3.5 w-3.5 mr-1" /> Branding
-        </Button>
+        <div className="flex items-center justify-end gap-1">
+          <Button size="sm" variant="ghost" onClick={onEdit}>
+            <Pencil className="h-3.5 w-3.5 mr-1" /> Branding
+          </Button>
+          <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:text-destructive" disabled={deleting} onClick={handleDelete}>
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
       </td>
     </tr>
   );
 }
+
 
 function BrandingDialog({
   tenant, onClose, onSaved,

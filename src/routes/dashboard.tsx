@@ -1,4 +1,4 @@
-import { createFileRoute, Outlet, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Outlet } from "@tanstack/react-router";
 import { useEffect, useMemo, useState, createContext, useContext } from "react";
 import { PortalShell } from "@/components/portal-shell";
 import { FilterProvider, FilterBar, useFilters } from "@/components/filter-bar";
@@ -29,8 +29,20 @@ export const Route = createFileRoute("/dashboard")({
   ),
 });
 
+function hexToOklchVar(hex?: string | null): string | undefined {
+  if (!hex) return undefined;
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex);
+  if (!m) return undefined;
+  const r = parseInt(m[1].slice(0, 2), 16) / 255;
+  const g = parseInt(m[1].slice(2, 4), 16) / 255;
+  const b = parseInt(m[1].slice(4, 6), 16) / 255;
+  // Use sRGB directly via Tailwind variable (the design tokens are oklch but a hex works)
+  return `${r * 255} ${g * 255} ${b * 255}`;
+  // not used — we set raw CSS color below
+}
+
 function DashboardLayout() {
-  const { role, profile } = useAuth();
+  const { role, profile, tenant } = useAuth();
   const { data: companies } = useMyCompanies();
   const [selectedCompany, setSelectedCompany] = useState<string | null>(null);
 
@@ -47,8 +59,13 @@ function DashboardLayout() {
     [companies, selectedCompany],
   );
 
+  const brandStyle = tenant?.primary_color
+    ? ({ "--primary": tenant.primary_color, "--ring": tenant.primary_color, "--sidebar-primary": tenant.primary_color } as React.CSSProperties)
+    : undefined;
+
   return (
     <Ctx.Provider value={{ companyId: selectedCompany, company }}>
+      <div style={brandStyle}>
       <PortalShell
         variant="client"
         unstyled
@@ -79,6 +96,7 @@ function DashboardLayout() {
           <Outlet />
         </div>
       </PortalShell>
+      </div>
     </Ctx.Provider>
   );
 }

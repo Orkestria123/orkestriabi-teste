@@ -59,15 +59,19 @@ export function AppSidebar({ variant }: { variant: "orkestria" | "admin" | "clie
   return (
     <aside className="hidden md:flex w-60 shrink-0 flex-col border-r border-sidebar-border bg-sidebar">
       <div className="h-16 flex items-center gap-2 px-5 border-b border-sidebar-border">
-        <div
-          className="h-8 w-8 rounded-md flex items-center justify-center text-white font-bold"
-          style={{
-            background:
-              accent ?? "linear-gradient(135deg, oklch(0.54 0.20 277), oklch(0.62 0.20 320))",
-          }}
-        >
-          {brandName.slice(0, 1).toUpperCase()}
-        </div>
+        {variant === "client" && tenant?.logo_url ? (
+          <img src={tenant.logo_url} alt={brandName} className="h-8 w-auto max-w-[120px] object-contain" />
+        ) : (
+          <div
+            className="h-8 w-8 rounded-md flex items-center justify-center text-white font-bold"
+            style={{
+              background:
+                accent ?? "linear-gradient(135deg, oklch(0.54 0.20 277), oklch(0.62 0.20 320))",
+            }}
+          >
+            {brandName.slice(0, 1).toUpperCase()}
+          </div>
+        )}
         <div className="leading-tight">
           <div className="text-sm font-semibold text-sidebar-foreground">{brandName}</div>
           <div className="text-[10px] uppercase tracking-wider text-muted-foreground">

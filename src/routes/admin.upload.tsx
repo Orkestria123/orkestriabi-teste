@@ -57,7 +57,7 @@ function Page() {
 
       const { data: spedFile, error: sfErr } = await supabase.from("sped_files").insert({
         company_id: companyId,
-        tenant_id: profile.tenant_id,
+        tenant_id: tenantId,
         filename: file.name,
         file_url: storagePath,
         competencia_inicio: result.empresa.periodoInicio,
@@ -72,7 +72,7 @@ function Page() {
         // batch in chunks of 500
         for (let i = 0; i < result.planoContas.length; i += 500) {
           const chunk = result.planoContas.slice(i, i + 500).map((c) => ({
-            ...c, sped_file_id: spedFile.id, company_id: companyId, tenant_id: profile.tenant_id,
+            ...c, sped_file_id: spedFile.id, company_id: companyId, tenant_id: tenantId,
           }));
           const { error } = await supabase.from("chart_of_accounts").insert(chunk);
           if (error) throw error;
@@ -83,7 +83,7 @@ function Page() {
       if (result.saldos.length > 0) {
         for (let i = 0; i < result.saldos.length; i += 500) {
           const chunk = result.saldos.slice(i, i + 500).map((s) => ({
-            ...s, sped_file_id: spedFile.id, company_id: companyId, tenant_id: profile.tenant_id,
+            ...s, sped_file_id: spedFile.id, company_id: companyId, tenant_id: tenantId,
           }));
           const { error } = await supabase.from("account_balances").insert(chunk);
           if (error) throw error;
@@ -94,7 +94,7 @@ function Page() {
       if (result.demonstracoes.length > 0) {
         for (let i = 0; i < result.demonstracoes.length; i += 500) {
           const chunk = result.demonstracoes.slice(i, i + 500).map((d) => ({
-            ...d, sped_file_id: spedFile.id, company_id: companyId, tenant_id: profile.tenant_id,
+            ...d, sped_file_id: spedFile.id, company_id: companyId, tenant_id: tenantId,
           }));
           const { error } = await supabase.from("financial_statements").insert(chunk);
           if (error) throw error;

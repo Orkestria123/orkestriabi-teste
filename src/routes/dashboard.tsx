@@ -65,6 +65,7 @@ function DashboardLayout() {
 
   return (
     <Ctx.Provider value={{ companyId: selectedCompany, company }}>
+      <div style={brandStyle}>
       <PortalShell
         variant="client"
         unstyled

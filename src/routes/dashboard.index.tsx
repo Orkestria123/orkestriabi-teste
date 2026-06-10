@@ -1,7 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useDashboardCompany } from "./dashboard";
 import { useFilters } from "@/components/filter-bar";
-import { useFinancialStatement } from "@/hooks/use-financial-data";
+import { useFinancialStatement, useMyCompanies } from "@/hooks/use-financial-data";
+import { useAuth } from "@/hooks/use-auth";
 import { KpiCard } from "@/components/kpi-card";
 import { Card } from "@/components/ui/card";
 import {
@@ -21,6 +22,8 @@ function findValue(rows: any[], descKeywords: string[], periodo: string): number
 
 function DashboardHome() {
   const { companyId, company } = useDashboardCompany();
+  const { loading: authLoading } = useAuth();
+  const { isLoading: companiesLoading } = useMyCompanies();
   const { periodos } = useFilters();
   const { data: dre } = useFinancialStatement(companyId, "DRE", periodos);
 
@@ -47,6 +50,13 @@ function DashboardHome() {
   }, [dre, periodos]);
 
   if (!companyId) {
+    if (authLoading || companiesLoading) {
+      return (
+        <div className="flex items-center justify-center py-24">
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+        </div>
+      );
+    }
     return <EmptyState text="Nenhuma empresa selecionada." />;
   }
 

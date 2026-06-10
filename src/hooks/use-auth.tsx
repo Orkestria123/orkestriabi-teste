@@ -52,6 +52,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       supabase.from("profiles").select("*").eq("id", uid).maybeSingle(),
       supabase.from("user_roles").select("role").eq("user_id", uid),
     ]);
+    // Sessão órfã: token válido mas usuário foi excluído do banco.
+    // Força logout para limpar o token antigo do navegador.
+    if (!prof) {
+      await supabase.auth.signOut();
+      window.location.href = "/auth";
+      return;
+    }
     setProfile((prof as Profile) ?? null);
     const r = roles?.[0]?.role as AppRole | undefined;
     setRole(r ?? null);

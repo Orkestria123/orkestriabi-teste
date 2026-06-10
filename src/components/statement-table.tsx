@@ -1,8 +1,8 @@
-import { useMemo, useState } from "react";
-import { ChevronRight, Search } from "lucide-react";
+import { useMemo, useState, Fragment } from "react";
+import { ChevronRight, ChevronDown } from "lucide-react";
 import { formatBRL, formatPct, periodoLabel } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { AccountDrilldownSheet } from "@/components/account-drilldown-sheet";
+import { InlineDrilldown } from "@/components/inline-drilldown";
 
 export interface StatementRow {
   descricao: string;

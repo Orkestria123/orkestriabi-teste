@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo } from "react";
-import { useDashboardCompany } from "./dashboard";
+import { useDashboardCompany } from "@/components/dashboard-context";
 import { useFilters } from "@/components/filter-bar";
 import { useFinancialStatement } from "@/hooks/use-financial-data";
 import { makeStatementPage } from "./dashboard.dre";

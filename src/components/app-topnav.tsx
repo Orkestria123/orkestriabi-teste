@@ -103,45 +103,15 @@ export function AppTopNav({
           </div>
         </div>
 
-        {/* Desktop nav */}
-        <nav className="hidden md:flex items-center gap-0.5 ml-2 flex-1 min-w-0 overflow-x-auto">
-          {items.map((item) => {
-            const Icon = item.icon;
-            const active = isActive(item.to);
-            return (
-              <Link
-                key={item.to}
-                to={item.to}
-                className={cn(
-                  "flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium whitespace-nowrap transition-colors",
-                  active
-                    ? "bg-accent text-accent-foreground"
-                    : "text-muted-foreground hover:bg-accent/60 hover:text-foreground",
-                )}
-              >
-                <Icon className="h-3.5 w-3.5" />
-                {item.label}
-              </Link>
-            );
-          })}
-        </nav>
+        {/* Title inline on large screens */}
+        {title && (
+          <span className="hidden lg:inline text-xs text-muted-foreground border-l pl-3 ml-1 truncate max-w-[280px]">
+            {title}
+          </span>
+        )}
 
-        {/* Mobile menu button */}
-        <button
-          className="md:hidden ml-auto h-8 w-8 grid place-items-center rounded-md hover:bg-accent"
-          onClick={() => setMobileOpen((v) => !v)}
-          aria-label="Menu"
-        >
-          <Menu className="h-4 w-4" />
-        </button>
-
-        {/* Right side */}
+        {/* Right side (desktop) */}
         <div className="hidden md:flex items-center gap-2 ml-auto shrink-0">
-          {title && (
-            <span className="text-xs text-muted-foreground border-l pl-3 hidden lg:inline">
-              {title}
-            </span>
-          )}
           {actions}
           <ThemeToggle />
           <div className="flex items-center gap-1.5 pl-2 border-l">
@@ -160,7 +130,40 @@ export function AppTopNav({
             </button>
           </div>
         </div>
+
+        {/* Mobile menu button */}
+        <button
+          className="md:hidden ml-auto h-8 w-8 grid place-items-center rounded-md hover:bg-accent"
+          onClick={() => setMobileOpen((v) => !v)}
+          aria-label="Menu"
+        >
+          <Menu className="h-4 w-4" />
+        </button>
       </div>
+
+      {/* Desktop nav on a second row — wraps so every item stays visible */}
+      <nav className="hidden md:flex flex-wrap items-center gap-0.5 px-3 sm:px-4 py-1.5 border-t border-border/60 bg-card/60">
+        {items.map((item) => {
+          const Icon = item.icon;
+          const active = isActive(item.to);
+          return (
+            <Link
+              key={item.to}
+              to={item.to}
+              className={cn(
+                "flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium whitespace-nowrap transition-colors",
+                active
+                  ? "bg-accent text-accent-foreground"
+                  : "text-muted-foreground hover:bg-accent/60 hover:text-foreground",
+              )}
+            >
+              <Icon className="h-3.5 w-3.5" />
+              {item.label}
+            </Link>
+          );
+        })}
+      </nav>
+
 
       {/* Mobile dropdown */}
       {mobileOpen && (

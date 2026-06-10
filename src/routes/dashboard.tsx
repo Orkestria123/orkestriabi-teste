@@ -96,6 +96,7 @@ function DashboardLayout() {
           <Outlet />
         </div>
       </PortalShell>
+      </div>
     </Ctx.Provider>
   );
 }

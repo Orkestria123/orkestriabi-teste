@@ -1,6 +1,7 @@
 import { ReactNode } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { AppSidebar } from "@/components/app-sidebar";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { Loader2 } from "lucide-react";
 import { useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
@@ -47,8 +48,16 @@ export function PortalShell({ children, variant, title, actions, unstyled }: Pro
         {title && (
           <header className="h-16 border-b bg-card/50 backdrop-blur flex items-center justify-between px-6">
             <h1 className="text-lg font-semibold tracking-tight">{title}</h1>
-            <div className="flex items-center gap-2">{actions}</div>
+            <div className="flex items-center gap-2">
+              {actions}
+              <ThemeToggle />
+            </div>
           </header>
+        )}
+        {!title && (
+          <div className="absolute top-3 right-4 z-10">
+            <ThemeToggle />
+          </div>
         )}
         <div className={unstyled ? "flex-1" : "flex-1 p-6"}>{children}</div>
       </main>

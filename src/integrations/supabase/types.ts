@@ -244,6 +244,203 @@ export type Database = {
           },
         ]
       }
+      fiscal_invoice_items: {
+        Row: {
+          cfop: string | null
+          codigo_produto: string | null
+          created_at: string
+          descricao: string | null
+          id: string
+          invoice_id: string
+          ncm: string | null
+          num_item: number | null
+          quantidade: number | null
+          unidade: string | null
+          valor_desconto: number | null
+          valor_total: number | null
+        }
+        Insert: {
+          cfop?: string | null
+          codigo_produto?: string | null
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          invoice_id: string
+          ncm?: string | null
+          num_item?: number | null
+          quantidade?: number | null
+          unidade?: string | null
+          valor_desconto?: number | null
+          valor_total?: number | null
+        }
+        Update: {
+          cfop?: string | null
+          codigo_produto?: string | null
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          invoice_id?: string
+          ncm?: string | null
+          num_item?: number | null
+          quantidade?: number | null
+          unidade?: string | null
+          valor_desconto?: number | null
+          valor_total?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fiscal_invoice_items_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "fiscal_invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fiscal_invoices: {
+        Row: {
+          cancelada: boolean
+          chave_nfe: string | null
+          company_id: string
+          created_at: string
+          data_emissao: string | null
+          data_entrada_saida: string | null
+          id: string
+          modelo: string | null
+          numero: string | null
+          participant_id: string | null
+          serie: string | null
+          sped_file_id: string | null
+          tipo: string
+          valor_cofins: number | null
+          valor_desconto: number | null
+          valor_frete: number | null
+          valor_icms: number | null
+          valor_icms_st: number | null
+          valor_ipi: number | null
+          valor_pis: number | null
+          valor_produtos: number | null
+          valor_total: number | null
+        }
+        Insert: {
+          cancelada?: boolean
+          chave_nfe?: string | null
+          company_id: string
+          created_at?: string
+          data_emissao?: string | null
+          data_entrada_saida?: string | null
+          id?: string
+          modelo?: string | null
+          numero?: string | null
+          participant_id?: string | null
+          serie?: string | null
+          sped_file_id?: string | null
+          tipo: string
+          valor_cofins?: number | null
+          valor_desconto?: number | null
+          valor_frete?: number | null
+          valor_icms?: number | null
+          valor_icms_st?: number | null
+          valor_ipi?: number | null
+          valor_pis?: number | null
+          valor_produtos?: number | null
+          valor_total?: number | null
+        }
+        Update: {
+          cancelada?: boolean
+          chave_nfe?: string | null
+          company_id?: string
+          created_at?: string
+          data_emissao?: string | null
+          data_entrada_saida?: string | null
+          id?: string
+          modelo?: string | null
+          numero?: string | null
+          participant_id?: string | null
+          serie?: string | null
+          sped_file_id?: string | null
+          tipo?: string
+          valor_cofins?: number | null
+          valor_desconto?: number | null
+          valor_frete?: number | null
+          valor_icms?: number | null
+          valor_icms_st?: number | null
+          valor_ipi?: number | null
+          valor_pis?: number | null
+          valor_produtos?: number | null
+          valor_total?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fiscal_invoices_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fiscal_invoices_participant_id_fkey"
+            columns: ["participant_id"]
+            isOneToOne: false
+            referencedRelation: "fiscal_participants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fiscal_invoices_sped_file_id_fkey"
+            columns: ["sped_file_id"]
+            isOneToOne: false
+            referencedRelation: "sped_files"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fiscal_participants: {
+        Row: {
+          cnpj_cpf: string
+          company_id: string
+          created_at: string
+          id: string
+          ie: string | null
+          municipio: string | null
+          nome: string | null
+          tipo: string | null
+          uf: string | null
+          updated_at: string
+        }
+        Insert: {
+          cnpj_cpf: string
+          company_id: string
+          created_at?: string
+          id?: string
+          ie?: string | null
+          municipio?: string | null
+          nome?: string | null
+          tipo?: string | null
+          uf?: string | null
+          updated_at?: string
+        }
+        Update: {
+          cnpj_cpf?: string
+          company_id?: string
+          created_at?: string
+          id?: string
+          ie?: string | null
+          municipio?: string | null
+          nome?: string | null
+          tipo?: string | null
+          uf?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fiscal_participants_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       indicator_configs: {
         Row: {
           categoria: string | null

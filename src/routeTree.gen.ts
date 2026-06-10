@@ -17,7 +17,9 @@ import { Route as OrkestriaAdminIndexRouteImport } from './routes/orkestria-admi
 import { Route as DashboardIndexRouteImport } from './routes/dashboard.index'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as OrkestriaAdminTenantsRouteImport } from './routes/orkestria-admin.tenants'
+import { Route as DashboardNotasFiscaisRouteImport } from './routes/dashboard.notas-fiscais'
 import { Route as DashboardIndicadoresRouteImport } from './routes/dashboard.indicadores'
+import { Route as DashboardFornecedoresRouteImport } from './routes/dashboard.fornecedores'
 import { Route as DashboardFluxoDeCaixaRouteImport } from './routes/dashboard.fluxo-de-caixa'
 import { Route as DashboardDvaRouteImport } from './routes/dashboard.dva'
 import { Route as DashboardDreRouteImport } from './routes/dashboard.dre'
@@ -69,9 +71,19 @@ const OrkestriaAdminTenantsRoute = OrkestriaAdminTenantsRouteImport.update({
   path: '/orkestria-admin/tenants',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DashboardNotasFiscaisRoute = DashboardNotasFiscaisRouteImport.update({
+  id: '/notas-fiscais',
+  path: '/notas-fiscais',
+  getParentRoute: () => DashboardRoute,
+} as any)
 const DashboardIndicadoresRoute = DashboardIndicadoresRouteImport.update({
   id: '/indicadores',
   path: '/indicadores',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardFornecedoresRoute = DashboardFornecedoresRouteImport.update({
+  id: '/fornecedores',
+  path: '/fornecedores',
   getParentRoute: () => DashboardRoute,
 } as any)
 const DashboardFluxoDeCaixaRoute = DashboardFluxoDeCaixaRouteImport.update({
@@ -140,7 +152,9 @@ export interface FileRoutesByFullPath {
   '/dashboard/dre': typeof DashboardDreRoute
   '/dashboard/dva': typeof DashboardDvaRoute
   '/dashboard/fluxo-de-caixa': typeof DashboardFluxoDeCaixaRoute
+  '/dashboard/fornecedores': typeof DashboardFornecedoresRoute
   '/dashboard/indicadores': typeof DashboardIndicadoresRoute
+  '/dashboard/notas-fiscais': typeof DashboardNotasFiscaisRoute
   '/orkestria-admin/tenants': typeof OrkestriaAdminTenantsRoute
   '/admin/': typeof AdminIndexRoute
   '/dashboard/': typeof DashboardIndexRoute
@@ -160,7 +174,9 @@ export interface FileRoutesByTo {
   '/dashboard/dre': typeof DashboardDreRoute
   '/dashboard/dva': typeof DashboardDvaRoute
   '/dashboard/fluxo-de-caixa': typeof DashboardFluxoDeCaixaRoute
+  '/dashboard/fornecedores': typeof DashboardFornecedoresRoute
   '/dashboard/indicadores': typeof DashboardIndicadoresRoute
+  '/dashboard/notas-fiscais': typeof DashboardNotasFiscaisRoute
   '/orkestria-admin/tenants': typeof OrkestriaAdminTenantsRoute
   '/admin': typeof AdminIndexRoute
   '/dashboard': typeof DashboardIndexRoute
@@ -182,7 +198,9 @@ export interface FileRoutesById {
   '/dashboard/dre': typeof DashboardDreRoute
   '/dashboard/dva': typeof DashboardDvaRoute
   '/dashboard/fluxo-de-caixa': typeof DashboardFluxoDeCaixaRoute
+  '/dashboard/fornecedores': typeof DashboardFornecedoresRoute
   '/dashboard/indicadores': typeof DashboardIndicadoresRoute
+  '/dashboard/notas-fiscais': typeof DashboardNotasFiscaisRoute
   '/orkestria-admin/tenants': typeof OrkestriaAdminTenantsRoute
   '/admin/': typeof AdminIndexRoute
   '/dashboard/': typeof DashboardIndexRoute
@@ -205,7 +223,9 @@ export interface FileRouteTypes {
     | '/dashboard/dre'
     | '/dashboard/dva'
     | '/dashboard/fluxo-de-caixa'
+    | '/dashboard/fornecedores'
     | '/dashboard/indicadores'
+    | '/dashboard/notas-fiscais'
     | '/orkestria-admin/tenants'
     | '/admin/'
     | '/dashboard/'
@@ -225,7 +245,9 @@ export interface FileRouteTypes {
     | '/dashboard/dre'
     | '/dashboard/dva'
     | '/dashboard/fluxo-de-caixa'
+    | '/dashboard/fornecedores'
     | '/dashboard/indicadores'
+    | '/dashboard/notas-fiscais'
     | '/orkestria-admin/tenants'
     | '/admin'
     | '/dashboard'
@@ -246,7 +268,9 @@ export interface FileRouteTypes {
     | '/dashboard/dre'
     | '/dashboard/dva'
     | '/dashboard/fluxo-de-caixa'
+    | '/dashboard/fornecedores'
     | '/dashboard/indicadores'
+    | '/dashboard/notas-fiscais'
     | '/orkestria-admin/tenants'
     | '/admin/'
     | '/dashboard/'
@@ -325,11 +349,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OrkestriaAdminTenantsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/dashboard/notas-fiscais': {
+      id: '/dashboard/notas-fiscais'
+      path: '/notas-fiscais'
+      fullPath: '/dashboard/notas-fiscais'
+      preLoaderRoute: typeof DashboardNotasFiscaisRouteImport
+      parentRoute: typeof DashboardRoute
+    }
     '/dashboard/indicadores': {
       id: '/dashboard/indicadores'
       path: '/indicadores'
       fullPath: '/dashboard/indicadores'
       preLoaderRoute: typeof DashboardIndicadoresRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/fornecedores': {
+      id: '/dashboard/fornecedores'
+      path: '/fornecedores'
+      fullPath: '/dashboard/fornecedores'
+      preLoaderRoute: typeof DashboardFornecedoresRouteImport
       parentRoute: typeof DashboardRoute
     }
     '/dashboard/fluxo-de-caixa': {
@@ -412,7 +450,9 @@ interface DashboardRouteChildren {
   DashboardDreRoute: typeof DashboardDreRoute
   DashboardDvaRoute: typeof DashboardDvaRoute
   DashboardFluxoDeCaixaRoute: typeof DashboardFluxoDeCaixaRoute
+  DashboardFornecedoresRoute: typeof DashboardFornecedoresRoute
   DashboardIndicadoresRoute: typeof DashboardIndicadoresRoute
+  DashboardNotasFiscaisRoute: typeof DashboardNotasFiscaisRoute
   DashboardIndexRoute: typeof DashboardIndexRoute
 }
 
@@ -423,7 +463,9 @@ const DashboardRouteChildren: DashboardRouteChildren = {
   DashboardDreRoute: DashboardDreRoute,
   DashboardDvaRoute: DashboardDvaRoute,
   DashboardFluxoDeCaixaRoute: DashboardFluxoDeCaixaRoute,
+  DashboardFornecedoresRoute: DashboardFornecedoresRoute,
   DashboardIndicadoresRoute: DashboardIndicadoresRoute,
+  DashboardNotasFiscaisRoute: DashboardNotasFiscaisRoute,
   DashboardIndexRoute: DashboardIndexRoute,
 }
 

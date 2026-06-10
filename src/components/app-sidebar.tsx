@@ -41,6 +41,8 @@ const CLIENT_NAV: NavItem[] = [
   { to: "/dashboard/dlpa", label: "DLPA", icon: TrendingUp },
   { to: "/dashboard/dva", label: "DVA", icon: PieChart },
   { to: "/dashboard/indicadores", label: "Indicadores", icon: LineChart },
+  { to: "/dashboard/fornecedores", label: "Fornecedores", icon: Users },
+  { to: "/dashboard/notas-fiscais", label: "Notas Fiscais", icon: FileSpreadsheet },
   { to: "/dashboard/analise", label: "Análise", icon: FileSpreadsheet },
 ];
 

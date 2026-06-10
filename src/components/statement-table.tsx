@@ -115,27 +115,27 @@ export function StatementTable({
         </div>
       )}
       <div className="overflow-x-auto">
-        <table className="w-full text-sm">
+        <table className="w-full text-xs">
           <thead>
             <tr className="border-b bg-muted/30">
-              <th className="text-left font-medium text-xs uppercase tracking-wider text-muted-foreground px-4 py-3 sticky left-0 bg-muted/30">
+              <th className="text-left font-medium text-[10px] uppercase tracking-wider text-muted-foreground px-2 py-2 sticky left-0 bg-muted/30">
                 Descrição
               </th>
               {periods.map((p) => (
                 <th
                   key={p}
-                  className="text-right font-medium text-xs uppercase tracking-wider text-muted-foreground px-4 py-3 tabular-nums"
+                  className="text-right font-medium text-[10px] uppercase tracking-wider text-muted-foreground px-2 py-2 tabular-nums"
                 >
                   {periodoLabel(p)}
                 </th>
               ))}
               {showAV && (
-                <th className="text-right font-medium text-xs uppercase tracking-wider text-muted-foreground px-4 py-3">
+                <th className="text-right font-medium text-[10px] uppercase tracking-wider text-muted-foreground px-2 py-2">
                   AV%
                 </th>
               )}
               {showAH && basePeriod && (
-                <th className="text-right font-medium text-xs uppercase tracking-wider text-muted-foreground px-4 py-3">
+                <th className="text-right font-medium text-[10px] uppercase tracking-wider text-muted-foreground px-2 py-2">
                   AH%
                 </th>
               )}
@@ -157,85 +157,110 @@ export function StatementTable({
                   : null;
               const hasChildren = childrenMap.has(idx);
               const isCollapsed = collapsed.has(idx);
+              const isExpanded = expanded.has(idx);
+              const canDrill = !!row.codigo_conta;
+              const rightCols = (showAV ? 1 : 0) + (showAH && basePeriod ? 1 : 0);
               return (
-                <tr
-                  key={idx}
-                  className={cn(
-                    "border-b last:border-0 hover:bg-accent/40 transition-colors",
-                    row.is_subtotal && "bg-muted/40 font-semibold",
-                  )}
-                >
-                  <td
+                <Fragment key={idx}>
+                  <tr
                     className={cn(
-                      "px-4 py-2.5 sticky left-0 bg-card",
-                      row.is_subtotal && "bg-muted/40",
+                      "border-b last:border-0 hover:bg-accent/40 transition-colors",
+                      row.is_subtotal && "bg-muted/40 font-semibold",
+                      isExpanded && "bg-accent/30",
                     )}
-                    style={{ paddingLeft: `${16 + row.nivel * 16}px` }}
                   >
-                    <div className="flex items-center gap-1.5">
-                      {hasChildren ? (
-                        <button
-                          onClick={() => toggle(idx)}
-                          className="shrink-0 grid place-items-center h-5 w-5 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
-                          aria-label={isCollapsed ? "Expandir" : "Recolher"}
-                        >
-                          <ChevronRight
-                            className={cn(
-                              "h-3.5 w-3.5 transition-transform",
-                              !isCollapsed && "rotate-90",
-                            )}
-                          />
-                        </button>
-                      ) : (
-                        <span className="inline-block w-5 shrink-0" />
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => setDrilldown({ codigo: row.codigo_conta, descricao: row.descricao })}
-                        className={cn(
-                          "text-left hover:text-primary hover:underline decoration-dotted underline-offset-4 transition-colors inline-flex items-center gap-1.5 group",
-                          row.nivel >= 3 && !row.is_subtotal && "text-muted-foreground",
-                        )}
-                        title="Ver contas analíticas que compõem esta linha"
-                      >
-                        {row.descricao}
-                        <Search className="h-3 w-3 opacity-0 group-hover:opacity-60 transition-opacity" />
-                      </button>
-                    </div>
-                  </td>
-                  {periods.map((p) => (
-                    <td key={p} className="px-4 py-2.5 text-right tabular-nums">
-                      {formatBRL(row.values[p] ?? 0)}
-                    </td>
-                  ))}
-                  {showAV && (
-                    <td className="px-4 py-2.5 text-right tabular-nums text-muted-foreground">
-                      {av != null ? formatPct(av) : "—"}
-                    </td>
-                  )}
-                  {showAH && basePeriod && (
                     <td
                       className={cn(
-                        "px-4 py-2.5 text-right tabular-nums",
-                        ah != null && ah > 0 && "text-success",
-                        ah != null && ah < 0 && "text-destructive",
+                        "px-2 py-1 sticky left-0 bg-card",
+                        row.is_subtotal && "bg-muted/40",
+                        isExpanded && "bg-accent/30",
                       )}
+                      style={{ paddingLeft: `${8 + row.nivel * 12}px` }}
                     >
-                      {ah != null ? formatPct(ah) : "—"}
+                      <div className="flex items-center gap-1">
+                        {hasChildren ? (
+                          <button
+                            onClick={() => toggle(idx)}
+                            className="shrink-0 grid place-items-center h-4 w-4 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+                            aria-label={isCollapsed ? "Expandir" : "Recolher"}
+                          >
+                            <ChevronRight
+                              className={cn(
+                                "h-3 w-3 transition-transform",
+                                !isCollapsed && "rotate-90",
+                              )}
+                            />
+                          </button>
+                        ) : (
+                          <span className="inline-block w-4 shrink-0" />
+                        )}
+                        {canDrill ? (
+                          <button
+                            type="button"
+                            onClick={() => toggleExpand(idx)}
+                            className={cn(
+                              "text-left hover:text-primary transition-colors inline-flex items-center gap-1 group",
+                              row.nivel >= 3 && !row.is_subtotal && "text-muted-foreground",
+                            )}
+                            title="Ver contas analíticas"
+                          >
+                            <ChevronDown
+                              className={cn(
+                                "h-3 w-3 text-muted-foreground/60 group-hover:text-primary transition-transform",
+                                isExpanded && "rotate-180 text-primary",
+                              )}
+                            />
+                            {row.descricao}
+                          </button>
+                        ) : (
+                          <span
+                            className={cn(
+                              row.nivel >= 3 && !row.is_subtotal && "text-muted-foreground",
+                            )}
+                          >
+                            {row.descricao}
+                          </span>
+                        )}
+                      </div>
                     </td>
+                    {periods.map((p) => (
+                      <td key={p} className="px-2 py-1 text-right tabular-nums">
+                        {formatBRL(row.values[p] ?? 0)}
+                      </td>
+                    ))}
+                    {showAV && (
+                      <td className="px-2 py-1 text-right tabular-nums text-muted-foreground">
+                        {av != null ? formatPct(av) : "—"}
+                      </td>
+                    )}
+                    {showAH && basePeriod && (
+                      <td
+                        className={cn(
+                          "px-2 py-1 text-right tabular-nums",
+                          ah != null && ah > 0 && "text-success",
+                          ah != null && ah < 0 && "text-destructive",
+                        )}
+                      >
+                        {ah != null ? formatPct(ah) : "—"}
+                      </td>
+                    )}
+                  </tr>
+                  {isExpanded && canDrill && (
+                    <InlineDrilldown
+                      codigoConta={row.codigo_conta!}
+                      descricao={row.descricao}
+                      periods={periods}
+                      colSpanLeft={1}
+                      colSpanRight={rightCols}
+                    />
                   )}
-                </tr>
+                </Fragment>
               );
             })}
           </tbody>
         </table>
       </div>
-      <AccountDrilldownSheet
-        open={drilldown !== null}
-        onOpenChange={(o) => !o && setDrilldown(null)}
-        codigoConta={drilldown?.codigo ?? null}
-        descricao={drilldown?.descricao ?? ""}
-      />
     </div>
   );
 }
+

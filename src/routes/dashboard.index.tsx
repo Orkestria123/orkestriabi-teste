@@ -6,7 +6,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { KpiCard } from "@/components/kpi-card";
 import { Card } from "@/components/ui/card";
 import {
-  LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, Bar, Legend, CartesianGrid,
+  LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, AreaChart, Area, Legend, CartesianGrid, defs,
 } from "recharts";
 import { periodoLabel, formatBRLCompact } from "@/lib/format";
 import { useMemo } from "react";

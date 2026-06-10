@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, Search } from "lucide-react";
 import { formatBRL, formatPct, periodoLabel } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { AccountDrilldownSheet } from "@/components/account-drilldown-sheet";
 
 export interface StatementRow {
   descricao: string;

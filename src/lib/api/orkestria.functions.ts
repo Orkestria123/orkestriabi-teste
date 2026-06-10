@@ -213,6 +213,98 @@ export const deleteUserAccount = createServerFn({ method: "POST" })
   });
 
 /**
+ * Exclui um tenant inteiro: remove usuários de auth (que cascateiam profiles/roles),
+ * arquivos no storage e o tenant. Apenas orkestria_admin.
+ */
+export const deleteTenant = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => z.object({ tenant_id: z.string().uuid() }).parse(input))
+  .handler(async ({ context, data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { data: isOrk } = await supabaseAdmin
+      .from("user_roles")
+      .select("id")
+      .eq("user_id", context.userId)
+      .eq("role", "orkestria_admin")
+      .maybeSingle();
+    if (!isOrk) throw new Error("Forbidden");
+
+    // remove arquivos do storage
+    const { data: files } = await supabaseAdmin
+      .from("sped_files")
+      .select("file_url")
+      .eq("tenant_id", data.tenant_id);
+    const paths = (files ?? []).map((f) => f.file_url).filter(Boolean) as string[];
+    if (paths.length) await supabaseAdmin.storage.from("sped-files").remove(paths);
+
+    // remove logo do tenant se existir
+    const { data: tenant } = await supabaseAdmin
+      .from("tenants")
+      .select("logo_url")
+      .eq("id", data.tenant_id)
+      .maybeSingle();
+    if (tenant?.logo_url && !/^https?:\/\//.test(tenant.logo_url)) {
+      await supabaseAdmin.storage.from("tenant-logos").remove([tenant.logo_url]);
+    }
+
+    // exclui usuários do tenant (não exclui o chamador)
+    const { data: profs } = await supabaseAdmin
+      .from("profiles")
+      .select("id")
+      .eq("tenant_id", data.tenant_id);
+    for (const p of profs ?? []) {
+      if (p.id === context.userId) continue;
+      await supabaseAdmin.auth.admin.deleteUser(p.id);
+    }
+
+    const { error } = await supabaseAdmin.from("tenants").delete().eq("id", data.tenant_id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+/**
+ * Exclui uma empresa (e dados derivados em cascata).
+ * Requer tenant_admin do mesmo tenant ou orkestria_admin.
+ */
+export const deleteCompany = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => z.object({ company_id: z.string().uuid() }).parse(input))
+  .handler(async ({ context, data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { data: company } = await supabaseAdmin
+      .from("companies")
+      .select("id, tenant_id")
+      .eq("id", data.company_id)
+      .maybeSingle();
+    if (!company) throw new Error("Empresa não encontrada");
+
+    const { data: callerRoles } = await supabaseAdmin
+      .from("user_roles")
+      .select("role, tenant_id")
+      .eq("user_id", context.userId);
+    const isOrk = callerRoles?.some((r) => r.role === "orkestria_admin");
+    const isTenantAdmin = callerRoles?.some(
+      (r) => r.role === "tenant_admin" && r.tenant_id === company.tenant_id,
+    );
+    if (!isOrk && !isTenantAdmin) throw new Error("Forbidden");
+
+    // remove arquivos de storage da empresa
+    const { data: files } = await supabaseAdmin
+      .from("sped_files")
+      .select("file_url")
+      .eq("company_id", data.company_id);
+    const paths = (files ?? []).map((f) => f.file_url).filter(Boolean) as string[];
+    if (paths.length) await supabaseAdmin.storage.from("sped-files").remove(paths);
+
+    const { error } = await supabaseAdmin.from("companies").delete().eq("id", data.company_id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+
+/**
  * Exclui um arquivo SPED (storage + registro + dados derivados em cascata).
  * Requer tenant_admin do tenant do arquivo ou orkestria_admin.
  */

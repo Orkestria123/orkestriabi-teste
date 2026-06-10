@@ -203,13 +203,6 @@ function AuthPage() {
               </>
             )}
           </div>
-          {userId && (
-            <div className="mt-6 text-center">
-              <button onClick={handleClaimAdmin} className="text-xs text-muted-foreground hover:text-primary underline">
-                Tornar-me Orkestria Super Admin (primeiro usuário)
-              </button>
-            </div>
-          )}
         </div>
       </div>
     </div>

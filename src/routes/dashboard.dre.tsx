@@ -36,6 +36,8 @@ export function makeStatementPage(tipo: string, title: string, avBase?: string) 
     const { companyId, company } = useDashboardCompany();
     const { periodos } = useFilters();
     const { data, isLoading } = useFinancialStatement(companyId, tipo, periodos);
+    // eslint-disable-next-line no-console
+    console.log("[DEBUG-DRE]", { tipo, companyId, periodos, dataLen: data?.length, isLoading });
     const [showAV, setShowAV] = useState(false);
     const [showAH, setShowAH] = useState(false);
 

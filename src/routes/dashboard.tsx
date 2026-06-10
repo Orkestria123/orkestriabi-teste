@@ -113,7 +113,7 @@ function DashboardLayout() {
         </div>
       </PortalShell>
       </div>
-    </Ctx.Provider>
+    </DashboardCompanyContext.Provider>
   );
 }
 

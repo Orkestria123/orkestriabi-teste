@@ -13,6 +13,8 @@ import { periodoLabel, formatBRLCompact, formatBRL } from "@/lib/format";
 import { useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
 import { InsightsCard } from "@/components/insights-card";
+import { AlertsCard } from "@/components/alerts-card";
+import { computeIndicators } from "@/lib/indicators";
 
 export const Route = createFileRoute("/dashboard/")({ component: DashboardHome });
 
@@ -39,7 +41,17 @@ function DashboardHome() {
   const { isLoading: companiesLoading } = useMyCompanies();
   const { periodos } = useFilters();
   const { data: dre } = useFinancialStatement(companyId, "DRE", periodos);
+  const { data: bp } = useFinancialStatement(companyId, "BP", periodos);
   const [view, setView] = useState<View>("geral");
+
+  const indicators = useMemo(() => {
+    const rows = [
+      ...((dre ?? []) as any[]).map((r) => ({ ...r, tipo_demonstracao: "DRE" })),
+      ...((bp ?? []) as any[]).map((r) => ({ ...r, tipo_demonstracao: "BP" })),
+    ];
+    const ps = Array.from(new Set(rows.map((r) => r.periodo as string))).sort();
+    return computeIndicators(rows as any, ps);
+  }, [dre, bp]);
 
   const dataPeriods = useMemo(() => {
     const set = new Set<string>();
@@ -144,7 +156,12 @@ function DashboardHome() {
         <KpiCard label="Lucro Líquido" value={kpis.lucroLiquido.v} previousValue={kpis.lucroLiquido.p} tone={(kpis.lucroLiquido.v ?? 0) < 0 ? "negative" : "positive"} sparkline={chartData.map((d) => d.Lucro)} />
       </div>
 
-      {view === "geral" && <InsightsCard companyId={companyId} periodos={activePeriods} />}
+      {view === "geral" && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <InsightsCard companyId={companyId} periodos={activePeriods} />
+          <AlertsCard indicators={indicators} periodos={activePeriods} />
+        </div>
+      )}
 
       {view === "geral" && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

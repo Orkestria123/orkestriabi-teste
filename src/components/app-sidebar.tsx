@@ -27,6 +27,7 @@ const ORK_NAV: NavItem[] = [
 
 const ADMIN_NAV: NavItem[] = [
   { to: "/admin", label: "Dashboard", icon: LayoutDashboard },
+  { to: "/admin/comparativo", label: "Comparativo", icon: BarChart3 },
   { to: "/admin/empresas", label: "Empresas", icon: Building2 },
   { to: "/admin/upload", label: "Upload SPED", icon: Upload },
   { to: "/admin/usuarios", label: "Usuários", icon: Users },

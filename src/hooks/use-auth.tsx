@@ -61,7 +61,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .select("id,name,slug,primary_color,logo_url")
         .eq("id", prof.tenant_id)
         .maybeSingle();
-      setTenant((t as Tenant) ?? null);
+      if (t) {
+        let logoUrl = (t as any).logo_url as string | null;
+        if (logoUrl && !/^https?:\/\//.test(logoUrl)) {
+          const { data: signed } = await supabase.storage
+            .from("tenant-logos")
+            .createSignedUrl(logoUrl, 60 * 60 * 24 * 7);
+          logoUrl = signed?.signedUrl ?? null;
+        }
+        setTenant({ ...(t as Tenant), logo_url: logoUrl });
+      } else {
+        setTenant(null);
+      }
     } else {
       setTenant(null);
     }

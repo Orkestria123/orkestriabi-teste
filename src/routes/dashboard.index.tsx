@@ -27,8 +27,23 @@ function DashboardHome() {
   const { periodos } = useFilters();
   const { data: dre } = useFinancialStatement(companyId, "DRE", periodos);
 
-  const lastPeriod = periodos[periodos.length - 1];
-  const prevPeriod = periodos[periodos.length - 2];
+  // Derive actual periods from the returned data, intersected with the user's
+  // year selection. Avoids mismatch when filter holds month-level placeholder
+  // dates but the DB stores period end-of-year dates from SPED.
+  const dataPeriods = useMemo(() => {
+    const set = new Set<string>();
+    (dre ?? []).forEach((r: any) => set.add(r.periodo));
+    return Array.from(set).sort();
+  }, [dre]);
+  const activePeriods = useMemo(() => {
+    if (periodos.length === 0) return dataPeriods;
+    const filterSet = new Set(periodos);
+    const filtered = dataPeriods.filter((p) => filterSet.has(p));
+    return filtered.length > 0 ? filtered : dataPeriods;
+  }, [dataPeriods, periodos]);
+
+  const lastPeriod = activePeriods[activePeriods.length - 1];
+  const prevPeriod = activePeriods[activePeriods.length - 2];
 
   const kpis = useMemo(() => {
     const rows = dre ?? [];
@@ -41,13 +56,13 @@ function DashboardHome() {
   }, [dre, lastPeriod, prevPeriod]);
 
   const chartData = useMemo(() => {
-    return periodos.map((p) => ({
+    return activePeriods.map((p) => ({
       periodo: periodoLabel(p),
       Receita: findValue(dre ?? [], ["receita líquida", "receita liquida", "receita bruta"], p) ?? 0,
       Custos: Math.abs(findValue(dre ?? [], ["custo", "cmv"], p) ?? 0),
       Lucro: findValue(dre ?? [], ["lucro líquido", "lucro liquido"], p) ?? 0,
     }));
-  }, [dre, periodos]);
+  }, [dre, activePeriods]);
 
   if (!companyId) {
     if (authLoading || companiesLoading) {

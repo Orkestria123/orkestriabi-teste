@@ -217,8 +217,7 @@ function BrandingDialog({
         if (upErr) throw upErr;
         logoPath = path;
       }
-      const update: Record<string, any> = { primary_color: color };
-      if (logoPath) update.logo_url = logoPath;
+      const update = { primary_color: color, ...(logoPath ? { logo_url: logoPath } : {}) };
       const { error } = await supabase.from("tenants").update(update).eq("id", tenant.id);
       if (error) throw error;
       toast.success("Branding atualizado");

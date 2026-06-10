@@ -109,6 +109,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = async () => {
     await supabase.auth.signOut();
+    // Hard reload garante que nenhum cache/token antigo permaneça
+    window.location.href = "/auth";
   };
 
   return (

@@ -101,9 +101,21 @@ function Page() {
         }
       }
 
-      await supabase.from("sped_files").update({ status: "done", processed_at: new Date().toISOString() }).eq("id", spedFile.id);
+      await supabase.from("sped_files").update({
+        status: "done",
+        processed_at: new Date().toISOString(),
+        validation_results: result.validacoes as any,
+      }).eq("id", spedFile.id);
 
-      toast.success(`SPED processado! ${result.planoContas.length} contas, ${result.demonstracoes.length} linhas de demonstração.`);
+      const erros = result.validacoes.filter((v) => !v.passou && v.severidade === "error");
+      const alertas = result.validacoes.filter((v) => !v.passou && v.severidade === "warning");
+      if (erros.length > 0) {
+        toast.error(`SPED processado com ${erros.length} erro(s) de validação: ${erros[0].nome}`);
+      } else if (alertas.length > 0) {
+        toast.success(`SPED processado (${alertas.length} alerta(s) de validação).`);
+      } else {
+        toast.success(`SPED processado! ${result.planoContas.length} contas, ${result.demonstracoes.length} linhas.`);
+      }
       qc.invalidateQueries({ queryKey: ["sped-files"] });
     } catch (e: any) {
       toast.error("Erro: " + e.message);

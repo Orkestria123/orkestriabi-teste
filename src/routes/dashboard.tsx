@@ -120,11 +120,17 @@ function DashboardLayout() {
 
 function PeriodSync({ companyId }: { companyId: string | null }) {
   const { data } = useAvailablePeriods(companyId);
-  const { setAvailableYears } = useFilters();
+  const { setAvailableYears, setAvailablePeriods, years, setYears } = useFilters();
   useEffect(() => {
     if (!data) return;
-    const years = Array.from(new Set(data.map((p) => new Date(p).getUTCFullYear()))).sort();
-    if (years.length > 0) setAvailableYears(years);
+    setAvailablePeriods(data);
+    const ys = Array.from(new Set(data.map((p) => new Date(p).getUTCFullYear()))).sort();
+    if (ys.length > 0) {
+      setAvailableYears(ys);
+      // If currently selected years have no data, default to the most recent available year
+      const overlap = years.filter((y) => ys.includes(y));
+      if (overlap.length === 0) setYears([ys[ys.length - 1]]);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data]);
   return null;

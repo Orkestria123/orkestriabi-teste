@@ -7,8 +7,9 @@ import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ExportMenu } from "@/components/export-menu";
 
-function buildRows(data: any[]): StatementRow[] {
+function buildRows(data: any[]): { rows: StatementRow[]; periods: string[] } {
   const map = new Map<string, StatementRow>();
+  const periodSet = new Set<string>();
   for (const r of data) {
     const key = `${r.linha_ordem}-${r.descricao}`;
     if (!map.has(key)) {
@@ -22,8 +23,12 @@ function buildRows(data: any[]): StatementRow[] {
       });
     }
     map.get(key)!.values[r.periodo] = Number(r.valor) || 0;
+    periodSet.add(r.periodo);
   }
-  return Array.from(map.values()).sort((a, b) => a.linha_ordem - b.linha_ordem);
+  return {
+    rows: Array.from(map.values()).sort((a, b) => a.linha_ordem - b.linha_ordem),
+    periods: Array.from(periodSet).sort(),
+  };
 }
 
 export function makeStatementPage(tipo: string, title: string, avBase?: string) {
@@ -34,8 +39,17 @@ export function makeStatementPage(tipo: string, title: string, avBase?: string) 
     const [showAV, setShowAV] = useState(false);
     const [showAH, setShowAH] = useState(false);
 
-    const rows = useMemo(() => buildRows(data ?? []), [data]);
-    const basePeriod = periodos[0];
+    const { rows, periods: dataPeriods } = useMemo(() => buildRows(data ?? []), [data]);
+    // If the filter context already knows which periodos are available, intersect
+    // so the user's year selection still narrows columns. Otherwise show whatever
+    // the data returned (typical first render before PeriodSync resolves).
+    const periods = useMemo(() => {
+      if (periodos.length === 0) return dataPeriods;
+      const set = new Set(periodos);
+      const filtered = dataPeriods.filter((p) => set.has(p));
+      return filtered.length > 0 ? filtered : dataPeriods;
+    }, [dataPeriods, periodos]);
+    const basePeriod = periods[0];
 
     return (
       <div className="space-y-4">
@@ -46,7 +60,7 @@ export function makeStatementPage(tipo: string, title: string, avBase?: string) 
             <Button size="sm" variant={showAH ? "default" : "outline"} onClick={() => setShowAH((v) => !v)}>AH%</Button>
             <ExportMenu
               rows={rows}
-              periods={periodos}
+              periods={periods}
               filename={`${tipo}-${company?.name ?? "empresa"}`}
               title={title}
               subtitle={company?.razao_social ?? company?.name}
@@ -58,7 +72,7 @@ export function makeStatementPage(tipo: string, title: string, avBase?: string) 
         ) : (
           <StatementTable
             rows={rows}
-            periods={periodos}
+            periods={periods}
             showAV={showAV}
             showAH={showAH}
             basePeriod={basePeriod}

@@ -33,16 +33,22 @@ export function useFinancialStatement(
   periodos: string[],
 ) {
   const { userId, loading } = useAuth();
+  // Derive year range from selected periodos; if empty, fetch a wide range so
+  // the table never gets stuck "empty" while the filter context warms up.
+  const years = periodos.map((p) => Number(p.slice(0, 4))).filter((n) => !isNaN(n));
+  const minYear = years.length > 0 ? Math.min(...years) : 1900;
+  const maxYear = years.length > 0 ? Math.max(...years) : 2999;
   return useQuery({
-    queryKey: ["fs", userId, companyId, tipo, periodos],
-    enabled: !loading && !!userId && !!companyId && periodos.length > 0,
+    queryKey: ["fs", userId, companyId, tipo, minYear, maxYear],
+    enabled: !loading && !!userId && !!companyId,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("financial_statements")
         .select("*")
         .eq("company_id", companyId!)
         .eq("tipo_demonstracao", tipo)
-        .in("periodo", periodos)
+        .gte("periodo", `${minYear}-01-01`)
+        .lte("periodo", `${maxYear}-12-31`)
         .order("linha_ordem");
       if (error) throw error;
       return data ?? [];

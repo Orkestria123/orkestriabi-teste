@@ -22,6 +22,9 @@ export function useDashboardCompany() {
 }
 
 export const Route = createFileRoute("/dashboard")({
+  validateSearch: (s: Record<string, unknown>) => ({
+    company: typeof s.company === "string" ? s.company : undefined,
+  }),
   component: () => (
     <FilterProvider>
       <DashboardLayout />

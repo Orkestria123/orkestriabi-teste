@@ -1,9 +1,10 @@
 import { createFileRoute, Outlet } from "@tanstack/react-router";
-import { useEffect, useMemo, useState, createContext, useContext } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { PortalShell } from "@/components/portal-shell";
 import { FilterProvider, FilterBar, useFilters } from "@/components/filter-bar";
 import { useAuth } from "@/hooks/use-auth";
-import { useMyCompanies, useAvailablePeriods, type Company } from "@/hooks/use-financial-data";
+import { useMyCompanies, useAvailablePeriods } from "@/hooks/use-financial-data";
+import { DashboardCompanyContext } from "@/components/dashboard-context";
 import {
   Select,
   SelectContent,
@@ -11,15 +12,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-
-interface DashboardCtx {
-  companyId: string | null;
-  company: Company | null;
-}
-const Ctx = createContext<DashboardCtx>({ companyId: null, company: null });
-export function useDashboardCompany() {
-  return useContext(Ctx);
-}
 
 export const Route = createFileRoute("/dashboard")({
   validateSearch: (s: Record<string, unknown>) => ({

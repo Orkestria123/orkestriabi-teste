@@ -1,6 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/use-auth";
 
 export interface Company {
   id: string;
@@ -11,11 +10,12 @@ export interface Company {
   ativo: boolean;
 }
 
+// Nota: estes hooks não dependem mais do estado de carregamento da auth.
+// O cliente anexa a sessão automaticamente e o RLS garante a segurança;
+// se não houver sessão, as consultas simplesmente retornam vazio.
 export function useMyCompanies() {
-  const { userId, loading } = useAuth();
   return useQuery({
-    queryKey: ["my-companies", userId],
-    enabled: !loading && !!userId,
+    queryKey: ["my-companies"],
     queryFn: async (): Promise<Company[]> => {
       const { data, error } = await supabase
         .from("companies")
@@ -32,15 +32,14 @@ export function useFinancialStatement(
   tipo: string,
   periodos: string[],
 ) {
-  const { userId, loading } = useAuth();
   // Derive year range from selected periodos; if empty, fetch a wide range so
   // the table never gets stuck "empty" while the filter context warms up.
   const years = periodos.map((p) => Number(p.slice(0, 4))).filter((n) => !isNaN(n));
   const minYear = years.length > 0 ? Math.min(...years) : 1900;
   const maxYear = years.length > 0 ? Math.max(...years) : 2999;
   return useQuery({
-    queryKey: ["fs", userId, companyId, tipo, minYear, maxYear],
-    enabled: !loading && !!userId && !!companyId,
+    queryKey: ["fs", companyId, tipo, minYear, maxYear],
+    enabled: !!companyId,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("financial_statements")
@@ -57,10 +56,9 @@ export function useFinancialStatement(
 }
 
 export function useAvailablePeriods(companyId: string | null) {
-  const { userId, loading } = useAuth();
   return useQuery({
-    queryKey: ["available-periods", userId, companyId],
-    enabled: !loading && !!userId && !!companyId,
+    queryKey: ["available-periods", companyId],
+    enabled: !!companyId,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("financial_statements")

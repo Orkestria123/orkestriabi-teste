@@ -1,4 +1,5 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import { ChevronRight } from "lucide-react";
 import { formatBRL, formatPct, periodoLabel } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -16,8 +17,8 @@ interface Props {
   periods: string[];
   showAV?: boolean;
   showAH?: boolean;
-  basePeriod?: string; // for AH
-  avBaseCodigo?: string; // codigo or descricao for AV base
+  basePeriod?: string;
+  avBaseCodigo?: string;
 }
 
 export function StatementTable({
@@ -38,6 +39,49 @@ export function StatementTable({
     return r ?? null;
   }, [rows, avBaseCodigo]);
 
+  // Compute children ranges based on nivel
+  const childrenMap = useMemo(() => {
+    const map = new Map<number, number[]>(); // parent idx -> all descendant indices
+    for (let i = 0; i < rows.length; i++) {
+      const lvl = rows[i].nivel ?? 0;
+      const desc: number[] = [];
+      for (let j = i + 1; j < rows.length; j++) {
+        if ((rows[j].nivel ?? 0) > lvl) desc.push(j);
+        else break;
+      }
+      if (desc.length > 0) map.set(i, desc);
+    }
+    return map;
+  }, [rows]);
+
+  const [collapsed, setCollapsed] = useState<Set<number>>(new Set());
+
+  const hidden = useMemo(() => {
+    const h = new Set<number>();
+    collapsed.forEach((idx) => {
+      const d = childrenMap.get(idx);
+      if (d) d.forEach((c) => h.add(c));
+    });
+    return h;
+  }, [collapsed, childrenMap]);
+
+  const toggle = (idx: number) =>
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      if (next.has(idx)) next.delete(idx);
+      else next.add(idx);
+      return next;
+    });
+
+  const allParents = useMemo(
+    () => Array.from(childrenMap.keys()),
+    [childrenMap],
+  );
+  const allCollapsed = allParents.length > 0 && allParents.every((p) => collapsed.has(p));
+
+  const expandAll = () => setCollapsed(new Set());
+  const collapseAll = () => setCollapsed(new Set(allParents));
+
   if (rows.length === 0) {
     return (
       <div className="rounded-lg border bg-card p-10 text-center text-sm text-muted-foreground">
@@ -50,6 +94,16 @@ export function StatementTable({
 
   return (
     <div className="rounded-lg border bg-card overflow-hidden">
+      {allParents.length > 0 && (
+        <div className="flex items-center justify-end gap-2 px-3 py-2 border-b bg-muted/20 text-xs">
+          <button
+            onClick={allCollapsed ? expandAll : collapseAll}
+            className="px-2 h-7 rounded-md border border-border hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
+          >
+            {allCollapsed ? "Expandir todos" : "Recolher todos"}
+          </button>
+        </div>
+      )}
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
@@ -79,6 +133,7 @@ export function StatementTable({
           </thead>
           <tbody>
             {rows.map((row, idx) => {
+              if (hidden.has(idx)) return null;
               const lastPeriod = periods[periods.length - 1];
               const lastValue = row.values[lastPeriod] ?? 0;
               const av =
@@ -90,6 +145,8 @@ export function StatementTable({
                 baseValue != null && baseValue !== 0
                   ? ((lastValue - baseValue) / Math.abs(baseValue)) * 100
                   : null;
+              const hasChildren = childrenMap.has(idx);
+              const isCollapsed = collapsed.has(idx);
               return (
                 <tr
                   key={idx}
@@ -105,9 +162,27 @@ export function StatementTable({
                     )}
                     style={{ paddingLeft: `${16 + row.nivel * 16}px` }}
                   >
-                    <span className={cn(row.nivel >= 3 && !row.is_subtotal && "text-muted-foreground")}>
-                      {row.descricao}
-                    </span>
+                    <div className="flex items-center gap-1.5">
+                      {hasChildren ? (
+                        <button
+                          onClick={() => toggle(idx)}
+                          className="shrink-0 grid place-items-center h-5 w-5 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+                          aria-label={isCollapsed ? "Expandir" : "Recolher"}
+                        >
+                          <ChevronRight
+                            className={cn(
+                              "h-3.5 w-3.5 transition-transform",
+                              !isCollapsed && "rotate-90",
+                            )}
+                          />
+                        </button>
+                      ) : (
+                        <span className="inline-block w-5 shrink-0" />
+                      )}
+                      <span className={cn(row.nivel >= 3 && !row.is_subtotal && "text-muted-foreground")}>
+                        {row.descricao}
+                      </span>
+                    </div>
                   </td>
                   {periods.map((p) => (
                     <td key={p} className="px-4 py-2.5 text-right tabular-nums">

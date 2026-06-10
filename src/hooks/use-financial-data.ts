@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/use-auth";
 
 export interface Company {
   id: string;
@@ -11,8 +12,10 @@ export interface Company {
 }
 
 export function useMyCompanies() {
+  const { userId, loading } = useAuth();
   return useQuery({
-    queryKey: ["my-companies"],
+    queryKey: ["my-companies", userId],
+    enabled: !loading && !!userId,
     queryFn: async (): Promise<Company[]> => {
       const { data, error } = await supabase
         .from("companies")
@@ -29,9 +32,10 @@ export function useFinancialStatement(
   tipo: string,
   periodos: string[],
 ) {
+  const { userId, loading } = useAuth();
   return useQuery({
-    queryKey: ["fs", companyId, tipo, periodos],
-    enabled: !!companyId && periodos.length > 0,
+    queryKey: ["fs", userId, companyId, tipo, periodos],
+    enabled: !loading && !!userId && !!companyId && periodos.length > 0,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("financial_statements")
@@ -47,9 +51,10 @@ export function useFinancialStatement(
 }
 
 export function useAvailablePeriods(companyId: string | null) {
+  const { userId, loading } = useAuth();
   return useQuery({
-    queryKey: ["available-periods", companyId],
-    enabled: !!companyId,
+    queryKey: ["available-periods", userId, companyId],
+    enabled: !loading && !!userId && !!companyId,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("financial_statements")

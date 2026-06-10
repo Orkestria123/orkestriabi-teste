@@ -52,15 +52,22 @@ function DashboardLayout() {
   const [selectedCompany, setSelectedCompany] = useState<string | null>(null);
 
   useEffect(() => {
-    if (role === "client" && profile?.company_id) {
-      setSelectedCompany(profile.company_id);
-      return;
-    }
-    if (companyParam && companies?.some((c) => c.id === companyParam)) {
+    // Deep-link via ?company= tem prioridade para admins
+    if (
+      companyParam &&
+      companyParam !== selectedCompany &&
+      companies?.some((c) => c.id === companyParam)
+    ) {
       setSelectedCompany(companyParam);
       return;
     }
-    if (companies && companies.length > 0 && !selectedCompany) {
+    if (selectedCompany) return;
+    // Usuário vinculado a uma empresa (cliente) — independe de role já ter carregado
+    if (profile?.company_id) {
+      setSelectedCompany(profile.company_id);
+      return;
+    }
+    if (companies && companies.length > 0) {
       setSelectedCompany(companies[0].id);
     }
   }, [role, profile, companies, selectedCompany, companyParam]);

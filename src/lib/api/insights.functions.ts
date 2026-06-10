@@ -57,10 +57,12 @@ export const generateFinancialInsights = createServerFn({ method: "POST" })
     const byRow = new Map<string, { descricao: string; values: Record<string, number>; ordem: number }>();
     const periodSet = new Set<string>();
     for (const r of dre ?? []) {
-      periodSet.add(r.periodo as string);
       const k = r.descricao;
+      const periodo = r.periodo as string | null;
+      if (!k || !periodo) continue;
+      periodSet.add(periodo);
       if (!byRow.has(k)) byRow.set(k, { descricao: k, values: {}, ordem: r.linha_ordem ?? 0 });
-      byRow.get(k)!.values[r.periodo as string] = Number(r.valor) || 0;
+      byRow.get(k)!.values[periodo] = Number(r.valor) || 0;
     }
     const periods = Array.from(periodSet).sort();
     const rows = Array.from(byRow.values()).sort((a, b) => a.ordem - b.ordem);

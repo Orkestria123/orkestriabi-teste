@@ -257,7 +257,21 @@ function Page() {
   };
 
   return (
-    <PortalShell variant="admin" title="Upload de SPED Contábil">
+    <PortalShell variant="admin" title="Upload de SPED">
+      <Card className="p-4 mb-4 max-w-2xl border-primary/20 bg-primary/5">
+        <div className="flex items-start gap-3 text-sm">
+          <div className="rounded-md bg-card p-1.5"><FileText className="h-4 w-4 text-primary" /></div>
+          <div>
+            <div className="font-medium mb-1">Detecção automática do tipo de SPED</div>
+            <div className="text-muted-foreground text-xs flex flex-wrap items-center gap-2">
+              <Badge variant="outline" className="gap-1"><BookOpen className="h-3 w-3" />SPED Contábil (ECD)</Badge>
+              <span>gera DRE, Balanço e indicadores.</span>
+              <Badge variant="outline" className="gap-1"><Receipt className="h-3 w-3" />SPED Fiscal (EFD ICMS/IPI)</Badge>
+              <span>gera análise de fornecedores e notas fiscais.</span>
+            </div>
+          </div>
+        </div>
+      </Card>
       <Card className="p-6 max-w-2xl">
         <div className="space-y-4">
           <div>

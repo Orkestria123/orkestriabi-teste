@@ -1,0 +1,18 @@
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.companies TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.tenants TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.profiles TO authenticated;
+GRANT SELECT ON public.user_roles TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.sped_files TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.financial_statements TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.chart_of_accounts TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.account_balances TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.indicator_configs TO authenticated;
+GRANT ALL ON public.companies TO service_role;
+GRANT ALL ON public.tenants TO service_role;
+GRANT ALL ON public.profiles TO service_role;
+GRANT ALL ON public.user_roles TO service_role;
+GRANT ALL ON public.sped_files TO service_role;
+GRANT ALL ON public.financial_statements TO service_role;
+GRANT ALL ON public.chart_of_accounts TO service_role;
+GRANT ALL ON public.account_balances TO service_role;
+GRANT ALL ON public.indicator_configs TO service_role;

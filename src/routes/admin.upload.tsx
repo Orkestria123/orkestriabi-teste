@@ -180,6 +180,7 @@ function Page() {
               <th className="text-left px-4 py-3 font-medium text-xs uppercase tracking-wider text-muted-foreground">Empresa</th>
               <th className="text-left px-4 py-3 font-medium text-xs uppercase tracking-wider text-muted-foreground">Competência</th>
               <th className="text-left px-4 py-3 font-medium text-xs uppercase tracking-wider text-muted-foreground">Status</th>
+              <th className="px-4 py-3"></th>
             </tr>
           </thead>
           <tbody>
@@ -197,10 +198,21 @@ function Page() {
                     <span className="text-xs text-muted-foreground">Processando…</span>
                   )}
                 </td>
+                <td className="px-4 py-3 text-right">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-destructive hover:text-destructive"
+                    disabled={deletingId === f.id}
+                    onClick={() => handleDeleteFile(f.id, f.filename)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </td>
               </tr>
             ))}
             {(!files || files.length === 0) && (
-              <tr><td colSpan={4} className="px-4 py-10 text-center text-muted-foreground">Nenhum upload ainda.</td></tr>
+              <tr><td colSpan={5} className="px-4 py-10 text-center text-muted-foreground">Nenhum upload ainda.</td></tr>
             )}
           </tbody>
         </table>

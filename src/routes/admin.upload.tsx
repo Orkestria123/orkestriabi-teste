@@ -12,7 +12,8 @@ import {
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
 import { parseSpedContabil } from "@/lib/sped-parser";
-import { Upload as UploadIcon, FileText, CheckCircle2, AlertCircle } from "lucide-react";
+import { deleteSpedFile } from "@/lib/api/orkestria.functions";
+import { Upload as UploadIcon, FileText, CheckCircle2, AlertCircle, Trash2 } from "lucide-react";
 
 export const Route = createFileRoute("/admin/upload")({ component: Page });
 

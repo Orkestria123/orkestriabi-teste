@@ -1,10 +1,8 @@
-import { ReactNode } from "react";
+import { ReactNode, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
-import { AppSidebar } from "@/components/app-sidebar";
-import { ThemeToggle } from "@/components/theme-toggle";
+import { AppTopNav } from "@/components/app-topnav";
 import { Loader2 } from "lucide-react";
 import { useNavigate } from "@tanstack/react-router";
-import { useEffect } from "react";
 
 interface Props {
   children: ReactNode;
@@ -42,25 +40,9 @@ export function PortalShell({ children, variant, title, actions, unstyled }: Pro
   }
 
   return (
-    <div className="flex min-h-screen w-full bg-background">
-      <AppSidebar variant={variant} />
-      <main className="flex-1 flex flex-col min-w-0">
-        {title && (
-          <header className="h-16 border-b bg-card/50 backdrop-blur flex items-center justify-between px-6">
-            <h1 className="text-lg font-semibold tracking-tight">{title}</h1>
-            <div className="flex items-center gap-2">
-              {actions}
-              <ThemeToggle />
-            </div>
-          </header>
-        )}
-        {!title && (
-          <div className="absolute top-3 right-4 z-10">
-            <ThemeToggle />
-          </div>
-        )}
-        <div className={unstyled ? "flex-1" : "flex-1 p-6"}>{children}</div>
-      </main>
+    <div className="flex min-h-screen w-full flex-col bg-background">
+      <AppTopNav variant={variant} title={title} actions={actions} />
+      <main className={unstyled ? "flex-1" : "flex-1 p-4"}>{children}</main>
     </div>
   );
 }

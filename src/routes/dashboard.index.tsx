@@ -12,6 +12,7 @@ import {
 import { periodoLabel, formatBRLCompact, formatBRL } from "@/lib/format";
 import { useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
+import { InsightsCard } from "@/components/insights-card";
 
 export const Route = createFileRoute("/dashboard/")({ component: DashboardHome });
 
@@ -142,6 +143,8 @@ function DashboardHome() {
         <KpiCard label="EBITDA" value={kpis.ebitda.v} previousValue={kpis.ebitda.p} tone="positive" sparkline={chartData.map((d) => d.Lucro)} />
         <KpiCard label="Lucro Líquido" value={kpis.lucroLiquido.v} previousValue={kpis.lucroLiquido.p} tone={(kpis.lucroLiquido.v ?? 0) < 0 ? "negative" : "positive"} sparkline={chartData.map((d) => d.Lucro)} />
       </div>
+
+      {view === "geral" && <InsightsCard companyId={companyId} periodos={activePeriods} />}
 
       {view === "geral" && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

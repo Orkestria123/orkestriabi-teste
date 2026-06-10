@@ -12,7 +12,8 @@ import {
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
 import { parseSpedContabil } from "@/lib/sped-parser";
-import { Upload as UploadIcon, FileText, CheckCircle2, AlertCircle } from "lucide-react";
+import { deleteSpedFile } from "@/lib/api/orkestria.functions";
+import { Upload as UploadIcon, FileText, CheckCircle2, AlertCircle, Trash2 } from "lucide-react";
 
 export const Route = createFileRoute("/admin/upload")({ component: Page });
 
@@ -38,6 +39,18 @@ function Page() {
   const [companyId, setCompanyId] = useState("");
   const [processing, setProcessing] = useState(false);
   const [progress, setProgress] = useState("");
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const handleDeleteFile = async (id: string, filename: string) => {
+    if (!confirm(`Excluir o arquivo "${filename}" e todos os dados importados dele?`)) return;
+    setDeletingId(id);
+    try {
+      await deleteSpedFile({ data: { file_id: id } });
+      toast.success("Arquivo e dados excluídos");
+      qc.invalidateQueries({ queryKey: ["sped-files"] });
+    } catch (e: any) { toast.error(e.message); }
+    finally { setDeletingId(null); }
+  };
 
   const handleFile = async (file: File) => {
     if (!companyId) { toast.error("Selecione uma empresa"); return; }
@@ -167,6 +180,7 @@ function Page() {
               <th className="text-left px-4 py-3 font-medium text-xs uppercase tracking-wider text-muted-foreground">Empresa</th>
               <th className="text-left px-4 py-3 font-medium text-xs uppercase tracking-wider text-muted-foreground">Competência</th>
               <th className="text-left px-4 py-3 font-medium text-xs uppercase tracking-wider text-muted-foreground">Status</th>
+              <th className="px-4 py-3"></th>
             </tr>
           </thead>
           <tbody>
@@ -184,10 +198,21 @@ function Page() {
                     <span className="text-xs text-muted-foreground">Processando…</span>
                   )}
                 </td>
+                <td className="px-4 py-3 text-right">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-destructive hover:text-destructive"
+                    disabled={deletingId === f.id}
+                    onClick={() => handleDeleteFile(f.id, f.filename)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </td>
               </tr>
             ))}
             {(!files || files.length === 0) && (
-              <tr><td colSpan={4} className="px-4 py-10 text-center text-muted-foreground">Nenhum upload ainda.</td></tr>
+              <tr><td colSpan={5} className="px-4 py-10 text-center text-muted-foreground">Nenhum upload ainda.</td></tr>
             )}
           </tbody>
         </table>

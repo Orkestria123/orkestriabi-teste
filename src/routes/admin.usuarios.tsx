@@ -13,14 +13,28 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Plus } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { createClientUser } from "@/lib/api/orkestria.functions";
+import { createClientUser, deleteUserAccount } from "@/lib/api/orkestria.functions";
+import { useAuth } from "@/hooks/use-auth";
 
 export const Route = createFileRoute("/admin/usuarios")({ component: Page });
 
 function Page() {
   const qc = useQueryClient();
+  const { userId } = useAuth();
+  const [deleting, setDeleting] = useState<string | null>(null);
+
+  const handleDelete = async (id: string, name: string) => {
+    if (!confirm(`Excluir o usuário "${name}"? Esta ação não pode ser desfeita.`)) return;
+    setDeleting(id);
+    try {
+      await deleteUserAccount({ data: { user_id: id } });
+      toast.success("Usuário excluído");
+      qc.invalidateQueries({ queryKey: ["tenant-users"] });
+    } catch (e: any) { toast.error(e.message); }
+    finally { setDeleting(null); }
+  };
   const { data: companies } = useQuery({
     queryKey: ["companies"],
     queryFn: async () => (await supabase.from("companies").select("id,name").order("name")).data ?? [],
@@ -79,6 +93,7 @@ function Page() {
               <th className="text-left px-4 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">Nome</th>
               <th className="text-left px-4 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">E-mail</th>
               <th className="text-left px-4 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">Empresa</th>
+              <th className="px-4 py-3"></th>
             </tr>
           </thead>
           <tbody>
@@ -87,6 +102,19 @@ function Page() {
                 <td className="px-4 py-3 font-medium">{u.full_name}</td>
                 <td className="px-4 py-3 text-muted-foreground">{u.email}</td>
                 <td className="px-4 py-3">{u.companies?.name ?? "—"}</td>
+                <td className="px-4 py-3 text-right">
+                  {u.id !== userId && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-destructive hover:text-destructive"
+                      disabled={deleting === u.id}
+                      onClick={() => handleDelete(u.id, u.full_name ?? u.email)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  )}
+                </td>
               </tr>
             ))}
           </tbody>

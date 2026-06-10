@@ -27,6 +27,7 @@ import { Route as DashboardAnaliseRouteImport } from './routes/dashboard.analise
 import { Route as AdminUsuariosRouteImport } from './routes/admin.usuarios'
 import { Route as AdminUploadRouteImport } from './routes/admin.upload'
 import { Route as AdminEmpresasRouteImport } from './routes/admin.empresas'
+import { Route as AdminComparativoRouteImport } from './routes/admin.comparativo'
 
 const TesteRoute = TesteRouteImport.update({
   id: '/teste',
@@ -118,12 +119,18 @@ const AdminEmpresasRoute = AdminEmpresasRouteImport.update({
   path: '/admin/empresas',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminComparativoRoute = AdminComparativoRouteImport.update({
+  id: '/admin/comparativo',
+  path: '/admin/comparativo',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/dashboard': typeof DashboardRouteWithChildren
   '/teste': typeof TesteRoute
+  '/admin/comparativo': typeof AdminComparativoRoute
   '/admin/empresas': typeof AdminEmpresasRoute
   '/admin/upload': typeof AdminUploadRoute
   '/admin/usuarios': typeof AdminUsuariosRoute
@@ -143,6 +150,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/teste': typeof TesteRoute
+  '/admin/comparativo': typeof AdminComparativoRoute
   '/admin/empresas': typeof AdminEmpresasRoute
   '/admin/upload': typeof AdminUploadRoute
   '/admin/usuarios': typeof AdminUsuariosRoute
@@ -164,6 +172,7 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/dashboard': typeof DashboardRouteWithChildren
   '/teste': typeof TesteRoute
+  '/admin/comparativo': typeof AdminComparativoRoute
   '/admin/empresas': typeof AdminEmpresasRoute
   '/admin/upload': typeof AdminUploadRoute
   '/admin/usuarios': typeof AdminUsuariosRoute
@@ -186,6 +195,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/dashboard'
     | '/teste'
+    | '/admin/comparativo'
     | '/admin/empresas'
     | '/admin/upload'
     | '/admin/usuarios'
@@ -205,6 +215,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/teste'
+    | '/admin/comparativo'
     | '/admin/empresas'
     | '/admin/upload'
     | '/admin/usuarios'
@@ -225,6 +236,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/dashboard'
     | '/teste'
+    | '/admin/comparativo'
     | '/admin/empresas'
     | '/admin/upload'
     | '/admin/usuarios'
@@ -246,6 +258,7 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   DashboardRoute: typeof DashboardRouteWithChildren
   TesteRoute: typeof TesteRoute
+  AdminComparativoRoute: typeof AdminComparativoRoute
   AdminEmpresasRoute: typeof AdminEmpresasRoute
   AdminUploadRoute: typeof AdminUploadRoute
   AdminUsuariosRoute: typeof AdminUsuariosRoute
@@ -382,6 +395,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminEmpresasRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/comparativo': {
+      id: '/admin/comparativo'
+      path: '/admin/comparativo'
+      fullPath: '/admin/comparativo'
+      preLoaderRoute: typeof AdminComparativoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -416,6 +436,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRoute,
   DashboardRoute: DashboardRouteWithChildren,
   TesteRoute: TesteRoute,
+  AdminComparativoRoute: AdminComparativoRoute,
   AdminEmpresasRoute: AdminEmpresasRoute,
   AdminUploadRoute: AdminUploadRoute,
   AdminUsuariosRoute: AdminUsuariosRoute,

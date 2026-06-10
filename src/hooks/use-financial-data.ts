@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/use-auth";
 
 export interface Company {
   id: string;
@@ -11,8 +12,10 @@ export interface Company {
 }
 
 export function useMyCompanies() {
+  const { userId, loading } = useAuth();
   return useQuery({
-    queryKey: ["my-companies"],
+    queryKey: ["my-companies", userId],
+    enabled: !loading && !!userId,
     queryFn: async (): Promise<Company[]> => {
       const { data, error } = await supabase
         .from("companies")

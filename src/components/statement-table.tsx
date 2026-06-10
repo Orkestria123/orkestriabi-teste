@@ -83,7 +83,14 @@ export function StatementTable({
   const expandAll = () => setCollapsed(new Set());
   const collapseAll = () => setCollapsed(new Set(allParents));
 
-  const [drilldown, setDrilldown] = useState<{ codigo: string | null; descricao: string } | null>(null);
+  const [expanded, setExpanded] = useState<Set<number>>(new Set());
+  const toggleExpand = (idx: number) =>
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(idx)) next.delete(idx);
+      else next.add(idx);
+      return next;
+    });
 
   if (rows.length === 0) {
     return (

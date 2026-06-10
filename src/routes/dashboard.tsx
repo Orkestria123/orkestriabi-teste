@@ -88,12 +88,12 @@ function DashboardLayout() {
         unstyled
         title={company?.name ?? "Dashboard"}
         actions={
-          role !== "client" && companies && companies.length > 1 ? (
+          role !== "client" && companies && companies.length > 0 ? (
             <Select
               value={selectedCompany ?? ""}
-              onValueChange={(v) => setSelectedCompany(v)}
+              onValueChange={(v) => setCompany(v)}
             >
-              <SelectTrigger className="w-[260px]">
+              <SelectTrigger className="w-[280px]">
                 <SelectValue placeholder="Selecione uma empresa" />
               </SelectTrigger>
               <SelectContent>

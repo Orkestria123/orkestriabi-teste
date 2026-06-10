@@ -32,9 +32,10 @@ export function useFinancialStatement(
   tipo: string,
   periodos: string[],
 ) {
+  const { userId, loading } = useAuth();
   return useQuery({
-    queryKey: ["fs", companyId, tipo, periodos],
-    enabled: !!companyId && periodos.length > 0,
+    queryKey: ["fs", userId, companyId, tipo, periodos],
+    enabled: !loading && !!userId && !!companyId && periodos.length > 0,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("financial_statements")
@@ -50,9 +51,10 @@ export function useFinancialStatement(
 }
 
 export function useAvailablePeriods(companyId: string | null) {
+  const { userId, loading } = useAuth();
   return useQuery({
-    queryKey: ["available-periods", companyId],
-    enabled: !!companyId,
+    queryKey: ["available-periods", userId, companyId],
+    enabled: !loading && !!userId && !!companyId,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("financial_statements")

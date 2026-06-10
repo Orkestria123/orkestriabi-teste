@@ -80,7 +80,7 @@ function DashboardLayout() {
     : undefined;
 
   return (
-    <Ctx.Provider value={{ companyId: selectedCompany, company }}>
+    <DashboardCompanyContext.Provider value={{ companyId: selectedCompany, company }}>
       <div style={brandStyle}>
       <PortalShell
         variant="client"

@@ -1,0 +1,1 @@
+ALTER TABLE public.sped_files ADD COLUMN IF NOT EXISTS validation_results JSONB;

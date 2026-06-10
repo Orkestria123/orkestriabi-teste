@@ -357,6 +357,7 @@ export type Database = {
           tenant_id: string
           uploaded_at: string
           uploaded_by: string | null
+          validation_results: Json | null
         }
         Insert: {
           company_id: string
@@ -371,6 +372,7 @@ export type Database = {
           tenant_id: string
           uploaded_at?: string
           uploaded_by?: string | null
+          validation_results?: Json | null
         }
         Update: {
           company_id?: string
@@ -385,6 +387,7 @@ export type Database = {
           tenant_id?: string
           uploaded_at?: string
           uploaded_by?: string | null
+          validation_results?: Json | null
         }
         Relationships: [
           {

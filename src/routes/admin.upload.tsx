@@ -39,6 +39,18 @@ function Page() {
   const [companyId, setCompanyId] = useState("");
   const [processing, setProcessing] = useState(false);
   const [progress, setProgress] = useState("");
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const handleDeleteFile = async (id: string, filename: string) => {
+    if (!confirm(`Excluir o arquivo "${filename}" e todos os dados importados dele?`)) return;
+    setDeletingId(id);
+    try {
+      await deleteSpedFile({ data: { file_id: id } });
+      toast.success("Arquivo e dados excluídos");
+      qc.invalidateQueries({ queryKey: ["sped-files"] });
+    } catch (e: any) { toast.error(e.message); }
+    finally { setDeletingId(null); }
+  };
 
   const handleFile = async (file: File) => {
     if (!companyId) { toast.error("Selecione uma empresa"); return; }

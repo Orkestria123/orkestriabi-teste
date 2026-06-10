@@ -23,7 +23,7 @@ function Page() {
     for (const r of data ?? []) {
       const key = `${r.linha_ordem}-${r.descricao}`;
       if (!map.has(key)) {
-        map.set(key, { descricao: r.descricao, nivel: r.nivel ?? 0, is_subtotal: r.is_subtotal ?? false, linha_ordem: r.linha_ordem ?? 0, values: {} });
+        map.set(key, { descricao: r.descricao ?? "", nivel: r.nivel ?? 0, is_subtotal: r.is_subtotal ?? false, linha_ordem: r.linha_ordem ?? 0, values: {} });
       }
       map.get(key)!.values[r.periodo] = Number(r.valor) || 0;
     }

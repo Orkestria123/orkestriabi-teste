@@ -4,7 +4,8 @@ import { useFilters } from "@/components/filter-bar";
 import { useFinancialStatement } from "@/hooks/use-financial-data";
 import { StatementTable, type StatementRow } from "@/components/statement-table";
 import { ExportMenu } from "@/components/export-menu";
-import { useMemo } from "react";
+import { Button } from "@/components/ui/button";
+import { useMemo, useState } from "react";
 
 function buildRows(data: any[]): StatementRow[] {
   const map = new Map<string, StatementRow>();
@@ -30,6 +31,8 @@ function Page() {
   const { periodos } = useFilters();
   const { data: ativo } = useFinancialStatement(companyId, "BP_ATIVO", periodos);
   const { data: passivo } = useFinancialStatement(companyId, "BP_PASSIVO", periodos);
+  const [showAV, setShowAV] = useState(false);
+  const [showAH, setShowAH] = useState(false);
   const ativoRows = useMemo(() => buildRows(ativo ?? []), [ativo]);
   const passivoRows = useMemo(() => buildRows(passivo ?? []), [passivo]);
   const allRows = useMemo(() => [...ativoRows, ...passivoRows], [ativoRows, passivoRows]);
@@ -38,22 +41,26 @@ function Page() {
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h2 className="text-2xl font-semibold tracking-tight">Balanço Patrimonial</h2>
-        <ExportMenu
-          rows={allRows}
-          periods={periodos}
-          filename={`BP-${company?.name ?? "empresa"}`}
-          title="Balanço Patrimonial"
-          subtitle={company?.razao_social ?? company?.name}
-        />
+        <div className="flex items-center gap-2 flex-wrap">
+          <Button size="sm" variant={showAV ? "default" : "outline"} onClick={() => setShowAV((v) => !v)}>AV%</Button>
+          <Button size="sm" variant={showAH ? "default" : "outline"} onClick={() => setShowAH((v) => !v)}>AH%</Button>
+          <ExportMenu
+            rows={allRows}
+            periods={periodos}
+            filename={`BP-${company?.name ?? "empresa"}`}
+            title="Balanço Patrimonial"
+            subtitle={company?.razao_social ?? company?.name}
+          />
+        </div>
       </div>
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
         <div>
           <h3 className="font-medium mb-2 text-sm uppercase tracking-wider text-muted-foreground">Ativo</h3>
-          <StatementTable rows={ativoRows} periods={periodos} showAV avBaseCodigo="Total do Ativo" />
+          <StatementTable rows={ativoRows} periods={periodos} showAV={showAV} showAH={showAH} avBaseCodigo="Total do Ativo" />
         </div>
         <div>
           <h3 className="font-medium mb-2 text-sm uppercase tracking-wider text-muted-foreground">Passivo + PL</h3>
-          <StatementTable rows={passivoRows} periods={periodos} showAV avBaseCodigo="Total do Passivo" />
+          <StatementTable rows={passivoRows} periods={periodos} showAV={showAV} showAH={showAH} avBaseCodigo="Total do Passivo" />
         </div>
       </div>
     </div>

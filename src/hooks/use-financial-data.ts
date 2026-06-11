@@ -231,6 +231,16 @@ export function useMonthlyStatement(
         r.values = acc;
       }
 
+      // 3) Override periods sem saldos mensais com valor anual de financial_statements
+      if (fallbackPeriods.length > 0) {
+        for (const r of rows) {
+          for (const p of fallbackPeriods) {
+            const v = stmtValMap.get(p)?.get(r.linha_ordem);
+            r.values[p] = v ?? 0;
+          }
+        }
+      }
+
       // 3) achata para o shape esperado por buildRows
       const flat: any[] = [];
       for (const r of rows) {

@@ -102,6 +102,7 @@ export function makeStatementPage(tipo: string, title: string, avBase?: string, 
             periods={periods}
             showAV={showAV}
             showAH={showAH}
+            showTotal
             basePeriod={basePeriod}
             avBaseCodigo={avBase}
           />

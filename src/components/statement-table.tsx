@@ -18,6 +18,7 @@ interface Props {
   periods: string[];
   showAV?: boolean;
   showAH?: boolean;
+  showTotal?: boolean;
   basePeriod?: string;
   avBaseCodigo?: string;
 }
@@ -27,6 +28,7 @@ export function StatementTable({
   periods,
   showAV = false,
   showAH = false,
+  showTotal = false,
   basePeriod,
   avBaseCodigo,
 }: Props) {
@@ -129,6 +131,11 @@ export function StatementTable({
                   {periodoLabel(p)}
                 </th>
               ))}
+              {showTotal && periods.length > 0 && (
+                <th className="text-right font-medium text-[10px] uppercase tracking-wider text-muted-foreground px-2 py-2 tabular-nums border-l">
+                  Total
+                </th>
+              )}
               {showAV && (
                 <th className="text-right font-medium text-[10px] uppercase tracking-wider text-muted-foreground px-2 py-2">
                   AV%
@@ -159,7 +166,8 @@ export function StatementTable({
               const isCollapsed = collapsed.has(idx);
               const isExpanded = expanded.has(idx);
               const canDrill = !!row.codigo_conta;
-              const rightCols = (showAV ? 1 : 0) + (showAH && basePeriod ? 1 : 0);
+              const rightCols = (showTotal && periods.length > 0 ? 1 : 0) + (showAV ? 1 : 0) + (showAH && basePeriod ? 1 : 0);
+              const total = periods.reduce((acc, p) => acc + (row.values[p] ?? 0), 0);
               return (
                 <Fragment key={idx}>
                   <tr
@@ -228,6 +236,11 @@ export function StatementTable({
                         {formatBRL(row.values[p] ?? 0)}
                       </td>
                     ))}
+                    {showTotal && periods.length > 0 && (
+                      <td className="px-2 py-1 text-right tabular-nums font-semibold border-l">
+                        {formatBRL(total)}
+                      </td>
+                    )}
                     {showAV && (
                       <td className="px-2 py-1 text-right tabular-nums text-muted-foreground">
                         {av != null ? formatPct(av) : "—"}

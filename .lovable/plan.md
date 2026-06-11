@@ -1,75 +1,70 @@
-# Plano de implementação
+## Orkestria BI — Análise Comparativa + Redesign de Gráficos
 
-## 1. Alternar tema claro/escuro (rápido)
+Vou implementar em 3 sprints. Posso entregar tudo de uma vez, mas recomendo confirmar a ordem antes para evitar retrabalho.
 
-- Adicionar tokens do tema claro em `src/styles.css` (`:root` claro + `.dark` para o tema atual).
-- `ThemeProvider` em `src/hooks/use-theme.tsx` (persiste em `localStorage`, default = dark, respeita `prefers-color-scheme` na primeira visita).
-- Botão sol/lua no header (`PortalShell`) com transição suave.
-- Os tokens da identidade do tenant (cor primária) continuam funcionando em ambos os temas.
+---
 
-## 2. Análise de Fornecedores / Notas Fiscais (SPED Fiscal — EFD ICMS/IPI)
+### Sprint 1 — Página `/dashboard/analise` (reimplementação completa)
 
-### Modelo de dados (nova migração)
+Substituir `src/routes/dashboard.analise.tsx` por uma ferramenta autônoma (independente do FilterBar global):
 
-Tabelas novas, todas multi-tenant (`company_id` + RLS por `get_my_tenant_id`):
+- **Estado local**: `granularidade` (`ano` | `mes`), `periodoA`, `periodoB`, `tipo` (`DRE` | `BP_ATIVO` | `BP_PASSIVO` | `DFC` | `INDICADORES`).
+- **Seletor de granularidade** (toggle/tabs) + dois dropdowns de período.
+  - Ano: lista anos únicos derivados de `useAvailablePeriods`.
+  - Mês: lista `Mmm/AAAA` derivados de `useAvailablePeriods`.
+- **Resolução de períodos** via helper `resolverPeriodos`: mês → `[valor]`; ano → todos os meses do exercício existentes.
+- **Agregação** via `agregarPeriodos`: BP usa o último mês; DRE/DFC somam linha a linha (por `linha_ordem`).
+- **Fonte de dados**: `useMonthlyStatement(companyId, tipo, [...periodosA, ...periodosB])` em uma única chamada; depois separar/agregar em memória.
+- **Tabs de demonstração** (horizontais): DRE / BP-Ativo / BP-Passivo / DFC / Indicadores.
+- **3 Cards de destaque** acima da tabela: Lucro Líquido, Receita Líquida, Margem Líquida (variação em p.p. para %).
+- **Gráfico de barras agrupadas** dos 6 maiores subtotais (período A vs B).
+- **Tabela comparativa**: Descrição | A | B | Var R$ | Var % com:
+  - Cor invertida para linhas de custo/despesa/dedução.
+  - Badge ⚡ pulsante para |Δ%| > 50.
+- **Aba Indicadores**: reaproveita `src/lib/indicators.ts`; exibe cards lado-a-lado (sem tabela) para A e B com variação.
+- **Modo Apresentação**: toggle no canto superior direito. Adiciona classe no `body`, esconde sidebar via CSS global (`src/styles.css`), aumenta fonte da tabela e oculta colunas de valores absolutos (mostra só Var R$ compacto + Var %). Botão "Sair" fixo bottom-right.
 
-```text
-fiscal_participants        — cadastro de fornecedores/clientes (Bloco 0150)
-  id, company_id, cnpj_cpf, nome, uf, municipio, tipo (F/C/A),
-  primeira_operacao, ultima_operacao, total_entradas, total_saidas
+Novos arquivos:
+- `src/components/analise/highlight-card.tsx`
+- `src/components/analise/period-picker.tsx`
+- `src/components/analise/comparativo-table.tsx`
+- `src/components/analise/comparativo-bar-chart.tsx`
+- `src/lib/analise-helpers.ts` (resolverPeriodos, agregarPeriodos)
 
-fiscal_invoices            — notas fiscais (Registro C100)
-  id, company_id, sped_file_id, participant_id, tipo (E=entrada/S=saída),
-  modelo, serie, numero, chave_nfe, data_emissao, data_entrada_saida,
-  valor_total, valor_produtos, valor_icms, valor_ipi, valor_pis, valor_cofins,
-  cancelada
+---
 
-fiscal_invoice_items       — itens (Registro C170, opcional, carga limitada)
-  id, invoice_id, num_item, codigo_produto, descricao,
-  quantidade, unidade, valor_total, cfop, ncm
-```
+### Sprint 2 — Redesign dos Gráficos
 
-Reaproveita o bucket `sped-files` e a tabela `sped_files` (já tem coluna `tipo_arquivo`).
+**Novo arquivo central** `src/lib/chart-config.ts`:
+- `CHART_COLORS`, `TOOLTIP_STYLE`, `AXIS_PROPS`, `GRID_PROPS`, `chartTooltipFormatter`.
 
-### Parser
+**Refatorações** (varrer todos os gráficos em `src/routes/dashboard.*.tsx` e em `src/components/*`):
+1. AreaChart Receita vs Custos → Receita: linha sólida 2.5px + área sutil (gradiente 0.18→0); Custos: tracejada 1.8px sem área; dots visíveis.
+2. LineChart Lucro → AreaChart com `LucroPos`/`LucroNeg` em verde/vermelho + `ReferenceLine y={0}` + dot dinâmico por sinal.
+3. BarChart empilhado → barras agrupadas, top 3 categorias, `LabelList` no topo.
+4. PieChart → `innerRadius=70/outerRadius=105`, `paddingAngle=3`, label externo `%`, legend horizontal abaixo, stroke `var(--card)` 3px.
+5. Waterfall DFC → cores via `var(--chart-1)` / `var(--success)` / `var(--destructive)`; `LabelList` com valor.
+6. Ativar `isAnimationActive` + `animationDuration` em todos.
 
-- Novo `src/lib/sped-fiscal-parser.ts` lendo blocos: `0000` (período/CNPJ), `0150` (participantes), `C100` (NF) e opcionalmente `C170` (itens).
-- Detecção automática: se o arquivo começa com `|0000|` e contém `EFD ICMS IPI` → fiscal; senão segue como contábil.
+---
 
-### Upload
+### Sprint 3 — Cards e detalhes finais
 
-- Tela `/admin/upload` ganha seleção/auto-detecção do tipo de SPED.
-- Server function `processSpedFiscal` faz upsert em `fiscal_participants` e bulk insert em `fiscal_invoices`.
+- **Página Indicadores** (`dashboard.indicadores.tsx`): substituir tabela por grade `grid-cols-2 md:grid-cols-3 xl:grid-cols-4` de `IndicatorCard` (valor, semáforo verde/amarelo/vermelho, variação vs período anterior, mini sparkline, descrição).
+- **`src/components/kpi-card.tsx`**: Sparkline com path bezier suave + ponto final destacado + `gradId` único por instância (via `useId`).
+- **LabelList** nos gráficos de barras principais do dashboard.
 
-### Telas (sidebar do cliente)
+---
 
-Dois novos itens de menu:
+### Pontos de atenção
 
-- `/dashboard/fornecedores` — Análise de fornecedores
-  - KPIs: total de fornecedores, total de entradas no período, ticket médio, concentração (top 5 = X%).
-  - Ranking top 20 com volume, nº de notas, ticket médio, participação.
-  - Gráfico de pizza/donut com concentração (top 10 + Outros).
-  - Filtro por período (reaproveita `FilterBar`).
-  - Clique → drawer com últimas notas do fornecedor.
+- **`useMonthlyStatement` para `DFC`**: hoje só DRE e BP são tratados (linha "DRE/DFC: c-d, BP: sf"). Vou estender a lógica do hook para tratar DFC como fluxo (igual DRE) — sem isso a comparação de DFC não funciona corretamente em modo Ano.
+- **Indicadores em modo Ano**: precisamos recalcular indicadores a partir dos valores agregados (não dá para pegar do banco direto). Vou reusar `src/lib/indicators.ts` passando os rows já agregados.
+- **`var(--warning)` e `var(--success)`**: confirmar que existem em `src/styles.css`; se não, adiciono os tokens.
+- **Modo Apresentação**: usa CSS global (`body.presentation-mode aside { display: none }`); não mexe na lógica do `SidebarProvider`.
 
-- `/dashboard/notas-fiscais` — Notas fiscais
-  - Tabela paginada com busca por nº/CNPJ/fornecedor, filtro entrada/saída e período.
-  - Indicador de cancelada, valores destacados.
-  - Export CSV das notas filtradas (reutiliza `exports.ts`).
+---
 
-### Detalhes técnicos
+### Pergunta antes de começar
 
-- RLS: `company_id` precisa pertencer a uma empresa do tenant do usuário (mesmo padrão de `financial_statements`).
-- Grants completos em todas as tabelas novas (authenticated + service_role).
-- Parser roda em server function (igual ao contábil), com inserts em lotes de 500.
-- Sem alterações no parser contábil existente.
-
-## Ordem de execução
-
-1. Tema claro/escuro (entrega rápida, sem dependências).
-2. Migração das tabelas fiscais + grants/RLS.
-3. Parser SPED Fiscal + integração no upload.
-4. Tela de Fornecedores.
-5. Tela de Notas Fiscais.
-
-Posso seguir nessa ordem?
+Confirma que posso **seguir a ordem inteira (Sprint 1 → 2 → 3) em uma única entrega**, ou prefere que eu pare ao final do Sprint 1 para você validar a Análise Comparativa antes de mexer nos gráficos?

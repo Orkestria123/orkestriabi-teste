@@ -7,7 +7,7 @@ import { KpiCard } from "@/components/kpi-card";
 import { Card } from "@/components/ui/card";
 import {
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, AreaChart, Area, Legend, CartesianGrid,
-  BarChart, Bar, PieChart, Pie, Cell,
+  BarChart, Bar, PieChart, Pie, Cell, ReferenceLine, LabelList,
 } from "recharts";
 import { periodoLabel, formatBRLCompact, formatBRL } from "@/lib/format";
 import { useMemo, useState } from "react";
@@ -15,6 +15,10 @@ import { cn } from "@/lib/utils";
 import { InsightsCard } from "@/components/insights-card";
 import { AlertsCard } from "@/components/alerts-card";
 import { computeIndicators } from "@/lib/indicators";
+import {
+  AXIS_PROPS, GRID_PROPS, TOOLTIP_STYLE, ANIMATION,
+  tooltipFormatBRL, tooltipFormatBRLCompact, CHART_COLORS,
+} from "@/lib/chart-config";
 
 export const Route = createFileRoute("/dashboard/")({ component: DashboardHome });
 
@@ -27,11 +31,6 @@ function findValue(rows: any[], descKeywords: string[], periodo: string): number
 
 const RECEITA_KW = /receita|venda|faturamento/i;
 const DESPESA_KW = /despesa|custo|cmv|cpv|tribut|imposto|deduç|amortizaç|depreciaç|juros pass/i;
-
-const CHART_COLORS = [
-  "var(--chart-1)", "var(--chart-2)", "var(--chart-3)", "var(--chart-4)", "var(--chart-5)",
-  "#8b5cf6", "#ec4899", "#14b8a6", "#f59e0b", "#64748b",
-];
 
 type View = "geral" | "receitas" | "despesas";
 

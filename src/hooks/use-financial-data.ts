@@ -162,6 +162,22 @@ export function useMonthlyStatement(
       const isBp = tipo.startsWith("BP_");
       const isPassivo = tipo === "BP_PASSIVO";
 
+      // Períodos sem saldos mensais (ex.: anuais do Bloco J) → usar valor de financial_statements como fallback.
+      const periodsWithBalances = new Set<string>();
+      for (const b of balRes.data ?? []) periodsWithBalances.add(b.periodo);
+      const fallbackPeriods = periodos.filter((p) => !periodsWithBalances.has(p));
+      // Map: periodo → linha_ordem → valor
+      const stmtValMap = new Map<string, Map<number, number>>();
+      for (const s of allStmt as any[]) {
+        if (!fallbackPeriods.includes(s.periodo)) continue;
+        let m = stmtValMap.get(s.periodo);
+        if (!m) {
+          m = new Map();
+          stmtValMap.set(s.periodo, m);
+        }
+        m.set(s.linha_ordem ?? 0, Number(s.valor) || 0);
+      }
+
       type Row = {
         linha_ordem: number;
         descricao: string;

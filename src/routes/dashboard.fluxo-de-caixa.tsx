@@ -8,9 +8,10 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
-  Cell, ReferenceLine,
+  Cell, ReferenceLine, LabelList,
 } from "recharts";
 import { formatBRLCompact, formatBRL, periodoLabel } from "@/lib/format";
+import { AXIS_PROPS, GRID_PROPS, TOOLTIP_STYLE, ANIMATION } from "@/lib/chart-config";
 
 const StatementPage = makeStatementPage("DFC", "Demonstração do Fluxo de Caixa");
 

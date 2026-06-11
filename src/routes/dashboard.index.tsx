@@ -7,7 +7,7 @@ import { KpiCard } from "@/components/kpi-card";
 import { Card } from "@/components/ui/card";
 import {
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, AreaChart, Area, Legend, CartesianGrid,
-  BarChart, Bar, PieChart, Pie, Cell,
+  BarChart, Bar, PieChart, Pie, Cell, ReferenceLine, LabelList,
 } from "recharts";
 import { periodoLabel, formatBRLCompact, formatBRL } from "@/lib/format";
 import { useMemo, useState } from "react";
@@ -15,6 +15,10 @@ import { cn } from "@/lib/utils";
 import { InsightsCard } from "@/components/insights-card";
 import { AlertsCard } from "@/components/alerts-card";
 import { computeIndicators } from "@/lib/indicators";
+import {
+  AXIS_PROPS, GRID_PROPS, TOOLTIP_STYLE, ANIMATION,
+  tooltipFormatBRL, tooltipFormatBRLCompact, CHART_COLORS,
+} from "@/lib/chart-config";
 
 export const Route = createFileRoute("/dashboard/")({ component: DashboardHome });
 
@@ -27,11 +31,6 @@ function findValue(rows: any[], descKeywords: string[], periodo: string): number
 
 const RECEITA_KW = /receita|venda|faturamento/i;
 const DESPESA_KW = /despesa|custo|cmv|cpv|tribut|imposto|deduç|amortizaç|depreciaç|juros pass/i;
-
-const CHART_COLORS = [
-  "var(--chart-1)", "var(--chart-2)", "var(--chart-3)", "var(--chart-4)", "var(--chart-5)",
-  "#8b5cf6", "#ec4899", "#14b8a6", "#f59e0b", "#64748b",
-];
 
 type View = "geral" | "receitas" | "despesas";
 
@@ -79,12 +78,17 @@ function DashboardHome() {
   }, [dre, lastPeriod, prevPeriod]);
 
   const chartData = useMemo(() => {
-    return activePeriods.map((p) => ({
-      periodo: periodoLabel(p),
-      Receita: findValue(dre ?? [], ["receita líquida", "receita liquida", "receita bruta"], p) ?? 0,
-      Custos: Math.abs(findValue(dre ?? [], ["custo", "cmv"], p) ?? 0),
-      Lucro: findValue(dre ?? [], ["lucro líquido", "lucro liquido"], p) ?? 0,
-    }));
+    return activePeriods.map((p) => {
+      const lucro = findValue(dre ?? [], ["lucro líquido", "lucro liquido"], p) ?? 0;
+      return {
+        periodo: periodoLabel(p),
+        Receita: findValue(dre ?? [], ["receita líquida", "receita liquida", "receita bruta"], p) ?? 0,
+        Custos: Math.abs(findValue(dre ?? [], ["custo", "cmv"], p) ?? 0),
+        Lucro: lucro,
+        LucroPos: lucro >= 0 ? lucro : 0,
+        LucroNeg: lucro < 0 ? lucro : 0,
+      };
+    });
   }, [dre, activePeriods]);
 
   // Breakdown rows for Receitas / Despesas: pick analytic rows (not subtotals) that match the keyword
@@ -173,21 +177,36 @@ function DashboardHome() {
                 <AreaChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
                   <defs>
                     <linearGradient id="gReceita" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="var(--chart-2)" stopOpacity={0.45} />
-                      <stop offset="100%" stopColor="var(--chart-2)" stopOpacity={0} />
-                    </linearGradient>
-                    <linearGradient id="gCustos" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="var(--chart-5)" stopOpacity={0.35} />
-                      <stop offset="100%" stopColor="var(--chart-5)" stopOpacity={0} />
+                      <stop offset="0%" stopColor="var(--chart-2)" stopOpacity={0.18} />
+                      <stop offset="85%" stopColor="var(--chart-2)" stopOpacity={0} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-                  <XAxis dataKey="periodo" fontSize={11} tickLine={false} axisLine={false} />
-                  <YAxis fontSize={11} tickLine={false} axisLine={false} tickFormatter={(v) => formatBRLCompact(v)} />
-                  <Tooltip contentStyle={{ borderRadius: 8, border: "1px solid var(--border)", fontSize: 12 }} formatter={(v: any) => formatBRLCompact(v)} />
-                  <Legend wrapperStyle={{ fontSize: 12, paddingTop: 8 }} />
-                  <Area type="monotone" dataKey="Receita" stroke="var(--chart-2)" strokeWidth={2.5} fill="url(#gReceita)" />
-                  <Area type="monotone" dataKey="Custos" stroke="var(--chart-5)" strokeWidth={2} fill="url(#gCustos)" />
+                  <CartesianGrid {...GRID_PROPS} />
+                  <XAxis dataKey="periodo" {...AXIS_PROPS} />
+                  <YAxis {...AXIS_PROPS} tickFormatter={(v) => formatBRLCompact(v)} width={72} />
+                  <Tooltip contentStyle={TOOLTIP_STYLE} formatter={tooltipFormatBRLCompact} />
+                  <Legend wrapperStyle={{ fontSize: 12, paddingTop: 16 }} iconType="circle" iconSize={8} />
+                  <Area
+                    type="monotone"
+                    dataKey="Receita"
+                    stroke="var(--chart-2)"
+                    strokeWidth={2.5}
+                    fill="url(#gReceita)"
+                    dot={{ r: 3.5, fill: "var(--chart-2)", strokeWidth: 2, stroke: "var(--card)" }}
+                    activeDot={{ r: 6, fill: "var(--chart-2)", stroke: "var(--card)", strokeWidth: 2 }}
+                    {...ANIMATION}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="Custos"
+                    stroke="var(--chart-5)"
+                    strokeWidth={1.8}
+                    strokeDasharray="5 3"
+                    fill="transparent"
+                    dot={{ r: 3, fill: "var(--chart-5)", strokeWidth: 1.5, stroke: "var(--card)" }}
+                    activeDot={{ r: 5 }}
+                    {...ANIMATION}
+                  />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
@@ -197,13 +216,38 @@ function DashboardHome() {
             <p className="text-xs text-muted-foreground mb-4">Tendência do resultado do exercício</p>
             <div className="h-72">
               <ResponsiveContainer>
-                <LineChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-                  <XAxis dataKey="periodo" fontSize={11} tickLine={false} axisLine={false} />
-                  <YAxis fontSize={11} tickLine={false} axisLine={false} tickFormatter={(v) => formatBRLCompact(v)} />
-                  <Tooltip contentStyle={{ borderRadius: 8, border: "1px solid var(--border)", fontSize: 12 }} formatter={(v: any) => formatBRLCompact(v)} />
-                  <Line type="monotone" dataKey="Lucro" stroke="var(--chart-4)" strokeWidth={2.5} dot={{ r: 3, fill: "var(--chart-4)" }} activeDot={{ r: 5 }} />
-                </LineChart>
+                <AreaChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="gLucroPos" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="var(--success)" stopOpacity={0.25} />
+                      <stop offset="100%" stopColor="var(--success)" stopOpacity={0} />
+                    </linearGradient>
+                    <linearGradient id="gLucroNeg" x1="0" y1="1" x2="0" y2="0">
+                      <stop offset="0%" stopColor="var(--destructive)" stopOpacity={0.20} />
+                      <stop offset="100%" stopColor="var(--destructive)" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid {...GRID_PROPS} />
+                  <XAxis dataKey="periodo" {...AXIS_PROPS} />
+                  <YAxis {...AXIS_PROPS} tickFormatter={(v) => formatBRLCompact(v)} width={72} />
+                  <ReferenceLine y={0} stroke="var(--border)" strokeWidth={1.5} />
+                  <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v: any) => [formatBRL(Number(v)), "Lucro"]} />
+                  <Area type="monotone" dataKey="LucroPos" stroke="transparent" fill="url(#gLucroPos)" {...ANIMATION} />
+                  <Area type="monotone" dataKey="LucroNeg" stroke="transparent" fill="url(#gLucroNeg)" {...ANIMATION} />
+                  <Line
+                    type="monotone"
+                    dataKey="Lucro"
+                    stroke="var(--chart-4)"
+                    strokeWidth={2.5}
+                    dot={(props: any) => {
+                      const { cx, cy, value, index } = props;
+                      const color = (value ?? 0) >= 0 ? "var(--success)" : "var(--destructive)";
+                      return <circle key={index} cx={cx} cy={cy} r={4} fill={color} stroke="var(--card)" strokeWidth={2} />;
+                    }}
+                    activeDot={{ r: 6, stroke: "var(--card)", strokeWidth: 2 }}
+                    {...ANIMATION}
+                  />
+                </AreaChart>
               </ResponsiveContainer>
             </div>
           </Card>
@@ -221,17 +265,19 @@ function DashboardHome() {
               <h3 className="font-semibold mb-1">
                 {view === "receitas" ? "Receitas por Categoria" : "Despesas por Categoria"} — Histórico
               </h3>
-              <p className="text-xs text-muted-foreground mb-4">Composição empilhada (R$)</p>
+              <p className="text-xs text-muted-foreground mb-4">Top 3 categorias por período (R$)</p>
               <div className="h-80">
                 <ResponsiveContainer>
-                  <BarChart data={breakdown.stacked} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-                    <XAxis dataKey="periodo" fontSize={11} tickLine={false} axisLine={false} />
-                    <YAxis fontSize={11} tickLine={false} axisLine={false} tickFormatter={(v) => formatBRLCompact(v)} />
-                    <Tooltip contentStyle={{ borderRadius: 8, border: "1px solid var(--border)", fontSize: 12 }} formatter={(v: any) => formatBRL(v)} />
-                    <Legend wrapperStyle={{ fontSize: 11, paddingTop: 8 }} />
-                    {breakdown.labels.map((l, i) => (
-                      <Bar key={l} dataKey={l} stackId="a" fill={CHART_COLORS[i % CHART_COLORS.length]} radius={i === breakdown.labels.length - 1 ? [4, 4, 0, 0] : 0} />
+                  <BarChart data={breakdown.stacked} margin={{ top: 16, right: 8, left: 0, bottom: 0 }} barCategoryGap="28%" barGap={3}>
+                    <CartesianGrid {...GRID_PROPS} />
+                    <XAxis dataKey="periodo" {...AXIS_PROPS} />
+                    <YAxis {...AXIS_PROPS} tickFormatter={(v) => formatBRLCompact(v)} width={72} />
+                    <Tooltip contentStyle={TOOLTIP_STYLE} formatter={tooltipFormatBRL} />
+                    <Legend wrapperStyle={{ fontSize: 11, paddingTop: 12 }} iconType="square" iconSize={10} />
+                    {breakdown.labels.slice(0, 3).map((l, i) => (
+                      <Bar key={l} dataKey={l} fill={CHART_COLORS[i]} radius={[5, 5, 0, 0]} {...ANIMATION}>
+                        <LabelList dataKey={l} position="top" fontSize={10} formatter={(v: number) => v > 0 ? formatBRLCompact(v) : ""} />
+                      </Bar>
                     ))}
                   </BarChart>
                 </ResponsiveContainer>
@@ -245,13 +291,32 @@ function DashboardHome() {
               <div className="h-80">
                 <ResponsiveContainer>
                   <PieChart>
-                    <Pie data={breakdown.donut} dataKey="value" nameKey="name" innerRadius={60} outerRadius={100} paddingAngle={2}>
+                    <Pie
+                      data={breakdown.donut}
+                      dataKey="value"
+                      nameKey="name"
+                      innerRadius={70}
+                      outerRadius={105}
+                      paddingAngle={3}
+                      startAngle={90}
+                      endAngle={-270}
+                      label={({ percent }) => `${((percent ?? 0) * 100).toFixed(0)}%`}
+                      labelLine={{ stroke: "var(--border)", strokeWidth: 1 }}
+                      {...ANIMATION}
+                    >
                       {breakdown.donut.map((_, i) => (
-                        <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} stroke="var(--card)" strokeWidth={2} />
+                        <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} stroke="var(--card)" strokeWidth={3} />
                       ))}
                     </Pie>
-                    <Tooltip contentStyle={{ borderRadius: 8, border: "1px solid var(--border)", fontSize: 12 }} formatter={(v: any) => formatBRL(v)} />
-                    <Legend wrapperStyle={{ fontSize: 11 }} layout="vertical" align="right" verticalAlign="middle" />
+                    <Tooltip contentStyle={TOOLTIP_STYLE} formatter={tooltipFormatBRL} />
+                    <Legend
+                      layout="horizontal"
+                      verticalAlign="bottom"
+                      align="center"
+                      wrapperStyle={{ fontSize: 11, paddingTop: 12 }}
+                      iconType="circle"
+                      iconSize={8}
+                    />
                   </PieChart>
                 </ResponsiveContainer>
               </div>

@@ -165,3 +165,13 @@ html, body {
     font-weight: 600;
   }
 }
+
+/* Modo Apresentação — oculta sidebar e topnav para foco total na análise */
+body.presentation-mode [data-sidebar="sidebar"],
+body.presentation-mode [data-slot="sidebar"],
+body.presentation-mode [data-slot="sidebar-container"],
+body.presentation-mode aside.sidebar,
+body.presentation-mode [data-slot="sidebar-inset"] > header,
+body.presentation-mode main > header:first-child {
+  display: none !important;
+}

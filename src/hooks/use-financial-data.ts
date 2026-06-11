@@ -60,14 +60,16 @@ export function useAvailablePeriods(companyId: string | null) {
     queryKey: ["available-periods", companyId],
     enabled: !!companyId,
     queryFn: async () => {
-      // Períodos disponíveis vêm de account_balances (mensal — Bloco I).
-      const { data, error } = await supabase
-        .from("account_balances")
-        .select("periodo")
-        .eq("company_id", companyId!);
-      if (error) throw error;
+      // Mescla períodos mensais (Bloco I — account_balances) e anuais (Bloco J — financial_statements).
+      const [balRes, stmtRes] = await Promise.all([
+        supabase.from("account_balances").select("periodo").eq("company_id", companyId!),
+        supabase.from("financial_statements").select("periodo").eq("company_id", companyId!),
+      ]);
+      if (balRes.error) throw balRes.error;
+      if (stmtRes.error) throw stmtRes.error;
       const set = new Set<string>();
-      (data ?? []).forEach((r: any) => set.add(r.periodo));
+      (balRes.data ?? []).forEach((r: any) => set.add(r.periodo));
+      (stmtRes.data ?? []).forEach((r: any) => set.add(r.periodo));
       return Array.from(set).sort();
     },
   });
@@ -92,7 +94,7 @@ export function useMonthlyStatement(
       const [stmtRes, chartRes, balRes] = await Promise.all([
         supabase
           .from("financial_statements")
-          .select("linha_ordem, descricao, codigo_conta, nivel, is_subtotal, periodo")
+          .select("linha_ordem, descricao, codigo_conta, nivel, is_subtotal, periodo, valor")
           .eq("company_id", companyId!)
           .eq("tipo_demonstracao", tipo)
           .order("linha_ordem"),
@@ -160,6 +162,22 @@ export function useMonthlyStatement(
       const isBp = tipo.startsWith("BP_");
       const isPassivo = tipo === "BP_PASSIVO";
 
+      // Períodos sem saldos mensais (ex.: anuais do Bloco J) → usar valor de financial_statements como fallback.
+      const periodsWithBalances = new Set<string>();
+      for (const b of balRes.data ?? []) periodsWithBalances.add(b.periodo);
+      const fallbackPeriods = periodos.filter((p) => !periodsWithBalances.has(p));
+      // Map: periodo → linha_ordem → valor
+      const stmtValMap = new Map<string, Map<number, number>>();
+      for (const s of allStmt as any[]) {
+        if (!fallbackPeriods.includes(s.periodo)) continue;
+        let m = stmtValMap.get(s.periodo);
+        if (!m) {
+          m = new Map();
+          stmtValMap.set(s.periodo, m);
+        }
+        m.set(s.linha_ordem ?? 0, Number(s.valor) || 0);
+      }
+
       type Row = {
         linha_ordem: number;
         descricao: string;
@@ -211,6 +229,16 @@ export function useMonthlyStatement(
           for (const p of periodos) acc[p] += rows[j].values[p] ?? 0;
         }
         r.values = acc;
+      }
+
+      // 3) Override periods sem saldos mensais com valor anual de financial_statements
+      if (fallbackPeriods.length > 0) {
+        for (const r of rows) {
+          for (const p of fallbackPeriods) {
+            const v = stmtValMap.get(p)?.get(r.linha_ordem);
+            r.values[p] = v ?? 0;
+          }
+        }
       }
 
       // 3) achata para o shape esperado por buildRows

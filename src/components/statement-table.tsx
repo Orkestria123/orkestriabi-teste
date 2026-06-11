@@ -18,6 +18,7 @@ interface Props {
   periods: string[];
   showAV?: boolean;
   showAH?: boolean;
+  showTotal?: boolean;
   basePeriod?: string;
   avBaseCodigo?: string;
 }
@@ -27,6 +28,7 @@ export function StatementTable({
   periods,
   showAV = false,
   showAH = false,
+  showTotal = false,
   basePeriod,
   avBaseCodigo,
 }: Props) {

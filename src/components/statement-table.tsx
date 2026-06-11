@@ -236,6 +236,11 @@ export function StatementTable({
                         {formatBRL(row.values[p] ?? 0)}
                       </td>
                     ))}
+                    {showTotal && periods.length > 0 && (
+                      <td className="px-2 py-1 text-right tabular-nums font-semibold border-l">
+                        {formatBRL(total)}
+                      </td>
+                    )}
                     {showAV && (
                       <td className="px-2 py-1 text-right tabular-nums text-muted-foreground">
                         {av != null ? formatPct(av) : "—"}

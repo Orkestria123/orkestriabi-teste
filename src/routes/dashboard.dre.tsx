@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useDashboardCompany } from "@/components/dashboard-context";
 import { useFilters } from "@/components/filter-bar";
-import { useFinancialStatement } from "@/hooks/use-financial-data";
+import { useMonthlyStatement } from "@/hooks/use-financial-data";
 import { StatementTable, type StatementRow } from "@/components/statement-table";
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -35,7 +35,7 @@ export function makeStatementPage(tipo: string, title: string, avBase?: string, 
   return function Page() {
     const { companyId, company } = useDashboardCompany();
     const { periodos } = useFilters();
-    const { data, isLoading } = useFinancialStatement(companyId, tipo, periodos);
+    const { data, isLoading } = useMonthlyStatement(companyId, tipo, periodos);
     const [showAV, setShowAV] = useState(false);
     const [showAH, setShowAH] = useState(false);
     const [category, setCategory] = useState<"all" | "receita" | "despesa">("all");

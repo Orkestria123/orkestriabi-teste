@@ -4,7 +4,8 @@ import { useFilters } from "@/components/filter-bar";
 import { useFinancialStatement } from "@/hooks/use-financial-data";
 import { StatementTable, type StatementRow } from "@/components/statement-table";
 import { ExportMenu } from "@/components/export-menu";
-import { useMemo } from "react";
+import { Button } from "@/components/ui/button";
+import { useMemo, useState } from "react";
 
 function buildRows(data: any[]): StatementRow[] {
   const map = new Map<string, StatementRow>();

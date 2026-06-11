@@ -166,7 +166,8 @@ export function StatementTable({
               const isCollapsed = collapsed.has(idx);
               const isExpanded = expanded.has(idx);
               const canDrill = !!row.codigo_conta;
-              const rightCols = (showAV ? 1 : 0) + (showAH && basePeriod ? 1 : 0);
+              const rightCols = (showTotal && periods.length > 0 ? 1 : 0) + (showAV ? 1 : 0) + (showAH && basePeriod ? 1 : 0);
+              const total = periods.reduce((acc, p) => acc + (row.values[p] ?? 0), 0);
               return (
                 <Fragment key={idx}>
                   <tr

@@ -2,6 +2,7 @@ import { ArrowDownRight, ArrowUpRight, Minus } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { formatBRLCompact, formatPct } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { useId } from "react";
 
 interface Props {
   label: string;
@@ -90,30 +91,39 @@ function Sparkline({
   positive?: boolean;
   negative?: boolean;
 }) {
+  const uid = useId().replace(/[:]/g, "");
   const w = 120;
-  const h = 32;
+  const h = 36;
   const min = Math.min(...values);
   const max = Math.max(...values);
   const range = max - min || 1;
   const step = w / (values.length - 1);
-  const points = values
-    .map((v, i) => `${i * step},${h - ((v - min) / range) * h}`)
-    .join(" ");
+  const pts = values.map((v, i) => ({
+    x: i * step,
+    y: h - 4 - ((v - min) / range) * (h - 8),
+  }));
+
+  const d = pts.reduce((acc, pt, i) => {
+    if (i === 0) return `M ${pt.x} ${pt.y}`;
+    const prev = pts[i - 1];
+    const cpx = (prev.x + pt.x) / 2;
+    return `${acc} C ${cpx} ${prev.y} ${cpx} ${pt.y} ${pt.x} ${pt.y}`;
+  }, "");
+
   const color = negative ? "var(--destructive)" : positive ? "var(--success)" : "var(--brand)";
+  const last = pts[pts.length - 1];
+
   return (
-    <svg viewBox={`0 0 ${w} ${h}`} className="mt-3 w-full h-8" preserveAspectRatio="none">
+    <svg viewBox={`0 0 ${w} ${h}`} className="mt-3 w-full h-9" preserveAspectRatio="none">
       <defs>
-        <linearGradient id={`spark-${color}`} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={color} stopOpacity="0.35" />
+        <linearGradient id={`spark-${uid}`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={color} stopOpacity="0.25" />
           <stop offset="100%" stopColor={color} stopOpacity="0" />
         </linearGradient>
       </defs>
-      <polyline
-        fill={`url(#spark-${color})`}
-        stroke="none"
-        points={`0,${h} ${points} ${w},${h}`}
-      />
-      <polyline fill="none" stroke={color} strokeWidth="1.5" points={points} />
+      <path d={`${d} L ${w} ${h} L 0 ${h} Z`} fill={`url(#spark-${uid})`} />
+      <path d={d} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx={last.x} cy={last.y} r={3} fill={color} stroke="var(--card)" strokeWidth={1.5} />
     </svg>
   );
 }

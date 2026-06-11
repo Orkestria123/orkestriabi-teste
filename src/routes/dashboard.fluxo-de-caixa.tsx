@@ -68,26 +68,34 @@ function DFCExtras() {
         </div>
         <div className="h-72">
           <ResponsiveContainer>
-            <BarChart data={waterfall} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.92 0.012 260)" />
-              <XAxis dataKey="name" fontSize={12} />
-              <YAxis fontSize={12} tickFormatter={(v) => formatBRLCompact(v)} />
+            <BarChart data={waterfall} margin={{ top: 20, right: 10, left: 0, bottom: 0 }}>
+              <CartesianGrid {...GRID_PROPS} />
+              <XAxis dataKey="name" {...AXIS_PROPS} />
+              <YAxis {...AXIS_PROPS} tickFormatter={(v) => formatBRLCompact(v)} width={72} />
               <Tooltip
+                contentStyle={TOOLTIP_STYLE}
                 formatter={(_v: any, _n: any, p: any) => [formatBRL(p?.payload?.total), p?.payload?.name]}
                 labelFormatter={() => ""}
               />
-              <ReferenceLine y={0} stroke="oklch(0.6 0.01 260)" />
+              <ReferenceLine y={0} stroke="var(--border)" strokeWidth={1.5} />
               <Bar dataKey="base" stackId="a" fill="transparent" />
-              <Bar dataKey="valor" stackId="a" radius={[4, 4, 0, 0]}>
+              <Bar dataKey="valor" stackId="a" radius={[5, 5, 0, 0]} {...ANIMATION}>
+                <LabelList
+                  dataKey="total"
+                  position="top"
+                  fontSize={11}
+                  formatter={(v: number) => formatBRLCompact(v)}
+                  fill="var(--foreground)"
+                />
                 {waterfall.map((d, i) => (
                   <Cell
                     key={i}
                     fill={
                       d.kind === "total"
-                        ? "oklch(0.54 0.20 277)"
+                        ? "var(--chart-1)"
                         : d.kind === "pos"
-                          ? "oklch(0.65 0.18 150)"
-                          : "oklch(0.62 0.22 25)"
+                          ? "var(--success)"
+                          : "var(--destructive)"
                     }
                   />
                 ))}

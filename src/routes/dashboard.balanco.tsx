@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useDashboardCompany } from "@/components/dashboard-context";
 import { useFilters } from "@/components/filter-bar";
-import { useFinancialStatement } from "@/hooks/use-financial-data";
+import { useMonthlyStatement } from "@/hooks/use-financial-data";
 import { StatementTable, type StatementRow } from "@/components/statement-table";
 import { ExportMenu } from "@/components/export-menu";
 import { Button } from "@/components/ui/button";
@@ -29,8 +29,8 @@ export const Route = createFileRoute("/dashboard/balanco")({ component: Page });
 function Page() {
   const { companyId, company } = useDashboardCompany();
   const { periodos } = useFilters();
-  const { data: ativo } = useFinancialStatement(companyId, "BP_ATIVO", periodos);
-  const { data: passivo } = useFinancialStatement(companyId, "BP_PASSIVO", periodos);
+  const { data: ativo } = useMonthlyStatement(companyId, "BP_ATIVO", periodos);
+  const { data: passivo } = useMonthlyStatement(companyId, "BP_PASSIVO", periodos);
   const [showAV, setShowAV] = useState(false);
   const [showAH, setShowAH] = useState(false);
   const ativoRows = useMemo(() => buildRows(ativo ?? []), [ativo]);

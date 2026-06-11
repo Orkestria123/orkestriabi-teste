@@ -34,7 +34,13 @@ export function FilterProvider({ children }: { children: ReactNode }) {
   const periodos = useMemo(() => {
     if (availablePeriods.length > 0) {
       return availablePeriods
-        .filter((p) => years.includes(new Date(p).getUTCFullYear()))
+        .filter((p) => {
+          const d = new Date(p);
+          return (
+            years.includes(d.getUTCFullYear()) &&
+            months.includes(d.getUTCMonth() + 1)
+          );
+        })
         .sort();
     }
     const arr: string[] = [];
@@ -87,10 +93,16 @@ export function FilterBar() {
               Ano
             </span>
             <button
-              onClick={() => setYears(allYearsSelected ? [] : [...yearOptions])}
+              onClick={() => setYears([...yearOptions])}
               className="text-[10px] uppercase tracking-wider text-primary hover:underline"
             >
-              {allYearsSelected ? "Desmarcar todos" : "Marcar todos"}
+              Marcar todos
+            </button>
+            <button
+              onClick={() => setYears([])}
+              className="text-[10px] uppercase tracking-wider text-muted-foreground hover:text-foreground hover:underline"
+            >
+              Desmarcar todos
             </button>
           </div>
           <div className="flex gap-1.5">
@@ -116,12 +128,16 @@ export function FilterBar() {
               Mês
             </span>
             <button
-              onClick={() =>
-                setMonths(allMonthsSelected ? [] : MONTHS.map((m) => m.m))
-              }
+              onClick={() => setMonths(MONTHS.map((m) => m.m))}
               className="text-[10px] uppercase tracking-wider text-primary hover:underline"
             >
-              {allMonthsSelected ? "Desmarcar todos" : "Marcar todos"}
+              Marcar todos
+            </button>
+            <button
+              onClick={() => setMonths([])}
+              className="text-[10px] uppercase tracking-wider text-muted-foreground hover:text-foreground hover:underline"
+            >
+              Desmarcar todos
             </button>
           </div>
           <div className="flex flex-wrap gap-1">

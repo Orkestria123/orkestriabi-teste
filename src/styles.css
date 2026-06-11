@@ -166,15 +166,12 @@ html, body {
   }
 }
 
-/* Modo Apresentação — oculta sidebar e topbar para foco total na análise */
+/* Modo Apresentação — oculta sidebar e topnav para foco total na análise */
 body.presentation-mode [data-sidebar="sidebar"],
-body.presentation-mode aside[data-slot="sidebar-container"],
 body.presentation-mode [data-slot="sidebar"],
-body.presentation-mode header[data-slot="topnav"] {
+body.presentation-mode [data-slot="sidebar-container"],
+body.presentation-mode aside.sidebar,
+body.presentation-mode [data-slot="sidebar-inset"] > header,
+body.presentation-mode main > header:first-child {
   display: none !important;
-}
-body.presentation-mode [data-slot="sidebar-inset"],
-body.presentation-mode main {
-  margin-left: 0 !important;
-  width: 100% !important;
 }

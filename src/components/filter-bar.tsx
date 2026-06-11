@@ -75,12 +75,23 @@ export function FilterBar() {
       ? availableYears
       : [new Date().getFullYear() - 1, new Date().getFullYear()];
 
+  const allYearsSelected = yearOptions.every((y) => years.includes(y));
+  const allMonthsSelected = MONTHS.every((mo) => months.includes(mo.m));
+
   return (
     <div className="border-b bg-card/50 backdrop-blur sticky top-0 z-10">
       <div className="flex flex-wrap items-center gap-6 px-6 py-3">
         <div>
-          <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">
-            Ano
+          <div className="flex items-center gap-2 mb-1.5">
+            <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
+              Ano
+            </span>
+            <button
+              onClick={() => setYears(allYearsSelected ? [] : [...yearOptions])}
+              className="text-[10px] uppercase tracking-wider text-primary hover:underline"
+            >
+              {allYearsSelected ? "Desmarcar todos" : "Marcar todos"}
+            </button>
           </div>
           <div className="flex gap-1.5">
             {yearOptions.map((y) => (
@@ -100,8 +111,18 @@ export function FilterBar() {
           </div>
         </div>
         <div className="flex-1 min-w-[280px]">
-          <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">
-            Mês
+          <div className="flex items-center gap-2 mb-1.5">
+            <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
+              Mês
+            </span>
+            <button
+              onClick={() =>
+                setMonths(allMonthsSelected ? [] : MONTHS.map((m) => m.m))
+              }
+              className="text-[10px] uppercase tracking-wider text-primary hover:underline"
+            >
+              {allMonthsSelected ? "Desmarcar todos" : "Marcar todos"}
+            </button>
           </div>
           <div className="flex flex-wrap gap-1">
             {MONTHS.map((mo) => (
@@ -121,15 +142,6 @@ export function FilterBar() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => {
-              setMonths([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
-            }}
-          >
-            Ano todo
-          </Button>
           <Button
             size="sm"
             variant="ghost"

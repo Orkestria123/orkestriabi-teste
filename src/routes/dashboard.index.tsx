@@ -78,12 +78,17 @@ function DashboardHome() {
   }, [dre, lastPeriod, prevPeriod]);
 
   const chartData = useMemo(() => {
-    return activePeriods.map((p) => ({
-      periodo: periodoLabel(p),
-      Receita: findValue(dre ?? [], ["receita líquida", "receita liquida", "receita bruta"], p) ?? 0,
-      Custos: Math.abs(findValue(dre ?? [], ["custo", "cmv"], p) ?? 0),
-      Lucro: findValue(dre ?? [], ["lucro líquido", "lucro liquido"], p) ?? 0,
-    }));
+    return activePeriods.map((p) => {
+      const lucro = findValue(dre ?? [], ["lucro líquido", "lucro liquido"], p) ?? 0;
+      return {
+        periodo: periodoLabel(p),
+        Receita: findValue(dre ?? [], ["receita líquida", "receita liquida", "receita bruta"], p) ?? 0,
+        Custos: Math.abs(findValue(dre ?? [], ["custo", "cmv"], p) ?? 0),
+        Lucro: lucro,
+        LucroPos: lucro >= 0 ? lucro : 0,
+        LucroNeg: lucro < 0 ? lucro : 0,
+      };
+    });
   }, [dre, activePeriods]);
 
   // Breakdown rows for Receitas / Despesas: pick analytic rows (not subtotals) that match the keyword

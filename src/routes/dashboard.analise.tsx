@@ -1,111 +1,321 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useDashboardCompany } from "@/components/dashboard-context";
-import { useFilters } from "@/components/filter-bar";
-import { useFinancialStatement } from "@/hooks/use-financial-data";
+import { useEffect, useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { useDashboardCompany } from "@/components/dashboard-context";
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
-import { useMemo, useState } from "react";
-import { formatBRL, formatPct, periodoLabel } from "@/lib/format";
+  useAvailablePeriods,
+  useMonthlyStatement,
+} from "@/hooks/use-financial-data";
+import {
+  agregarPorPeriodos,
+  anosDisponiveis,
+  periodoMesLabel,
+  resolverPeriodos,
+  type Granularidade,
+  type MonthlyRow,
+} from "@/lib/analise-helpers";
+import { PeriodPicker } from "@/components/analise/period-picker";
+import { HighlightCard } from "@/components/analise/highlight-card";
+import {
+  ComparativoTable,
+  type CompRow,
+} from "@/components/analise/comparativo-table";
+import { ComparativoBarChart } from "@/components/analise/comparativo-bar-chart";
 import { cn } from "@/lib/utils";
+import { Maximize2, Minimize2 } from "lucide-react";
+import { computeIndicators, formatIndicator } from "@/lib/indicators";
+import { formatPct } from "@/lib/format";
 
 export const Route = createFileRoute("/dashboard/analise")({ component: Page });
 
+type Tipo = "DRE" | "BP_ATIVO" | "BP_PASSIVO" | "DFC" | "INDICADORES";
+
+const TABS: { id: Tipo; label: string }[] = [
+  { id: "DRE", label: "DRE" },
+  { id: "BP_ATIVO", label: "Balanço · Ativo" },
+  { id: "BP_PASSIVO", label: "Balanço · Passivo" },
+  { id: "DFC", label: "DFC" },
+  { id: "INDICADORES", label: "Indicadores" },
+];
+
+const RECEITA_KW = /receita líquida|receita liquida|receita bruta/i;
+const LUCRO_KW = /lucro líquido|lucro liquido|resultado líquido/i;
+
+function findValor(rows: { descricao: string; valor: number }[], kw: RegExp): number | null {
+  // Prefere a linha de maior magnitude (geralmente o subtotal principal)
+  const matched = rows.filter((r) => kw.test(r.descricao ?? ""));
+  if (matched.length === 0) return null;
+  return matched.reduce(
+    (best, cur) => (Math.abs(cur.valor) > Math.abs(best) ? cur.valor : best),
+    matched[0].valor,
+  );
+}
+
 function Page() {
-  const { companyId } = useDashboardCompany();
-  const { periodos } = useFilters();
-  const [tipo, setTipo] = useState<"DRE" | "BP">("DRE");
-  const { data, isLoading } = useFinancialStatement(companyId, tipo, periodos);
+  const { companyId, company } = useDashboardCompany();
+  const { data: availablePeriods = [] } = useAvailablePeriods(companyId);
 
-  const rows = useMemo(() => {
-    const map = new Map<string, { descricao: string; nivel: number; is_subtotal: boolean; linha_ordem: number; values: Record<string, number> }>();
-    for (const r of data ?? []) {
-      const key = `${r.linha_ordem}-${r.descricao}`;
-      if (!map.has(key)) {
-        map.set(key, { descricao: r.descricao ?? "", nivel: r.nivel ?? 0, is_subtotal: r.is_subtotal ?? false, linha_ordem: r.linha_ordem ?? 0, values: {} });
+  const [granularidade, setGranularidade] = useState<Granularidade>("ano");
+  const [periodoA, setPeriodoA] = useState<string>("");
+  const [periodoB, setPeriodoB] = useState<string>("");
+  const [tipo, setTipo] = useState<Tipo>("DRE");
+  const [presentation, setPresentation] = useState(false);
+
+  // Inicializa períodos quando lista chega
+  useEffect(() => {
+    if (availablePeriods.length === 0) return;
+    if (granularidade === "ano") {
+      const anos = anosDisponiveis(availablePeriods);
+      if (!periodoA || !anos.includes(parseInt(periodoA, 10))) {
+        setPeriodoA(String(anos[anos.length - 2] ?? anos[anos.length - 1] ?? ""));
       }
-      map.get(key)!.values[r.periodo] = Number(r.valor) || 0;
+      if (!periodoB || !anos.includes(parseInt(periodoB, 10))) {
+        setPeriodoB(String(anos[anos.length - 1] ?? ""));
+      }
+    } else {
+      if (!periodoA || !availablePeriods.includes(periodoA)) {
+        setPeriodoA(availablePeriods[Math.max(0, availablePeriods.length - 13)]);
+      }
+      if (!periodoB || !availablePeriods.includes(periodoB)) {
+        setPeriodoB(availablePeriods[availablePeriods.length - 1]);
+      }
     }
-    return Array.from(map.values()).sort((a, b) => a.linha_ordem - b.linha_ordem);
-  }, [data]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [availablePeriods, granularidade]);
 
-  const base = periodos[0];
+  const periodosA = useMemo(
+    () => resolverPeriodos(granularidade, periodoA, availablePeriods),
+    [granularidade, periodoA, availablePeriods],
+  );
+  const periodosB = useMemo(
+    () => resolverPeriodos(granularidade, periodoB, availablePeriods),
+    [granularidade, periodoB, availablePeriods],
+  );
+  const allPeriodos = useMemo(
+    () => Array.from(new Set([...periodosA, ...periodosB])).sort(),
+    [periodosA, periodosB],
+  );
+
+  const fetchTipo = tipo === "INDICADORES" ? "DRE" : tipo;
+  const { data: rows = [], isLoading } = useMonthlyStatement(companyId, fetchTipo, allPeriodos);
+  // Para indicadores precisamos DRE + BP_ATIVO + BP_PASSIVO
+  const { data: dreRows = [] } = useMonthlyStatement(
+    companyId,
+    "DRE",
+    tipo === "INDICADORES" ? allPeriodos : [],
+  );
+  const { data: bpAtivoRows = [] } = useMonthlyStatement(
+    companyId,
+    "BP_ATIVO",
+    tipo === "INDICADORES" ? allPeriodos : [],
+  );
+  const { data: bpPassivoRows = [] } = useMonthlyStatement(
+    companyId,
+    "BP_PASSIVO",
+    tipo === "INDICADORES" ? allPeriodos : [],
+  );
+
+  const labelA = granularidade === "ano" ? periodoA : periodoA ? periodoMesLabel(periodoA) : "—";
+  const labelB = granularidade === "ano" ? periodoB : periodoB ? periodoMesLabel(periodoB) : "—";
+
+  // Linhas comparativas (DRE/BP/DFC)
+  const compRows: CompRow[] = useMemo(() => {
+    if (tipo === "INDICADORES") return [];
+    const ar = agregarPorPeriodos(rows as MonthlyRow[], fetchTipo, periodosA).byLinha;
+    const br = agregarPorPeriodos(rows as MonthlyRow[], fetchTipo, periodosB).byLinha;
+    const allLinhas = new Set<number>([...ar.keys(), ...br.keys()]);
+    const out: CompRow[] = [];
+    for (const ln of allLinhas) {
+      const ref = ar.get(ln) ?? br.get(ln)!;
+      out.push({
+        linha_ordem: ln,
+        descricao: ref.descricao,
+        nivel: ref.nivel ?? 0,
+        is_subtotal: ref.is_subtotal ?? false,
+        valorA: ar.get(ln)?.valor ?? 0,
+        valorB: br.get(ln)?.valor ?? 0,
+      });
+    }
+    return out.sort((a, b) => a.linha_ordem - b.linha_ordem);
+  }, [rows, fetchTipo, periodosA, periodosB, tipo]);
+
+  // Destaques (sempre baseados em DRE) — busca DRE quando estamos em outra aba
+  const { data: dreForHighlights = [] } = useMonthlyStatement(
+    companyId,
+    "DRE",
+    tipo === "DRE" || tipo === "INDICADORES" ? [] : allPeriodos,
+  );
+  const dreSource = (tipo === "DRE" ? rows : tipo === "INDICADORES" ? dreRows : dreForHighlights) as MonthlyRow[];
+
+  const highlights = useMemo(() => {
+    const a = agregarPorPeriodos(dreSource, "DRE", periodosA).ordered;
+    const b = agregarPorPeriodos(dreSource, "DRE", periodosB).ordered;
+    const recA = findValor(a, RECEITA_KW);
+    const recB = findValor(b, RECEITA_KW);
+    const lucA = findValor(a, LUCRO_KW);
+    const lucB = findValor(b, LUCRO_KW);
+    const margA = recA && recA !== 0 && lucA != null ? (lucA / recA) * 100 : null;
+    const margB = recB && recB !== 0 && lucB != null ? (lucB / recB) * 100 : null;
+    return { recA, recB, lucA, lucB, margA, margB };
+  }, [dreSource, periodosA, periodosB]);
+
+  // Indicadores
+  const indicadoresAB = useMemo(() => {
+    if (tipo !== "INDICADORES") return null;
+    const aggA = [
+      ...agregarPorPeriodos(dreRows as MonthlyRow[], "DRE", periodosA).ordered.map((r) => ({ ...r, tipo_demonstracao: "DRE" })),
+      ...agregarPorPeriodos(bpAtivoRows as MonthlyRow[], "BP_ATIVO", periodosA).ordered.map((r) => ({ ...r, tipo_demonstracao: "BP" })),
+      ...agregarPorPeriodos(bpPassivoRows as MonthlyRow[], "BP_PASSIVO", periodosA).ordered.map((r) => ({ ...r, tipo_demonstracao: "BP" })),
+    ];
+    const aggB = [
+      ...agregarPorPeriodos(dreRows as MonthlyRow[], "DRE", periodosB).ordered.map((r) => ({ ...r, tipo_demonstracao: "DRE" })),
+      ...agregarPorPeriodos(bpAtivoRows as MonthlyRow[], "BP_ATIVO", periodosB).ordered.map((r) => ({ ...r, tipo_demonstracao: "BP" })),
+      ...agregarPorPeriodos(bpPassivoRows as MonthlyRow[], "BP_PASSIVO", periodosB).ordered.map((r) => ({ ...r, tipo_demonstracao: "BP" })),
+    ];
+    const rowsForIndicators = [
+      ...aggA.map((r) => ({ ...r, periodo: "A" })),
+      ...aggB.map((r) => ({ ...r, periodo: "B" })),
+    ];
+    return computeIndicators(rowsForIndicators as any, ["A", "B"]);
+  }, [tipo, dreRows, bpAtivoRows, bpPassivoRows, periodosA, periodosB]);
+
+  // Modo apresentação: classe no body
+  useEffect(() => {
+    if (presentation) document.body.classList.add("presentation-mode");
+    else document.body.classList.remove("presentation-mode");
+    return () => document.body.classList.remove("presentation-mode");
+  }, [presentation]);
+
+  if (!companyId) {
+    return (
+      <div className="rounded-lg border bg-card p-12 text-center text-sm text-muted-foreground">
+        Selecione uma empresa para iniciar a análise comparativa.
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
+    <div className="space-y-5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-semibold tracking-tight">Análise comparativa</h2>
+          <h2 className="text-2xl font-semibold tracking-tight">Análise Comparativa</h2>
           <p className="text-sm text-muted-foreground mt-1">
-            Variações absolutas e percentuais entre os períodos selecionados (base = {base ? periodoLabel(base) : "—"}).
+            Compare dois períodos lado a lado. Os filtros globais não interferem aqui.
           </p>
         </div>
-        <Select value={tipo} onValueChange={(v) => setTipo(v as "DRE" | "BP")}>
-          <SelectTrigger className="w-[200px]"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="DRE">DRE</SelectItem>
-            <SelectItem value="BP">Balanço Patrimonial</SelectItem>
-          </SelectContent>
-        </Select>
+        <Button
+          size="sm"
+          variant={presentation ? "default" : "outline"}
+          onClick={() => setPresentation((v) => !v)}
+          className="gap-2"
+        >
+          {presentation ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+          {presentation ? "Sair" : "Modo Apresentação"}
+        </Button>
       </div>
 
-      {isLoading ? (
-        <div className="text-sm text-muted-foreground">Carregando…</div>
-      ) : rows.length === 0 ? (
-        <Card className="p-10 text-center text-sm text-muted-foreground">
-          Nenhum dado para os filtros selecionados.
+      {presentation && (
+        <Card className="p-4 bg-gradient-to-r from-primary/10 to-transparent">
+          <p className="text-xs uppercase tracking-wider text-muted-foreground">Apresentação</p>
+          <p className="text-lg font-semibold mt-1">
+            {company?.razao_social ?? company?.name} — {labelA} vs {labelB}
+          </p>
         </Card>
+      )}
+
+      <Card className="p-4">
+        <PeriodPicker
+          granularidade={granularidade}
+          setGranularidade={setGranularidade}
+          periodoA={periodoA}
+          periodoB={periodoB}
+          setPeriodoA={setPeriodoA}
+          setPeriodoB={setPeriodoB}
+          availablePeriods={availablePeriods}
+        />
+      </Card>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <HighlightCard label="Lucro Líquido" valorA={highlights.lucA} valorB={highlights.lucB} labelA={labelA} labelB={labelB} />
+        <HighlightCard label="Receita Líquida" valorA={highlights.recA} valorB={highlights.recB} labelA={labelA} labelB={labelB} />
+        <HighlightCard label="Margem Líquida" valorA={highlights.margA} valorB={highlights.margB} labelA={labelA} labelB={labelB} format="percent" />
+      </div>
+
+      <div className="flex flex-wrap gap-1 border-b border-border">
+        {TABS.map((t) => (
+          <button
+            key={t.id}
+            onClick={() => setTipo(t.id)}
+            className={cn(
+              "px-4 h-9 text-sm font-medium border-b-2 -mb-px transition-colors",
+              tipo === t.id
+                ? "border-primary text-foreground"
+                : "border-transparent text-muted-foreground hover:text-foreground",
+            )}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {tipo !== "INDICADORES" ? (
+        <>
+          {!presentation && compRows.length > 0 && (
+            <ComparativoBarChart rows={compRows} labelA={labelA} labelB={labelB} />
+          )}
+          {isLoading ? (
+            <div className="text-sm text-muted-foreground">Carregando…</div>
+          ) : (
+            <ComparativoTable rows={compRows} labelA={labelA} labelB={labelB} presentation={presentation} />
+          )}
+        </>
       ) : (
-        <Card className="overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-muted/30">
-                <tr>
-                  <th className="text-left px-4 py-3 font-medium text-xs uppercase tracking-wider text-muted-foreground sticky left-0 bg-muted/30">Descrição</th>
-                  {periodos.map((p) => (
-                    <th key={p} className="text-right px-4 py-3 font-medium text-xs uppercase tracking-wider text-muted-foreground tabular-nums" colSpan={2}>
-                      {periodoLabel(p)}
-                    </th>
-                  ))}
-                </tr>
-                <tr className="bg-muted/20">
-                  <th></th>
-                  {periodos.map((p, i) => (
-                    <>
-                      <th key={`${p}-v`} className="text-right px-4 py-2 text-[10px] uppercase tracking-wider text-muted-foreground">Valor</th>
-                      <th key={`${p}-d`} className="text-right px-4 py-2 text-[10px] uppercase tracking-wider text-muted-foreground">
-                        {i === 0 ? "Base" : "Δ%"}
-                      </th>
-                    </>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((r, idx) => (
-                  <tr key={idx} className={cn("border-t hover:bg-accent/40", r.is_subtotal && "bg-muted/40 font-semibold")}>
-                    <td className="px-4 py-2.5 sticky left-0 bg-card" style={{ paddingLeft: `${16 + r.nivel * 16}px` }}>
-                      {r.descricao}
-                    </td>
-                    {periodos.map((p, i) => {
-                      const v = r.values[p] ?? 0;
-                      const baseV = r.values[base] ?? 0;
-                      const delta = i === 0 ? null : baseV !== 0 ? ((v - baseV) / Math.abs(baseV)) * 100 : null;
-                      return (
-                        <>
-                          <td key={`${p}-v`} className="px-4 py-2.5 text-right tabular-nums">{formatBRL(v)}</td>
-                          <td key={`${p}-d`} className={cn("px-4 py-2.5 text-right tabular-nums text-xs", delta != null && delta > 0 && "text-success", delta != null && delta < 0 && "text-destructive")}>
-                            {i === 0 ? "—" : delta != null ? formatPct(delta) : "—"}
-                          </td>
-                        </>
-                      );
-                    })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </Card>
+        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
+          {(indicadoresAB ?? []).map((ind) => {
+            const va = ind.values["A"];
+            const vb = ind.values["B"];
+            const variacao =
+              va != null && vb != null
+                ? ind.format === "percent"
+                  ? vb - va
+                  : va !== 0 ? ((vb - va) / Math.abs(va)) * 100 : null
+                : null;
+            return (
+              <Card key={ind.key} className="p-4">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{ind.category}</p>
+                <p className="text-sm font-semibold mt-0.5">{ind.label}</p>
+                <div className="mt-3 grid grid-cols-2 gap-3">
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{labelA}</p>
+                    <p className="text-base font-semibold tabular-nums">{formatIndicator(va ?? null, ind.format)}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{labelB}</p>
+                    <p className="text-base font-semibold tabular-nums">{formatIndicator(vb ?? null, ind.format)}</p>
+                  </div>
+                </div>
+                {variacao != null && (
+                  <p className={cn("mt-2 text-xs font-medium", variacao > 0 ? "text-success" : variacao < 0 ? "text-destructive" : "text-muted-foreground")}>
+                    {variacao > 0 ? "▲" : variacao < 0 ? "▼" : ""} {ind.format === "percent" ? `${Math.abs(variacao).toFixed(2).replace(".", ",")} p.p.` : formatPct(Math.abs(variacao), 1)}
+                  </p>
+                )}
+                <p className="mt-2 text-[10px] text-muted-foreground">{ind.description}</p>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+
+      {presentation && (
+        <Button
+          size="sm"
+          variant="default"
+          onClick={() => setPresentation(false)}
+          className="fixed bottom-6 right-6 z-50 shadow-[var(--shadow-elegant)] gap-2"
+        >
+          <Minimize2 className="h-4 w-4" /> Sair do Modo Apresentação
+        </Button>
       )}
     </div>
   );

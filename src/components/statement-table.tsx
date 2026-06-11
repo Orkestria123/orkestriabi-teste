@@ -131,6 +131,11 @@ export function StatementTable({
                   {periodoLabel(p)}
                 </th>
               ))}
+              {showTotal && periods.length > 0 && (
+                <th className="text-right font-medium text-[10px] uppercase tracking-wider text-muted-foreground px-2 py-2 tabular-nums border-l">
+                  Total
+                </th>
+              )}
               {showAV && (
                 <th className="text-right font-medium text-[10px] uppercase tracking-wider text-muted-foreground px-2 py-2">
                   AV%

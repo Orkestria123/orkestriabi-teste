@@ -94,7 +94,7 @@ export function useMonthlyStatement(
       const [stmtRes, chartRes, balRes] = await Promise.all([
         supabase
           .from("financial_statements")
-          .select("linha_ordem, descricao, codigo_conta, nivel, is_subtotal, periodo")
+          .select("linha_ordem, descricao, codigo_conta, nivel, is_subtotal, periodo, valor")
           .eq("company_id", companyId!)
           .eq("tipo_demonstracao", tipo)
           .order("linha_ordem"),

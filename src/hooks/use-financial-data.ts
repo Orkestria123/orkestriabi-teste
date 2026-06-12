@@ -82,16 +82,25 @@ export function useAvailablePeriods(companyId: string | null) {
     queryKey: ["available-periods", companyId],
     enabled: !!companyId,
     queryFn: async () => {
-      // Mescla períodos mensais (Bloco I — account_balances) e anuais (Bloco J — financial_statements).
-      const [balRes, stmtRes] = await Promise.all([
-        supabase.from("account_balances").select("periodo").eq("company_id", companyId!),
-        supabase.from("financial_statements").select("periodo").eq("company_id", companyId!),
-      ]);
-      if (balRes.error) throw balRes.error;
-      if (stmtRes.error) throw stmtRes.error;
+      const meta = await getCompanyMeta(companyId!);
       const set = new Set<string>();
-      (balRes.data ?? []).forEach((r: any) => set.add(r.periodo));
-      (stmtRes.data ?? []).forEach((r: any) => set.add(r.periodo));
+      if (meta?.fonteDados === "diario") {
+        const { data, error } = await supabase
+          .from("saldos_mensais")
+          .select("competencia")
+          .eq("company_id", companyId!);
+        if (error) throw error;
+        (data ?? []).forEach((r: any) => set.add(r.competencia));
+      } else {
+        const [balRes, stmtRes] = await Promise.all([
+          supabase.from("account_balances").select("periodo").eq("company_id", companyId!),
+          supabase.from("financial_statements").select("periodo").eq("company_id", companyId!),
+        ]);
+        if (balRes.error) throw balRes.error;
+        if (stmtRes.error) throw stmtRes.error;
+        (balRes.data ?? []).forEach((r: any) => set.add(r.periodo));
+        (stmtRes.data ?? []).forEach((r: any) => set.add(r.periodo));
+      }
       return Array.from(set).sort();
     },
   });

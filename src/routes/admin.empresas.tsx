@@ -13,7 +13,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Plus, Search, BarChart3, ArrowRight, Trash2 } from "lucide-react";
+import { Plus, Search, BarChart3, ArrowRight, Trash2, Database } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
 import { deleteCompany } from "@/lib/api/orkestria.functions";

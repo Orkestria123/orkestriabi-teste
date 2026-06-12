@@ -122,6 +122,13 @@ export function useMonthlyStatement(
     queryKey: ["monthly-stmt", companyId, tipo, periodos.join(",")],
     enabled: !!companyId && periodos.length > 0,
     queryFn: async () => {
+      // Roteamento por fonte_dados. Se a empresa já está no novo pipeline (diario),
+      // monta DRE/BP a partir de saldos_mensais + plano_contas + mapeamento_demonstracao.
+      const meta = await getCompanyMeta(companyId!);
+      if (meta?.fonteDados === "diario") {
+        const t = tipo as "DRE" | "BP_ATIVO" | "BP_PASSIVO" | "DFC";
+        return buildStatementFromDiario(companyId!, meta.tenantId, meta.modoGlobal, t, periodos);
+      }
       const [stmtRes, chartRes, balRes] = await Promise.all([
         supabase
           .from("financial_statements")

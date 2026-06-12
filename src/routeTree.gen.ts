@@ -30,6 +30,7 @@ import { Route as AdminUsuariosRouteImport } from './routes/admin.usuarios'
 import { Route as AdminUploadRouteImport } from './routes/admin.upload'
 import { Route as AdminEmpresasRouteImport } from './routes/admin.empresas'
 import { Route as AdminComparativoRouteImport } from './routes/admin.comparativo'
+import { Route as AdminEmpresasIdDadosRouteImport } from './routes/admin.empresas.$id.dados'
 
 const TesteRoute = TesteRouteImport.update({
   id: '/teste',
@@ -136,6 +137,11 @@ const AdminComparativoRoute = AdminComparativoRouteImport.update({
   path: '/admin/comparativo',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminEmpresasIdDadosRoute = AdminEmpresasIdDadosRouteImport.update({
+  id: '/$id/dados',
+  path: '/$id/dados',
+  getParentRoute: () => AdminEmpresasRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -143,7 +149,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof DashboardRouteWithChildren
   '/teste': typeof TesteRoute
   '/admin/comparativo': typeof AdminComparativoRoute
-  '/admin/empresas': typeof AdminEmpresasRoute
+  '/admin/empresas': typeof AdminEmpresasRouteWithChildren
   '/admin/upload': typeof AdminUploadRoute
   '/admin/usuarios': typeof AdminUsuariosRoute
   '/dashboard/analise': typeof DashboardAnaliseRoute
@@ -159,13 +165,14 @@ export interface FileRoutesByFullPath {
   '/admin/': typeof AdminIndexRoute
   '/dashboard/': typeof DashboardIndexRoute
   '/orkestria-admin/': typeof OrkestriaAdminIndexRoute
+  '/admin/empresas/$id/dados': typeof AdminEmpresasIdDadosRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/teste': typeof TesteRoute
   '/admin/comparativo': typeof AdminComparativoRoute
-  '/admin/empresas': typeof AdminEmpresasRoute
+  '/admin/empresas': typeof AdminEmpresasRouteWithChildren
   '/admin/upload': typeof AdminUploadRoute
   '/admin/usuarios': typeof AdminUsuariosRoute
   '/dashboard/analise': typeof DashboardAnaliseRoute
@@ -181,6 +188,7 @@ export interface FileRoutesByTo {
   '/admin': typeof AdminIndexRoute
   '/dashboard': typeof DashboardIndexRoute
   '/orkestria-admin': typeof OrkestriaAdminIndexRoute
+  '/admin/empresas/$id/dados': typeof AdminEmpresasIdDadosRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -189,7 +197,7 @@ export interface FileRoutesById {
   '/dashboard': typeof DashboardRouteWithChildren
   '/teste': typeof TesteRoute
   '/admin/comparativo': typeof AdminComparativoRoute
-  '/admin/empresas': typeof AdminEmpresasRoute
+  '/admin/empresas': typeof AdminEmpresasRouteWithChildren
   '/admin/upload': typeof AdminUploadRoute
   '/admin/usuarios': typeof AdminUsuariosRoute
   '/dashboard/analise': typeof DashboardAnaliseRoute
@@ -205,6 +213,7 @@ export interface FileRoutesById {
   '/admin/': typeof AdminIndexRoute
   '/dashboard/': typeof DashboardIndexRoute
   '/orkestria-admin/': typeof OrkestriaAdminIndexRoute
+  '/admin/empresas/$id/dados': typeof AdminEmpresasIdDadosRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -230,6 +239,7 @@ export interface FileRouteTypes {
     | '/admin/'
     | '/dashboard/'
     | '/orkestria-admin/'
+    | '/admin/empresas/$id/dados'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -252,6 +262,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/dashboard'
     | '/orkestria-admin'
+    | '/admin/empresas/$id/dados'
   id:
     | '__root__'
     | '/'
@@ -275,6 +286,7 @@ export interface FileRouteTypes {
     | '/admin/'
     | '/dashboard/'
     | '/orkestria-admin/'
+    | '/admin/empresas/$id/dados'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -283,7 +295,7 @@ export interface RootRouteChildren {
   DashboardRoute: typeof DashboardRouteWithChildren
   TesteRoute: typeof TesteRoute
   AdminComparativoRoute: typeof AdminComparativoRoute
-  AdminEmpresasRoute: typeof AdminEmpresasRoute
+  AdminEmpresasRoute: typeof AdminEmpresasRouteWithChildren
   AdminUploadRoute: typeof AdminUploadRoute
   AdminUsuariosRoute: typeof AdminUsuariosRoute
   OrkestriaAdminTenantsRoute: typeof OrkestriaAdminTenantsRoute
@@ -440,6 +452,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminComparativoRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/empresas/$id/dados': {
+      id: '/admin/empresas/$id/dados'
+      path: '/$id/dados'
+      fullPath: '/admin/empresas/$id/dados'
+      preLoaderRoute: typeof AdminEmpresasIdDadosRouteImport
+      parentRoute: typeof AdminEmpresasRoute
+    }
   }
 }
 
@@ -473,13 +492,25 @@ const DashboardRouteWithChildren = DashboardRoute._addFileChildren(
   DashboardRouteChildren,
 )
 
+interface AdminEmpresasRouteChildren {
+  AdminEmpresasIdDadosRoute: typeof AdminEmpresasIdDadosRoute
+}
+
+const AdminEmpresasRouteChildren: AdminEmpresasRouteChildren = {
+  AdminEmpresasIdDadosRoute: AdminEmpresasIdDadosRoute,
+}
+
+const AdminEmpresasRouteWithChildren = AdminEmpresasRoute._addFileChildren(
+  AdminEmpresasRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthRoute: AuthRoute,
   DashboardRoute: DashboardRouteWithChildren,
   TesteRoute: TesteRoute,
   AdminComparativoRoute: AdminComparativoRoute,
-  AdminEmpresasRoute: AdminEmpresasRoute,
+  AdminEmpresasRoute: AdminEmpresasRouteWithChildren,
   AdminUploadRoute: AdminUploadRoute,
   AdminUsuariosRoute: AdminUsuariosRoute,
   OrkestriaAdminTenantsRoute: OrkestriaAdminTenantsRoute,
@@ -489,13 +520,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

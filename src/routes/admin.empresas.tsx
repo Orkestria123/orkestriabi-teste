@@ -13,7 +13,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Plus, Search, BarChart3, ArrowRight, Trash2 } from "lucide-react";
+import { Plus, Search, BarChart3, ArrowRight, Trash2, Database } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
 import { deleteCompany } from "@/lib/api/orkestria.functions";
@@ -133,11 +133,20 @@ function Page() {
                   size="sm"
                   className="flex-1"
                   onClick={() => openBI(c.id)}
-                  disabled={spedCount === 0}
+                  disabled={spedCount === 0 && (c.fonte_dados ?? "sped") === "sped"}
                 >
                   <BarChart3 className="h-4 w-4 mr-1.5" />
                   Abrir BI
                   <ArrowRight className="h-3.5 w-3.5 ml-auto" />
+                </Button>
+                <Button
+                  size="icon"
+                  variant="outline"
+                  className="h-9 w-9"
+                  onClick={() => navigate({ to: "/admin/empresas/$id/dados", params: { id: c.id } })}
+                  title="Dados contábeis (plano, mapeamento, diário)"
+                >
+                  <Database className="h-4 w-4" />
                 </Button>
                 <Button
                   size="icon"
@@ -150,14 +159,15 @@ function Page() {
                 </Button>
               </div>
 
-              {spedCount === 0 && (
-                <Link
-                  to="/admin/upload"
-                  className="text-xs text-muted-foreground hover:text-primary text-center mt-2"
-                >
-                  Enviar primeiro SPED →
-                </Link>
-              )}
+              <Link
+                to="/admin/empresas/$id/dados"
+                params={{ id: c.id }}
+                className="text-xs text-muted-foreground hover:text-primary text-center mt-2"
+              >
+                {(c.fonte_dados ?? "sped") === "diario"
+                  ? "Gerenciar plano e diários →"
+                  : "Configurar plano de contas e diário →"}
+              </Link>
             </Card>
           );
         })}

@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { buildStatementFromDiario } from "@/lib/diario/build-statements";
 
 export interface Company {
   id: string;
@@ -8,6 +9,27 @@ export interface Company {
   razao_social: string | null;
   regime_tributario: string | null;
   ativo: boolean;
+  fonte_dados?: "sped" | "diario";
+  tenant_id?: string;
+}
+
+async function getCompanyMeta(companyId: string) {
+  const { data: c } = await supabase
+    .from("companies")
+    .select("id, tenant_id, fonte_dados")
+    .eq("id", companyId)
+    .maybeSingle();
+  if (!c) return null;
+  const { data: t } = await supabase
+    .from("tenants")
+    .select("plano_contas_modo")
+    .eq("id", (c as any).tenant_id)
+    .maybeSingle();
+  return {
+    tenantId: (c as any).tenant_id as string,
+    fonteDados: ((c as any).fonte_dados as "sped" | "diario") ?? "sped",
+    modoGlobal: ((t as any)?.plano_contas_modo ?? "empresa") === "global",
+  };
 }
 
 // Nota: estes hooks não dependem mais do estado de carregamento da auth.
@@ -60,16 +82,25 @@ export function useAvailablePeriods(companyId: string | null) {
     queryKey: ["available-periods", companyId],
     enabled: !!companyId,
     queryFn: async () => {
-      // Mescla períodos mensais (Bloco I — account_balances) e anuais (Bloco J — financial_statements).
-      const [balRes, stmtRes] = await Promise.all([
-        supabase.from("account_balances").select("periodo").eq("company_id", companyId!),
-        supabase.from("financial_statements").select("periodo").eq("company_id", companyId!),
-      ]);
-      if (balRes.error) throw balRes.error;
-      if (stmtRes.error) throw stmtRes.error;
+      const meta = await getCompanyMeta(companyId!);
       const set = new Set<string>();
-      (balRes.data ?? []).forEach((r: any) => set.add(r.periodo));
-      (stmtRes.data ?? []).forEach((r: any) => set.add(r.periodo));
+      if (meta?.fonteDados === "diario") {
+        const { data, error } = await supabase
+          .from("saldos_mensais")
+          .select("competencia")
+          .eq("company_id", companyId!);
+        if (error) throw error;
+        (data ?? []).forEach((r: any) => set.add(r.competencia));
+      } else {
+        const [balRes, stmtRes] = await Promise.all([
+          supabase.from("account_balances").select("periodo").eq("company_id", companyId!),
+          supabase.from("financial_statements").select("periodo").eq("company_id", companyId!),
+        ]);
+        if (balRes.error) throw balRes.error;
+        if (stmtRes.error) throw stmtRes.error;
+        (balRes.data ?? []).forEach((r: any) => set.add(r.periodo));
+        (stmtRes.data ?? []).forEach((r: any) => set.add(r.periodo));
+      }
       return Array.from(set).sort();
     },
   });
@@ -91,6 +122,13 @@ export function useMonthlyStatement(
     queryKey: ["monthly-stmt", companyId, tipo, periodos.join(",")],
     enabled: !!companyId && periodos.length > 0,
     queryFn: async () => {
+      // Roteamento por fonte_dados. Se a empresa já está no novo pipeline (diario),
+      // monta DRE/BP a partir de saldos_mensais + plano_contas + mapeamento_demonstracao.
+      const meta = await getCompanyMeta(companyId!);
+      if (meta?.fonteDados === "diario") {
+        const t = tipo as "DRE" | "BP_ATIVO" | "BP_PASSIVO" | "DFC";
+        return buildStatementFromDiario(companyId!, meta.tenantId, meta.modoGlobal, t, periodos);
+      }
       const [stmtRes, chartRes, balRes] = await Promise.all([
         supabase
           .from("financial_statements")

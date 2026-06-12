@@ -141,6 +141,7 @@ export type Database = {
           ativo: boolean
           cnpj: string | null
           created_at: string
+          fonte_dados: string
           id: string
           name: string
           razao_social: string | null
@@ -151,6 +152,7 @@ export type Database = {
           ativo?: boolean
           cnpj?: string | null
           created_at?: string
+          fonte_dados?: string
           id?: string
           name: string
           razao_social?: string | null
@@ -161,6 +163,7 @@ export type Database = {
           ativo?: boolean
           cnpj?: string | null
           created_at?: string
+          fonte_dados?: string
           id?: string
           name?: string
           razao_social?: string | null
@@ -173,6 +176,85 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      diario_uploads: {
+        Row: {
+          company_id: string
+          competencia_fim: string | null
+          competencia_inicio: string | null
+          contas_desconhecidas: number
+          created_at: string
+          erro_detalhe: string | null
+          filename: string
+          id: string
+          partidas_fechadas: boolean | null
+          status: string
+          tenant_id: string
+          total_creditos: number
+          total_debitos: number
+          total_lancamentos: number
+          updated_at: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          company_id: string
+          competencia_fim?: string | null
+          competencia_inicio?: string | null
+          contas_desconhecidas?: number
+          created_at?: string
+          erro_detalhe?: string | null
+          filename: string
+          id?: string
+          partidas_fechadas?: boolean | null
+          status?: string
+          tenant_id: string
+          total_creditos?: number
+          total_debitos?: number
+          total_lancamentos?: number
+          updated_at?: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          company_id?: string
+          competencia_fim?: string | null
+          competencia_inicio?: string | null
+          contas_desconhecidas?: number
+          created_at?: string
+          erro_detalhe?: string | null
+          filename?: string
+          id?: string
+          partidas_fechadas?: boolean | null
+          status?: string
+          tenant_id?: string
+          total_creditos?: number
+          total_debitos?: number
+          total_lancamentos?: number
+          updated_at?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "diario_uploads_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "diario_uploads_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "diario_uploads_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -495,6 +577,199 @@ export type Database = {
           },
         ]
       }
+      lancamentos_diario: {
+        Row: {
+          company_id: string
+          competencia: string
+          conta_codigo: string
+          created_at: string
+          credito: number
+          data: string
+          debito: number
+          grupo_lancamento: string | null
+          historico: string | null
+          id: string
+          lote: string | null
+          numero_lancamento: string | null
+          subconta_codigo: string | null
+          tenant_id: string
+          upload_id: string
+        }
+        Insert: {
+          company_id: string
+          competencia: string
+          conta_codigo: string
+          created_at?: string
+          credito?: number
+          data: string
+          debito?: number
+          grupo_lancamento?: string | null
+          historico?: string | null
+          id?: string
+          lote?: string | null
+          numero_lancamento?: string | null
+          subconta_codigo?: string | null
+          tenant_id: string
+          upload_id: string
+        }
+        Update: {
+          company_id?: string
+          competencia?: string
+          conta_codigo?: string
+          created_at?: string
+          credito?: number
+          data?: string
+          debito?: number
+          grupo_lancamento?: string | null
+          historico?: string | null
+          id?: string
+          lote?: string | null
+          numero_lancamento?: string | null
+          subconta_codigo?: string | null
+          tenant_id?: string
+          upload_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lancamentos_diario_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lancamentos_diario_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lancamentos_diario_upload_id_fkey"
+            columns: ["upload_id"]
+            isOneToOne: false
+            referencedRelation: "diario_uploads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mapeamento_demonstracao: {
+        Row: {
+          classificacao_prefixo: string
+          company_id: string | null
+          created_at: string
+          id: string
+          inverter_sinal: boolean
+          linha_demonstracao: string
+          ordem: number
+          tenant_id: string
+          tipo_demonstracao: string
+          updated_at: string
+        }
+        Insert: {
+          classificacao_prefixo: string
+          company_id?: string | null
+          created_at?: string
+          id?: string
+          inverter_sinal?: boolean
+          linha_demonstracao: string
+          ordem?: number
+          tenant_id: string
+          tipo_demonstracao: string
+          updated_at?: string
+        }
+        Update: {
+          classificacao_prefixo?: string
+          company_id?: string | null
+          created_at?: string
+          id?: string
+          inverter_sinal?: boolean
+          linha_demonstracao?: string
+          ordem?: number
+          tenant_id?: string
+          tipo_demonstracao?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mapeamento_demonstracao_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mapeamento_demonstracao_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      plano_contas: {
+        Row: {
+          ativo: boolean
+          classificacao: string
+          codigo: string
+          company_id: string | null
+          created_at: string
+          descricao: string
+          id: string
+          is_participante: boolean
+          natureza: string
+          nivel: number
+          tenant_id: string
+          tipo: string
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          classificacao: string
+          codigo: string
+          company_id?: string | null
+          created_at?: string
+          descricao: string
+          id?: string
+          is_participante?: boolean
+          natureza: string
+          nivel?: number
+          tenant_id: string
+          tipo: string
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          classificacao?: string
+          codigo?: string
+          company_id?: string | null
+          created_at?: string
+          descricao?: string
+          id?: string
+          is_participante?: boolean
+          natureza?: string
+          nivel?: number
+          tenant_id?: string
+          tipo?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "plano_contas_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plano_contas_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -533,6 +808,102 @@ export type Database = {
           },
           {
             foreignKeyName: "profiles_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      saldos_abertura: {
+        Row: {
+          company_id: string
+          conta_codigo: string
+          created_at: string
+          data_referencia: string
+          id: string
+          saldo: number
+          tenant_id: string
+        }
+        Insert: {
+          company_id: string
+          conta_codigo: string
+          created_at?: string
+          data_referencia: string
+          id?: string
+          saldo: number
+          tenant_id: string
+        }
+        Update: {
+          company_id?: string
+          conta_codigo?: string
+          created_at?: string
+          data_referencia?: string
+          id?: string
+          saldo?: number
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "saldos_abertura_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "saldos_abertura_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      saldos_mensais: {
+        Row: {
+          company_id: string
+          competencia: string
+          conta_codigo: string
+          id: string
+          movimento: number | null
+          tenant_id: string
+          total_creditos: number
+          total_debitos: number
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          competencia: string
+          conta_codigo: string
+          id?: string
+          movimento?: number | null
+          tenant_id: string
+          total_creditos?: number
+          total_debitos?: number
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          competencia?: string
+          conta_codigo?: string
+          id?: string
+          movimento?: number | null
+          tenant_id?: string
+          total_creditos?: number
+          total_debitos?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "saldos_mensais_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "saldos_mensais_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -613,6 +984,7 @@ export type Database = {
           max_users: number
           name: string
           plan: string
+          plano_contas_modo: string
           primary_color: string
           slug: string
         }
@@ -625,6 +997,7 @@ export type Database = {
           max_users?: number
           name: string
           plan?: string
+          plano_contas_modo?: string
           primary_color?: string
           slug: string
         }
@@ -637,6 +1010,7 @@ export type Database = {
           max_users?: number
           name?: string
           plan?: string
+          plano_contas_modo?: string
           primary_color?: string
           slug?: string
         }
@@ -676,6 +1050,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      agregar_saldos_mensais: {
+        Args: { _upload_id: string }
+        Returns: undefined
+      }
       get_my_company_id: { Args: never; Returns: string }
       get_my_role: {
         Args: never
@@ -690,6 +1068,10 @@ export type Database = {
         Returns: boolean
       }
       is_orkestria_admin: { Args: never; Returns: boolean }
+      reverter_upload_diario: {
+        Args: { _upload_id: string }
+        Returns: undefined
+      }
     }
     Enums: {
       app_role: "orkestria_admin" | "tenant_admin" | "client"

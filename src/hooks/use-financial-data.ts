@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { buildStatementFromDiario } from "@/lib/diario/build-statements";
 
 export interface Company {
   id: string;
@@ -8,6 +9,27 @@ export interface Company {
   razao_social: string | null;
   regime_tributario: string | null;
   ativo: boolean;
+  fonte_dados?: "sped" | "diario";
+  tenant_id?: string;
+}
+
+async function getCompanyMeta(companyId: string) {
+  const { data: c } = await supabase
+    .from("companies")
+    .select("id, tenant_id, fonte_dados")
+    .eq("id", companyId)
+    .maybeSingle();
+  if (!c) return null;
+  const { data: t } = await supabase
+    .from("tenants")
+    .select("plano_contas_modo")
+    .eq("id", (c as any).tenant_id)
+    .maybeSingle();
+  return {
+    tenantId: (c as any).tenant_id as string,
+    fonteDados: ((c as any).fonte_dados as "sped" | "diario") ?? "sped",
+    modoGlobal: ((t as any)?.plano_contas_modo ?? "empresa") === "global",
+  };
 }
 
 // Nota: estes hooks não dependem mais do estado de carregamento da auth.

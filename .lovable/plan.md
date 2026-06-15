@@ -1,70 +1,33 @@
-## Orkestria BI — Análise Comparativa + Redesign de Gráficos
+Diagnóstico encontrado:
 
-Vou implementar em 3 sprints. Posso entregar tudo de uma vez, mas recomendo confirmar a ordem antes para evitar retrabalho.
+- O arquivo foi importado corretamente: 97.245 lançamentos, 4.779 saldos mensais, 974 contas, jan-dez/2025.
+- O mapeamento existe: 17 linhas DRE, 10 BP Ativo, 10 BP Passivo.
+- Teste direto no banco aplicando o mapeamento trouxe valores reais na DRE, por exemplo jan-jun/2025:
+  - Receita Bruta: R$ 22,6 mi
+  - Custos dos Serviços: R$ 13,2 mi
+  - Deduções: R$ 8,25 mi
+- Porém a tela continua zerada porque o cálculo no frontend está lendo tabelas grandes sem paginação suficiente. O limite padrão corta `saldos_mensais`/`plano_contas`, então o BI monta as linhas pelo mapeamento, mas não encontra os saldos correspondentes e exibe R$ 0,00.
 
----
+Plano de correção:
 
-### Sprint 1 — Página `/dashboard/analise` (reimplementação completa)
+1. Corrigir a leitura dos saldos do diário
+   - Atualizar `src/lib/diario/build-statements.ts` para buscar `saldos_mensais` com paginação/chunks, não apenas a primeira página.
+   - Aplicar isso tanto para DRE/DFC quanto para BP acumulado.
 
-Substituir `src/routes/dashboard.analise.tsx` por uma ferramenta autônoma (independente do FilterBar global):
+2. Corrigir a leitura do plano usado no cálculo
+   - Evitar carregar o plano inteiro de 135 mil linhas.
+   - Buscar somente as contas necessárias para os saldos encontrados, em lotes por `codigo`.
+   - Manter o filtro por empresa/tenant e `ativo=true`.
 
-- **Estado local**: `granularidade` (`ano` | `mes`), `periodoA`, `periodoB`, `tipo` (`DRE` | `BP_ATIVO` | `BP_PASSIVO` | `DFC` | `INDICADORES`).
-- **Seletor de granularidade** (toggle/tabs) + dois dropdowns de período.
-  - Ano: lista anos únicos derivados de `useAvailablePeriods`.
-  - Mês: lista `Mmm/AAAA` derivados de `useAvailablePeriods`.
-- **Resolução de períodos** via helper `resolverPeriodos`: mês → `[valor]`; ano → todos os meses do exercício existentes.
-- **Agregação** via `agregarPeriodos`: BP usa o último mês; DRE/DFC somam linha a linha (por `linha_ordem`).
-- **Fonte de dados**: `useMonthlyStatement(companyId, tipo, [...periodosA, ...periodosB])` em uma única chamada; depois separar/agregar em memória.
-- **Tabs de demonstração** (horizontais): DRE / BP-Ativo / BP-Passivo / DFC / Indicadores.
-- **3 Cards de destaque** acima da tabela: Lucro Líquido, Receita Líquida, Margem Líquida (variação em p.p. para %).
-- **Gráfico de barras agrupadas** dos 6 maiores subtotais (período A vs B).
-- **Tabela comparativa**: Descrição | A | B | Var R$ | Var % com:
-  - Cor invertida para linhas de custo/despesa/dedução.
-  - Badge ⚡ pulsante para |Δ%| > 50.
-- **Aba Indicadores**: reaproveita `src/lib/indicators.ts`; exibe cards lado-a-lado (sem tabela) para A e B com variação.
-- **Modo Apresentação**: toggle no canto superior direito. Adiciona classe no `body`, esconde sidebar via CSS global (`src/styles.css`), aumenta fonte da tabela e oculta colunas de valores absolutos (mostra só Var R$ compacto + Var %). Botão "Sair" fixo bottom-right.
+3. Ajustar o cálculo para não zerar silenciosamente
+   - Se houver saldos e mapeamento, mas nenhuma conta casar com o plano/mapeamento, retornar um aviso técnico no console ou estrutura de diagnóstico para facilitar depuração.
+   - Preservar o formato atual esperado pela tabela do BI.
 
-Novos arquivos:
-- `src/components/analise/highlight-card.tsx`
-- `src/components/analise/period-picker.tsx`
-- `src/components/analise/comparativo-table.tsx`
-- `src/components/analise/comparativo-bar-chart.tsx`
-- `src/lib/analise-helpers.ts` (resolverPeriodos, agregarPeriodos)
+4. Revisar mapeamentos salvos
+   - Manter os mapeamentos atuais, pois o teste direto mostra que eles geram valores.
+   - Só ajustar se, após a correção de leitura, ainda aparecer alguma linha contábil relevante sem cobertura.
 
----
-
-### Sprint 2 — Redesign dos Gráficos
-
-**Novo arquivo central** `src/lib/chart-config.ts`:
-- `CHART_COLORS`, `TOOLTIP_STYLE`, `AXIS_PROPS`, `GRID_PROPS`, `chartTooltipFormatter`.
-
-**Refatorações** (varrer todos os gráficos em `src/routes/dashboard.*.tsx` e em `src/components/*`):
-1. AreaChart Receita vs Custos → Receita: linha sólida 2.5px + área sutil (gradiente 0.18→0); Custos: tracejada 1.8px sem área; dots visíveis.
-2. LineChart Lucro → AreaChart com `LucroPos`/`LucroNeg` em verde/vermelho + `ReferenceLine y={0}` + dot dinâmico por sinal.
-3. BarChart empilhado → barras agrupadas, top 3 categorias, `LabelList` no topo.
-4. PieChart → `innerRadius=70/outerRadius=105`, `paddingAngle=3`, label externo `%`, legend horizontal abaixo, stroke `var(--card)` 3px.
-5. Waterfall DFC → cores via `var(--chart-1)` / `var(--success)` / `var(--destructive)`; `LabelList` com valor.
-6. Ativar `isAnimationActive` + `animationDuration` em todos.
-
----
-
-### Sprint 3 — Cards e detalhes finais
-
-- **Página Indicadores** (`dashboard.indicadores.tsx`): substituir tabela por grade `grid-cols-2 md:grid-cols-3 xl:grid-cols-4` de `IndicatorCard` (valor, semáforo verde/amarelo/vermelho, variação vs período anterior, mini sparkline, descrição).
-- **`src/components/kpi-card.tsx`**: Sparkline com path bezier suave + ponto final destacado + `gradId` único por instância (via `useId`).
-- **LabelList** nos gráficos de barras principais do dashboard.
-
----
-
-### Pontos de atenção
-
-- **`useMonthlyStatement` para `DFC`**: hoje só DRE e BP são tratados (linha "DRE/DFC: c-d, BP: sf"). Vou estender a lógica do hook para tratar DFC como fluxo (igual DRE) — sem isso a comparação de DFC não funciona corretamente em modo Ano.
-- **Indicadores em modo Ano**: precisamos recalcular indicadores a partir dos valores agregados (não dá para pegar do banco direto). Vou reusar `src/lib/indicators.ts` passando os rows já agregados.
-- **`var(--warning)` e `var(--success)`**: confirmar que existem em `src/styles.css`; se não, adiciono os tokens.
-- **Modo Apresentação**: usa CSS global (`body.presentation-mode aside { display: none }`); não mexe na lógica do `SidebarProvider`.
-
----
-
-### Pergunta antes de começar
-
-Confirma que posso **seguir a ordem inteira (Sprint 1 → 2 → 3) em uma única entrega**, ou prefere que eu pare ao final do Sprint 1 para você validar a Análise Comparativa antes de mexer nos gráficos?
+5. Validar no preview
+   - Abrir `/dashboard/dre?company=13215792-617c-4334-be1c-e65e2442e178`.
+   - Confirmar que Receita Bruta, Deduções, Custos e Resultado deixam de aparecer zerados.
+   - Conferir também BP Ativo/Passivo, pois sofrem do mesmo problema de leitura parcial.

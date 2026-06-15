@@ -319,12 +319,38 @@ function MapeamentoTab({ tenantId, companyId, readonly }: { tenantId: string; co
   const aplicarSugestoes = () => {
     if (!plano) return;
     const sug = sugerirMapeamento(plano);
-    const existentes = new Set(edit.map((m) => `${m.tipo_demonstracao}|${m.classificacao_prefixo}`));
-    const novos = sug.filter((s) => !existentes.has(`${s.tipo_demonstracao}|${s.classificacao_prefixo}`));
-    setEdit([...edit, ...novos]);
+    const sugMap = new Map(sug.map((s) => [`${s.tipo_demonstracao}|${s.classificacao_prefixo}`, s]));
+    // Atualiza linhas já existentes que coincidem com a sugestão (corrige mapeamentos errados antigos)
+    const atualizado: MapaRow[] = edit.map((m) => {
+      const key = `${m.tipo_demonstracao}|${m.classificacao_prefixo}`;
+      const s = sugMap.get(key);
+      if (!s) return m;
+      sugMap.delete(key);
+      return {
+        ...m,
+        linha_demonstracao: s.linha_demonstracao,
+        ordem: s.ordem,
+        inverter_sinal: s.inverter_sinal,
+      };
+    });
+    const novos = Array.from(sugMap.values()).map((s) => ({
+      classificacao_prefixo: s.classificacao_prefixo,
+      tipo_demonstracao: s.tipo_demonstracao,
+      linha_demonstracao: s.linha_demonstracao,
+      ordem: s.ordem,
+      inverter_sinal: s.inverter_sinal,
+    }));
+    setEdit([...atualizado, ...novos]);
     setDirty(true);
-    toast.success(`${novos.length} sugestões adicionadas`);
+    toast.success(`${novos.length} novas linhas, ${atualizado.length - (edit.length - novos.length)} atualizadas`);
   };
+
+  const limparMapeamento = () => {
+    if (!confirm("Limpar todas as linhas de mapeamento (não salvas)?")) return;
+    setEdit([]);
+    setDirty(true);
+  };
+
 
   const updateRow = (i: number, patch: Partial<MapaRow>) => {
     const next = [...edit];

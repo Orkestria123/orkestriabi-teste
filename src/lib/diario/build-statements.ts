@@ -55,18 +55,50 @@ function buildMatcher(mapas: Mapa[]) {
   };
 }
 
-async function getPlano(companyId: string, tenantId: string, modoGlobal: boolean): Promise<Plano[]> {
-  const q = supabase
-    .from("plano_contas")
-    .select("codigo, classificacao, is_participante")
-    .eq("tenant_id", tenantId)
-    .eq("ativo", true)
-    .range(0, 199999);
-  const { data, error } = modoGlobal
-    ? await q.is("company_id", null)
-    : await q.eq("company_id", companyId);
-  if (error) throw error;
-  return (data ?? []) as Plano[];
+// Helper: pagina queries do PostgREST (limite padrão de 1000 linhas por página).
+async function fetchAllPaginated<T>(
+  build: (from: number, to: number) => any,
+): Promise<T[]> {
+  const PAGE = 1000;
+  const out: T[] = [];
+  let from = 0;
+  for (let i = 0; i < 500; i++) {
+    const { data, error } = await build(from, from + PAGE - 1);
+    if (error) throw error;
+    const rows = (data ?? []) as T[];
+    out.push(...rows);
+    if (rows.length < PAGE) break;
+    from += PAGE;
+  }
+  return out;
+}
+
+// Busca apenas as contas do plano que aparecem nos saldos — evita carregar
+// dezenas de milhares de participantes (clientes/fornecedores) inúteis aqui.
+async function getPlanoPorCodigos(
+  companyId: string,
+  tenantId: string,
+  modoGlobal: boolean,
+  codigos: string[],
+): Promise<Plano[]> {
+  if (codigos.length === 0) return [];
+  const out: Plano[] = [];
+  const CHUNK = 300;
+  for (let i = 0; i < codigos.length; i += CHUNK) {
+    const slice = codigos.slice(i, i + CHUNK);
+    const rows = await fetchAllPaginated<Plano>((from, to) => {
+      const q = supabase
+        .from("plano_contas")
+        .select("codigo, classificacao, is_participante")
+        .eq("tenant_id", tenantId)
+        .eq("ativo", true)
+        .in("codigo", slice)
+        .range(from, to);
+      return modoGlobal ? q.is("company_id", null) : q.eq("company_id", companyId);
+    });
+    out.push(...rows);
+  }
+  return out;
 }
 
 async function getMapa(
@@ -91,13 +123,15 @@ async function getSaldos(
   companyId: string,
   periodos: string[],
 ): Promise<Saldo[]> {
-  const { data, error } = await supabase
-    .from("saldos_mensais")
-    .select("conta_codigo, competencia, total_debitos, total_creditos, movimento")
-    .eq("company_id", companyId)
-    .in("competencia", periodos);
-  if (error) throw error;
-  return (data ?? []).map((r: any) => ({
+  const rows = await fetchAllPaginated<any>((from, to) =>
+    supabase
+      .from("saldos_mensais")
+      .select("conta_codigo, competencia, total_debitos, total_creditos, movimento")
+      .eq("company_id", companyId)
+      .in("competencia", periodos)
+      .range(from, to),
+  );
+  return rows.map((r: any) => ({
     conta_codigo: r.conta_codigo,
     competencia: r.competencia,
     total_debitos: Number(r.total_debitos) || 0,
@@ -110,14 +144,16 @@ async function getSaldosAcumulado(
   companyId: string,
   ateData: string,
 ): Promise<Map<string, number>> {
-  const { data, error } = await supabase
-    .from("saldos_mensais")
-    .select("conta_codigo, movimento")
-    .eq("company_id", companyId)
-    .lte("competencia", ateData);
-  if (error) throw error;
+  const rows = await fetchAllPaginated<any>((from, to) =>
+    supabase
+      .from("saldos_mensais")
+      .select("conta_codigo, movimento")
+      .eq("company_id", companyId)
+      .lte("competencia", ateData)
+      .range(from, to),
+  );
   const m = new Map<string, number>();
-  for (const r of data ?? []) {
+  for (const r of rows) {
     m.set(r.conta_codigo, (m.get(r.conta_codigo) ?? 0) + (Number(r.movimento) || 0));
   }
   return m;

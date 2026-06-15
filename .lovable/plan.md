@@ -1,33 +1,29 @@
-Diagnóstico encontrado:
-
-- O arquivo foi importado corretamente: 97.245 lançamentos, 4.779 saldos mensais, 974 contas, jan-dez/2025.
-- O mapeamento existe: 17 linhas DRE, 10 BP Ativo, 10 BP Passivo.
-- Teste direto no banco aplicando o mapeamento trouxe valores reais na DRE, por exemplo jan-jun/2025:
-  - Receita Bruta: R$ 22,6 mi
-  - Custos dos Serviços: R$ 13,2 mi
-  - Deduções: R$ 8,25 mi
-- Porém a tela continua zerada porque o cálculo no frontend está lendo tabelas grandes sem paginação suficiente. O limite padrão corta `saldos_mensais`/`plano_contas`, então o BI monta as linhas pelo mapeamento, mas não encontra os saldos correspondentes e exibe R$ 0,00.
+Diagnóstico rápido: não parece ser falta de carregamento dos saldos. A empresa tem saldos mensais importados e o Balanço já está trazendo valores. O problema principal é que o montador atual agrupa tudo por linha de mapeamento, então a DRE/BP ficam “fechadas” em poucas linhas e não exibem a árvore do plano de contas.
 
 Plano de correção:
 
-1. Corrigir a leitura dos saldos do diário
-   - Atualizar `src/lib/diario/build-statements.ts` para buscar `saldos_mensais` com paginação/chunks, não apenas a primeira página.
-   - Aplicar isso tanto para DRE/DFC quanto para BP acumulado.
+1. Abrir a estrutura da DRE
+   - Manter as linhas principais do mapeamento, como Receita Bruta, Deduções, Custos e Despesas.
+   - Abaixo de cada linha, exibir as contas/grupos do plano de contas que compõem aquele valor.
+   - Usar níveis reais do plano para permitir expandir/recolher na tabela.
+   - Evitar mostrar clientes/fornecedores participantes para não poluir a DRE com milhares de linhas.
 
-2. Corrigir a leitura do plano usado no cálculo
-   - Evitar carregar o plano inteiro de 135 mil linhas.
-   - Buscar somente as contas necessárias para os saldos encontrados, em lotes por `codigo`.
-   - Manter o filtro por empresa/tenant e `ativo=true`.
+2. Abrir a estrutura do Balanço Patrimonial
+   - Fazer o mesmo para Ativo, Passivo e Patrimônio Líquido.
+   - Exibir grupos e subgrupos do plano abaixo de Ativo Circulante, Ativo Não Circulante, Passivo Circulante, Passivo Não Circulante e PL.
+   - Manter os totais de Ativo e Passivo + PL no fim de cada lado.
 
-3. Ajustar o cálculo para não zerar silenciosamente
-   - Se houver saldos e mapeamento, mas nenhuma conta casar com o plano/mapeamento, retornar um aviso técnico no console ou estrutura de diagnóstico para facilitar depuração.
-   - Preservar o formato atual esperado pela tabela do BI.
+3. Corrigir os subtotais da DRE
+   - Ajustar Receita Líquida para subtrair deduções, não somar como receita.
+   - Ajustar Lucro Bruto, Resultado Operacional e Lucro Líquido para respeitarem corretamente sinais de receitas, custos, despesas, IRPJ/CSLL e deduções.
+   - Evitar duplicidade entre linha mapeada “Receita Líquida” e linha calculada “(=) Receita Líquida”.
 
-4. Revisar mapeamentos salvos
-   - Manter os mapeamentos atuais, pois o teste direto mostra que eles geram valores.
-   - Só ajustar se, após a correção de leitura, ainda aparecer alguma linha contábil relevante sem cobertura.
+4. Melhorar a montagem técnica dos dados
+   - Continuar buscando saldos paginados, pois isso já resolveu a leitura incompleta.
+   - Reaproveitar os saldos carregados para montar todos os períodos sem fazer excesso de chamadas ao backend.
+   - Incluir somente contas com valor ou contas necessárias para manter a hierarquia.
 
 5. Validar no preview
-   - Abrir `/dashboard/dre?company=13215792-617c-4334-be1c-e65e2442e178`.
-   - Confirmar que Receita Bruta, Deduções, Custos e Resultado deixam de aparecer zerados.
-   - Conferir também BP Ativo/Passivo, pois sofrem do mesmo problema de leitura parcial.
+   - Conferir DRE com estrutura aberta e valores em Receita Bruta, Deduções, Custos e Despesas.
+   - Conferir Balanço com Ativo/Passivo carregando em níveis detalhados.
+   - Conferir se expandir/recolher funciona e se os totais batem com as linhas-filhas.

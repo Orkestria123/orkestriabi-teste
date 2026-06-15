@@ -126,7 +126,7 @@ export function useMonthlyStatement(
       // monta DRE/BP a partir de saldos_mensais + plano_contas + mapeamento_demonstracao.
       const meta = await getCompanyMeta(companyId!);
       if (meta?.fonteDados === "diario") {
-        const t = tipo as "DRE" | "BP_ATIVO" | "BP_PASSIVO" | "DFC";
+        const t = tipo as "DRE" | "BP_ATIVO" | "BP_PASSIVO" | "DFC" | "DLPA" | "DVA";
         return buildStatementFromDiario(companyId!, meta.tenantId, meta.modoGlobal, t, periodos);
       }
       const [stmtRes, chartRes, balRes] = await Promise.all([

@@ -13,7 +13,7 @@
 
 import { supabase } from "@/integrations/supabase/client";
 
-type Tipo = "DRE" | "BP_ATIVO" | "BP_PASSIVO" | "DFC";
+type Tipo = "DRE" | "BP_ATIVO" | "BP_PASSIVO" | "DFC" | "DLPA" | "DVA";
 
 export interface FlatRow {
   linha_ordem: number;

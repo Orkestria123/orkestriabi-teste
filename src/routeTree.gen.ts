@@ -28,6 +28,7 @@ import { Route as DashboardBalancoRouteImport } from './routes/dashboard.balanco
 import { Route as DashboardAnaliseRouteImport } from './routes/dashboard.analise'
 import { Route as AdminUsuariosRouteImport } from './routes/admin.usuarios'
 import { Route as AdminUploadRouteImport } from './routes/admin.upload'
+import { Route as AdminEmpresasRouteImport } from './routes/admin.empresas'
 import { Route as AdminComparativoRouteImport } from './routes/admin.comparativo'
 import { Route as AdminEmpresasIndexRouteImport } from './routes/admin.empresas.index'
 import { Route as AdminEmpresasIdDadosRouteImport } from './routes/admin.empresas.$id.dados'
@@ -127,20 +128,25 @@ const AdminUploadRoute = AdminUploadRouteImport.update({
   path: '/admin/upload',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminEmpresasRoute = AdminEmpresasRouteImport.update({
+  id: '/admin/empresas',
+  path: '/admin/empresas',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminComparativoRoute = AdminComparativoRouteImport.update({
   id: '/admin/comparativo',
   path: '/admin/comparativo',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminEmpresasIndexRoute = AdminEmpresasIndexRouteImport.update({
-  id: '/admin/empresas/',
-  path: '/admin/empresas/',
-  getParentRoute: () => rootRouteImport,
+  id: '/',
+  path: '/',
+  getParentRoute: () => AdminEmpresasRoute,
 } as any)
 const AdminEmpresasIdDadosRoute = AdminEmpresasIdDadosRouteImport.update({
-  id: '/admin/empresas/$id/dados',
-  path: '/admin/empresas/$id/dados',
-  getParentRoute: () => rootRouteImport,
+  id: '/$id/dados',
+  path: '/$id/dados',
+  getParentRoute: () => AdminEmpresasRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
@@ -149,6 +155,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof DashboardRouteWithChildren
   '/teste': typeof TesteRoute
   '/admin/comparativo': typeof AdminComparativoRoute
+  '/admin/empresas': typeof AdminEmpresasRouteWithChildren
   '/admin/upload': typeof AdminUploadRoute
   '/admin/usuarios': typeof AdminUsuariosRoute
   '/dashboard/analise': typeof DashboardAnaliseRoute
@@ -197,6 +204,7 @@ export interface FileRoutesById {
   '/dashboard': typeof DashboardRouteWithChildren
   '/teste': typeof TesteRoute
   '/admin/comparativo': typeof AdminComparativoRoute
+  '/admin/empresas': typeof AdminEmpresasRouteWithChildren
   '/admin/upload': typeof AdminUploadRoute
   '/admin/usuarios': typeof AdminUsuariosRoute
   '/dashboard/analise': typeof DashboardAnaliseRoute
@@ -223,6 +231,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/teste'
     | '/admin/comparativo'
+    | '/admin/empresas'
     | '/admin/upload'
     | '/admin/usuarios'
     | '/dashboard/analise'
@@ -270,6 +279,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/teste'
     | '/admin/comparativo'
+    | '/admin/empresas'
     | '/admin/upload'
     | '/admin/usuarios'
     | '/dashboard/analise'
@@ -295,13 +305,12 @@ export interface RootRouteChildren {
   DashboardRoute: typeof DashboardRouteWithChildren
   TesteRoute: typeof TesteRoute
   AdminComparativoRoute: typeof AdminComparativoRoute
+  AdminEmpresasRoute: typeof AdminEmpresasRouteWithChildren
   AdminUploadRoute: typeof AdminUploadRoute
   AdminUsuariosRoute: typeof AdminUsuariosRoute
   OrkestriaAdminTenantsRoute: typeof OrkestriaAdminTenantsRoute
   AdminIndexRoute: typeof AdminIndexRoute
   OrkestriaAdminIndexRoute: typeof OrkestriaAdminIndexRoute
-  AdminEmpresasIndexRoute: typeof AdminEmpresasIndexRoute
-  AdminEmpresasIdDadosRoute: typeof AdminEmpresasIdDadosRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -439,6 +448,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminUploadRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/empresas': {
+      id: '/admin/empresas'
+      path: '/admin/empresas'
+      fullPath: '/admin/empresas'
+      preLoaderRoute: typeof AdminEmpresasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/comparativo': {
       id: '/admin/comparativo'
       path: '/admin/comparativo'
@@ -448,17 +464,17 @@ declare module '@tanstack/react-router' {
     }
     '/admin/empresas/': {
       id: '/admin/empresas/'
-      path: '/admin/empresas'
+      path: '/'
       fullPath: '/admin/empresas/'
       preLoaderRoute: typeof AdminEmpresasIndexRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AdminEmpresasRoute
     }
     '/admin/empresas/$id/dados': {
       id: '/admin/empresas/$id/dados'
-      path: '/admin/empresas/$id/dados'
+      path: '/$id/dados'
       fullPath: '/admin/empresas/$id/dados'
       preLoaderRoute: typeof AdminEmpresasIdDadosRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AdminEmpresasRoute
     }
   }
 }
@@ -493,19 +509,32 @@ const DashboardRouteWithChildren = DashboardRoute._addFileChildren(
   DashboardRouteChildren,
 )
 
+interface AdminEmpresasRouteChildren {
+  AdminEmpresasIndexRoute: typeof AdminEmpresasIndexRoute
+  AdminEmpresasIdDadosRoute: typeof AdminEmpresasIdDadosRoute
+}
+
+const AdminEmpresasRouteChildren: AdminEmpresasRouteChildren = {
+  AdminEmpresasIndexRoute: AdminEmpresasIndexRoute,
+  AdminEmpresasIdDadosRoute: AdminEmpresasIdDadosRoute,
+}
+
+const AdminEmpresasRouteWithChildren = AdminEmpresasRoute._addFileChildren(
+  AdminEmpresasRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthRoute: AuthRoute,
   DashboardRoute: DashboardRouteWithChildren,
   TesteRoute: TesteRoute,
   AdminComparativoRoute: AdminComparativoRoute,
+  AdminEmpresasRoute: AdminEmpresasRouteWithChildren,
   AdminUploadRoute: AdminUploadRoute,
   AdminUsuariosRoute: AdminUsuariosRoute,
   OrkestriaAdminTenantsRoute: OrkestriaAdminTenantsRoute,
   AdminIndexRoute: AdminIndexRoute,
   OrkestriaAdminIndexRoute: OrkestriaAdminIndexRoute,
-  AdminEmpresasIndexRoute: AdminEmpresasIndexRoute,
-  AdminEmpresasIdDadosRoute: AdminEmpresasIdDadosRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

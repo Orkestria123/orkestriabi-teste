@@ -268,10 +268,16 @@ function MapeamentoTab({ tenantId, companyId, readonly }: { tenantId: string; co
   const { data: plano } = useQuery({
     queryKey: ["plano-rows", tenantId, companyId],
     queryFn: async () => {
+      // Só precisamos das contas estruturais (não participantes) para sugerir mapeamento.
+      // Sem esse filtro o limite padrão de 1000 linhas do PostgREST corta as contas
+      // de DRE/BP em planos grandes (cheios de clientes e fornecedores).
       const q = supabase
         .from("plano_contas")
         .select("codigo, classificacao, descricao, tipo, natureza, nivel, is_participante")
-        .eq("tenant_id", tenantId);
+        .eq("tenant_id", tenantId)
+        .eq("is_participante", false)
+        .lte("nivel", 4)
+        .range(0, 9999);
       const r = companyId == null ? await q.is("company_id", null) : await q.eq("company_id", companyId);
       if (r.error) throw r.error;
       return (r.data ?? []) as PlanoContaRow[];

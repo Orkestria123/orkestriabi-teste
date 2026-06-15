@@ -406,6 +406,7 @@ function MapeamentoTab({ tenantId, companyId, readonly }: { tenantId: string; co
             <Wand2 className="h-4 w-4 mr-1" /> Sugerir mapeamento automático
           </Button>
           <Button onClick={addRow} variant="outline" size="sm">+ Linha manual</Button>
+          <Button onClick={limparMapeamento} variant="ghost" size="sm" disabled={edit.length === 0}>Limpar</Button>
           <Button onClick={salvar} disabled={!dirty || busy} size="sm" className="ml-auto">
             {busy ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Save className="h-4 w-4 mr-1" />}
             Salvar mapeamento

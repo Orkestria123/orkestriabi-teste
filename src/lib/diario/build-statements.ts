@@ -187,11 +187,12 @@ async function buildDRE(
   periodos: string[],
   tipo: "DRE" | "DFC",
 ): Promise<FlatRow[]> {
-  const [plano, mapas, saldos] = await Promise.all([
-    getPlano(companyId, tenantId, modoGlobal),
+  const [mapas, saldos] = await Promise.all([
     getMapa(companyId, tenantId, modoGlobal, tipo),
     getSaldos(companyId, periodos),
   ]);
+  const codigos = Array.from(new Set(saldos.map((s) => s.conta_codigo)));
+  const plano = await getPlanoPorCodigos(companyId, tenantId, modoGlobal, codigos);
 
   const planoMap = new Map<string, Plano>();
   for (const p of plano) planoMap.set(p.codigo, p);

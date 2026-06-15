@@ -60,7 +60,8 @@ async function getPlano(companyId: string, tenantId: string, modoGlobal: boolean
     .from("plano_contas")
     .select("codigo, classificacao, is_participante")
     .eq("tenant_id", tenantId)
-    .eq("ativo", true);
+    .eq("ativo", true)
+    .range(0, 199999);
   const { data, error } = modoGlobal
     ? await q.is("company_id", null)
     : await q.eq("company_id", companyId);

@@ -30,6 +30,7 @@ import { Route as AdminUsuariosRouteImport } from './routes/admin.usuarios'
 import { Route as AdminUploadRouteImport } from './routes/admin.upload'
 import { Route as AdminEmpresasRouteImport } from './routes/admin.empresas'
 import { Route as AdminComparativoRouteImport } from './routes/admin.comparativo'
+import { Route as AdminEmpresasIndexRouteImport } from './routes/admin.empresas.index'
 import { Route as AdminEmpresasIdDadosRouteImport } from './routes/admin.empresas.$id.dados'
 
 const TesteRoute = TesteRouteImport.update({
@@ -137,6 +138,11 @@ const AdminComparativoRoute = AdminComparativoRouteImport.update({
   path: '/admin/comparativo',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminEmpresasIndexRoute = AdminEmpresasIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AdminEmpresasRoute,
+} as any)
 const AdminEmpresasIdDadosRoute = AdminEmpresasIdDadosRouteImport.update({
   id: '/$id/dados',
   path: '/$id/dados',
@@ -165,6 +171,7 @@ export interface FileRoutesByFullPath {
   '/admin/': typeof AdminIndexRoute
   '/dashboard/': typeof DashboardIndexRoute
   '/orkestria-admin/': typeof OrkestriaAdminIndexRoute
+  '/admin/empresas/': typeof AdminEmpresasIndexRoute
   '/admin/empresas/$id/dados': typeof AdminEmpresasIdDadosRoute
 }
 export interface FileRoutesByTo {
@@ -172,7 +179,6 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/teste': typeof TesteRoute
   '/admin/comparativo': typeof AdminComparativoRoute
-  '/admin/empresas': typeof AdminEmpresasRouteWithChildren
   '/admin/upload': typeof AdminUploadRoute
   '/admin/usuarios': typeof AdminUsuariosRoute
   '/dashboard/analise': typeof DashboardAnaliseRoute
@@ -188,6 +194,7 @@ export interface FileRoutesByTo {
   '/admin': typeof AdminIndexRoute
   '/dashboard': typeof DashboardIndexRoute
   '/orkestria-admin': typeof OrkestriaAdminIndexRoute
+  '/admin/empresas': typeof AdminEmpresasIndexRoute
   '/admin/empresas/$id/dados': typeof AdminEmpresasIdDadosRoute
 }
 export interface FileRoutesById {
@@ -213,6 +220,7 @@ export interface FileRoutesById {
   '/admin/': typeof AdminIndexRoute
   '/dashboard/': typeof DashboardIndexRoute
   '/orkestria-admin/': typeof OrkestriaAdminIndexRoute
+  '/admin/empresas/': typeof AdminEmpresasIndexRoute
   '/admin/empresas/$id/dados': typeof AdminEmpresasIdDadosRoute
 }
 export interface FileRouteTypes {
@@ -239,6 +247,7 @@ export interface FileRouteTypes {
     | '/admin/'
     | '/dashboard/'
     | '/orkestria-admin/'
+    | '/admin/empresas/'
     | '/admin/empresas/$id/dados'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -246,7 +255,6 @@ export interface FileRouteTypes {
     | '/auth'
     | '/teste'
     | '/admin/comparativo'
-    | '/admin/empresas'
     | '/admin/upload'
     | '/admin/usuarios'
     | '/dashboard/analise'
@@ -262,6 +270,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/dashboard'
     | '/orkestria-admin'
+    | '/admin/empresas'
     | '/admin/empresas/$id/dados'
   id:
     | '__root__'
@@ -286,6 +295,7 @@ export interface FileRouteTypes {
     | '/admin/'
     | '/dashboard/'
     | '/orkestria-admin/'
+    | '/admin/empresas/'
     | '/admin/empresas/$id/dados'
   fileRoutesById: FileRoutesById
 }
@@ -452,6 +462,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminComparativoRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/empresas/': {
+      id: '/admin/empresas/'
+      path: '/'
+      fullPath: '/admin/empresas/'
+      preLoaderRoute: typeof AdminEmpresasIndexRouteImport
+      parentRoute: typeof AdminEmpresasRoute
+    }
     '/admin/empresas/$id/dados': {
       id: '/admin/empresas/$id/dados'
       path: '/$id/dados'
@@ -493,10 +510,12 @@ const DashboardRouteWithChildren = DashboardRoute._addFileChildren(
 )
 
 interface AdminEmpresasRouteChildren {
+  AdminEmpresasIndexRoute: typeof AdminEmpresasIndexRoute
   AdminEmpresasIdDadosRoute: typeof AdminEmpresasIdDadosRoute
 }
 
 const AdminEmpresasRouteChildren: AdminEmpresasRouteChildren = {
+  AdminEmpresasIndexRoute: AdminEmpresasIndexRoute,
   AdminEmpresasIdDadosRoute: AdminEmpresasIdDadosRoute,
 }
 

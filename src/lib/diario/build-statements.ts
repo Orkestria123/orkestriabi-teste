@@ -547,9 +547,7 @@ async function buildBP(
     }
     for (const pt of pontos) {
       const linha = pt.mapa.linha_demonstracao;
-      const conta = Array.from(planoMap.values()).find(
-        (x) => x.classificacao === pt.classificacao,
-      );
+      const conta = planoPorClassificacao.get(pt.classificacao);
       const bucket = porLinha.get(linha)!;
       bucket.itens.push({
         classificacao: pt.classificacao,

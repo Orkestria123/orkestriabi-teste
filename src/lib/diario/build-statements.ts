@@ -322,11 +322,17 @@ async function buildBP(
   periodos: string[],
   tipo: "BP_ATIVO" | "BP_PASSIVO",
 ): Promise<FlatRow[]> {
-  const [plano, mapas, abertura] = await Promise.all([
-    getPlano(companyId, tenantId, modoGlobal),
+  const [mapas, abertura, saldosTodos] = await Promise.all([
     getMapa(companyId, tenantId, modoGlobal, tipo),
     getAberturaMaisRecente(companyId),
+    // Carrega todos os saldos até o período mais recente para deduzir códigos usados
+    getSaldosAcumulado(companyId, [...periodos].sort().pop() ?? periodos[0]),
   ]);
+  const codigosUsados = Array.from(new Set([
+    ...abertura.keys(),
+    ...saldosTodos.keys(),
+  ]));
+  const plano = await getPlanoPorCodigos(companyId, tenantId, modoGlobal, codigosUsados);
 
   const planoMap = new Map<string, Plano>();
   for (const p of plano) planoMap.set(p.codigo, p);

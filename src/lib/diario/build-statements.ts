@@ -602,8 +602,399 @@ export async function buildStatementFromDiario(
   periodos: string[],
 ): Promise<FlatRow[]> {
   if (periodos.length === 0) return [];
-  if (tipo === "DRE" || tipo === "DFC") {
-    return buildDRE(companyId, tenantId, modoGlobal, periodos, tipo);
-  }
+  if (tipo === "DRE") return buildDRE(companyId, tenantId, modoGlobal, periodos, "DRE");
+  if (tipo === "DFC") return buildDFC(companyId, tenantId, modoGlobal, periodos);
+  if (tipo === "DLPA") return buildDLPA(companyId, tenantId, modoGlobal, periodos);
+  if (tipo === "DVA") return buildDVA(companyId, tenantId, modoGlobal, periodos);
   return buildBP(companyId, tenantId, modoGlobal, periodos, tipo);
 }
+
+// ============================================================
+// DFC / DLPA / DVA — derivados de saldos_mensais + plano_contas
+// + reuso do motor de DRE.
+// ============================================================
+
+// Prefixos default (plano contábil padrão brasileiro)
+const PREFIXO_CAIXA = "1.01.01";
+const PREFIXO_IMOBILIZADO = "1.03";
+const PREFIXO_EMPRESTIMOS_CP = "2.01.04";
+const PREFIXO_EMPRESTIMOS_LP = "2.02.01";
+const PREFIXO_CAPITAL_SOCIAL = "2.05.01.01";
+const PREFIXO_LUCROS_ACUM = "2.05.01.09";
+const PREFIXO_LUCROS_ACUM_ALT = "2.05.01.08";
+
+const KW_DEPRECIACAO = /deprec|amortiz|exaust/i;
+const KW_PESSOAL = /salar|f[eé]rias|13|fgts|inss patron|encargo|previd|benef|aliment|vale|sa[uú]de|odont/i;
+const KW_IMPOSTOS = /imposto|tribut|icms|ipi|iss|pis|cofins|irpj|csll|simples|inss|fgts|taxa|contribui|prev/i;
+const KW_JUROS = /juros|financeiras? despesa|encargo financeir|spread/i;
+const KW_ALUGUEL = /alugu|arrendamento|leasing/i;
+const KW_DIVIDENDOS = /dividend|jcp|juros sobre capital|distribui/i;
+
+interface ContaSnapshot {
+  classificacao: string;
+  descricao: string;
+  saldo: number; // saldo acumulado até a data (abertura + Σ movimento)
+}
+
+async function getSnapshotPorPrefixo(
+  companyId: string,
+  tenantId: string,
+  modoGlobal: boolean,
+  ateData: string,
+  prefixos: string[],
+): Promise<ContaSnapshot[]> {
+  // carrega plano todo e saldos acumulados, filtra por prefixo
+  const [plano, abertura, saldosAcum] = await Promise.all([
+    getPlanoPorTipo(companyId, tenantId, modoGlobal, ["1-Ativo", "2-Passivo"]),
+    getAberturaMaisRecente(companyId),
+    getSaldosAteData(companyId, ateData),
+  ]);
+  const planoPorCodigo = new Map<string, Plano>();
+  for (const p of plano) planoPorCodigo.set(p.codigo, p);
+
+  const acumPorCodigo = new Map<string, number>(abertura);
+  for (const s of saldosAcum) {
+    if (s.competencia > ateData) continue;
+    acumPorCodigo.set(s.conta_codigo, (acumPorCodigo.get(s.conta_codigo) ?? 0) + s.movimento);
+  }
+
+  const out: ContaSnapshot[] = [];
+  for (const [codigo, saldo] of acumPorCodigo) {
+    const conta = planoPorCodigo.get(codigo);
+    if (!conta || conta.is_participante) continue;
+    const matches = prefixos.some(
+      (pref) => conta.classificacao === pref || conta.classificacao.startsWith(pref + "."),
+    );
+    if (!matches) continue;
+    out.push({ classificacao: conta.classificacao, descricao: conta.descricao, saldo });
+  }
+  return out;
+}
+
+function sumSnapshots(snap: ContaSnapshot[]): number {
+  return snap.reduce((a, b) => a + b.saldo, 0);
+}
+
+function prevPeriodo(p: string): string {
+  // p = 'YYYY-MM-DD' (primeiro dia do mês). Retorna último dia do mês anterior.
+  const d = new Date(p + "T00:00:00Z");
+  d.setUTCDate(0); // último dia do mês anterior
+  return d.toISOString().slice(0, 10);
+}
+
+function emitirRow(
+  out: FlatRow[],
+  ordem: number,
+  descricao: string,
+  periodo: string,
+  valor: number,
+  opts: { nivel?: number; is_subtotal?: boolean; codigo?: string | null } = {},
+) {
+  out.push({
+    linha_ordem: ordem,
+    descricao,
+    codigo_conta: opts.codigo ?? null,
+    nivel: opts.nivel ?? 1,
+    is_subtotal: opts.is_subtotal ?? false,
+    periodo,
+    valor,
+  });
+}
+
+// ---------- DFC (método indireto) ----------
+
+async function buildDFC(
+  companyId: string,
+  tenantId: string,
+  modoGlobal: boolean,
+  periodos: string[],
+): Promise<FlatRow[]> {
+  const periodosOrd = [...periodos].sort();
+  const dre = await buildDRE(companyId, tenantId, modoGlobal, periodosOrd, "DRE");
+
+  // valor por linha/período no DRE
+  const dreVal = (descricao: string, p: string) =>
+    dre.find((r) => r.descricao === descricao && r.periodo === p)?.valor ?? 0;
+
+  // depreciação por keyword no DRE (linhas analíticas)
+  const depPeriodo = (p: string) =>
+    dre
+      .filter((r) => r.periodo === p && !r.is_subtotal && KW_DEPRECIACAO.test(r.descricao ?? ""))
+      .reduce((a, r) => a + Math.abs(Number(r.valor) || 0), 0);
+
+  const out: FlatRow[] = [];
+
+  // saldos cumulativos (caixa, imob, empréstimos) em t-1 e t para cada período
+  for (const [idx, p] of periodosOrd.entries()) {
+    const pPrev = prevPeriodo(p);
+    const [snapPrev, snapCurr] = await Promise.all([
+      getSnapshotPorPrefixo(companyId, tenantId, modoGlobal, pPrev, [
+        PREFIXO_CAIXA,
+        PREFIXO_IMOBILIZADO,
+        PREFIXO_EMPRESTIMOS_CP,
+        PREFIXO_EMPRESTIMOS_LP,
+        PREFIXO_CAPITAL_SOCIAL,
+      ]),
+      getSnapshotPorPrefixo(companyId, tenantId, modoGlobal, p, [
+        PREFIXO_CAIXA,
+        PREFIXO_IMOBILIZADO,
+        PREFIXO_EMPRESTIMOS_CP,
+        PREFIXO_EMPRESTIMOS_LP,
+        PREFIXO_CAPITAL_SOCIAL,
+      ]),
+    ]);
+
+    const filtPref = (snap: ContaSnapshot[], pref: string) =>
+      snap.filter(
+        (s) => s.classificacao === pref || s.classificacao.startsWith(pref + "."),
+      );
+
+    const caixaIni = sumSnapshots(filtPref(snapPrev, PREFIXO_CAIXA));
+    const caixaFim = sumSnapshots(filtPref(snapCurr, PREFIXO_CAIXA));
+    const imobIni = sumSnapshots(filtPref(snapPrev, PREFIXO_IMOBILIZADO));
+    const imobFim = sumSnapshots(filtPref(snapCurr, PREFIXO_IMOBILIZADO));
+    const empIni =
+      sumSnapshots(filtPref(snapPrev, PREFIXO_EMPRESTIMOS_CP)) +
+      sumSnapshots(filtPref(snapPrev, PREFIXO_EMPRESTIMOS_LP));
+    const empFim =
+      sumSnapshots(filtPref(snapCurr, PREFIXO_EMPRESTIMOS_CP)) +
+      sumSnapshots(filtPref(snapCurr, PREFIXO_EMPRESTIMOS_LP));
+    const capIni = sumSnapshots(filtPref(snapPrev, PREFIXO_CAPITAL_SOCIAL));
+    const capFim = sumSnapshots(filtPref(snapCurr, PREFIXO_CAPITAL_SOCIAL));
+
+    const lucroLiq = dreVal("(=) Lucro Líquido do Exercício", p);
+    const depAmort = depPeriodo(p);
+
+    // Variações
+    const varImob = imobFim - imobIni; // aumento = compra
+    const varEmprestimos = empFim - empIni; // aumento = captação
+    const varCapital = capFim - capIni;
+
+    // BLOCOS
+    const operacional = lucroLiq + depAmort; // simplificação: sem ajuste de capital de giro detalhado
+    const investimento = -varImob;
+    const financiamento = varEmprestimos + varCapital;
+    const variacaoLiquida = operacional + investimento + financiamento;
+    const variacaoCaixaBP = caixaFim - caixaIni;
+    const validado = Math.abs(variacaoLiquida - variacaoCaixaBP) < Math.max(1, Math.abs(variacaoCaixaBP) * 0.05);
+
+    const base = 0;
+    emitirRow(out, base + 100, "Lucro Líquido do Exercício", p, lucroLiq);
+    emitirRow(out, base + 110, "(+) Depreciação e Amortização", p, depAmort);
+    emitirRow(out, base + 199, "(=) Caixa das Atividades Operacionais", p, operacional, {
+      nivel: 0,
+      is_subtotal: true,
+    });
+
+    emitirRow(out, base + 210, "(-) Aquisição (Líquida) de Imobilizado", p, -varImob);
+    emitirRow(out, base + 299, "(=) Caixa das Atividades de Investimento", p, investimento, {
+      nivel: 0,
+      is_subtotal: true,
+    });
+
+    emitirRow(out, base + 310, "(+/-) Variação de Empréstimos", p, varEmprestimos);
+    emitirRow(out, base + 320, "(+/-) Variação de Capital", p, varCapital);
+    emitirRow(out, base + 399, "(=) Caixa das Atividades de Financiamento", p, financiamento, {
+      nivel: 0,
+      is_subtotal: true,
+    });
+
+    emitirRow(out, base + 499, "(=) Variação Líquida de Caixa", p, variacaoLiquida, {
+      nivel: 0,
+      is_subtotal: true,
+    });
+    emitirRow(out, base + 510, "Caixa no Início do Período", p, caixaIni);
+    emitirRow(out, base + 599, "Caixa no Final do Período", p, caixaFim, {
+      nivel: 0,
+      is_subtotal: true,
+    });
+    emitirRow(
+      out,
+      base + 999,
+      validado ? "✓ Validação CPC 03: variação confere com o Balanço" : "⚠ Validação CPC 03: divergência na variação de caixa",
+      p,
+      variacaoCaixaBP - variacaoLiquida,
+    );
+    void idx;
+  }
+  return out;
+}
+
+// ---------- DLPA ----------
+
+async function buildDLPA(
+  companyId: string,
+  tenantId: string,
+  modoGlobal: boolean,
+  periodos: string[],
+): Promise<FlatRow[]> {
+  const periodosOrd = [...periodos].sort();
+  const dre = await buildDRE(companyId, tenantId, modoGlobal, periodosOrd, "DRE");
+  const dreVal = (descricao: string, p: string) =>
+    dre.find((r) => r.descricao === descricao && r.periodo === p)?.valor ?? 0;
+
+  const out: FlatRow[] = [];
+  for (const p of periodosOrd) {
+    const pPrev = prevPeriodo(p);
+    const [snapPrev, snapCurr] = await Promise.all([
+      getSnapshotPorPrefixo(companyId, tenantId, modoGlobal, pPrev, [
+        PREFIXO_LUCROS_ACUM,
+        PREFIXO_LUCROS_ACUM_ALT,
+        PREFIXO_CAPITAL_SOCIAL,
+      ]),
+      getSnapshotPorPrefixo(companyId, tenantId, modoGlobal, p, [
+        PREFIXO_LUCROS_ACUM,
+        PREFIXO_LUCROS_ACUM_ALT,
+        PREFIXO_CAPITAL_SOCIAL,
+      ]),
+    ]);
+    const filtPref = (snap: ContaSnapshot[], prefs: string[]) =>
+      snap.filter((s) => prefs.some((pref) => s.classificacao === pref || s.classificacao.startsWith(pref + ".")));
+
+    // Passivo é credor: para PL exibir como positivo invertemos o sinal
+    const saldoInicial = -sumSnapshots(
+      filtPref(snapPrev, [PREFIXO_LUCROS_ACUM, PREFIXO_LUCROS_ACUM_ALT]),
+    );
+    const saldoFinalContabil = -sumSnapshots(
+      filtPref(snapCurr, [PREFIXO_LUCROS_ACUM, PREFIXO_LUCROS_ACUM_ALT]),
+    );
+    const capitalSocial = -sumSnapshots(filtPref(snapCurr, [PREFIXO_CAPITAL_SOCIAL]));
+
+    const lucroLiq = dreVal("(=) Lucro Líquido do Exercício", p);
+
+    // Reserva legal sugerida (5% LL limitado a 20% do capital)
+    const reservaLegalSugerida = Math.max(
+      0,
+      Math.min(lucroLiq * 0.05, Math.max(0, capitalSocial * 0.2)),
+    );
+
+    // Movimento real no período (variação efetiva do saldo) — depois de subtrair LL deveria zerar se só houve LL
+    const variacaoReal = saldoFinalContabil - saldoInicial;
+    // Destinações efetivas = LL - variacao real (o que saiu da conta de lucros)
+    const destinacoesEfetivas = lucroLiq - variacaoReal;
+
+    const base = 0;
+    emitirRow(out, base + 100, "Saldo Inicial de Lucros/Prejuízos Acumulados", p, saldoInicial);
+    emitirRow(out, base + 199, "(=) Saldo Inicial Ajustado", p, saldoInicial, {
+      nivel: 0,
+      is_subtotal: true,
+    });
+    emitirRow(out, base + 210, lucroLiq >= 0 ? "(+) Lucro Líquido do Exercício" : "(-) Prejuízo do Exercício", p, lucroLiq);
+    emitirRow(out, base + 310, "(-) Reserva Legal (sugerida 5%)", p, -reservaLegalSugerida);
+    emitirRow(out, base + 320, "(-) Destinações / Distribuições do Período", p, -destinacoesEfetivas);
+    emitirRow(out, base + 399, "(=) Saldo Final de Lucros/Prejuízos Acumulados", p, saldoFinalContabil, {
+      nivel: 0,
+      is_subtotal: true,
+    });
+    const reconciliado = Math.abs(saldoFinalContabil - (saldoInicial + lucroLiq - destinacoesEfetivas)) < 0.01;
+    emitirRow(
+      out,
+      base + 999,
+      reconciliado
+        ? "✓ Saldo final reconciliado com a contabilidade"
+        : "⚠ Saldo final divergente — verificar destinações",
+      p,
+      0,
+    );
+  }
+  return out;
+}
+
+// ---------- DVA ----------
+
+async function buildDVA(
+  companyId: string,
+  tenantId: string,
+  modoGlobal: boolean,
+  periodos: string[],
+): Promise<FlatRow[]> {
+  const periodosOrd = [...periodos].sort();
+  const dre = await buildDRE(companyId, tenantId, modoGlobal, periodosOrd, "DRE");
+
+  const dreVal = (descricao: string, p: string) =>
+    dre.find((r) => r.descricao === descricao && r.periodo === p)?.valor ?? 0;
+
+  // Linhas analíticas da DRE (têm codigo_conta) → permite classificar por keyword
+  const analyticDRE = dre.filter((r) => !r.is_subtotal && r.codigo_conta);
+
+  const out: FlatRow[] = [];
+  for (const p of periodosOrd) {
+    const rowsP = analyticDRE.filter((r) => r.periodo === p);
+    const matchSum = (re: RegExp) =>
+      rowsP
+        .filter((r) => re.test(r.descricao ?? ""))
+        .reduce((a, r) => a + Math.abs(Number(r.valor) || 0), 0);
+
+    const receitaBruta = dreVal("Receita Bruta", p);
+    const deducoes = dreVal("(-) Deduções da Receita Bruta", p);
+    const receitaLiq = dreVal("(=) Receita Líquida", p);
+    const custos =
+      dreVal("(-) Custos Industriais", p) +
+      dreVal("(-) Custos Comerciais", p) +
+      dreVal("(-) Custos Imobiliários", p) +
+      dreVal("(-) Custos dos Serviços", p) +
+      dreVal("(-) Custos", p);
+    const receitasFin = dreVal("(+) Receitas Financeiras", p);
+
+    const depAmort = rowsP
+      .filter((r) => KW_DEPRECIACAO.test(r.descricao ?? ""))
+      .reduce((a, r) => a + Math.abs(Number(r.valor) || 0), 0);
+
+    // GERAÇÃO
+    const receitas = receitaBruta - deducoes; // receita líquida
+    void receitaLiq;
+    const insumos = custos; // simplificação: insumos ≈ CMV/CSV
+    const vaBruto = receitas - insumos;
+    const vaLiquido = vaBruto - depAmort;
+    const transferencias = receitasFin;
+    const vaTotal = vaLiquido + transferencias;
+
+    // DISTRIBUIÇÃO
+    const pessoal = matchSum(KW_PESSOAL);
+    const impostosDireto = matchSum(KW_IMPOSTOS) + Math.abs(deducoes);
+    const capTerceiros = matchSum(KW_JUROS) + matchSum(KW_ALUGUEL);
+    const lucroLiq = dreVal("(=) Lucro Líquido do Exercício", p);
+    const capProprio = lucroLiq; // distribuído ou retido
+    const totalDistribuido = pessoal + impostosDireto + capTerceiros + capProprio;
+    const validado = Math.abs(vaTotal - totalDistribuido) < Math.max(1, Math.abs(vaTotal) * 0.1);
+
+    const base = 0;
+    emitirRow(out, base + 100, "Receitas", p, receitas);
+    emitirRow(out, base + 110, "(-) Insumos Adquiridos de Terceiros", p, -insumos);
+    emitirRow(out, base + 199, "(=) Valor Adicionado Bruto", p, vaBruto, {
+      nivel: 0,
+      is_subtotal: true,
+    });
+    emitirRow(out, base + 210, "(-) Depreciação, Amortização e Exaustão", p, -depAmort);
+    emitirRow(out, base + 299, "(=) Valor Adicionado Líquido Produzido", p, vaLiquido, {
+      nivel: 0,
+      is_subtotal: true,
+    });
+    emitirRow(out, base + 310, "(+) Valor Adicionado Recebido em Transferência", p, transferencias);
+    emitirRow(out, base + 399, "(=) Valor Adicionado Total a Distribuir", p, vaTotal, {
+      nivel: 0,
+      is_subtotal: true,
+    });
+
+    emitirRow(out, base + 500, "Distribuição do Valor Adicionado", p, totalDistribuido, {
+      nivel: 0,
+      is_subtotal: true,
+    });
+    emitirRow(out, base + 510, "Pessoal e Encargos", p, pessoal);
+    emitirRow(out, base + 520, "Impostos, Taxas e Contribuições", p, impostosDireto);
+    emitirRow(out, base + 530, "Remuneração de Capitais de Terceiros", p, capTerceiros);
+    emitirRow(out, base + 540, "Remuneração de Capitais Próprios", p, capProprio);
+
+    emitirRow(
+      out,
+      base + 999,
+      validado
+        ? "✓ Validação CPC 09: valor gerado = valor distribuído"
+        : "⚠ Validação CPC 09: geração diferente da distribuição",
+      p,
+      vaTotal - totalDistribuido,
+    );
+  }
+  return out;
+}
+

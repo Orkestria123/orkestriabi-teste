@@ -374,11 +374,7 @@ async function buildDRE(
     }
     for (const pt of pontos) {
       const linha = pt.mapa.linha_demonstracao;
-      const conta = planoMap.get(
-        // achar conta original já não dá; vamos buscar descrição do prefixo se existir
-        // mas como pt vem só de contas existentes, basta buscar pela classificação
-        Array.from(planoMap.values()).find((x) => x.classificacao === pt.classificacao)?.codigo ?? "",
-      );
+      const conta = planoPorClassificacao.get(pt.classificacao);
       const bucket = porLinha.get(linha)!;
       bucket.itens.push({
         classificacao: pt.classificacao,

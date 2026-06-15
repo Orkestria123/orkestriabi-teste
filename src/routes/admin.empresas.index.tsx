@@ -19,7 +19,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { deleteCompany } from "@/lib/api/orkestria.functions";
 
 
-export const Route = createFileRoute("/admin/empresas")({ component: Page });
+export const Route = createFileRoute("/admin/empresas/")({ component: Page });
 
 function Page() {
   const { profile } = useAuth();

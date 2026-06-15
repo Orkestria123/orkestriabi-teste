@@ -333,9 +333,11 @@ async function buildDRE(
   ]);
 
   const planoMap = new Map<string, Plano>();
+  const planoPorClassificacao = new Map<string, Plano>();
   const planoPrefixos = new Map<string, string>();
   for (const p of plano) {
     planoMap.set(p.codigo, p);
+    planoPorClassificacao.set(p.classificacao, p);
     planoPrefixos.set(p.classificacao, p.descricao);
   }
   const matcher = buildMatcher(mapas);

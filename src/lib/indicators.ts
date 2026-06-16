@@ -749,3 +749,69 @@ export function gerarDestaques(
   }
   return out.slice(0, 4);
 }
+
+// ============================================================
+// LEGACY SHIM — mantém compatibilidade com callers antigos
+// (alerts-card, dashboard.analise, dashboard.index) que usavam
+// AccountRow[] vindo de financial_statements e a API
+// computeIndicators / formatIndicator / IndicatorValue.
+// ============================================================
+
+export interface AccountRow {
+  descricao: string;
+  codigo_conta: string | null;
+  periodo: string;
+  valor: number;
+  tipo_demonstracao: string;
+  nivel?: number;
+  is_subtotal?: boolean;
+}
+
+export interface IndicatorValue {
+  key: string;
+  label: string;
+  category: Categoria;
+  format: Formato;
+  description: string;
+  values: Record<string, number | null>;
+}
+
+function accountRowsToFlat(rows: AccountRow[], tipo: string): FlatRow[] {
+  return rows
+    .filter((r) => r.tipo_demonstracao === tipo)
+    .map((r, i) => ({
+      linha_ordem: i,
+      descricao: r.descricao,
+      codigo_conta: r.codigo_conta,
+      nivel: r.nivel ?? 0,
+      is_subtotal: r.is_subtotal ?? false,
+      periodo: r.periodo,
+      valor: Number(r.valor) || 0,
+    }));
+}
+
+export function computeIndicators(
+  rows: AccountRow[],
+  periodos: string[],
+): IndicatorValue[] {
+  const dre = accountRowsToFlat(rows, "DRE");
+  const bpA = accountRowsToFlat(rows, "BP_ATIVO").length
+    ? accountRowsToFlat(rows, "BP_ATIVO")
+    : accountRowsToFlat(rows, "BP");
+  const bpP = accountRowsToFlat(rows, "BP_PASSIVO").length
+    ? accountRowsToFlat(rows, "BP_PASSIVO")
+    : accountRowsToFlat(rows, "BP");
+  const completos = computeIndicadoresCompletos(dre, bpA, bpP, periodos);
+  return completos.map((c) => ({
+    key: c.key,
+    label: c.label,
+    category: c.categoria,
+    format: c.formato,
+    description: c.formulaTexto,
+    values: Object.fromEntries(c.serie.map((s) => [s.periodo, s.valor])),
+  }));
+}
+
+export function formatIndicator(v: number | null, fmt: Formato): string {
+  return formatIndicador(v, fmt);
+}

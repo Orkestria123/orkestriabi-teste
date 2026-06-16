@@ -409,6 +409,59 @@ function Page() {
           })()}
         </TabsContent>
 
+        {/* ============ PONTO DE EQUILÍBRIO ============ */}
+        <TabsContent value="equilibrio" className="space-y-5 mt-5">
+          <p className="text-xs text-muted-foreground">
+            Qual a receita mínima para a empresa não dar prejuízo? Quanto pode cair antes do vermelho?
+          </p>
+          {(() => {
+            if (!rdAtual) {
+              return (
+                <Card className="p-8 text-center text-sm text-muted-foreground">
+                  Carregando dados de despesa…
+                </Card>
+              );
+            }
+            // Coletar folhas de despesa com tipo_custo via matching de prefixo (mais longo)
+            const prefixos = Array.from(tipoCustoMap.keys()).sort((a, b) => b.length - a.length);
+            const folhas: DespesaItem[] = [];
+            const walk = (n: NoArvore) => {
+              if (n.filhos.length === 0 && n.classificacao) {
+                const match = prefixos.find(
+                  (p) => n.classificacao === p || n.classificacao.startsWith(p + "."),
+                );
+                folhas.push({
+                  classificacao: n.classificacao,
+                  descricao: n.descricao,
+                  valor: Math.abs(n.valor),
+                  tipo_custo: match ? tipoCustoMap.get(match)! : null,
+                });
+              } else {
+                n.filhos.forEach(walk);
+              }
+            };
+            walk(rdAtual.raiz_despesa);
+            const resultado = calcularPontoEquilibrio(rdAtual.receita_total, folhas);
+            return <PontoEquilibrioPanel resultado={resultado} labelPeriodo={labelB} />;
+          })()}
+        </TabsContent>
+
+        {/* ============ PROJEÇÃO ============ */}
+        <TabsContent value="projecao" className="space-y-5 mt-5">
+          <p className="text-xs text-muted-foreground">
+            Para onde a empresa vai nos próximos meses se nada mudar — e o que muda se você cortar custos.
+          </p>
+          <ProjecaoPanel
+            serie={evolucao.map((e, i) => ({
+              periodo: periodosB[i] ?? "",
+              mes: e.mes,
+              receita: e.receita,
+              despesaTotal: e.despesaTotal,
+              margem: e.margem,
+            }))}
+          />
+          <SimuladorCorteDespesa ranking={ranking} receita={receitaB} lucroAtual={lucroB} />
+        </TabsContent>
 
 
         {/* ============ COMPARATIVO (preservado) ============ */}

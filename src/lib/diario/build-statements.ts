@@ -361,10 +361,10 @@ async function buildDRE(
   const out: FlatRow[] = [];
 
   for (const p of periodos) {
-    // Valor mensal "limpo" por conta: descarta a contrapartida do
-    // encerramento (apuração de DRE em dezembro), usando só o lado natural.
-    // Receita (mapa.inverter_sinal=true): max(0, creditos − debitos).
-    // Despesa (inverter_sinal=false):     max(0, debitos − creditos).
+    // Valor mensal "limpo" por conta: usa SOMENTE o lado natural da conta.
+    // O encerramento de dezembro (apuração) bate no lado oposto — debita
+    // receita, credita despesa — e, se subtraíssemos os dois lados, o mês
+    // de dez ficaria zerado. Receita = créditos; despesa = débitos.
     const saldosPorConta = new Map<string, number>();
     for (const s of saldos) {
       if (s.competencia !== p) continue;
@@ -377,7 +377,7 @@ async function buildDRE(
       // Sinal "cru" (antes do inverter_sinal): receita fica negativa para
       // que aplicarMapaESinal (inverter=true) devolva valor positivo;
       // despesa permanece positiva.
-      const valor = ehReceita ? -Math.max(0, c - d) : Math.max(0, d - c);
+      const valor = ehReceita ? -c : d;
       saldosPorConta.set(
         s.conta_codigo,
         (saldosPorConta.get(s.conta_codigo) ?? 0) + valor,

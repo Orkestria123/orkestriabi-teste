@@ -220,13 +220,14 @@ export async function montarReceitaDespesaDetalhado(
       } else continue;
     }
 
-    // Valor mensal "limpo": usa só o lado natural da conta, descartando
-    // a contrapartida do lançamento de encerramento (apuração do exercício).
-    // Receita (natureza credora): valor = max(0, creditos − debitos).
-    // Despesa (natureza devedora): valor = max(0, debitos − creditos).
+    // Valor mensal "limpo": usa SOMENTE o lado natural da conta. A
+    // contrapartida da apuração (encerramento de dez) bate no lado oposto
+    // (debita receita, credita despesa) e seria contabilizada como
+    // movimento real se subtraíssemos os dois lados — em dezembro isso
+    // zera o mês inteiro. Receita = créditos do mês; despesa = débitos.
     const d = Number(s.total_debitos) || 0;
     const c = Number(s.total_creditos) || 0;
-    const valor = lado === "receita" ? Math.max(0, c - d) : Math.max(0, d - c);
+    const valor = lado === "receita" ? c : d;
     const target = lado === "receita" ? acumReceita : acumDespesa;
     for (const pref of prefixosDe(cls)) {
       target.set(pref, (target.get(pref) ?? 0) + valor);

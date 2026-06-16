@@ -30,6 +30,7 @@ import { Route as AdminUsuariosRouteImport } from './routes/admin.usuarios'
 import { Route as AdminUploadRouteImport } from './routes/admin.upload'
 import { Route as AdminEmpresasRouteImport } from './routes/admin.empresas'
 import { Route as AdminComparativoRouteImport } from './routes/admin.comparativo'
+import { Route as AdminClassificacaoCustosRouteImport } from './routes/admin.classificacao-custos'
 import { Route as AdminEmpresasIndexRouteImport } from './routes/admin.empresas.index'
 import { Route as AdminEmpresasIdDadosRouteImport } from './routes/admin.empresas.$id.dados'
 
@@ -138,6 +139,12 @@ const AdminComparativoRoute = AdminComparativoRouteImport.update({
   path: '/admin/comparativo',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminClassificacaoCustosRoute =
+  AdminClassificacaoCustosRouteImport.update({
+    id: '/admin/classificacao-custos',
+    path: '/admin/classificacao-custos',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AdminEmpresasIndexRoute = AdminEmpresasIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -154,6 +161,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/dashboard': typeof DashboardRouteWithChildren
   '/teste': typeof TesteRoute
+  '/admin/classificacao-custos': typeof AdminClassificacaoCustosRoute
   '/admin/comparativo': typeof AdminComparativoRoute
   '/admin/empresas': typeof AdminEmpresasRouteWithChildren
   '/admin/upload': typeof AdminUploadRoute
@@ -178,6 +186,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/teste': typeof TesteRoute
+  '/admin/classificacao-custos': typeof AdminClassificacaoCustosRoute
   '/admin/comparativo': typeof AdminComparativoRoute
   '/admin/upload': typeof AdminUploadRoute
   '/admin/usuarios': typeof AdminUsuariosRoute
@@ -203,6 +212,7 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/dashboard': typeof DashboardRouteWithChildren
   '/teste': typeof TesteRoute
+  '/admin/classificacao-custos': typeof AdminClassificacaoCustosRoute
   '/admin/comparativo': typeof AdminComparativoRoute
   '/admin/empresas': typeof AdminEmpresasRouteWithChildren
   '/admin/upload': typeof AdminUploadRoute
@@ -230,6 +240,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/dashboard'
     | '/teste'
+    | '/admin/classificacao-custos'
     | '/admin/comparativo'
     | '/admin/empresas'
     | '/admin/upload'
@@ -254,6 +265,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/teste'
+    | '/admin/classificacao-custos'
     | '/admin/comparativo'
     | '/admin/upload'
     | '/admin/usuarios'
@@ -278,6 +290,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/dashboard'
     | '/teste'
+    | '/admin/classificacao-custos'
     | '/admin/comparativo'
     | '/admin/empresas'
     | '/admin/upload'
@@ -304,6 +317,7 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   DashboardRoute: typeof DashboardRouteWithChildren
   TesteRoute: typeof TesteRoute
+  AdminClassificacaoCustosRoute: typeof AdminClassificacaoCustosRoute
   AdminComparativoRoute: typeof AdminComparativoRoute
   AdminEmpresasRoute: typeof AdminEmpresasRouteWithChildren
   AdminUploadRoute: typeof AdminUploadRoute
@@ -462,6 +476,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminComparativoRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/classificacao-custos': {
+      id: '/admin/classificacao-custos'
+      path: '/admin/classificacao-custos'
+      fullPath: '/admin/classificacao-custos'
+      preLoaderRoute: typeof AdminClassificacaoCustosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/empresas/': {
       id: '/admin/empresas/'
       path: '/'
@@ -528,6 +549,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRoute,
   DashboardRoute: DashboardRouteWithChildren,
   TesteRoute: TesteRoute,
+  AdminClassificacaoCustosRoute: AdminClassificacaoCustosRoute,
   AdminComparativoRoute: AdminComparativoRoute,
   AdminEmpresasRoute: AdminEmpresasRouteWithChildren,
   AdminUploadRoute: AdminUploadRoute,

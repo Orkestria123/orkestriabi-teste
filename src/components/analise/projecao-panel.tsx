@@ -14,7 +14,7 @@ import {
   ReferenceLine,
 } from "recharts";
 import { projetar, type PontoSerie } from "@/lib/analise-tendencia";
-import { chartTheme } from "@/lib/chart-config";
+import { AXIS_PROPS, GRID_PROPS, TOOLTIP_STYLE } from "@/lib/chart-config";
 import { formatBRLCompact, formatBRL } from "@/lib/format";
 
 interface Props {
@@ -77,44 +77,28 @@ export function ProjecaoPanel({ serie }: Props) {
         <div className="h-80">
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart data={dados} margin={{ top: 10, right: 20, left: 10, bottom: 0 }}>
-              <CartesianGrid stroke={chartTheme.grid} strokeDasharray="3 3" />
-              <XAxis dataKey="mes" stroke={chartTheme.axisLabel} fontSize={11} />
-              <YAxis tickFormatter={(v) => formatBRLCompact(v)} stroke={chartTheme.axisLabel} fontSize={11} />
+              <CartesianGrid {...GRID_PROPS} />
+              <XAxis dataKey="mes" {...AXIS_PROPS} />
+              <YAxis tickFormatter={(v) => formatBRLCompact(v)} {...AXIS_PROPS} />
               <Tooltip
                 formatter={(v: any) => (v == null ? "—" : formatBRL(Number(v)))}
-                contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", fontSize: 12 }}
+                contentStyle={TOOLTIP_STYLE}
               />
               <Legend wrapperStyle={{ fontSize: 11 }} />
               {ultHistorico > 0 && (
                 <ReferenceLine
                   x={serie[serie.length - 1].mes}
-                  stroke={chartTheme.muted}
+                  stroke="var(--muted-foreground)"
                   strokeDasharray="2 2"
-                  label={{ value: "hoje", position: "top", fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+                  label={{ value: "hoje", position: "top", fontSize: 10, fill: "var(--muted-foreground)" }}
                 />
               )}
-              {/* Banda de confiança da receita */}
-              <Area
-                type="monotone"
-                dataKey="receitaProjMax"
-                stroke="none"
-                fill={chartTheme.success}
-                fillOpacity={0.15}
-                name="Confiança ±"
-                legendType="none"
-              />
-              <Area
-                type="monotone"
-                dataKey="receitaProjMin"
-                stroke="none"
-                fill="hsl(var(--background))"
-                fillOpacity={1}
-                legendType="none"
-              />
-              <Line type="monotone" dataKey="receita" name="Receita histórica" stroke={chartTheme.success} strokeWidth={2} dot={{ r: 2 }} />
-              <Line type="monotone" dataKey="despesaTotal" name="Despesa histórica" stroke={chartTheme.destructive} strokeWidth={2} dot={{ r: 2 }} />
-              <Line type="monotone" dataKey="receitaProj" name="Receita projetada" stroke={chartTheme.success} strokeWidth={2} strokeDasharray="5 4" dot={false} />
-              <Line type="monotone" dataKey="despesaProj" name="Despesa projetada" stroke={chartTheme.destructive} strokeWidth={2} strokeDasharray="5 4" dot={false} />
+              <Area type="monotone" dataKey="receitaProjMax" stroke="none" fill="var(--success)" fillOpacity={0.15} name="Confiança ±" legendType="none" />
+              <Area type="monotone" dataKey="receitaProjMin" stroke="none" fill="var(--background)" fillOpacity={1} legendType="none" />
+              <Line type="monotone" dataKey="receita" name="Receita histórica" stroke="var(--success)" strokeWidth={2} dot={{ r: 2 }} />
+              <Line type="monotone" dataKey="despesaTotal" name="Despesa histórica" stroke="var(--destructive)" strokeWidth={2} dot={{ r: 2 }} />
+              <Line type="monotone" dataKey="receitaProj" name="Receita projetada" stroke="var(--success)" strokeWidth={2} strokeDasharray="5 4" dot={false} />
+              <Line type="monotone" dataKey="despesaProj" name="Despesa projetada" stroke="var(--destructive)" strokeWidth={2} strokeDasharray="5 4" dot={false} />
             </ComposedChart>
           </ResponsiveContainer>
         </div>

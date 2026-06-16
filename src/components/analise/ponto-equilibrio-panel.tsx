@@ -12,7 +12,7 @@ import {
 } from "recharts";
 import { formatBRLCompact, formatBRL } from "@/lib/format";
 import { PontoEquilibrioResultado } from "@/lib/analise-ponto-equilibrio";
-import { chartTheme } from "@/lib/chart-config";
+import { AXIS_PROPS, GRID_PROPS, TOOLTIP_STYLE } from "@/lib/chart-config";
 import { Link } from "@tanstack/react-router";
 import { AlertTriangle, Settings2 } from "lucide-react";
 
@@ -125,55 +125,32 @@ export function PontoEquilibrioPanel({ resultado, labelPeriodo }: Props) {
         <div className="h-72">
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart data={serie} margin={{ top: 10, right: 20, left: 10, bottom: 0 }}>
-              <CartesianGrid stroke={chartTheme.grid} strokeDasharray="3 3" />
+              <CartesianGrid {...GRID_PROPS} />
               <XAxis
                 dataKey="receita"
                 type="number"
                 tickFormatter={(v) => formatBRLCompact(v)}
-                stroke={chartTheme.axisLabel}
-                fontSize={11}
+                {...AXIS_PROPS}
               />
-              <YAxis tickFormatter={(v) => formatBRLCompact(v)} stroke={chartTheme.axisLabel} fontSize={11} />
+              <YAxis tickFormatter={(v) => formatBRLCompact(v)} {...AXIS_PROPS} />
               <Tooltip
                 formatter={(v: any) => formatBRL(Number(v))}
                 labelFormatter={(v) => `Receita: ${formatBRL(Number(v))}`}
-                contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", fontSize: 12 }}
+                contentStyle={TOOLTIP_STYLE}
               />
               <Legend wrapperStyle={{ fontSize: 11 }} />
-              <Line
-                type="monotone"
-                dataKey="receitaTotal"
-                name="Receita"
-                stroke={chartTheme.success}
-                strokeWidth={2}
-                dot={false}
-              />
-              <Line
-                type="monotone"
-                dataKey="custoTotal"
-                name="Custo Total (Fixo + Variável)"
-                stroke={chartTheme.destructive}
-                strokeWidth={2}
-                dot={false}
-              />
-              <Line
-                type="monotone"
-                dataKey="custoFixo"
-                name="Custo Fixo"
-                stroke={chartTheme.muted}
-                strokeWidth={1}
-                strokeDasharray="4 4"
-                dot={false}
-              />
+              <Line type="monotone" dataKey="receitaTotal" name="Receita" stroke="var(--success)" strokeWidth={2} dot={false} />
+              <Line type="monotone" dataKey="custoTotal" name="Custo Total (Fixo + Variável)" stroke="var(--destructive)" strokeWidth={2} dot={false} />
+              <Line type="monotone" dataKey="custoFixo" name="Custo Fixo" stroke="var(--muted-foreground)" strokeWidth={1} strokeDasharray="4 4" dot={false} />
               {ponto_equilibrio_receita != null && (
                 <ReferenceDot
                   x={ponto_equilibrio_receita}
                   y={ponto_equilibrio_receita}
                   r={6}
-                  fill={chartTheme.primary}
+                  fill="var(--primary)"
                   stroke="white"
                   strokeWidth={2}
-                  label={{ value: "PE", position: "top", fontSize: 11, fill: "hsl(var(--foreground))" }}
+                  label={{ value: "PE", position: "top", fontSize: 11, fill: "var(--foreground)" }}
                 />
               )}
             </ComposedChart>

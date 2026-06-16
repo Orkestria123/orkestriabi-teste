@@ -168,6 +168,8 @@ async function getSaldosAteData(
     movimento:
       Number(r.movimento) ||
       (Number(r.total_debitos) || 0) - (Number(r.total_creditos) || 0),
+    total_debitos: Number(r.total_debitos) || 0,
+    total_creditos: Number(r.total_creditos) || 0,
   }));
 }
 

@@ -32,6 +32,7 @@ const ADMIN_NAV: NavItem[] = [
   { to: "/admin/comparativo", label: "Comparativo", icon: BarChart3 },
   { to: "/admin/empresas", label: "Empresas", icon: Building2 },
   { to: "/admin/upload", label: "Upload", icon: Upload },
+  { to: "/admin/classificacao-custos", label: "Fixo/Variável", icon: Wallet },
   { to: "/admin/usuarios", label: "Usuários", icon: Users },
 ];
 

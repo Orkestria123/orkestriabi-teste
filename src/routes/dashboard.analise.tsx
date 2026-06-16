@@ -25,6 +25,7 @@ import {
   paretoDespesas,
   despesaPorCentro,
   composicaoReceita,
+  type NoArvore,
 } from "@/lib/analise-receita-despesa";
 import { PeriodPicker } from "@/components/analise/period-picker";
 import { HighlightCard } from "@/components/analise/highlight-card";
@@ -42,7 +43,13 @@ import { EvolucaoReceitaDespesa } from "@/components/analise/evolucao-receita-de
 import { ResumoExecutivo } from "@/components/analise/resumo-executivo";
 import { TendenciaPanel } from "@/components/analise/tendencia-panel";
 import { CapitalGiroPanel } from "@/components/analise/capital-giro-panel";
+import { PontoEquilibrioPanel } from "@/components/analise/ponto-equilibrio-panel";
+import { ProjecaoPanel } from "@/components/analise/projecao-panel";
+import { SimuladorCorteDespesa } from "@/components/analise/simulador-corte-despesa";
 import { calcularCapitalGiro } from "@/lib/analise-capital-giro";
+import { calcularPontoEquilibrio, type DespesaItem } from "@/lib/analise-ponto-equilibrio";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { Maximize2, Minimize2 } from "lucide-react";
 import { computeIndicators, formatIndicator } from "@/lib/indicators";
@@ -148,6 +155,26 @@ function Page() {
     [periodosB],
   );
   const { data: rdMensal } = useReceitaDespesaPorPeriodo(companyId, competenciasMensais);
+
+  // Mapeamento tipo_custo (fixo/variavel) para Ponto de Equilíbrio
+  const { data: tipoCustoMap = new Map<string, "fixo" | "variavel">() } = useQuery({
+    queryKey: ["mapeamento-tipo-custo", companyId],
+    enabled: !!companyId && secao === "equilibrio",
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("mapeamento_demonstracao")
+        .select("classificacao_prefixo, tipo_custo")
+        .eq("company_id", companyId!)
+        .not("tipo_custo", "is", null);
+      if (error) throw error;
+      const m = new Map<string, "fixo" | "variavel">();
+      for (const r of data ?? []) {
+        if (r.tipo_custo) m.set(r.classificacao_prefixo, r.tipo_custo as any);
+      }
+      return m;
+    },
+  });
+
 
   const compRows: CompRow[] = useMemo(() => {
     if (tipo === "INDICADORES") return [];
@@ -296,9 +323,9 @@ function Page() {
           <TabsTrigger value="receitaDespesa">Receita × Despesa</TabsTrigger>
           <TabsTrigger value="comparativo">Comparativo</TabsTrigger>
           <TabsTrigger value="tendencia">Tendência</TabsTrigger>
-          <TabsTrigger value="equilibrio" disabled>Ponto de Equilíbrio</TabsTrigger>
+          <TabsTrigger value="equilibrio">Ponto de Equilíbrio</TabsTrigger>
           <TabsTrigger value="capitalGiro">Capital de Giro</TabsTrigger>
-          <TabsTrigger value="projecao" disabled>Projeção</TabsTrigger>
+          <TabsTrigger value="projecao">Projeção</TabsTrigger>
         </TabsList>
 
         {/* ============ RESUMO ============ */}
@@ -382,6 +409,59 @@ function Page() {
           })()}
         </TabsContent>
 
+        {/* ============ PONTO DE EQUILÍBRIO ============ */}
+        <TabsContent value="equilibrio" className="space-y-5 mt-5">
+          <p className="text-xs text-muted-foreground">
+            Qual a receita mínima para a empresa não dar prejuízo? Quanto pode cair antes do vermelho?
+          </p>
+          {(() => {
+            if (!rdAtual) {
+              return (
+                <Card className="p-8 text-center text-sm text-muted-foreground">
+                  Carregando dados de despesa…
+                </Card>
+              );
+            }
+            // Coletar folhas de despesa com tipo_custo via matching de prefixo (mais longo)
+            const prefixos = Array.from(tipoCustoMap.keys()).sort((a, b) => b.length - a.length);
+            const folhas: DespesaItem[] = [];
+            const walk = (n: NoArvore) => {
+              if (n.filhos.length === 0 && n.classificacao) {
+                const match = prefixos.find(
+                  (p) => n.classificacao === p || n.classificacao.startsWith(p + "."),
+                );
+                folhas.push({
+                  classificacao: n.classificacao,
+                  descricao: n.descricao,
+                  valor: Math.abs(n.valor),
+                  tipo_custo: match ? tipoCustoMap.get(match)! : null,
+                });
+              } else {
+                n.filhos.forEach(walk);
+              }
+            };
+            walk(rdAtual.raiz_despesa);
+            const resultado = calcularPontoEquilibrio(rdAtual.receita_total, folhas);
+            return <PontoEquilibrioPanel resultado={resultado} labelPeriodo={labelB} />;
+          })()}
+        </TabsContent>
+
+        {/* ============ PROJEÇÃO ============ */}
+        <TabsContent value="projecao" className="space-y-5 mt-5">
+          <p className="text-xs text-muted-foreground">
+            Para onde a empresa vai nos próximos meses se nada mudar — e o que muda se você cortar custos.
+          </p>
+          <ProjecaoPanel
+            serie={evolucao.map((e, i) => ({
+              periodo: periodosB[i] ?? "",
+              mes: e.mes,
+              receita: e.receita,
+              despesaTotal: e.despesaTotal,
+              margem: e.margem,
+            }))}
+          />
+          <SimuladorCorteDespesa ranking={ranking} receita={receitaB} lucroAtual={lucroB} />
+        </TabsContent>
 
 
         {/* ============ COMPARATIVO (preservado) ============ */}

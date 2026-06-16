@@ -663,6 +663,7 @@ export type Database = {
           linha_demonstracao: string
           ordem: number
           tenant_id: string
+          tipo_custo: string | null
           tipo_demonstracao: string
           updated_at: string
         }
@@ -675,6 +676,7 @@ export type Database = {
           linha_demonstracao: string
           ordem?: number
           tenant_id: string
+          tipo_custo?: string | null
           tipo_demonstracao: string
           updated_at?: string
         }
@@ -687,6 +689,7 @@ export type Database = {
           linha_demonstracao?: string
           ordem?: number
           tenant_id?: string
+          tipo_custo?: string | null
           tipo_demonstracao?: string
           updated_at?: string
         }

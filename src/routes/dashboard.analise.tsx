@@ -340,6 +340,50 @@ function Page() {
           </div>
         </TabsContent>
 
+        {/* ============ TENDÊNCIA ============ */}
+        <TabsContent value="tendencia" className="space-y-5 mt-5">
+          <p className="text-xs text-muted-foreground">
+            Para onde a empresa está indo. Médias móveis suavizam o ruído e revelam a direção real.
+          </p>
+          <TendenciaPanel
+            serie={evolucao.map((e, i) => ({
+              periodo: periodosB[i] ?? "",
+              mes: e.mes,
+              receita: e.receita,
+              despesaTotal: e.despesaTotal,
+              margem: e.margem,
+            }))}
+          />
+        </TabsContent>
+
+        {/* ============ CAPITAL DE GIRO ============ */}
+        <TabsContent value="capitalGiro" className="space-y-5 mt-5">
+          <p className="text-xs text-muted-foreground">
+            Quanto tempo seu dinheiro fica fora do caixa, e se a operação se autofinancia.
+          </p>
+          {(() => {
+            const bpA = agregarPorPeriodos(bpAtivoRows as MonthlyRow[], "BP_ATIVO", periodosB).ordered;
+            const bpP = agregarPorPeriodos(bpPassivoRows as MonthlyRow[], "BP_PASSIVO", periodosB).ordered;
+            const dreB = agregarPorPeriodos(dreSource, "DRE", periodosB).ordered;
+            if (bpA.length === 0 || bpP.length === 0) {
+              return (
+                <Card className="p-8 text-center text-sm text-muted-foreground">
+                  Sem dados de balanço para o período selecionado.
+                </Card>
+              );
+            }
+            const resultado = calcularCapitalGiro({
+              bpAtivo: bpA.map((r) => ({ descricao: r.descricao, valor: r.valor, is_subtotal: r.is_subtotal })),
+              bpPassivo: bpP.map((r) => ({ descricao: r.descricao, valor: r.valor, is_subtotal: r.is_subtotal })),
+              dre: dreB.map((r) => ({ descricao: r.descricao, valor: r.valor })),
+              mesesNoRecorte: periodosB.length,
+            });
+            return <CapitalGiroPanel resultado={resultado} />;
+          })()}
+        </TabsContent>
+
+
+
         {/* ============ COMPARATIVO (preservado) ============ */}
         <TabsContent value="comparativo" className="space-y-5 mt-5">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

@@ -217,8 +217,13 @@ export async function montarReceitaDespesaDetalhado(
       } else continue;
     }
 
-    const mov = Number(s.movimento) || 0;
-    const valor = inverter ? -mov : mov;
+    // Valor mensal "limpo": usa só o lado natural da conta, descartando
+    // a contrapartida do lançamento de encerramento (apuração do exercício).
+    // Receita (natureza credora): valor = max(0, creditos − debitos).
+    // Despesa (natureza devedora): valor = max(0, debitos − creditos).
+    const d = Number(s.total_debitos) || 0;
+    const c = Number(s.total_creditos) || 0;
+    const valor = lado === "receita" ? Math.max(0, c - d) : Math.max(0, d - c);
     const target = lado === "receita" ? acumReceita : acumDespesa;
     for (const pref of prefixosDe(cls)) {
       target.set(pref, (target.get(pref) ?? 0) + valor);

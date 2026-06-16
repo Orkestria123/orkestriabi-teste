@@ -42,7 +42,10 @@ interface Saldo {
   conta_codigo: string;
   competencia: string;
   movimento: number;
+  total_debitos: number;
+  total_creditos: number;
 }
+
 
 const SKIP_APURACAO = /\.(98|99)(\.|$)/;
 
@@ -142,6 +145,8 @@ async function getSaldos(
     movimento:
       Number(r.movimento) ||
       (Number(r.total_debitos) || 0) - (Number(r.total_creditos) || 0),
+    total_debitos: Number(r.total_debitos) || 0,
+    total_creditos: Number(r.total_creditos) || 0,
   }));
 }
 
@@ -163,6 +168,8 @@ async function getSaldosAteData(
     movimento:
       Number(r.movimento) ||
       (Number(r.total_debitos) || 0) - (Number(r.total_creditos) || 0),
+    total_debitos: Number(r.total_debitos) || 0,
+    total_creditos: Number(r.total_creditos) || 0,
   }));
 }
 
@@ -354,15 +361,29 @@ async function buildDRE(
   const out: FlatRow[] = [];
 
   for (const p of periodos) {
-    // saldos por conta no período
+    // Valor mensal "limpo" por conta: descarta a contrapartida do
+    // encerramento (apuração de DRE em dezembro), usando só o lado natural.
+    // Receita (mapa.inverter_sinal=true): max(0, creditos − debitos).
+    // Despesa (inverter_sinal=false):     max(0, debitos − creditos).
     const saldosPorConta = new Map<string, number>();
     for (const s of saldos) {
       if (s.competencia !== p) continue;
+      const conta = planoMap.get(s.conta_codigo);
+      if (!conta) continue;
+      const m = matcher(conta.classificacao);
+      const ehReceita = !!m?.inverter_sinal;
+      const d = s.total_debitos;
+      const c = s.total_creditos;
+      // Sinal "cru" (antes do inverter_sinal): receita fica negativa para
+      // que aplicarMapaESinal (inverter=true) devolva valor positivo;
+      // despesa permanece positiva.
+      const valor = ehReceita ? -Math.max(0, c - d) : Math.max(0, d - c);
       saldosPorConta.set(
         s.conta_codigo,
-        (saldosPorConta.get(s.conta_codigo) ?? 0) + s.movimento,
+        (saldosPorConta.get(s.conta_codigo) ?? 0) + valor,
       );
     }
+
 
     const pontos = aplicarMapaESinal(saldosPorConta, planoMap, matcher);
 

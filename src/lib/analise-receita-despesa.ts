@@ -1,26 +1,28 @@
 // Motor de Análise de Receita × Despesa.
-// Lê saldos_mensais + plano_contas e devolve a árvore hierárquica desagregada
-// (grupo → centro → conta analítica), com totais acumulados em cada nível.
+// Lê saldos_mensais + plano_contas + mapeamento_demonstracao e devolve a
+// árvore hierárquica desagregada (grupo → centro → conta analítica), com
+// totais acumulados em cada nível.
 //
 // Regras:
-//  - Receita: classificações começando com 3.01 ou 3.10  (sinal invertido)
-//  - Despesa: classificações começando com 3.06 ou 3.15
-//  - movimento na saldos_mensais = total_debitos - total_creditos
-//     → receita aparece como negativa; invertemos para positivo.
+//  - Os prefixos de Receita e Despesa são obtidos do mapeamento_demonstracao
+//    da DRE. Uma linha é "receita" quando o rótulo NÃO começa com "(-)" e
+//    "despesa" quando começa com "(-)". O inverter_sinal aplica o ajuste
+//    de sinal vindo da contabilidade (receitas têm natureza credora).
+//  - Se não houver mapeamento, cai para o padrão histórico
+//    (3.01/3.10 receita; 3.06/3.15 despesa).
 //  - O somatório se acumula em TODOS os níveis pais da classificação.
 
 import { supabase } from "@/integrations/supabase/client";
 
-const RECEITA_PREFIX = ["3.01", "3.10"];
-const DESPESA_PREFIX = ["3.06", "3.15"];
+const DEFAULT_RECEITA_PREFIX = ["3.01", "3.10"];
+const DEFAULT_DESPESA_PREFIX = ["3.06", "3.15"];
 
 export interface NoArvore {
-  classificacao: string; // ex: "3.06.01.01"
+  classificacao: string;
   descricao: string;
-  nivel: number; // 1..n
-  valor: number; // acumulado em todo o subgrupo
+  nivel: number;
+  valor: number;
   filhos: NoArvore[];
-  // calculados posteriormente
   pct_receita?: number;
   pct_pai?: number;
 }
@@ -29,8 +31,8 @@ export interface ReceitaDespesaDetalhado {
   competencias: string[];
   receita_total: number;
   despesa_total: number;
-  raiz_receita: NoArvore; // pseudo-raiz com filhos = grupos de receita (nivel 2: 3.01, 3.10)
-  raiz_despesa: NoArvore; // idem para despesa
+  raiz_receita: NoArvore;
+  raiz_despesa: NoArvore;
 }
 
 interface PlanoRow {
@@ -44,16 +46,44 @@ interface SaldoRow {
   conta_codigo: string;
   competencia: string;
   movimento: number;
+  total_debitos: number;
+  total_creditos: number;
 }
 
-function isReceitaCls(c: string) {
-  return RECEITA_PREFIX.some((p) => c === p || c.startsWith(p + "."));
-}
-function isDespesaCls(c: string) {
-  return DESPESA_PREFIX.some((p) => c === p || c.startsWith(p + "."));
+
+interface MapeamentoRow {
+  classificacao_prefixo: string;
+  linha_demonstracao: string;
+  inverter_sinal: boolean;
 }
 
-// Devolve os prefixos cumulativos: "3.06.01.01" → ["3","3.06","3.06.01","3.06.01.01"]
+type Lado = "receita" | "despesa";
+
+interface PrefixoMapeado {
+  prefixo: string;
+  lado: Lado;
+  inverter: boolean;
+  linha: string;
+}
+
+function ladoDaLinha(linha: string, inverter: boolean): Lado {
+  const s = (linha ?? "").trim();
+  if (s.startsWith("(-)")) return "despesa";
+  if (s.startsWith("(+)")) return "receita";
+  // Sem marcador: receita se inverter (natureza credora), senão despesa.
+  return inverter ? "receita" : "despesa";
+}
+
+function matchPrefixoMaisLongo(cls: string, prefixos: PrefixoMapeado[]): PrefixoMapeado | null {
+  let best: PrefixoMapeado | null = null;
+  for (const p of prefixos) {
+    if (cls === p.prefixo || cls.startsWith(p.prefixo + ".")) {
+      if (!best || p.prefixo.length > best.prefixo.length) best = p;
+    }
+  }
+  return best;
+}
+
 function prefixosDe(classificacao: string): string[] {
   const parts = classificacao.split(".");
   const out: string[] = [];
@@ -85,7 +115,7 @@ export async function montarReceitaDespesaDetalhado(
   if (!companyId || competencias.length === 0) {
     return emptyDetalhado(competencias);
   }
-  // Plano de contas — todas as linhas (analíticas e sintéticas).
+
   const { data: company } = await supabase
     .from("companies")
     .select("tenant_id")
@@ -93,7 +123,7 @@ export async function montarReceitaDespesaDetalhado(
     .maybeSingle();
   const tenantId = (company as any)?.tenant_id as string | undefined;
 
-  // Plano: empresa + tenant (modo global)
+  // Plano: empresa + global (tenant)
   const plano = await fetchAllPaginated<PlanoRow>((from, to) =>
     supabase
       .from("plano_contas")
@@ -103,30 +133,61 @@ export async function montarReceitaDespesaDetalhado(
       .range(from, to),
   );
 
+  // Mapeamento DRE (empresa + global)
+  const mapeamento = await fetchAllPaginated<MapeamentoRow>((from, to) => {
+    let q = supabase
+      .from("mapeamento_demonstracao")
+      .select("classificacao_prefixo,linha_demonstracao,inverter_sinal")
+      .eq("tipo_demonstracao", "DRE")
+      .range(from, to);
+    if (tenantId) q = q.or(`company_id.eq.${companyId},company_id.is.null`);
+    else q = q.eq("company_id", companyId);
+    return q;
+  });
+
+  // Lista de prefixos mapeados, com lado e sinal.
+  const prefixosMapeados: PrefixoMapeado[] = mapeamento.map((m) => ({
+    prefixo: m.classificacao_prefixo,
+    lado: ladoDaLinha(m.linha_demonstracao, !!m.inverter_sinal),
+    inverter: !!m.inverter_sinal,
+    linha: m.linha_demonstracao,
+  }));
+
   // Saldos do período
   const saldos = await fetchAllPaginated<SaldoRow>((from, to) =>
     supabase
       .from("saldos_mensais")
-      .select("conta_codigo,competencia,movimento")
+      .select("conta_codigo,competencia,movimento,total_debitos,total_creditos")
       .eq("company_id", companyId)
       .in("competencia", competencias)
       .range(from, to),
   );
 
-  // index por codigo
+
   const planoPorCodigo = new Map<string, PlanoRow>();
   for (const p of plano) planoPorCodigo.set(p.codigo, p);
-  // index por classificação (para descrição dos níveis intermediários)
   const planoPorClassif = new Map<string, PlanoRow>();
   for (const p of plano) {
-    // se já existe, mantém o mais raso (nivel menor)
     const prev = planoPorClassif.get(p.classificacao);
     if (!prev || (p.nivel ?? 99) < (prev.nivel ?? 99)) {
       planoPorClassif.set(p.classificacao, p);
     }
   }
 
-  // mapa acumulado: classificacao → valor
+  // Conjuntos de raízes (nivel-2 ou prefixo mapeado direto) para a árvore.
+  const raizesReceita = new Set<string>();
+  const raizesDespesa = new Set<string>();
+  const usandoMapeamento = prefixosMapeados.length > 0;
+
+  if (usandoMapeamento) {
+    for (const p of prefixosMapeados) {
+      (p.lado === "receita" ? raizesReceita : raizesDespesa).add(p.prefixo);
+    }
+  } else {
+    for (const r of DEFAULT_RECEITA_PREFIX) raizesReceita.add(r);
+    for (const r of DEFAULT_DESPESA_PREFIX) raizesDespesa.add(r);
+  }
+
   const acumReceita = new Map<string, number>();
   const acumDespesa = new Map<string, number>();
 
@@ -135,23 +196,46 @@ export async function montarReceitaDespesaDetalhado(
     if (!p) continue;
     const cls = p.classificacao;
     if (!cls) continue;
-    const isRec = isReceitaCls(cls);
-    const isDes = isDespesaCls(cls);
-    if (!isRec && !isDes) continue;
-    const valor = isRec ? -Number(s.movimento) : Number(s.movimento);
-    const target = isRec ? acumReceita : acumDespesa;
+
+    let lado: Lado | null = null;
+    let inverter = false;
+
+    if (usandoMapeamento) {
+      const m = matchPrefixoMaisLongo(cls, prefixosMapeados);
+      if (!m) continue;
+      lado = m.lado;
+      inverter = m.inverter;
+    } else {
+      const isRec = DEFAULT_RECEITA_PREFIX.some((pr) => cls === pr || cls.startsWith(pr + "."));
+      const isDes = DEFAULT_DESPESA_PREFIX.some((pr) => cls === pr || cls.startsWith(pr + "."));
+      if (isRec) {
+        lado = "receita";
+        inverter = true;
+      } else if (isDes) {
+        lado = "despesa";
+        inverter = false;
+      } else continue;
+    }
+
+    // Valor mensal "limpo": usa só o lado natural da conta, descartando
+    // a contrapartida do lançamento de encerramento (apuração do exercício).
+    // Receita (natureza credora): valor = max(0, creditos − debitos).
+    // Despesa (natureza devedora): valor = max(0, debitos − creditos).
+    const d = Number(s.total_debitos) || 0;
+    const c = Number(s.total_creditos) || 0;
+    const valor = lado === "receita" ? Math.max(0, c - d) : Math.max(0, d - c);
+    const target = lado === "receita" ? acumReceita : acumDespesa;
     for (const pref of prefixosDe(cls)) {
       target.set(pref, (target.get(pref) ?? 0) + valor);
     }
   }
 
-  const raiz_receita = construirArvore(acumReceita, planoPorClassif, RECEITA_PREFIX, "Receita");
-  const raiz_despesa = construirArvore(acumDespesa, planoPorClassif, DESPESA_PREFIX, "Despesa");
+  const raiz_receita = construirArvore(acumReceita, planoPorClassif, raizesReceita, "Receita");
+  const raiz_despesa = construirArvore(acumDespesa, planoPorClassif, raizesDespesa, "Despesa");
 
   const receita_total = raiz_receita.valor;
   const despesa_total = raiz_despesa.valor;
 
-  // Calcular pct_receita e pct_pai recursivamente
   calcularPercentuais(raiz_receita, receita_total, raiz_receita.valor);
   calcularPercentuais(raiz_despesa, receita_total, raiz_despesa.valor);
 
@@ -167,13 +251,11 @@ function emptyDetalhado(competencias: string[]): ReceitaDespesaDetalhado {
 function construirArvore(
   acum: Map<string, number>,
   planoPorClassif: Map<string, PlanoRow>,
-  raizes: string[],
+  raizes: Set<string>,
   rootLabel: string,
 ): NoArvore {
   const raiz: NoArvore = { classificacao: "", descricao: rootLabel, nivel: 0, valor: 0, filhos: [] };
-  // todas as chaves que aparecem
   const chaves = Array.from(acum.keys()).sort();
-  // criar nós
   const nos = new Map<string, NoArvore>();
   for (const cls of chaves) {
     const planoRow = planoPorClassif.get(cls);
@@ -186,31 +268,37 @@ function construirArvore(
       filhos: [],
     });
   }
-  // ligar pais e filhos
-  for (const cls of chaves) {
-    const partes = cls.split(".");
-    if (partes.length === 1) {
-      // nível 1 (ex: "3") — só agrega na raiz se for um dos prefixos
-      // ignorado para raiz: penduramos a partir do nível 2 (3.01, 3.06, etc.)
-      continue;
+
+  // Helper: dada uma classificação, devolve a raiz mapeada mais profunda
+  // que é prefixo dela (ou a própria, se for raiz).
+  const raizesOrdenadas = Array.from(raizes).sort((a, b) => b.length - a.length);
+  const raizDe = (cls: string): string | null => {
+    for (const r of raizesOrdenadas) {
+      if (cls === r || cls.startsWith(r + ".")) return r;
     }
-    if (partes.length === 2 && raizes.includes(cls)) {
+    return null;
+  };
+
+  for (const cls of chaves) {
+    if (raizes.has(cls)) {
       raiz.filhos.push(nos.get(cls)!);
       raiz.valor += nos.get(cls)!.valor;
       continue;
     }
+    // pai direto
+    const partes = cls.split(".");
     const paiCls = partes.slice(0, -1).join(".");
     const paiNo = nos.get(paiCls);
-    if (paiNo) paiNo.filhos.push(nos.get(cls)!);
-    else {
-      // pai não tem saldo direto — penduramos no nível 2 mais próximo
-      const nivel2 = partes.slice(0, 2).join(".");
-      if (raizes.includes(nivel2) && nos.has(nivel2)) {
-        nos.get(nivel2)!.filhos.push(nos.get(cls)!);
-      }
+    if (paiNo) {
+      paiNo.filhos.push(nos.get(cls)!);
+      continue;
+    }
+    // sem pai direto na árvore: pendura na raiz mapeada correspondente
+    const r = raizDe(cls);
+    if (r && nos.has(r)) {
+      nos.get(r)!.filhos.push(nos.get(cls)!);
     }
   }
-  // ordenar filhos por valor desc
   ordenarRecursivo(raiz);
   return raiz;
 }
@@ -228,10 +316,6 @@ function calcularPercentuais(no: NoArvore, receita_total: number, pai_valor: num
 
 // ---------- helpers ----------
 
-/**
- * Devolve a lista plana de filhos de um nó, com profundidade alvo.
- * profundidade 1 = filhos diretos; 2 = netos; etc.
- */
 export function descer(no: NoArvore, profundidade: number): NoArvore[] {
   if (profundidade <= 0) return [no];
   if (no.filhos.length === 0) return [no];
@@ -249,11 +333,10 @@ export interface RankingItem {
 }
 
 export function rankingDespesas(arv: ReceitaDespesaDetalhado, top = 10): RankingItem[] {
-  // pegamos os nivel 4 (centros de atividade) — mais granulares que grupos mas
-  // ainda agrupados. Se não houver, pegamos os nivel 3.
   const total = arv.despesa_total;
-  const nivel4 = arv.raiz_despesa.filhos.flatMap((g) => g.filhos);
-  const candidatos = nivel4.length > 0 ? nivel4 : arv.raiz_despesa.filhos;
+  // Tenta pegar netos (mais granular); cai para filhos diretos se vazio.
+  const netos = arv.raiz_despesa.filhos.flatMap((g) => g.filhos);
+  const candidatos = netos.length > 0 ? netos : arv.raiz_despesa.filhos;
   return candidatos
     .filter((n) => Math.abs(n.valor) > 0.01)
     .sort((a, b) => Math.abs(b.valor) - Math.abs(a.valor))
@@ -275,7 +358,6 @@ export function rankingDespesas(arv: ReceitaDespesaDetalhado, top = 10): Ranking
 }
 
 export function paretoDespesas(arv: ReceitaDespesaDetalhado): RankingItem[] {
-  // contas mais granulares (filhos de centros) — analíticas
   const total = arv.despesa_total;
   const todos: NoArvore[] = [];
   const walk = (n: NoArvore) => {
@@ -305,9 +387,9 @@ export function paretoDespesas(arv: ReceitaDespesaDetalhado): RankingItem[] {
 
 export function despesaPorCentro(arv: ReceitaDespesaDetalhado): { nome: string; valor: number; pct: number }[] {
   const total = arv.despesa_total;
-  // centros = nivel 4 (3.06.01.01, .02, .05, .06...)
   const centros = arv.raiz_despesa.filhos.flatMap((g) => g.filhos);
-  return centros
+  const pool = centros.length > 0 ? centros : arv.raiz_despesa.filhos;
+  return pool
     .filter((c) => Math.abs(c.valor) > 0.01)
     .map((c) => ({
       nome: limparDescricao(c.descricao),
@@ -319,7 +401,6 @@ export function despesaPorCentro(arv: ReceitaDespesaDetalhado): { nome: string; 
 
 export function composicaoReceita(arv: ReceitaDespesaDetalhado): { nome: string; valor: number; pct: number }[] {
   const total = arv.receita_total;
-  // Pegar nivel 3 (descer 1 nível além dos prefixos 3.01/3.10)
   const candidatos = arv.raiz_receita.filhos.flatMap((g) => g.filhos);
   const pool = candidatos.length > 0 ? candidatos : arv.raiz_receita.filhos;
   return pool
@@ -335,13 +416,13 @@ export function composicaoReceita(arv: ReceitaDespesaDetalhado): { nome: string;
 export function limparDescricao(s: string): string {
   return (s ?? "")
     .replace(/^\(\-\)\s*/, "")
+    .replace(/^\(\+\)\s*/, "")
     .replace(/\s+/g, " ")
     .trim()
     .toLowerCase()
     .replace(/(^|\s)\S/g, (c) => c.toUpperCase());
 }
 
-// Buscar valor agregado de uma classificação (ex.: receita líquida = 3.01.99)
 export function valorClassif(arv: ReceitaDespesaDetalhado, cls: string, lado: "receita" | "despesa"): number {
   const raiz = lado === "receita" ? arv.raiz_receita : arv.raiz_despesa;
   const procurar = (n: NoArvore): number | null => {

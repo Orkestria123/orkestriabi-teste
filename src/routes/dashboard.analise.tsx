@@ -219,13 +219,13 @@ function Page() {
     if (tipo !== "INDICADORES") return null;
     const aggA = [
       ...agregarPorPeriodos(dreRows as MonthlyRow[], "DRE", periodosA).ordered.map((r) => ({ ...r, tipo_demonstracao: "DRE" })),
-      ...agregarPorPeriodos(bpAtivoRows as MonthlyRow[], "BP_ATIVO", periodosA).ordered.map((r) => ({ ...r, tipo_demonstracao: "BP" })),
-      ...agregarPorPeriodos(bpPassivoRows as MonthlyRow[], "BP_PASSIVO", periodosA).ordered.map((r) => ({ ...r, tipo_demonstracao: "BP" })),
+      ...agregarPorPeriodos(bpAtivoRows as MonthlyRow[], "BP_ATIVO", periodosA).ordered.map((r) => ({ ...r, tipo_demonstracao: "BP_ATIVO" })),
+      ...agregarPorPeriodos(bpPassivoRows as MonthlyRow[], "BP_PASSIVO", periodosA).ordered.map((r) => ({ ...r, tipo_demonstracao: "BP_PASSIVO" })),
     ];
     const aggB = [
       ...agregarPorPeriodos(dreRows as MonthlyRow[], "DRE", periodosB).ordered.map((r) => ({ ...r, tipo_demonstracao: "DRE" })),
-      ...agregarPorPeriodos(bpAtivoRows as MonthlyRow[], "BP_ATIVO", periodosB).ordered.map((r) => ({ ...r, tipo_demonstracao: "BP" })),
-      ...agregarPorPeriodos(bpPassivoRows as MonthlyRow[], "BP_PASSIVO", periodosB).ordered.map((r) => ({ ...r, tipo_demonstracao: "BP" })),
+      ...agregarPorPeriodos(bpAtivoRows as MonthlyRow[], "BP_ATIVO", periodosB).ordered.map((r) => ({ ...r, tipo_demonstracao: "BP_ATIVO" })),
+      ...agregarPorPeriodos(bpPassivoRows as MonthlyRow[], "BP_PASSIVO", periodosB).ordered.map((r) => ({ ...r, tipo_demonstracao: "BP_PASSIVO" })),
     ];
     const rowsForIndicators = [
       ...aggA.map((r) => ({ ...r, periodo: "A" })),

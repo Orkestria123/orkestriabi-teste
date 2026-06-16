@@ -157,11 +157,12 @@ export async function montarReceitaDespesaDetalhado(
   const saldos = await fetchAllPaginated<SaldoRow>((from, to) =>
     supabase
       .from("saldos_mensais")
-      .select("conta_codigo,competencia,movimento")
+      .select("conta_codigo,competencia,movimento,total_debitos,total_creditos")
       .eq("company_id", companyId)
       .in("competencia", competencias)
       .range(from, to),
   );
+
 
   const planoPorCodigo = new Map<string, PlanoRow>();
   for (const p of plano) planoPorCodigo.set(p.codigo, p);

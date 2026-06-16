@@ -164,7 +164,7 @@ function Page() {
       const { data, error } = await supabase
         .from("mapeamento_demonstracao")
         .select("classificacao_prefixo, tipo_custo")
-        .eq("company_id", companyId)
+        .eq("company_id", companyId!)
         .not("tipo_custo", "is", null);
       if (error) throw error;
       const m = new Map<string, "fixo" | "variavel">();

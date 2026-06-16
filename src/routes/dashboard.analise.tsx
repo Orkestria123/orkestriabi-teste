@@ -25,6 +25,7 @@ import {
   paretoDespesas,
   despesaPorCentro,
   composicaoReceita,
+  type NoArvore,
 } from "@/lib/analise-receita-despesa";
 import { PeriodPicker } from "@/components/analise/period-picker";
 import { HighlightCard } from "@/components/analise/highlight-card";
@@ -42,7 +43,13 @@ import { EvolucaoReceitaDespesa } from "@/components/analise/evolucao-receita-de
 import { ResumoExecutivo } from "@/components/analise/resumo-executivo";
 import { TendenciaPanel } from "@/components/analise/tendencia-panel";
 import { CapitalGiroPanel } from "@/components/analise/capital-giro-panel";
+import { PontoEquilibrioPanel } from "@/components/analise/ponto-equilibrio-panel";
+import { ProjecaoPanel } from "@/components/analise/projecao-panel";
+import { SimuladorCorteDespesa } from "@/components/analise/simulador-corte-despesa";
 import { calcularCapitalGiro } from "@/lib/analise-capital-giro";
+import { calcularPontoEquilibrio, type DespesaItem } from "@/lib/analise-ponto-equilibrio";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { Maximize2, Minimize2 } from "lucide-react";
 import { computeIndicators, formatIndicator } from "@/lib/indicators";

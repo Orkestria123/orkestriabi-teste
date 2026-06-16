@@ -651,6 +651,18 @@ export function formatIndicador(v: number | null, fmt: Formato): string {
 
 // ---------- montagem final ----------
 
+function baseVazia(): BasePeriodo {
+  const z: ValorComOrigem = { valor: 0, contas: [] };
+  return {
+    receita_bruta: z, receita_liquida: z, lucro_bruto: z, ebit: z, lucro_liquido: z,
+    depreciacao: z, ebitda: z, custos: z,
+    ativo_total: z, ativo_circulante: z, ativo_nao_circulante: z,
+    estoques: z, disponivel: z, contas_receber: z, realizavel_lp: z, imobilizado: z,
+    passivo_total: z, passivo_circulante: z, passivo_nao_circulante: z,
+    patrimonio_liquido: z, fornecedores: z, emprestimos: z,
+  };
+}
+
 export function computeIndicadoresCompletos(
   dre: FlatRow[],
   bpAtivo: FlatRow[],
@@ -658,12 +670,14 @@ export function computeIndicadoresCompletos(
   periodos: string[],
 ): IndicadorCompleto[] {
   const periodosOrd = [...periodos].sort();
+  if (periodosOrd.length === 0) return [];
   const baseMap = basePorPeriodo(dre, bpAtivo, bpPassivo, periodosOrd);
 
   const out: IndicadorCompleto[] = [];
   for (const def of DEFS) {
     const serie: SeriePonto[] = periodosOrd.map((p) => {
-      const b = baseMap.get(p)!;
+      const b = baseMap.get(p);
+      if (!b) return { periodo: p, valor: null };
       const v = def.computeOf
         ? def.computeOf(b)
         : safeDiv(def.numeradorOf(b).valor, def.denominadorOf?.(b).valor ?? 0);
@@ -677,7 +691,7 @@ export function computeIndicadoresCompletos(
         ? ((valor_atual - valor_anterior) / Math.abs(valor_anterior)) * 100
         : null;
 
-    const baseUlt = baseMap.get(periodosOrd[periodosOrd.length - 1])!;
+    const baseUlt = baseMap.get(periodosOrd[periodosOrd.length - 1]) ?? baseVazia();
     const numerador = def.numeradorOf(baseUlt);
     const denominador = def.denominadorOf?.(baseUlt) ?? { valor: 0, contas: [] };
     const faixa: Faixa =
@@ -709,6 +723,7 @@ export function computeIndicadoresCompletos(
   }
   return out;
 }
+
 
 /** Score de saúde 0-100 a partir das faixas. */
 export function calcularScore(ind: IndicadorCompleto[]): number {

@@ -303,9 +303,9 @@ function Page() {
           <TabsTrigger value="receitaDespesa">Receita × Despesa</TabsTrigger>
           <TabsTrigger value="comparativo">Comparativo</TabsTrigger>
           <TabsTrigger value="tendencia">Tendência</TabsTrigger>
-          <TabsTrigger value="equilibrio" disabled>Ponto de Equilíbrio</TabsTrigger>
+          <TabsTrigger value="equilibrio">Ponto de Equilíbrio</TabsTrigger>
           <TabsTrigger value="capitalGiro">Capital de Giro</TabsTrigger>
-          <TabsTrigger value="projecao" disabled>Projeção</TabsTrigger>
+          <TabsTrigger value="projecao">Projeção</TabsTrigger>
         </TabsList>
 
         {/* ============ RESUMO ============ */}

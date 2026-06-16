@@ -156,6 +156,26 @@ function Page() {
   );
   const { data: rdMensal } = useReceitaDespesaPorPeriodo(companyId, competenciasMensais);
 
+  // Mapeamento tipo_custo (fixo/variavel) para Ponto de Equilíbrio
+  const { data: tipoCustoMap = new Map<string, "fixo" | "variavel">() } = useQuery({
+    queryKey: ["mapeamento-tipo-custo", companyId],
+    enabled: !!companyId && secao === "equilibrio",
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("mapeamento_demonstracao")
+        .select("classificacao_prefixo, tipo_custo")
+        .eq("company_id", companyId)
+        .not("tipo_custo", "is", null);
+      if (error) throw error;
+      const m = new Map<string, "fixo" | "variavel">();
+      for (const r of data ?? []) {
+        if (r.tipo_custo) m.set(r.classificacao_prefixo, r.tipo_custo as any);
+      }
+      return m;
+    },
+  });
+
+
   const compRows: CompRow[] = useMemo(() => {
     if (tipo === "INDICADORES") return [];
     const ar = agregarPorPeriodos(rows as MonthlyRow[], fetchTipo, periodosA).byLinha;

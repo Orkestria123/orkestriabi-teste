@@ -42,7 +42,10 @@ interface Saldo {
   conta_codigo: string;
   competencia: string;
   movimento: number;
+  total_debitos: number;
+  total_creditos: number;
 }
+
 
 const SKIP_APURACAO = /\.(98|99)(\.|$)/;
 

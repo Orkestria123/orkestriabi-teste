@@ -374,7 +374,10 @@ async function buildDRE(
       const ehReceita = !!m?.inverter_sinal;
       const d = s.total_debitos;
       const c = s.total_creditos;
-      const valor = ehReceita ? Math.max(0, c - d) : Math.max(0, d - c);
+      // Sinal "cru" (antes do inverter_sinal): receita fica negativa para
+      // que aplicarMapaESinal (inverter=true) devolva valor positivo;
+      // despesa permanece positiva.
+      const valor = ehReceita ? -Math.max(0, c - d) : Math.max(0, d - c);
       saldosPorConta.set(
         s.conta_codigo,
         (saldosPorConta.get(s.conta_codigo) ?? 0) + valor,

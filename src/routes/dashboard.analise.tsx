@@ -40,6 +40,9 @@ import { DespesaPorCentro } from "@/components/analise/despesa-por-centro";
 import { ComposicaoReceita } from "@/components/analise/composicao-receita";
 import { EvolucaoReceitaDespesa } from "@/components/analise/evolucao-receita-despesa";
 import { ResumoExecutivo } from "@/components/analise/resumo-executivo";
+import { TendenciaPanel } from "@/components/analise/tendencia-panel";
+import { CapitalGiroPanel } from "@/components/analise/capital-giro-panel";
+import { calcularCapitalGiro } from "@/lib/analise-capital-giro";
 import { cn } from "@/lib/utils";
 import { Maximize2, Minimize2 } from "lucide-react";
 import { computeIndicators, formatIndicator } from "@/lib/indicators";
@@ -121,15 +124,16 @@ function Page() {
     "DRE",
     tipo === "INDICADORES" ? allPeriodos : [],
   );
+  const needBP = tipo === "INDICADORES" || secao === "capitalGiro";
   const { data: bpAtivoRows = [] } = useMonthlyStatement(
     companyId,
     "BP_ATIVO",
-    tipo === "INDICADORES" ? allPeriodos : [],
+    needBP ? allPeriodos : [],
   );
   const { data: bpPassivoRows = [] } = useMonthlyStatement(
     companyId,
     "BP_PASSIVO",
-    tipo === "INDICADORES" ? allPeriodos : [],
+    needBP ? allPeriodos : [],
   );
 
   const labelA = granularidade === "ano" ? periodoA : periodoA ? periodoMesLabel(periodoA) : "—";
@@ -291,9 +295,9 @@ function Page() {
           <TabsTrigger value="resumo">Resumo</TabsTrigger>
           <TabsTrigger value="receitaDespesa">Receita × Despesa</TabsTrigger>
           <TabsTrigger value="comparativo">Comparativo</TabsTrigger>
-          <TabsTrigger value="tendencia" disabled>Tendência</TabsTrigger>
+          <TabsTrigger value="tendencia">Tendência</TabsTrigger>
           <TabsTrigger value="equilibrio" disabled>Ponto de Equilíbrio</TabsTrigger>
-          <TabsTrigger value="capitalGiro" disabled>Capital de Giro</TabsTrigger>
+          <TabsTrigger value="capitalGiro">Capital de Giro</TabsTrigger>
           <TabsTrigger value="projecao" disabled>Projeção</TabsTrigger>
         </TabsList>
 
@@ -335,6 +339,50 @@ function Page() {
             <ComposicaoReceita data={origens} />
           </div>
         </TabsContent>
+
+        {/* ============ TENDÊNCIA ============ */}
+        <TabsContent value="tendencia" className="space-y-5 mt-5">
+          <p className="text-xs text-muted-foreground">
+            Para onde a empresa está indo. Médias móveis suavizam o ruído e revelam a direção real.
+          </p>
+          <TendenciaPanel
+            serie={evolucao.map((e, i) => ({
+              periodo: periodosB[i] ?? "",
+              mes: e.mes,
+              receita: e.receita,
+              despesaTotal: e.despesaTotal,
+              margem: e.margem,
+            }))}
+          />
+        </TabsContent>
+
+        {/* ============ CAPITAL DE GIRO ============ */}
+        <TabsContent value="capitalGiro" className="space-y-5 mt-5">
+          <p className="text-xs text-muted-foreground">
+            Quanto tempo seu dinheiro fica fora do caixa, e se a operação se autofinancia.
+          </p>
+          {(() => {
+            const bpA = agregarPorPeriodos(bpAtivoRows as MonthlyRow[], "BP_ATIVO", periodosB).ordered;
+            const bpP = agregarPorPeriodos(bpPassivoRows as MonthlyRow[], "BP_PASSIVO", periodosB).ordered;
+            const dreB = agregarPorPeriodos(dreSource, "DRE", periodosB).ordered;
+            if (bpA.length === 0 || bpP.length === 0) {
+              return (
+                <Card className="p-8 text-center text-sm text-muted-foreground">
+                  Sem dados de balanço para o período selecionado.
+                </Card>
+              );
+            }
+            const resultado = calcularCapitalGiro({
+              bpAtivo: bpA.map((r) => ({ descricao: r.descricao, valor: r.valor, is_subtotal: r.is_subtotal })),
+              bpPassivo: bpP.map((r) => ({ descricao: r.descricao, valor: r.valor, is_subtotal: r.is_subtotal })),
+              dre: dreB.map((r) => ({ descricao: r.descricao, valor: r.valor })),
+              mesesNoRecorte: periodosB.length,
+            });
+            return <CapitalGiroPanel resultado={resultado} />;
+          })()}
+        </TabsContent>
+
+
 
         {/* ============ COMPARATIVO (preservado) ============ */}
         <TabsContent value="comparativo" className="space-y-5 mt-5">

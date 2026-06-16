@@ -124,15 +124,16 @@ function Page() {
     "DRE",
     tipo === "INDICADORES" ? allPeriodos : [],
   );
+  const needBP = tipo === "INDICADORES" || secao === "capitalGiro";
   const { data: bpAtivoRows = [] } = useMonthlyStatement(
     companyId,
     "BP_ATIVO",
-    tipo === "INDICADORES" ? allPeriodos : [],
+    needBP ? allPeriodos : [],
   );
   const { data: bpPassivoRows = [] } = useMonthlyStatement(
     companyId,
     "BP_PASSIVO",
-    tipo === "INDICADORES" ? allPeriodos : [],
+    needBP ? allPeriodos : [],
   );
 
   const labelA = granularidade === "ano" ? periodoA : periodoA ? periodoMesLabel(periodoA) : "—";
@@ -294,9 +295,9 @@ function Page() {
           <TabsTrigger value="resumo">Resumo</TabsTrigger>
           <TabsTrigger value="receitaDespesa">Receita × Despesa</TabsTrigger>
           <TabsTrigger value="comparativo">Comparativo</TabsTrigger>
-          <TabsTrigger value="tendencia" disabled>Tendência</TabsTrigger>
+          <TabsTrigger value="tendencia">Tendência</TabsTrigger>
           <TabsTrigger value="equilibrio" disabled>Ponto de Equilíbrio</TabsTrigger>
-          <TabsTrigger value="capitalGiro" disabled>Capital de Giro</TabsTrigger>
+          <TabsTrigger value="capitalGiro">Capital de Giro</TabsTrigger>
           <TabsTrigger value="projecao" disabled>Projeção</TabsTrigger>
         </TabsList>
 

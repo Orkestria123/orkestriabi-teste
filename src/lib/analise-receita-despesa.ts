@@ -46,7 +46,10 @@ interface SaldoRow {
   conta_codigo: string;
   competencia: string;
   movimento: number;
+  total_debitos: number;
+  total_creditos: number;
 }
+
 
 interface MapeamentoRow {
   classificacao_prefixo: string;

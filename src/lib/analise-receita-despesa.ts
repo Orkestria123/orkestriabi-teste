@@ -123,13 +123,16 @@ export async function montarReceitaDespesaDetalhado(
     .maybeSingle();
   const tenantId = (company as any)?.tenant_id as string | undefined;
 
-  // Plano: empresa + global (tenant)
+  // Plano: empresa + global (tenant). Só contas de resultado (classif. "3.*")
+  // — o plano completo pode ter dezenas de milhares de contas analíticas
+  // (clientes/fornecedores) que não interessam para Receita × Despesa.
   const plano = await fetchAllPaginated<PlanoRow>((from, to) =>
     supabase
       .from("plano_contas")
       .select("codigo,classificacao,descricao,nivel")
       .or(`company_id.eq.${companyId}${tenantId ? `,company_id.is.null` : ""}`)
       .eq("ativo", true)
+      .like("classificacao", "3.%")
       .range(from, to),
   );
 

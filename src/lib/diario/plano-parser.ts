@@ -40,7 +40,7 @@ function normalizeHeader(h: string): string {
     .trim();
 }
 
-const ALIASES: Record<keyof Omit<PlanoContaRow, "nivel" | "is_participante">, string[]> = {
+const ALIASES: Record<"codigo" | "classificacao" | "descricao" | "tipo" | "natureza", string[]> = {
   codigo: ["codigo", "cod", "conta", "cod conta", "cod. conta"],
   classificacao: ["classificacao", "class", "mascara", "estrutura"],
   descricao: ["descricao", "nome", "nome conta", "descricao da conta"],

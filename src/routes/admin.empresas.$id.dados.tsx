@@ -77,6 +77,9 @@ function Page() {
         </Card>
       )}
 
+      {company && <BalancoFechaBadge tenantId={company.tenant_id!} companyId={company.id} />}
+
+
       <Tabs value={tab} onValueChange={(v) => setTab(v as any)}>
         <TabsList>
           <TabsTrigger value="plano">1. Plano de Contas</TabsTrigger>

@@ -515,7 +515,9 @@ async function buildBP(
 
   const [mapas, plano, abertura, saldosAcum] = await Promise.all([
     getMapa(companyId, tenantId, modoGlobal, tipo),
-    getPlanoPorTipo(companyId, tenantId, modoGlobal, tipoPlano),
+    // BP precisa de TODAS as analíticas, inclusive participantes (clientes,
+    // fornecedores) — eles carregam saldo real e somam na conta-pai estrutural.
+    getPlanoPorTipo(companyId, tenantId, modoGlobal, tipoPlano, { incluirParticipantes: true }),
     getAberturaMaisRecente(companyId),
     getSaldosAteData(companyId, ateData),
   ]);
@@ -526,7 +528,11 @@ async function buildBP(
   for (const p of plano) {
     planoMap.set(p.codigo, p);
     planoPorClassificacao.set(p.classificacao, p);
-    planoPrefixos.set(p.classificacao, p.descricao);
+    // Prefere a descrição da conta ESTRUTURAL para os prefixos pais
+    // (evita rotular a conta pai "CLIENTES" com o nome de um cliente individual).
+    if (!p.is_participante || !planoPrefixos.has(p.classificacao)) {
+      planoPrefixos.set(p.classificacao, p.descricao);
+    }
   }
   const matcher = buildMatcher(mapas);
 

@@ -840,9 +840,10 @@ async function buildDFC(
   tenantId: string,
   modoGlobal: boolean,
   periodos: string[],
+  mascara: MascaraConfig,
 ): Promise<FlatRow[]> {
   const periodosOrd = [...periodos].sort();
-  const dre = await buildDRE(companyId, tenantId, modoGlobal, periodosOrd, "DRE");
+  const dre = await buildDRE(companyId, tenantId, modoGlobal, periodosOrd, "DRE", mascara);
 
   // valor por linha/período no DRE
   const dreVal = (descricao: string, p: string) =>
@@ -959,9 +960,10 @@ async function buildDLPA(
   tenantId: string,
   modoGlobal: boolean,
   periodos: string[],
+  mascara: MascaraConfig,
 ): Promise<FlatRow[]> {
   const periodosOrd = [...periodos].sort();
-  const dre = await buildDRE(companyId, tenantId, modoGlobal, periodosOrd, "DRE");
+  const dre = await buildDRE(companyId, tenantId, modoGlobal, periodosOrd, "DRE", mascara);
   const dreVal = (descricao: string, p: string) =>
     dre.find((r) => r.descricao === descricao && r.periodo === p)?.valor ?? 0;
 
@@ -1039,9 +1041,10 @@ async function buildDVA(
   tenantId: string,
   modoGlobal: boolean,
   periodos: string[],
+  mascara: MascaraConfig,
 ): Promise<FlatRow[]> {
   const periodosOrd = [...periodos].sort();
-  const dre = await buildDRE(companyId, tenantId, modoGlobal, periodosOrd, "DRE");
+  const dre = await buildDRE(companyId, tenantId, modoGlobal, periodosOrd, "DRE", mascara);
 
   const dreVal = (descricao: string, p: string) =>
     dre.find((r) => r.descricao === descricao && r.periodo === p)?.valor ?? 0;

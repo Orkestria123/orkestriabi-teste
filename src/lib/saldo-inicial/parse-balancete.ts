@@ -9,6 +9,12 @@
 //   - Sinal padronizado para D−C via saldoPadronizado()
 
 import { saldoPadronizado } from "./sinal";
+import {
+  dividir,
+  grupoDe,
+  MASCARA_DEFAULT,
+  type MascaraConfig,
+} from "@/lib/mascara/interpretar";
 
 export const TIPOS_PARTICIPANTE = new Set([
   "4-cli. nac.",
@@ -128,6 +134,7 @@ function parseValorBR(raw: string): number {
 
 export async function parseSaldoInicialCSV(
   file: File,
+  mascara: MascaraConfig = MASCARA_DEFAULT,
 ): Promise<SaldoInicialParseResult> {
   const { text, encoding } = await readWithEncoding(file);
   const lines = text.split(/\r?\n/).filter((l) => l.trim().length > 0);
@@ -196,17 +203,17 @@ export async function parseSaldoInicialCSV(
     const isPart = TIPOS_PARTICIPANTE.has(tipoNorm);
     if (isPart) participantes++;
 
-    const saldo = saldoPadronizado(valorOrigem, classificacao);
-    const grupo = classificacao.charAt(0);
-    if (grupo === "1") totAtivo += saldo;
-    else if (grupo === "2") totPassivoPL += -saldo; // mostra como positivo
+    const saldo = saldoPadronizado(valorOrigem, classificacao, mascara);
+    const g = grupoDe(classificacao, mascara);
+    if (g === "ativo") totAtivo += saldo;
+    else if (g === "passivo" || g === "pl") totPassivoPL += -saldo; // mostra como positivo
 
     rows.push({
       conta_codigo: conta,
       classificacao,
       descricao,
       tipo,
-      nivel: Number(nivelStr) || classificacao.split(".").length,
+      nivel: Number(nivelStr) || dividir(classificacao, mascara).length,
       is_participante: isPart,
       saldo,
       valor_origem: valorOrigem,

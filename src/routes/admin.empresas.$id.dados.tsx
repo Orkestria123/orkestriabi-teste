@@ -78,7 +78,8 @@ function Page() {
         <TabsList>
           <TabsTrigger value="plano">1. Plano de Contas</TabsTrigger>
           <TabsTrigger value="mapeamento">2. Mapeamento</TabsTrigger>
-          <TabsTrigger value="diarios">3. Diários</TabsTrigger>
+          <TabsTrigger value="saldo-inicial">3. Saldo Inicial</TabsTrigger>
+          <TabsTrigger value="diarios">4. Diários</TabsTrigger>
         </TabsList>
 
         <TabsContent value="plano">
@@ -98,6 +99,12 @@ function Page() {
               companyId={modoGlobal ? null : company.id}
               readonly={modoGlobal}
             />
+          )}
+        </TabsContent>
+
+        <TabsContent value="saldo-inicial">
+          {company && (
+            <SaldoInicialTab companyId={company.id} tenantId={company.tenant_id!} />
           )}
         </TabsContent>
 

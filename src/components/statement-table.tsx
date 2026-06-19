@@ -21,6 +21,8 @@ interface Props {
   showTotal?: boolean;
   basePeriod?: string;
   avBaseCodigo?: string;
+  /** Nível máximo expandido por padrão (padrão: tudo expandido). */
+  initialExpandLevel?: number;
 }
 
 export function StatementTable({
@@ -31,6 +33,7 @@ export function StatementTable({
   showTotal = false,
   basePeriod,
   avBaseCodigo,
+  initialExpandLevel,
 }: Props) {
   const avBase = useMemo(() => {
     if (!avBaseCodigo) return null;
@@ -57,7 +60,14 @@ export function StatementTable({
     return map;
   }, [rows]);
 
-  const [collapsed, setCollapsed] = useState<Set<number>>(new Set());
+  const [collapsed, setCollapsed] = useState<Set<number>>(() => {
+    if (initialExpandLevel == null) return new Set();
+    const s = new Set<number>();
+    for (let i = 0; i < rows.length; i++) {
+      if ((rows[i].nivel ?? 0) >= initialExpandLevel) s.add(i);
+    }
+    return s;
+  });
 
   const hidden = useMemo(() => {
     const h = new Set<number>();

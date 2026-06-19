@@ -56,11 +56,11 @@ function Page() {
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
         <div>
           <h3 className="font-medium mb-2 text-sm uppercase tracking-wider text-muted-foreground">Ativo</h3>
-          <StatementTable rows={ativoRows} periods={periodos} showAV={showAV} showAH={showAH} avBaseCodigo="Total do Ativo" />
+          <StatementTable rows={ativoRows} periods={periodos} showAV={showAV} showAH={showAH} avBaseCodigo="Total do Ativo" initialExpandLevel={3} />
         </div>
         <div>
           <h3 className="font-medium mb-2 text-sm uppercase tracking-wider text-muted-foreground">Passivo + PL</h3>
-          <StatementTable rows={passivoRows} periods={periodos} showAV={showAV} showAH={showAH} avBaseCodigo="Total do Passivo" />
+          <StatementTable rows={passivoRows} periods={periodos} showAV={showAV} showAH={showAH} avBaseCodigo="Total do Passivo" initialExpandLevel={3} />
         </div>
       </div>
     </div>

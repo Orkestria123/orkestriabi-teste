@@ -18,6 +18,8 @@ export interface PlanoContaRow {
   natureza: "S" | "A";
   nivel: number;
   is_participante: boolean;
+  is_sintetica: boolean;
+  conta_pai_classificacao: string | null;
 }
 
 export interface PlanoParseResult {

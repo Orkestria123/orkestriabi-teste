@@ -121,6 +121,8 @@ export async function parsePlanoContasCSV(file: File): Promise<PlanoParseResult>
     seenCodigos.add(codigo);
     const natureza: "S" | "A" = natRaw.startsWith("S") ? "S" : "A";
     const nivel = classificacao.split(".").length;
+    const partes = classificacao.split(".");
+    const conta_pai_classificacao = partes.length > 1 ? partes.slice(0, -1).join(".") : null;
     rows.push({
       codigo,
       classificacao,
@@ -129,6 +131,8 @@ export async function parsePlanoContasCSV(file: File): Promise<PlanoParseResult>
       natureza,
       nivel,
       is_participante: TIPOS_PARTICIPANTE.has(tipo),
+      is_sintetica: natureza === "S",
+      conta_pai_classificacao,
     });
   }
 

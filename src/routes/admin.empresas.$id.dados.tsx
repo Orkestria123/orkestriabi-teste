@@ -723,7 +723,7 @@ function SaldoInicialTab({ tenantId, companyId }: { tenantId: string; companyId:
       await salvarSaldoInicial({
         tenantId,
         companyId,
-        uploadedBy: user?.id ?? null,
+        uploadedBy: userId ?? null,
         filename,
         dataReferencia: dataRef,
         parsed,

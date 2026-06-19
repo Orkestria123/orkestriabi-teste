@@ -866,20 +866,18 @@ async function buildDFC(
         PREFIXO_EMPRESTIMOS_CP,
         PREFIXO_EMPRESTIMOS_LP,
         PREFIXO_CAPITAL_SOCIAL,
-      ]),
+      ], mascara),
       getSnapshotPorPrefixo(companyId, tenantId, modoGlobal, p, [
         PREFIXO_CAIXA,
         PREFIXO_IMOBILIZADO,
         PREFIXO_EMPRESTIMOS_CP,
         PREFIXO_EMPRESTIMOS_LP,
         PREFIXO_CAPITAL_SOCIAL,
-      ]),
+      ], mascara),
     ]);
 
     const filtPref = (snap: ContaSnapshot[], pref: string) =>
-      snap.filter(
-        (s) => s.classificacao === pref || s.classificacao.startsWith(pref + "."),
-      );
+      snap.filter((s) => descendeDe(s.classificacao, pref, mascara));
 
     const caixaIni = sumSnapshots(filtPref(snapPrev, PREFIXO_CAIXA));
     const caixaFim = sumSnapshots(filtPref(snapCurr, PREFIXO_CAIXA));
@@ -974,15 +972,15 @@ async function buildDLPA(
         PREFIXO_LUCROS_ACUM,
         PREFIXO_LUCROS_ACUM_ALT,
         PREFIXO_CAPITAL_SOCIAL,
-      ]),
+      ], mascara),
       getSnapshotPorPrefixo(companyId, tenantId, modoGlobal, p, [
         PREFIXO_LUCROS_ACUM,
         PREFIXO_LUCROS_ACUM_ALT,
         PREFIXO_CAPITAL_SOCIAL,
-      ]),
+      ], mascara),
     ]);
     const filtPref = (snap: ContaSnapshot[], prefs: string[]) =>
-      snap.filter((s) => prefs.some((pref) => s.classificacao === pref || s.classificacao.startsWith(pref + ".")));
+      snap.filter((s) => prefs.some((pref) => descendeDe(s.classificacao, pref, mascara)));
 
     // Passivo é credor: para PL exibir como positivo invertemos o sinal
     const saldoInicial = -sumSnapshots(

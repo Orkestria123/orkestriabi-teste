@@ -228,6 +228,7 @@ function aplicarMapaESinal(
   saldosPorConta: Map<string, number>,
   planoMap: Map<string, Plano>,
   matcher: (c: string) => Mapa | null,
+  mascara: MascaraConfig,
   opts: { incluirParticipantes?: boolean } = {},
 ): { mapa: Mapa; classificacao: string; valor: number }[] {
   const out: { mapa: Mapa; classificacao: string; valor: number }[] = [];
@@ -235,7 +236,7 @@ function aplicarMapaESinal(
     const conta = planoMap.get(codigo);
     if (!conta) continue;
     if (conta.is_participante && !opts.incluirParticipantes) continue;
-    if (SKIP_APURACAO.test(conta.classificacao)) continue;
+    if (isApuracao(conta.classificacao, mascara)) continue;
     const m = matcher(conta.classificacao);
     if (!m) continue;
     const v = m.inverter_sinal ? -valor : valor;
@@ -262,6 +263,7 @@ function emitirHierarquia(
   periodo: string,
   linhaOrdemBase: number,
   planoPrefixos: Map<string, string>,
+  mascara: MascaraConfig,
 ): FlatRow[] {
   const out: FlatRow[] = [];
 
@@ -280,7 +282,7 @@ function emitirHierarquia(
   if (pontos.length === 0) return out;
 
   // Detecta nivel base (menor profundidade da classificação)
-  const profMin = Math.min(...pontos.map((p) => p.classificacao.split(".").length));
+  const profMin = Math.min(...pontos.map((p) => nivelDe(p.classificacao, mascara)));
   const niv1 = profMin; // grupos diretos abaixo do parent
   const niv2 = profMin + 1; // detalhe
 
@@ -288,8 +290,8 @@ function emitirHierarquia(
   const agrupadoN2 = new Map<string, Map<string, NodeAgg>>(); // n1 → n2 → agg
 
   for (const p of pontos) {
-    const k1 = prefixoAteNivel(p.classificacao, niv1);
-    const k2 = prefixoAteNivel(p.classificacao, niv2);
+    const k1 = prefixoAteNivel(p.classificacao, niv1, mascara);
+    const k2 = prefixoAteNivel(p.classificacao, niv2, mascara);
     const a1 = agrupadoN1.get(k1) ?? { classificacao: k1, valor: 0 };
     a1.valor += p.valor;
     agrupadoN1.set(k1, a1);

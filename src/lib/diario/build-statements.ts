@@ -565,7 +565,7 @@ async function buildBP(
     }
 
     const snapshot = new Map(acumPorConta);
-    const pontos = aplicarMapaESinal(snapshot, planoMap, matcher);
+    const pontos = aplicarMapaESinal(snapshot, planoMap, matcher, { incluirParticipantes: true });
 
     const porLinha = new Map<
       string,

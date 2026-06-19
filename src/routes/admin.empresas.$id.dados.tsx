@@ -23,6 +23,7 @@ import { salvarPlanoContas, salvarDiarioUpload, removerUpload } from "@/lib/diar
 import { sugerirMapeamento, classificacoesNaoMapeadas, type MapeamentoSugerido, type TipoDemonstracao } from "@/lib/diario/suggest-mapping";
 import { formatBRL } from "@/lib/format";
 import { MascaraConfigPanel } from "@/components/mascara-config";
+import { BalancoFechaBadge } from "@/components/balanco-fecha-badge";
 import { getMascaraConfig } from "@/lib/mascara/interpretar";
 
 export const Route = createFileRoute("/admin/empresas/$id/dados")({

@@ -1,64 +1,66 @@
-## Aba Análise v2 — Plano de Implementação
+# Plano — Estrutura Hierárquica, Saldo Inicial e Máscara Configurável
 
-A aba atual (`/dashboard/analise`) hoje é uma tabela comparativa A vs B. Vou transformá-la em uma ferramenta de decisão organizada em 7 blocos, mantendo a base existente (`montarDRE/BP/DFC`, `saldos_mensais`, `plano_contas`, `mapeamento_demonstracao`) como fonte única.
-
-A entrega é grande (8–10 arquivos novos). Para reduzir risco e dar valor cedo, vou entregar em **3 fases**, validando com você ao final de cada uma.
+Vou executar em **4 fases** para entregar valor incrementalmente. Cada fase é independente e testável.
 
 ---
 
-### Fase 1 — Núcleo (Blocos 1 e 7)
+## Fase 1 — Correção crítica do bug de participantes + Saldo Inicial
 
-O coração da spec. Entrega o motor desagregado + a aba "Receita × Despesa" completa + o Resumo Executivo.
+**Por que primeiro:** é a causa do balanço não fechar (R$ 1,54 mi de clientes + R$ 7,49 mi de fornecedores sumindo). Resolve o problema de negócio mais urgente.
 
-**Motor — `src/lib/analise-receita-despesa.ts` (novo)**
-- `montarReceitaDespesaDetalhado(companyId, competencias)` retorna árvore hierárquica (grupo → centro → conta analítica) com `valor`, `pct_receita`, `pct_pai`, `filhos[]`.
-- Identifica receitas por prefixo de classificação `3.01`/`3.10` e despesas por `3.06`/`3.15` (mesma lógica já em uso no `build-statements`).
-- Acumula em todos os níveis da classificação para permitir drill-down.
-- Helpers: `rankingDespesas(arvore, profundidade)`, `paretoDespesas(ranking)`, `despesaPorCentro(arvore)`, `composicaoReceita(arvore)`, `evolucaoReceitaDespesa(arvores_por_periodo)`.
+**Mudanças de schema (migration):**
+- `saldos_iniciais` (company_id, conta_codigo, classificacao, data_referencia, saldo, valor_origem, is_participante, upload_id)
+- `saldo_inicial_uploads` (filename, data_referencia, total_contas, total_ativo, total_passivo_pl, equilibrado, status)
+- `ALTER plano_contas ADD is_sintetica boolean, conta_pai_classificacao text`
 
-**Componentes — `src/components/analise/` (novos)**
-- `cascata-resultado.tsx` — waterfall Receita → Deduções → Custos → Despesas (por grupo) → Lucro.
-- `ranking-despesas.tsx` — barras horizontais com drill-down clicável (grupo abre contas analíticas), `LabelList` mostrando `% da receita`.
-- `pareto-despesas.tsx` — `ComposedChart` (barras + linha acumulada) com `ReferenceLine` em 80%.
-- `despesa-por-centro.tsx` — donut por centro de atividade + tabela de resultado por centro quando há receita atribuível.
-- `evolucao-receita-despesa.tsx` — duas linhas (Receita verde, Despesa vermelha) + área de margem, com insight de "efeito tesoura".
-- `composicao-receita.tsx` — donut por origem + indicador de concentração.
-- `resumo-executivo.tsx` — 4 cards grandes + narrativa automática em pt-BR.
+**Código:**
+- `src/lib/saldo-inicial/parse-balancete.ts` — parser do CSV (UTF-8 BOM, `;`, detecção de colunas por alias, processa SÓ analíticas `Cta. título=2-Não` incluindo participantes tipos 4-7)
+- `src/lib/saldo-inicial/sinal.ts` — `saldoPadronizado(valor, classif)`: Ativo (grupo 1) mantém, Passivo/PL (grupo 2) inverte
+- `src/routes/admin.empresas.$id.saldo-inicial.tsx` — upload + preview + validação de equilíbrio + gravação
+- Patch no parser do plano de contas: setar `is_sintetica` (`Cta. título=1-Sim`) e `conta_pai_classificacao` (derivado da classificação)
+- Patch em `src/lib/diario/build-statements.ts` `buildBP`: saldo final = saldo_inicial + Σ movimentos do diário (DRE não muda)
 
-**Página — `src/routes/dashboard.analise.tsx` (refatorada)**
-- Adicionar `<Tabs>` com 7 abas: Resumo, Receita × Despesa, Comparativo (existente), Tendência, Equilíbrio, Capital de Giro, Projeção.
-- Cada bloco abre com a pergunta de decisão e fecha com insights automáticos.
-- Toggle Empresário/Contador (estado local) muda o nível de detalhe, não o dado.
-- Manter o `PeriodPicker` global e o modo apresentação que já existem.
-
-Ao final da Fase 1 a aba já é utilizável: Resumo + Receita × Despesa + Comparativo (preservado) funcionando.
+**Validação:** subir o arquivo `Transpio_Balanço.csv` (198 linhas, Ativo = Passivo = R$ 18.991.489,71), conferir badge "Balanço fecha".
 
 ---
 
-### Fase 2 — Diagnóstico (Blocos 3, 5)
+## Fase 2 — Hierarquia e árvore expansível no Balanço
 
-- **Bloco 3 — Tendência e Sazonalidade**: `evolucao-mensal.tsx` com média móvel 3M, `detectarSazonalidade()` e heatmap ano × mês (modo contador).
-- **Bloco 5 — Capital de Giro**: `ciclo-financeiro.tsx` (PMR + PME − PMP, timeline), `ncg.tsx` (evolução) e projeção de caixa simples (linear sobre a queima recente).
-
----
-
-### Fase 3 — Decisão (Blocos 4, 6) + Admin
-
-- **Bloco 4 — Ponto de Equilíbrio**: requer marcação Fixo/Variável.
-  - Coluna nova `tipo_custo` (`'fixo'|'variavel'|null`) em `mapeamento_demonstracao` via migração.
-  - Tela no Admin (`admin.classificacao-custos.tsx`) para o contador classificar.
-  - `ponto-equilibrio.tsx` com gráfico clássico e KPIs de margem de segurança e GAO.
-- **Bloco 6 — Projeção e Cenários**:
-  - `projecao-tendencia.tsx` (regressão linear + banda de confiança, sempre tracejado).
-  - `simulador-cenarios.tsx` com sliders e o `SimuladorCorteDespesa` conectado ao ranking do Bloco 1.
-- **Admin — vínculo receita ↔ centro** (opcional): tela para o contador vincular receitas a centros, habilitando o "Resultado por Centro" do Bloco 1.4.
+**Mudanças:**
+- `src/lib/hierarquia/montar-arvore.ts` — `montarArvore(contas)`: vincula filhos via `conta_pai_classificacao`, sintética soma analíticas descendentes
+- `src/components/demonstracoes/arvore-contas.tsx` — componente recursivo com chevron, indentação 16px/nível, sintéticas em negrito
+- Refatorar `BalancoPanel` para renderizar a árvore (nível inicial expandido configurável, padrão = 3)
+- Consolidação: participantes (tipos 4-7) somam na conta-pai analítica imediata e a exibição mostra só até a conta estrutural (não lista 113 mil clientes individualmente)
 
 ---
 
-### Pontos a confirmar antes de começar
+## Fase 3 — Máscara de Classificação Configurável
 
-1. **Posso começar pela Fase 1 agora** (Resumo + Receita × Despesa + manter o Comparativo atual numa aba)? Esta fase já entrega o núcleo prometido.
-2. **Identificação de receita/despesa**: vou usar os prefixos de classificação contábil padrão (`3.01`/`3.10` para receita; `3.06`/`3.15` para despesa). Se a sua base usa outros prefixos, me confirma para eu ajustar.
-3. **Centros de atividade**: o Bloco 1.4 detecta o centro pela descrição da classificação intermediária (ex.: "3.06.01 – Despesas Administrativas"). Se o seu plano usa outra convenção, eu adapto.
+**Schema:**
+- `mascara_classificacao` (tenant_id, company_id NULL=global, separador, mascara, niveis jsonb, larguras int[])
 
-Se estiver tudo bem, começo a Fase 1 imediatamente após sua confirmação.
+**Código:**
+- `src/lib/mascara/interpretar.ts` — `interpretarClassificacao(classif, mascara)`: parsing com separador OU larguras fixas, retorna `{nivel, grupo, prefixo_ate_nivel, pai}`
+- Refatorar TODO uso de `.split('.')` e `classificacao.charAt(0)` para usar `interpretarClassificacao()` (parsers, hierarquia, montagem das demonstrações)
+- `src/routes/admin.empresas.$id.mapeamento.tsx` — nova aba "Máscara de Contas" com preview ao vivo usando uma classificação real do arquivo
+
+---
+
+## Fase 4 — Aba unificada "Dados Contábeis"
+
+`/admin/empresas/:id/dados-contabeis` — agrega os 5 passos (Plano, Máscara, Saldo Inicial, Mapeamento, Diários) com status visual e badge "Balanço fecha".
+
+---
+
+## Início imediato
+
+Começo pela **Fase 1** agora (é a que destrava o BI e usa o arquivo que você acabou de enviar). As fases 2-4 ficam para os próximos turnos — me confirme depois de validar a Fase 1 com o balanço fechando.
+
+## Regras inquebráveis aplicadas em todas as fases
+
+- Só analíticas (`Cta. título=2-Não`) carregam saldo
+- Participantes SOMAM no saldo inicial e diário — filtro só na exibição
+- Saldo = Σ débitos − Σ créditos (já corrigido em turnos anteriores)
+- Encoding dinâmico (saldo inicial = UTF-8 BOM; plano = Latin-1)
+- BP = inicial + Σ movimentos; DRE não usa inicial
+- Badge "Balanço fecha" sempre visível

@@ -12,6 +12,15 @@
 //  - DRE: movimento do período. BP: abertura + Σ movimento até a competência.
 
 import { supabase } from "@/integrations/supabase/client";
+import {
+  descendeDe,
+  dividir,
+  juntar,
+  nivelDe,
+  getMascaraConfig,
+  MASCARA_DEFAULT,
+  type MascaraConfig,
+} from "@/lib/mascara/interpretar";
 
 type Tipo = "DRE" | "BP_ATIVO" | "BP_PASSIVO" | "DFC" | "DLPA" | "DVA";
 
@@ -47,7 +56,12 @@ interface Saldo {
 }
 
 
-const SKIP_APURACAO = /\.(98|99)(\.|$)/;
+// Apuração contábil: qualquer segmento (após o primeiro) igual a "98" ou "99".
+// Usa a máscara para dividir corretamente independente do separador.
+function isApuracao(classificacao: string, mascara: MascaraConfig): boolean {
+  const partes = dividir(classificacao, mascara);
+  return partes.slice(1).some((p) => p === "98" || p === "99");
+}
 
 // ---------- helpers ----------
 
@@ -68,13 +82,13 @@ async function fetchAllPaginated<T>(
   return out;
 }
 
-function buildMatcher(mapas: Mapa[]) {
+function buildMatcher(mapas: Mapa[], mascara: MascaraConfig) {
   const sorted = [...mapas].sort(
     (a, b) => b.classificacao_prefixo.length - a.classificacao_prefixo.length,
   );
   return (classificacao: string): Mapa | null => {
     for (const m of sorted) {
-      if (classificacao === m.classificacao_prefixo || classificacao.startsWith(m.classificacao_prefixo + ".")) {
+      if (descendeDe(classificacao, m.classificacao_prefixo, mascara)) {
         return m;
       }
     }
@@ -83,11 +97,14 @@ function buildMatcher(mapas: Mapa[]) {
 }
 
 // Retorna o prefixo de uma classificação até `nivelMax` segmentos.
-// Ex.: "3.01.01.02.21" com nivelMax=4 → "3.01.01.02"
-function prefixoAteNivel(classificacao: string, nivelMax: number): string {
-  const parts = classificacao.split(".");
-  if (parts.length <= nivelMax) return classificacao;
-  return parts.slice(0, nivelMax).join(".");
+function prefixoAteNivel(
+  classificacao: string,
+  nivelMax: number,
+  mascara: MascaraConfig,
+): string {
+  const partes = dividir(classificacao, mascara);
+  if (partes.length <= nivelMax) return classificacao;
+  return juntar(partes.slice(0, nivelMax), mascara);
 }
 
 async function getPlanoPorTipo(

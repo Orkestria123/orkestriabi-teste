@@ -62,7 +62,6 @@ export async function salvarSaldoInicial(opts: {
     const payload = parsed.rows.map((r: SaldoInicialRow) => ({
       tenant_id: tenantId,
       company_id: companyId,
-      codigo: r.conta_codigo,
       conta_codigo: r.conta_codigo,
       classificacao: r.classificacao,
       data_referencia: dataReferencia,

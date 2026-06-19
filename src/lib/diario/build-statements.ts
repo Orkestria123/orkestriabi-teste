@@ -95,16 +95,17 @@ async function getPlanoPorTipo(
   tenantId: string,
   modoGlobal: boolean,
   tiposPlano: string[],
+  opts: { incluirParticipantes?: boolean } = {},
 ): Promise<Plano[]> {
   return fetchAllPaginated<Plano>((from, to) => {
-    const q = supabase
+    let q = supabase
       .from("plano_contas")
       .select("codigo, classificacao, descricao, nivel, is_participante")
       .eq("tenant_id", tenantId)
       .eq("ativo", true)
-      .eq("is_participante", false)
       .in("tipo", tiposPlano)
       .range(from, to);
+    if (!opts.incluirParticipantes) q = q.eq("is_participante", false);
     return modoGlobal ? q.is("company_id", null) : q.eq("company_id", companyId);
   });
 }
@@ -210,12 +211,13 @@ function aplicarMapaESinal(
   saldosPorConta: Map<string, number>,
   planoMap: Map<string, Plano>,
   matcher: (c: string) => Mapa | null,
+  opts: { incluirParticipantes?: boolean } = {},
 ): { mapa: Mapa; classificacao: string; valor: number }[] {
   const out: { mapa: Mapa; classificacao: string; valor: number }[] = [];
   for (const [codigo, valor] of saldosPorConta) {
     const conta = planoMap.get(codigo);
     if (!conta) continue;
-    if (conta.is_participante) continue;
+    if (conta.is_participante && !opts.incluirParticipantes) continue;
     if (SKIP_APURACAO.test(conta.classificacao)) continue;
     const m = matcher(conta.classificacao);
     if (!m) continue;
@@ -513,7 +515,9 @@ async function buildBP(
 
   const [mapas, plano, abertura, saldosAcum] = await Promise.all([
     getMapa(companyId, tenantId, modoGlobal, tipo),
-    getPlanoPorTipo(companyId, tenantId, modoGlobal, tipoPlano),
+    // BP precisa de TODAS as analíticas, inclusive participantes (clientes,
+    // fornecedores) — eles carregam saldo real e somam na conta-pai estrutural.
+    getPlanoPorTipo(companyId, tenantId, modoGlobal, tipoPlano, { incluirParticipantes: true }),
     getAberturaMaisRecente(companyId),
     getSaldosAteData(companyId, ateData),
   ]);
@@ -524,7 +528,11 @@ async function buildBP(
   for (const p of plano) {
     planoMap.set(p.codigo, p);
     planoPorClassificacao.set(p.classificacao, p);
-    planoPrefixos.set(p.classificacao, p.descricao);
+    // Prefere a descrição da conta ESTRUTURAL para os prefixos pais
+    // (evita rotular a conta pai "CLIENTES" com o nome de um cliente individual).
+    if (!p.is_participante || !planoPrefixos.has(p.classificacao)) {
+      planoPrefixos.set(p.classificacao, p.descricao);
+    }
   }
   const matcher = buildMatcher(mapas);
 
@@ -557,7 +565,7 @@ async function buildBP(
     }
 
     const snapshot = new Map(acumPorConta);
-    const pontos = aplicarMapaESinal(snapshot, planoMap, matcher);
+    const pontos = aplicarMapaESinal(snapshot, planoMap, matcher, { incluirParticipantes: true });
 
     const porLinha = new Map<
       string,

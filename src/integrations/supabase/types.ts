@@ -716,10 +716,12 @@ export type Database = {
           classificacao: string
           codigo: string
           company_id: string | null
+          conta_pai_classificacao: string | null
           created_at: string
           descricao: string
           id: string
           is_participante: boolean
+          is_sintetica: boolean
           natureza: string
           nivel: number
           tenant_id: string
@@ -731,10 +733,12 @@ export type Database = {
           classificacao: string
           codigo: string
           company_id?: string | null
+          conta_pai_classificacao?: string | null
           created_at?: string
           descricao: string
           id?: string
           is_participante?: boolean
+          is_sintetica?: boolean
           natureza: string
           nivel?: number
           tenant_id: string
@@ -746,10 +750,12 @@ export type Database = {
           classificacao?: string
           codigo?: string
           company_id?: string | null
+          conta_pai_classificacao?: string | null
           created_at?: string
           descricao?: string
           id?: string
           is_participante?: boolean
+          is_sintetica?: boolean
           natureza?: string
           nivel?: number
           tenant_id?: string
@@ -818,33 +824,117 @@ export type Database = {
           },
         ]
       }
+      saldo_inicial_uploads: {
+        Row: {
+          company_id: string
+          created_at: string
+          data_referencia: string
+          diferenca: number
+          encoding: string | null
+          equilibrado: boolean
+          erro_detalhe: string | null
+          filename: string
+          id: string
+          status: string
+          tenant_id: string
+          total_ativo: number
+          total_contas: number
+          total_passivo_pl: number
+          updated_at: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          data_referencia: string
+          diferenca?: number
+          encoding?: string | null
+          equilibrado?: boolean
+          erro_detalhe?: string | null
+          filename: string
+          id?: string
+          status?: string
+          tenant_id: string
+          total_ativo?: number
+          total_contas?: number
+          total_passivo_pl?: number
+          updated_at?: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          data_referencia?: string
+          diferenca?: number
+          encoding?: string | null
+          equilibrado?: boolean
+          erro_detalhe?: string | null
+          filename?: string
+          id?: string
+          status?: string
+          tenant_id?: string
+          total_ativo?: number
+          total_contas?: number
+          total_passivo_pl?: number
+          updated_at?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "saldo_inicial_uploads_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "saldo_inicial_uploads_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       saldos_abertura: {
         Row: {
+          classificacao: string | null
           company_id: string
           conta_codigo: string
           created_at: string
           data_referencia: string
           id: string
+          is_participante: boolean
           saldo: number
           tenant_id: string
+          upload_id: string | null
+          valor_origem: number | null
         }
         Insert: {
+          classificacao?: string | null
           company_id: string
           conta_codigo: string
           created_at?: string
           data_referencia: string
           id?: string
+          is_participante?: boolean
           saldo: number
           tenant_id: string
+          upload_id?: string | null
+          valor_origem?: number | null
         }
         Update: {
+          classificacao?: string | null
           company_id?: string
           conta_codigo?: string
           created_at?: string
           data_referencia?: string
           id?: string
+          is_participante?: boolean
           saldo?: number
           tenant_id?: string
+          upload_id?: string | null
+          valor_origem?: number | null
         }
         Relationships: [
           {

@@ -18,6 +18,8 @@ export interface PlanoContaRow {
   natureza: "S" | "A";
   nivel: number;
   is_participante: boolean;
+  is_sintetica: boolean;
+  conta_pai_classificacao: string | null;
 }
 
 export interface PlanoParseResult {
@@ -38,7 +40,7 @@ function normalizeHeader(h: string): string {
     .trim();
 }
 
-const ALIASES: Record<keyof Omit<PlanoContaRow, "nivel" | "is_participante">, string[]> = {
+const ALIASES: Record<"codigo" | "classificacao" | "descricao" | "tipo" | "natureza", string[]> = {
   codigo: ["codigo", "cod", "conta", "cod conta", "cod. conta"],
   classificacao: ["classificacao", "class", "mascara", "estrutura"],
   descricao: ["descricao", "nome", "nome conta", "descricao da conta"],
@@ -119,6 +121,8 @@ export async function parsePlanoContasCSV(file: File): Promise<PlanoParseResult>
     seenCodigos.add(codigo);
     const natureza: "S" | "A" = natRaw.startsWith("S") ? "S" : "A";
     const nivel = classificacao.split(".").length;
+    const partes = classificacao.split(".");
+    const conta_pai_classificacao = partes.length > 1 ? partes.slice(0, -1).join(".") : null;
     rows.push({
       codigo,
       classificacao,
@@ -127,6 +131,8 @@ export async function parsePlanoContasCSV(file: File): Promise<PlanoParseResult>
       natureza,
       nivel,
       is_participante: TIPOS_PARTICIPANTE.has(tipo),
+      is_sintetica: natureza === "S",
+      conta_pai_classificacao,
     });
   }
 

@@ -40,6 +40,8 @@ export async function salvarPlanoContas(opts: {
     natureza: r.natureza,
     nivel: r.nivel,
     is_participante: r.is_participante,
+    is_sintetica: r.is_sintetica,
+    conta_pai_classificacao: r.conta_pai_classificacao,
   }));
   await chunkedInsert("plano_contas", payload, (n) => onProgress?.(n, payload.length));
   return { inseridos: payload.length };

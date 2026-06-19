@@ -29,7 +29,7 @@ export const Route = createFileRoute("/admin/empresas/$id/dados")({
 
 function Page() {
   const { id } = useParams({ from: "/admin/empresas/$id/dados" });
-  const [tab, setTab] = useState<"plano" | "mapeamento" | "diarios">("plano");
+  const [tab, setTab] = useState<"plano" | "mapeamento" | "saldo-inicial" | "diarios">("plano");
 
   const { data: company } = useQuery({
     queryKey: ["company", id],
@@ -78,7 +78,8 @@ function Page() {
         <TabsList>
           <TabsTrigger value="plano">1. Plano de Contas</TabsTrigger>
           <TabsTrigger value="mapeamento">2. Mapeamento</TabsTrigger>
-          <TabsTrigger value="diarios">3. Diários</TabsTrigger>
+          <TabsTrigger value="saldo-inicial">3. Saldo Inicial</TabsTrigger>
+          <TabsTrigger value="diarios">4. Diários</TabsTrigger>
         </TabsList>
 
         <TabsContent value="plano">
@@ -98,6 +99,12 @@ function Page() {
               companyId={modoGlobal ? null : company.id}
               readonly={modoGlobal}
             />
+          )}
+        </TabsContent>
+
+        <TabsContent value="saldo-inicial">
+          {company && (
+            <SaldoInicialTab companyId={company.id} tenantId={company.tenant_id!} />
           )}
         </TabsContent>
 
@@ -654,6 +661,201 @@ function DiariosTab({ companyId, tenantId }: { companyId: string; tenantId: stri
             ))}
           </tbody>
         </table>
+      </Card>
+    </div>
+  );
+}
+
+// ============================================================
+// TAB 3 — Saldo Inicial (balancete de abertura)
+// ============================================================
+function SaldoInicialTab({ tenantId, companyId }: { tenantId: string; companyId: string }) {
+  const qc = useQueryClient();
+  const { userId } = useAuth();
+  const [parsed, setParsed] = useState<import("@/lib/saldo-inicial/parse-balancete").SaldoInicialParseResult | null>(null);
+  const [filename, setFilename] = useState<string>("");
+  const [dataRef, setDataRef] = useState<string>("");
+  const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState(0);
+
+  const { data: uploads } = useQuery({
+    queryKey: ["saldo-inicial-uploads", companyId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("saldo_inicial_uploads")
+        .select("*")
+        .eq("company_id", companyId)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as any[];
+    },
+  });
+
+  const onFile = async (f: File) => {
+    setBusy(true);
+    setFilename(f.name);
+    try {
+      const { parseSaldoInicialCSV } = await import("@/lib/saldo-inicial/parse-balancete");
+      const result = await parseSaldoInicialCSV(f);
+      setParsed(result);
+      // sugere 31/12 do ano anterior à competência mais antiga, ou hoje
+      if (!dataRef) {
+        const hoje = new Date();
+        const anoPassado = hoje.getFullYear() - 1;
+        setDataRef(`${anoPassado}-12-31`);
+      }
+    } catch (e: any) {
+      toast.error(e.message ?? String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const confirmar = async () => {
+    if (!parsed || !dataRef) {
+      toast.error("Defina a data de referência.");
+      return;
+    }
+    setBusy(true);
+    setProgress(0);
+    try {
+      const { salvarSaldoInicial } = await import("@/lib/saldo-inicial/uploader");
+      await salvarSaldoInicial({
+        tenantId,
+        companyId,
+        uploadedBy: userId ?? null,
+        filename,
+        dataReferencia: dataRef,
+        parsed,
+        substituirData: true,
+        onProgress: (loaded, total) => setProgress(Math.round((loaded / total) * 100)),
+      });
+      toast.success(`Saldo inicial importado: ${parsed.total} contas`);
+      setParsed(null);
+      setFilename("");
+      qc.invalidateQueries({ queryKey: ["saldo-inicial-uploads", companyId] });
+    } catch (e: any) {
+      toast.error(e.message ?? String(e));
+    } finally {
+      setBusy(false);
+      setProgress(0);
+    }
+  };
+
+  const apagar = async (uploadId: string) => {
+    if (!confirm("Remover este saldo inicial? Os saldos vinculados também serão apagados.")) return;
+    try {
+      const { removerSaldoInicialUpload } = await import("@/lib/saldo-inicial/uploader");
+      await removerSaldoInicialUpload(uploadId, companyId);
+      toast.success("Saldo inicial removido");
+      qc.invalidateQueries({ queryKey: ["saldo-inicial-uploads", companyId] });
+    } catch (e: any) {
+      toast.error(e.message ?? String(e));
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <Card className="p-5">
+        <h3 className="font-semibold mb-2">Importar balancete de abertura</h3>
+        <p className="text-xs text-muted-foreground mb-3">
+          CSV separado por <code>;</code> com cabeçalho <code>Classificação;Conta;Sub;Nome da conta contábil/C. Custo;Tipo conta;Nível;Cta. título;Estab.;Valor</code>.
+          Encoding UTF-8 (com BOM) ou Latin-1 detectado automaticamente. Apenas analíticas (<code>Cta. título = 2-Não</code>) são processadas — incluindo participantes (clientes, fornecedores).
+        </p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+          <div>
+            <Label className="text-xs">Arquivo CSV</Label>
+            <Input
+              type="file"
+              accept=".csv,text/csv"
+              disabled={busy}
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) onFile(f);
+              }}
+            />
+          </div>
+          <div>
+            <Label className="text-xs">Data de referência (último dia do exercício anterior)</Label>
+            <Input
+              type="date"
+              value={dataRef}
+              onChange={(e) => setDataRef(e.target.value)}
+              disabled={busy}
+            />
+          </div>
+        </div>
+        {busy && !parsed && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+
+        {parsed && (
+          <div className="mt-4 border border-border rounded-lg p-4 bg-muted/30">
+            <div className="flex items-center gap-2 mb-3">
+              {parsed.equilibrado ? (
+                <><CheckCircle2 className="h-4 w-4 text-emerald-600" /><span className="font-medium">Balanço fecha</span></>
+              ) : (
+                <><AlertTriangle className="h-4 w-4 text-amber-600" /><span className="font-medium">Balanço NÃO fecha — verifique</span></>
+              )}
+            </div>
+            <ul className="text-sm space-y-1">
+              <li><strong>{parsed.total}</strong> contas analíticas — {parsed.participantes} participantes (clientes/fornecedores)</li>
+              <li>Ativo: <strong>{formatBRL(parsed.total_ativo)}</strong></li>
+              <li>Passivo + PL: <strong>{formatBRL(parsed.total_passivo_pl)}</strong></li>
+              <li>Diferença: <strong className={parsed.equilibrado ? "text-emerald-600" : "text-amber-600"}>{formatBRL(parsed.diferenca)}</strong></li>
+              <li>Encoding: <code>{parsed.encoding}</code></li>
+              {parsed.warnings.map((w, i) => (
+                <li key={i} className="text-amber-600 text-xs"><AlertTriangle className="h-3 w-3 inline mr-1" />{w}</li>
+              ))}
+            </ul>
+            <div className="mt-4 flex gap-2 items-center">
+              <Button onClick={confirmar} disabled={busy || !dataRef}>
+                {busy ? <><Loader2 className="h-4 w-4 mr-1 animate-spin" />Importando {progress}%</> : <><Upload className="h-4 w-4 mr-1" />Confirmar importação</>}
+              </Button>
+              <Button variant="ghost" onClick={() => setParsed(null)} disabled={busy}>Cancelar</Button>
+            </div>
+          </div>
+        )}
+      </Card>
+
+      <Card className="p-5">
+        <h3 className="font-semibold mb-2">Saldos iniciais carregados</h3>
+        {!uploads || uploads.length === 0 ? (
+          <div className="text-sm text-muted-foreground">Nenhum saldo inicial carregado ainda.</div>
+        ) : (
+          <table className="w-full text-sm">
+            <thead className="text-xs uppercase tracking-wide text-muted-foreground">
+              <tr>
+                <th className="text-left px-2 py-1.5">Arquivo</th>
+                <th className="text-left px-2 py-1.5">Data ref.</th>
+                <th className="text-right px-2 py-1.5">Contas</th>
+                <th className="text-right px-2 py-1.5">Ativo</th>
+                <th className="text-right px-2 py-1.5">Passivo + PL</th>
+                <th className="text-center px-2 py-1.5">Status</th>
+                <th className="w-10"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {uploads.map((u: any) => (
+                <tr key={u.id} className="border-t border-border">
+                  <td className="px-2 py-2 text-xs">{u.filename}</td>
+                  <td className="px-2 py-2 text-xs">{u.data_referencia}</td>
+                  <td className="px-2 py-2 text-right tabular-nums">{u.total_contas}</td>
+                  <td className="px-2 py-2 text-right tabular-nums">{formatBRL(Number(u.total_ativo))}</td>
+                  <td className="px-2 py-2 text-right tabular-nums">{formatBRL(Number(u.total_passivo_pl))}</td>
+                  <td className="px-2 py-2 text-center">
+                    {u.equilibrado ? (
+                      <Badge variant="outline" className="text-emerald-600 border-emerald-600/40">✓ fecha</Badge>
+                    ) : (
+                      <Badge variant="outline" className="text-amber-600 border-amber-600/40">⚠ {formatBRL(Number(u.diferenca))}</Badge>
+                    )}
+                  </td>
+                  <td className="px-2 py-2">
+                    <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => apagar(u.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </Card>
     </div>
   );

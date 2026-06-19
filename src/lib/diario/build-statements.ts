@@ -607,6 +607,7 @@ async function buildBP(
   modoGlobal: boolean,
   periodos: string[],
   tipo: "BP_ATIVO" | "BP_PASSIVO",
+  mascara: MascaraConfig,
 ): Promise<FlatRow[]> {
   const tipoPlano = tipo === "BP_ATIVO" ? ["1-Ativo"] : ["2-Passivo"];
   const ateData = [...periodos].sort().pop()!;
@@ -632,7 +633,7 @@ async function buildBP(
       planoPrefixos.set(p.classificacao, p.descricao);
     }
   }
-  const matcher = buildMatcher(mapas);
+  const matcher = buildMatcher(mapas, mascara);
 
   const linhasMeta = new Map<string, { ordem: number }>();
   for (const m of mapas) {
@@ -663,7 +664,7 @@ async function buildBP(
     }
 
     const snapshot = new Map(acumPorConta);
-    const pontos = aplicarMapaESinal(snapshot, planoMap, matcher, { incluirParticipantes: true });
+    const pontos = aplicarMapaESinal(snapshot, planoMap, matcher, mascara, { incluirParticipantes: true });
 
     const porLinha = new Map<
       string,
@@ -680,7 +681,7 @@ async function buildBP(
         classificacao: pt.classificacao,
         descricao: conta?.descricao ?? pt.classificacao,
         valor: pt.valor,
-        nivelPlano: conta?.nivel ?? pt.classificacao.split(".").length,
+        nivelPlano: conta?.nivel ?? nivelDe(pt.classificacao, mascara),
       });
     }
 
@@ -696,6 +697,7 @@ async function buildBP(
         ref,
         base,
         planoPrefixos,
+        mascara,
       );
       out.push(...linhas);
       // soma só do parent (nivel 0) para o total

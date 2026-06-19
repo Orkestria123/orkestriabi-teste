@@ -9,6 +9,11 @@
 //   independente da ordem das palavras na descrição.
 
 import type { PlanoContaRow } from "./plano-parser";
+import {
+  descendeDe,
+  MASCARA_DEFAULT,
+  type MascaraConfig,
+} from "@/lib/mascara/interpretar";
 
 export type TipoDemonstracao = "DRE" | "BP_ATIVO" | "BP_PASSIVO" | "DFC";
 
@@ -84,7 +89,10 @@ const BP_PASSIVO_PATTERNS: { rx: RegExp; linha: string; ordem: number }[] = [
   { rx: /circulante/, linha: "Passivo Circulante", ordem: 100 },
 ];
 
-export function sugerirMapeamento(plano: PlanoContaRow[]): MapeamentoSugerido[] {
+export function sugerirMapeamento(
+  plano: PlanoContaRow[],
+  mascara: MascaraConfig = MASCARA_DEFAULT,
+): MapeamentoSugerido[] {
   // Sintéticos (não participantes) até nível 4. Nível 4 é importante para captar
   // despesas administrativas / financeiras / provisões IR que ficam abaixo do grupo.
   const candidatos = plano.filter(
@@ -106,7 +114,7 @@ export function sugerirMapeamento(plano: PlanoContaRow[]): MapeamentoSugerido[] 
     if (c.tipo === "3-DRE") {
       // Pula se um ancestral já está mapeado para a mesma classificação prefixo
       const jaCoberto = prefixosMapeadosPorTipo.DRE.some(
-        (p) => c.classificacao !== p && c.classificacao.startsWith(p + "."),
+        (p) => c.classificacao !== p && descendeDe(c.classificacao, p, mascara),
       );
       if (jaCoberto) continue;
 
@@ -129,7 +137,7 @@ export function sugerirMapeamento(plano: PlanoContaRow[]): MapeamentoSugerido[] 
       }
     } else if (c.tipo === "1-Ativo") {
       const jaCoberto = prefixosMapeadosPorTipo.BPA.some(
-        (p) => c.classificacao !== p && c.classificacao.startsWith(p + "."),
+        (p) => c.classificacao !== p && descendeDe(c.classificacao, p, mascara),
       );
       // Permite refinar Imobilizado/Intangível/Investimentos sob "Ativo Não Circulante"
       const isRefinamento = /imobiliz|intang|investiment|realizavel|longo/.test(d);
@@ -154,7 +162,7 @@ export function sugerirMapeamento(plano: PlanoContaRow[]): MapeamentoSugerido[] 
       }
     } else if (c.tipo === "2-Passivo") {
       const jaCoberto = prefixosMapeadosPorTipo.BPP.some(
-        (p) => c.classificacao !== p && c.classificacao.startsWith(p + "."),
+        (p) => c.classificacao !== p && descendeDe(c.classificacao, p, mascara),
       );
       const isRefinamento = /capital|reserva|lucro|prejuizo|patrimonio/.test(d);
       if (jaCoberto && !isRefinamento) continue;

@@ -22,6 +22,7 @@ import { parseDiarioXLSX, type DiarioParseResult } from "@/lib/diario/diario-par
 import { salvarPlanoContas, salvarDiarioUpload, removerUpload } from "@/lib/diario/uploader";
 import { sugerirMapeamento, classificacoesNaoMapeadas, type MapeamentoSugerido, type TipoDemonstracao } from "@/lib/diario/suggest-mapping";
 import { formatBRL } from "@/lib/format";
+import { MascaraConfigPanel } from "@/components/mascara-config";
 
 export const Route = createFileRoute("/admin/empresas/$id/dados")({
   component: Page,
@@ -29,7 +30,7 @@ export const Route = createFileRoute("/admin/empresas/$id/dados")({
 
 function Page() {
   const { id } = useParams({ from: "/admin/empresas/$id/dados" });
-  const [tab, setTab] = useState<"plano" | "mapeamento" | "saldo-inicial" | "diarios">("plano");
+  const [tab, setTab] = useState<"plano" | "mapeamento" | "saldo-inicial" | "diarios" | "mascara">("plano");
 
   const { data: company } = useQuery({
     queryKey: ["company", id],
@@ -80,7 +81,18 @@ function Page() {
           <TabsTrigger value="mapeamento">2. Mapeamento</TabsTrigger>
           <TabsTrigger value="saldo-inicial">3. Saldo Inicial</TabsTrigger>
           <TabsTrigger value="diarios">4. Diários</TabsTrigger>
+          <TabsTrigger value="mascara">5. Máscara</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="mascara">
+          {company && (
+            <MascaraConfigPanel
+              tenantId={company.tenant_id!}
+              companyId={modoGlobal ? null : company.id}
+              escopo={modoGlobal ? "tenant" : "empresa"}
+            />
+          )}
+        </TabsContent>
 
         <TabsContent value="plano">
           {company && (

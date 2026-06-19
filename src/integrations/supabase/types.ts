@@ -710,6 +710,54 @@ export type Database = {
           },
         ]
       }
+      mascara_classificacao: {
+        Row: {
+          company_id: string | null
+          created_at: string
+          grupos: Json
+          id: string
+          niveis: Json
+          separador: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          company_id?: string | null
+          created_at?: string
+          grupos?: Json
+          id?: string
+          niveis?: Json
+          separador?: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string | null
+          created_at?: string
+          grupos?: Json
+          id?: string
+          niveis?: Json
+          separador?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mascara_classificacao_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mascara_classificacao_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       plano_contas: {
         Row: {
           ativo: boolean

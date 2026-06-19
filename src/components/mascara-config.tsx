@@ -36,6 +36,7 @@ export function MascaraConfigPanel({ tenantId, companyId, escopo }: Props) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [exemplo, setExemplo] = useState("1.01.02.001");
+  const [amostras, setAmostras] = useState<string[]>([]);
 
   const targetCompanyId = escopo === "empresa" ? (companyId ?? null) : null;
 
@@ -44,7 +45,7 @@ export function MascaraConfigPanel({ tenantId, companyId, escopo }: Props) {
       setLoading(true);
       const q = supabase
         .from("mascara_classificacao" as any)
-        .select("separador, niveis, grupos")
+        .select("separador, niveis, grupos, larguras")
         .eq("tenant_id", tenantId);
       const { data } = targetCompanyId
         ? await q.eq("company_id", targetCompanyId).maybeSingle()
@@ -54,10 +55,28 @@ export function MascaraConfigPanel({ tenantId, companyId, escopo }: Props) {
           separador: (data as any).separador,
           niveis: (data as any).niveis,
           grupos: (data as any).grupos,
+          larguras: (data as any).larguras ?? undefined,
         });
       } else {
         setCfg(MASCARA_DEFAULT);
       }
+
+      // Carrega amostras reais do plano de contas importado
+      const planoQ = supabase
+        .from("plano_contas")
+        .select("classificacao")
+        .eq("tenant_id", tenantId)
+        .not("classificacao", "is", null)
+        .limit(20);
+      const planoRes = targetCompanyId
+        ? await planoQ.eq("company_id", targetCompanyId)
+        : await planoQ.is("company_id", null);
+      const classifs = (planoRes.data ?? [])
+        .map((r: any) => r.classificacao as string)
+        .filter(Boolean);
+      setAmostras(classifs);
+      if (classifs.length > 0) setExemplo(classifs[0]);
+
       setLoading(false);
     })();
   }, [tenantId, targetCompanyId]);
@@ -73,6 +92,7 @@ export function MascaraConfigPanel({ tenantId, companyId, escopo }: Props) {
           separador: cfg.separador,
           niveis: cfg.niveis,
           grupos: cfg.grupos,
+          larguras: cfg.larguras ?? null,
         } as any,
         { onConflict: "tenant_id,company_id" },
       );
@@ -84,6 +104,7 @@ export function MascaraConfigPanel({ tenantId, companyId, escopo }: Props) {
     invalidarCacheMascara();
     toast.success("Máscara salva");
   }
+
 
   async function restaurar() {
     if (!confirm("Restaurar máscara padrão?")) return;

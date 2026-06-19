@@ -774,6 +774,7 @@ async function getSnapshotPorPrefixo(
   modoGlobal: boolean,
   ateData: string,
   prefixos: string[],
+  mascara: MascaraConfig,
 ): Promise<ContaSnapshot[]> {
   // carrega plano todo e saldos acumulados, filtra por prefixo
   const [plano, abertura, saldosAcum] = await Promise.all([
@@ -794,9 +795,7 @@ async function getSnapshotPorPrefixo(
   for (const [codigo, saldo] of acumPorCodigo) {
     const conta = planoPorCodigo.get(codigo);
     if (!conta || conta.is_participante) continue;
-    const matches = prefixos.some(
-      (pref) => conta.classificacao === pref || conta.classificacao.startsWith(pref + "."),
-    );
+    const matches = prefixos.some((pref) => descendeDe(conta.classificacao, pref, mascara));
     if (!matches) continue;
     out.push({ classificacao: conta.classificacao, descricao: conta.descricao, saldo });
   }

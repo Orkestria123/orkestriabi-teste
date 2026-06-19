@@ -1,6 +1,10 @@
 // Helper para interpretar classificações contábeis conforme a máscara
 // configurável do escritório/empresa. Default: separador "." e grupos
 // 1=Ativo, 2=Passivo, 3=Despesa, 4=Receita, 5=Resultado.
+//
+// Estes helpers substituem `.split(".")`, `.startsWith(p + ".")` e
+// `charAt(0)` espalhados pelo código, permitindo que o contador troque
+// o separador (".", "-", "/" ou largura fixa) sem reprogramar.
 
 import { supabase } from "@/integrations/supabase/client";
 
@@ -23,6 +27,8 @@ export interface MascaraConfig {
   niveis: NivelMascara[];
   /** map: dígito do 1º nível → grupo */
   grupos: Record<string, GrupoContabil>;
+  /** larguras para máscaras sem separador (ex: "10101" → [1,2,2]) */
+  larguras?: number[];
 }
 
 export const MASCARA_DEFAULT: MascaraConfig = {
@@ -52,15 +58,95 @@ export interface ClassificacaoInterpretada {
   rotulos: { nome: string; valor: string }[];
 }
 
+// =====================================================================
+// Utilitários puros — toda a lógica de hierarquia passa por aqui.
+// =====================================================================
+
+/** Divide a classificação em partes conforme a máscara. */
+export function dividir(classificacao: string, m: MascaraConfig = MASCARA_DEFAULT): string[] {
+  const s = (classificacao ?? "").trim();
+  if (!s) return [];
+  if (m.separador) return s.split(m.separador).filter(Boolean);
+  // largura fixa
+  const larguras = m.larguras ?? [];
+  if (larguras.length === 0) return [s];
+  const out: string[] = [];
+  let pos = 0;
+  for (const w of larguras) {
+    if (pos >= s.length) break;
+    out.push(s.slice(pos, pos + w));
+    pos += w;
+  }
+  if (pos < s.length) out.push(s.slice(pos));
+  return out;
+}
+
+/** Junta partes usando o separador da máscara (vazio se largura fixa). */
+export function juntar(partes: string[], m: MascaraConfig = MASCARA_DEFAULT): string {
+  return partes.join(m.separador || "");
+}
+
+/** Prefixo até `n` níveis (1-indexado). */
+export function prefixoAteNivel(
+  classificacao: string,
+  n: number,
+  m: MascaraConfig = MASCARA_DEFAULT,
+): string {
+  const partes = dividir(classificacao, m);
+  if (n >= partes.length) return classificacao;
+  return juntar(partes.slice(0, n), m);
+}
+
+/** Classificação do pai imediato (null se for raiz). */
+export function paiDe(
+  classificacao: string,
+  m: MascaraConfig = MASCARA_DEFAULT,
+): string | null {
+  const partes = dividir(classificacao, m);
+  if (partes.length <= 1) return null;
+  return juntar(partes.slice(0, -1), m);
+}
+
+/** Quantos níveis tem essa classificação. */
+export function nivelDe(classificacao: string, m: MascaraConfig = MASCARA_DEFAULT): number {
+  return dividir(classificacao, m).length;
+}
+
+/**
+ * `filho` é a própria `ancestral` OU está dentro dela na árvore.
+ * Substitui `c === p || c.startsWith(p + ".")` com suporte a qualquer separador.
+ */
+export function descendeDe(
+  filho: string,
+  ancestral: string,
+  m: MascaraConfig = MASCARA_DEFAULT,
+): boolean {
+  if (!filho || !ancestral) return false;
+  if (filho === ancestral) return true;
+  if (m.separador) return filho.startsWith(ancestral + m.separador);
+  // largura fixa: o filho deve começar com ancestral e ter mais partes
+  return filho.startsWith(ancestral) && filho.length > ancestral.length;
+}
+
+/** Grupo contábil derivado da primeira parte da classificação. */
+export function grupoDe(
+  classificacao: string,
+  m: MascaraConfig = MASCARA_DEFAULT,
+): GrupoContabil {
+  const partes = dividir(classificacao, m);
+  const primeira = partes[0] ?? "";
+  const chave = primeira; // tenta primeiro casar a parte inteira ("1", "10")
+  if (m.grupos[chave]) return m.grupos[chave];
+  const digito = primeira.charAt(0);
+  return m.grupos[digito] ?? "desconhecido";
+}
+
 export function interpretarClassificacao(
   classificacao: string,
   mascara: MascaraConfig = MASCARA_DEFAULT,
 ): ClassificacaoInterpretada {
-  const sep = mascara.separador || ".";
-  const partes = classificacao.trim().split(sep).filter(Boolean);
-  const primeira = partes[0] ?? "";
-  const digito = primeira.charAt(0);
-  const grupo = (mascara.grupos[digito] ?? "desconhecido") as GrupoContabil;
+  const partes = dividir(classificacao, mascara);
+  const grupo = grupoDe(classificacao, mascara);
   const rotulos = partes.map((valor, i) => ({
     nome: mascara.niveis[i]?.nome ?? `Nível ${i + 1}`,
     valor,
@@ -101,7 +187,7 @@ export async function getMascaraConfig(opts: {
 
   const cfg: MascaraConfig = row
     ? {
-        separador: row.separador || ".",
+        separador: row.separador ?? ".",
         niveis: (row.niveis as NivelMascara[]) ?? MASCARA_DEFAULT.niveis,
         grupos: (row.grupos as Record<string, GrupoContabil>) ?? MASCARA_DEFAULT.grupos,
       }

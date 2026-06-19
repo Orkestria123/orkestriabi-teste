@@ -326,6 +326,83 @@ function emitirHierarquia(
   return out;
 }
 
+/**
+ * Árvore hierárquica completa para BP — emite TODOS os níveis do plano
+ * (de nivel 1 até a conta analítica), com cada nó somando seus descendentes.
+ * Participantes (clientes/fornecedores) ficam consolidados na conta-pai
+ * estrutural via prefixo de classificação.
+ */
+function emitirArvoreBP(
+  parent: { linha: string; ordem: number },
+  pontos: { classificacao: string; descricao: string; valor: number; nivelPlano: number }[],
+  periodo: string,
+  linhaOrdemBase: number,
+  planoPrefixos: Map<string, string>,
+): FlatRow[] {
+  const out: FlatRow[] = [];
+  const totalParent = pontos.reduce((a, b) => a + b.valor, 0);
+  out.push({
+    linha_ordem: linhaOrdemBase,
+    descricao: parent.linha,
+    codigo_conta: null,
+    nivel: 0,
+    is_subtotal: true,
+    periodo,
+    valor: totalParent,
+  });
+  if (pontos.length === 0) return out;
+
+  const profMin = Math.min(...pontos.map((p) => p.classificacao.split(".").length));
+
+  type Node = {
+    classif: string;
+    valor: number;
+    depth: number;
+    children: Map<string, Node>;
+  };
+  const root = new Map<string, Node>();
+
+  for (const p of pontos) {
+    const parts = p.classificacao.split(".");
+    let map = root;
+    for (let level = profMin; level <= parts.length; level++) {
+      const prefix = parts.slice(0, level).join(".");
+      let node = map.get(prefix);
+      if (!node) {
+        node = { classif: prefix, valor: 0, depth: level, children: new Map() };
+        map.set(prefix, node);
+      }
+      node.valor += p.valor;
+      map = node.children;
+    }
+  }
+
+  let counter = 1;
+  const walk = (map: Map<string, Node>) => {
+    const sorted = Array.from(map.values()).sort((a, b) =>
+      a.classif.localeCompare(b.classif),
+    );
+    for (const n of sorted) {
+      // Se este nó tem exatamente um filho com o mesmo valor, evita ruído
+      // (não emite o intermediário redundante).
+      const nivel = n.depth - profMin + 1;
+      out.push({
+        linha_ordem: linhaOrdemBase + counter++,
+        descricao: planoPrefixos.get(n.classif) ?? n.classif,
+        codigo_conta: n.classif,
+        nivel,
+        is_subtotal: false,
+        periodo,
+        valor: n.valor,
+      });
+      if (n.children.size > 0) walk(n.children);
+    }
+  };
+  walk(root);
+
+  return out;
+}
+
 // ---------- DRE / DFC ----------
 
 async function buildDRE(
@@ -592,7 +669,7 @@ async function buildBP(
     let totalLado = 0;
     for (const [linha, info] of linhasOrd) {
       const base = info.ordem * 1000;
-      const linhas = emitirHierarquia(
+      const linhas = emitirArvoreBP(
         { linha, ordem: info.ordem },
         info.itens,
         ref,

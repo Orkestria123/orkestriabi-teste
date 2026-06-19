@@ -671,7 +671,7 @@ function DiariosTab({ companyId, tenantId }: { companyId: string; tenantId: stri
 // ============================================================
 function SaldoInicialTab({ tenantId, companyId }: { tenantId: string; companyId: string }) {
   const qc = useQueryClient();
-  const { user } = useAuth();
+  const { userId } = useAuth();
   const [parsed, setParsed] = useState<import("@/lib/saldo-inicial/parse-balancete").SaldoInicialParseResult | null>(null);
   const [filename, setFilename] = useState<string>("");
   const [dataRef, setDataRef] = useState<string>("");

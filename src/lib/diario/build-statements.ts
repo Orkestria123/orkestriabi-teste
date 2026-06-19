@@ -731,11 +731,14 @@ export async function buildStatementFromDiario(
   periodos: string[],
 ): Promise<FlatRow[]> {
   if (periodos.length === 0) return [];
-  if (tipo === "DRE") return buildDRE(companyId, tenantId, modoGlobal, periodos, "DRE");
-  if (tipo === "DFC") return buildDFC(companyId, tenantId, modoGlobal, periodos);
-  if (tipo === "DLPA") return buildDLPA(companyId, tenantId, modoGlobal, periodos);
-  if (tipo === "DVA") return buildDVA(companyId, tenantId, modoGlobal, periodos);
-  return buildBP(companyId, tenantId, modoGlobal, periodos, tipo);
+  // Carrega máscara da empresa (cai para tenant/default) — fonte única
+  // de verdade para split, prefixo, pai e grupo nas demonstrações.
+  const mascara = await getMascaraConfig({ tenantId, companyId });
+  if (tipo === "DRE") return buildDRE(companyId, tenantId, modoGlobal, periodos, "DRE", mascara);
+  if (tipo === "DFC") return buildDFC(companyId, tenantId, modoGlobal, periodos, mascara);
+  if (tipo === "DLPA") return buildDLPA(companyId, tenantId, modoGlobal, periodos, mascara);
+  if (tipo === "DVA") return buildDVA(companyId, tenantId, modoGlobal, periodos, mascara);
+  return buildBP(companyId, tenantId, modoGlobal, periodos, tipo, mascara);
 }
 
 // ============================================================

@@ -23,6 +23,7 @@ import { salvarPlanoContas, salvarDiarioUpload, removerUpload } from "@/lib/diar
 import { sugerirMapeamento, classificacoesNaoMapeadas, type MapeamentoSugerido, type TipoDemonstracao } from "@/lib/diario/suggest-mapping";
 import { formatBRL } from "@/lib/format";
 import { MascaraConfigPanel } from "@/components/mascara-config";
+import { getMascaraConfig } from "@/lib/mascara/interpretar";
 
 export const Route = createFileRoute("/admin/empresas/$id/dados")({
   component: Page,
@@ -162,7 +163,8 @@ function PlanoTab({ tenantId, companyId, readonly }: { tenantId: string; company
   const onFile = async (f: File) => {
     setBusy(true);
     try {
-      const result = await parsePlanoContasCSV(f);
+      const mascara = await getMascaraConfig({ tenantId, companyId });
+      const result = await parsePlanoContasCSV(f, mascara);
       setParsed(result);
     } catch (e: any) {
       toast.error(e.message ?? String(e));
@@ -708,7 +710,8 @@ function SaldoInicialTab({ tenantId, companyId }: { tenantId: string; companyId:
     setFilename(f.name);
     try {
       const { parseSaldoInicialCSV } = await import("@/lib/saldo-inicial/parse-balancete");
-      const result = await parseSaldoInicialCSV(f);
+      const mascara = await getMascaraConfig({ tenantId, companyId });
+      const result = await parseSaldoInicialCSV(f, mascara);
       setParsed(result);
       // sugere 31/12 do ano anterior à competência mais antiga, ou hoje
       if (!dataRef) {

@@ -2,6 +2,15 @@
 // Formato: ISO-8859-1, separador ";", header em pt-BR.
 // Colunas: Código;Classificação;Descrição;Tipo;Natureza
 // Cruzamento contábil sempre por CÓDIGO (classificação pode se repetir).
+//
+// A interpretação da classificação (níveis e pai) usa a MÁSCARA configurável.
+
+import {
+  dividir,
+  paiDe,
+  MASCARA_DEFAULT,
+  type MascaraConfig,
+} from "@/lib/mascara/interpretar";
 
 export const TIPOS_PARTICIPANTE = new Set([
   "4-Cli. Nac.",
@@ -87,7 +96,10 @@ function detectIndices(headerCols: string[]): Record<string, number> {
   return idx;
 }
 
-export async function parsePlanoContasCSV(file: File): Promise<PlanoParseResult> {
+export async function parsePlanoContasCSV(
+  file: File,
+  mascara: MascaraConfig = MASCARA_DEFAULT,
+): Promise<PlanoParseResult> {
   const { text, encoding } = await readWithEncoding(file);
   const lines = text.split(/\r?\n/).filter((l) => l.trim().length > 0);
   if (lines.length < 2) throw new Error("Arquivo vazio ou sem cabeçalho.");
@@ -120,9 +132,9 @@ export async function parsePlanoContasCSV(file: File): Promise<PlanoParseResult>
     if (seenCodigos.has(codigo)) { duplicados++; continue; }
     seenCodigos.add(codigo);
     const natureza: "S" | "A" = natRaw.startsWith("S") ? "S" : "A";
-    const nivel = classificacao.split(".").length;
-    const partes = classificacao.split(".");
-    const conta_pai_classificacao = partes.length > 1 ? partes.slice(0, -1).join(".") : null;
+    const partes = dividir(classificacao, mascara);
+    const nivel = partes.length;
+    const conta_pai_classificacao = paiDe(classificacao, mascara);
     rows.push({
       codigo,
       classificacao,

@@ -12,6 +12,15 @@
 //  - DRE: movimento do período. BP: abertura + Σ movimento até a competência.
 
 import { supabase } from "@/integrations/supabase/client";
+import {
+  descendeDe,
+  dividir,
+  juntar,
+  nivelDe,
+  getMascaraConfig,
+  MASCARA_DEFAULT,
+  type MascaraConfig,
+} from "@/lib/mascara/interpretar";
 
 type Tipo = "DRE" | "BP_ATIVO" | "BP_PASSIVO" | "DFC" | "DLPA" | "DVA";
 
@@ -47,7 +56,12 @@ interface Saldo {
 }
 
 
-const SKIP_APURACAO = /\.(98|99)(\.|$)/;
+// Apuração contábil: qualquer segmento (após o primeiro) igual a "98" ou "99".
+// Usa a máscara para dividir corretamente independente do separador.
+function isApuracao(classificacao: string, mascara: MascaraConfig): boolean {
+  const partes = dividir(classificacao, mascara);
+  return partes.slice(1).some((p) => p === "98" || p === "99");
+}
 
 // ---------- helpers ----------
 
@@ -68,13 +82,13 @@ async function fetchAllPaginated<T>(
   return out;
 }
 
-function buildMatcher(mapas: Mapa[]) {
+function buildMatcher(mapas: Mapa[], mascara: MascaraConfig) {
   const sorted = [...mapas].sort(
     (a, b) => b.classificacao_prefixo.length - a.classificacao_prefixo.length,
   );
   return (classificacao: string): Mapa | null => {
     for (const m of sorted) {
-      if (classificacao === m.classificacao_prefixo || classificacao.startsWith(m.classificacao_prefixo + ".")) {
+      if (descendeDe(classificacao, m.classificacao_prefixo, mascara)) {
         return m;
       }
     }
@@ -83,11 +97,14 @@ function buildMatcher(mapas: Mapa[]) {
 }
 
 // Retorna o prefixo de uma classificação até `nivelMax` segmentos.
-// Ex.: "3.01.01.02.21" com nivelMax=4 → "3.01.01.02"
-function prefixoAteNivel(classificacao: string, nivelMax: number): string {
-  const parts = classificacao.split(".");
-  if (parts.length <= nivelMax) return classificacao;
-  return parts.slice(0, nivelMax).join(".");
+function prefixoAteNivel(
+  classificacao: string,
+  nivelMax: number,
+  mascara: MascaraConfig,
+): string {
+  const partes = dividir(classificacao, mascara);
+  if (partes.length <= nivelMax) return classificacao;
+  return juntar(partes.slice(0, nivelMax), mascara);
 }
 
 async function getPlanoPorTipo(
@@ -211,6 +228,7 @@ function aplicarMapaESinal(
   saldosPorConta: Map<string, number>,
   planoMap: Map<string, Plano>,
   matcher: (c: string) => Mapa | null,
+  mascara: MascaraConfig,
   opts: { incluirParticipantes?: boolean } = {},
 ): { mapa: Mapa; classificacao: string; valor: number }[] {
   const out: { mapa: Mapa; classificacao: string; valor: number }[] = [];
@@ -218,7 +236,7 @@ function aplicarMapaESinal(
     const conta = planoMap.get(codigo);
     if (!conta) continue;
     if (conta.is_participante && !opts.incluirParticipantes) continue;
-    if (SKIP_APURACAO.test(conta.classificacao)) continue;
+    if (isApuracao(conta.classificacao, mascara)) continue;
     const m = matcher(conta.classificacao);
     if (!m) continue;
     const v = m.inverter_sinal ? -valor : valor;
@@ -245,6 +263,7 @@ function emitirHierarquia(
   periodo: string,
   linhaOrdemBase: number,
   planoPrefixos: Map<string, string>,
+  mascara: MascaraConfig,
 ): FlatRow[] {
   const out: FlatRow[] = [];
 
@@ -263,7 +282,7 @@ function emitirHierarquia(
   if (pontos.length === 0) return out;
 
   // Detecta nivel base (menor profundidade da classificação)
-  const profMin = Math.min(...pontos.map((p) => p.classificacao.split(".").length));
+  const profMin = Math.min(...pontos.map((p) => nivelDe(p.classificacao, mascara)));
   const niv1 = profMin; // grupos diretos abaixo do parent
   const niv2 = profMin + 1; // detalhe
 
@@ -271,8 +290,8 @@ function emitirHierarquia(
   const agrupadoN2 = new Map<string, Map<string, NodeAgg>>(); // n1 → n2 → agg
 
   for (const p of pontos) {
-    const k1 = prefixoAteNivel(p.classificacao, niv1);
-    const k2 = prefixoAteNivel(p.classificacao, niv2);
+    const k1 = prefixoAteNivel(p.classificacao, niv1, mascara);
+    const k2 = prefixoAteNivel(p.classificacao, niv2, mascara);
     const a1 = agrupadoN1.get(k1) ?? { classificacao: k1, valor: 0 };
     a1.valor += p.valor;
     agrupadoN1.set(k1, a1);
@@ -338,6 +357,7 @@ function emitirArvoreBP(
   periodo: string,
   linhaOrdemBase: number,
   planoPrefixos: Map<string, string>,
+  mascara: MascaraConfig,
 ): FlatRow[] {
   const out: FlatRow[] = [];
   const totalParent = pontos.reduce((a, b) => a + b.valor, 0);
@@ -352,7 +372,7 @@ function emitirArvoreBP(
   });
   if (pontos.length === 0) return out;
 
-  const profMin = Math.min(...pontos.map((p) => p.classificacao.split(".").length));
+  const profMin = Math.min(...pontos.map((p) => nivelDe(p.classificacao, mascara)));
 
   type Node = {
     classif: string;
@@ -363,10 +383,10 @@ function emitirArvoreBP(
   const root = new Map<string, Node>();
 
   for (const p of pontos) {
-    const parts = p.classificacao.split(".");
+    const parts = dividir(p.classificacao, mascara);
     let map = root;
     for (let level = profMin; level <= parts.length; level++) {
-      const prefix = parts.slice(0, level).join(".");
+      const prefix = juntar(parts.slice(0, level), mascara);
       let node = map.get(prefix);
       if (!node) {
         node = { classif: prefix, valor: 0, depth: level, children: new Map() };
@@ -411,6 +431,7 @@ async function buildDRE(
   modoGlobal: boolean,
   periodos: string[],
   tipo: "DRE" | "DFC",
+  mascara: MascaraConfig,
 ): Promise<FlatRow[]> {
   const [mapas, saldos, plano] = await Promise.all([
     getMapa(companyId, tenantId, modoGlobal, tipo),
@@ -426,7 +447,7 @@ async function buildDRE(
     planoPorClassificacao.set(p.classificacao, p);
     planoPrefixos.set(p.classificacao, p.descricao);
   }
-  const matcher = buildMatcher(mapas);
+  const matcher = buildMatcher(mapas, mascara);
 
   // Linhas mapeadas únicas, com ordem
   const linhasMeta = new Map<string, { ordem: number }>();
@@ -464,7 +485,7 @@ async function buildDRE(
     }
 
 
-    const pontos = aplicarMapaESinal(saldosPorConta, planoMap, matcher);
+    const pontos = aplicarMapaESinal(saldosPorConta, planoMap, matcher, mascara);
 
     // Agrupa por linha mapeada
     const porLinha = new Map<
@@ -482,7 +503,7 @@ async function buildDRE(
         classificacao: pt.classificacao,
         descricao: conta?.descricao ?? pt.classificacao,
         valor: pt.valor,
-        nivelPlano: conta?.nivel ?? pt.classificacao.split(".").length,
+        nivelPlano: conta?.nivel ?? nivelDe(pt.classificacao, mascara),
       });
     }
 
@@ -492,7 +513,7 @@ async function buildDRE(
     );
     for (const [linha, info] of linhasOrd) {
       const base = info.ordem * 1000;
-      out.push(...emitirHierarquia({ linha, ordem: info.ordem }, info.itens, p, base, planoPrefixos));
+      out.push(...emitirHierarquia({ linha, ordem: info.ordem }, info.itens, p, base, planoPrefixos, mascara));
     }
   }
 
@@ -586,6 +607,7 @@ async function buildBP(
   modoGlobal: boolean,
   periodos: string[],
   tipo: "BP_ATIVO" | "BP_PASSIVO",
+  mascara: MascaraConfig,
 ): Promise<FlatRow[]> {
   const tipoPlano = tipo === "BP_ATIVO" ? ["1-Ativo"] : ["2-Passivo"];
   const ateData = [...periodos].sort().pop()!;
@@ -611,7 +633,7 @@ async function buildBP(
       planoPrefixos.set(p.classificacao, p.descricao);
     }
   }
-  const matcher = buildMatcher(mapas);
+  const matcher = buildMatcher(mapas, mascara);
 
   const linhasMeta = new Map<string, { ordem: number }>();
   for (const m of mapas) {
@@ -642,7 +664,7 @@ async function buildBP(
     }
 
     const snapshot = new Map(acumPorConta);
-    const pontos = aplicarMapaESinal(snapshot, planoMap, matcher, { incluirParticipantes: true });
+    const pontos = aplicarMapaESinal(snapshot, planoMap, matcher, mascara, { incluirParticipantes: true });
 
     const porLinha = new Map<
       string,
@@ -659,7 +681,7 @@ async function buildBP(
         classificacao: pt.classificacao,
         descricao: conta?.descricao ?? pt.classificacao,
         valor: pt.valor,
-        nivelPlano: conta?.nivel ?? pt.classificacao.split(".").length,
+        nivelPlano: conta?.nivel ?? nivelDe(pt.classificacao, mascara),
       });
     }
 
@@ -675,6 +697,7 @@ async function buildBP(
         ref,
         base,
         planoPrefixos,
+        mascara,
       );
       out.push(...linhas);
       // soma só do parent (nivel 0) para o total
@@ -708,11 +731,14 @@ export async function buildStatementFromDiario(
   periodos: string[],
 ): Promise<FlatRow[]> {
   if (periodos.length === 0) return [];
-  if (tipo === "DRE") return buildDRE(companyId, tenantId, modoGlobal, periodos, "DRE");
-  if (tipo === "DFC") return buildDFC(companyId, tenantId, modoGlobal, periodos);
-  if (tipo === "DLPA") return buildDLPA(companyId, tenantId, modoGlobal, periodos);
-  if (tipo === "DVA") return buildDVA(companyId, tenantId, modoGlobal, periodos);
-  return buildBP(companyId, tenantId, modoGlobal, periodos, tipo);
+  // Carrega máscara da empresa (cai para tenant/default) — fonte única
+  // de verdade para split, prefixo, pai e grupo nas demonstrações.
+  const mascara = await getMascaraConfig({ tenantId, companyId });
+  if (tipo === "DRE") return buildDRE(companyId, tenantId, modoGlobal, periodos, "DRE", mascara);
+  if (tipo === "DFC") return buildDFC(companyId, tenantId, modoGlobal, periodos, mascara);
+  if (tipo === "DLPA") return buildDLPA(companyId, tenantId, modoGlobal, periodos, mascara);
+  if (tipo === "DVA") return buildDVA(companyId, tenantId, modoGlobal, periodos, mascara);
+  return buildBP(companyId, tenantId, modoGlobal, periodos, tipo, mascara);
 }
 
 // ============================================================
@@ -748,6 +774,7 @@ async function getSnapshotPorPrefixo(
   modoGlobal: boolean,
   ateData: string,
   prefixos: string[],
+  mascara: MascaraConfig,
 ): Promise<ContaSnapshot[]> {
   // carrega plano todo e saldos acumulados, filtra por prefixo
   const [plano, abertura, saldosAcum] = await Promise.all([
@@ -768,9 +795,7 @@ async function getSnapshotPorPrefixo(
   for (const [codigo, saldo] of acumPorCodigo) {
     const conta = planoPorCodigo.get(codigo);
     if (!conta || conta.is_participante) continue;
-    const matches = prefixos.some(
-      (pref) => conta.classificacao === pref || conta.classificacao.startsWith(pref + "."),
-    );
+    const matches = prefixos.some((pref) => descendeDe(conta.classificacao, pref, mascara));
     if (!matches) continue;
     out.push({ classificacao: conta.classificacao, descricao: conta.descricao, saldo });
   }
@@ -814,9 +839,10 @@ async function buildDFC(
   tenantId: string,
   modoGlobal: boolean,
   periodos: string[],
+  mascara: MascaraConfig,
 ): Promise<FlatRow[]> {
   const periodosOrd = [...periodos].sort();
-  const dre = await buildDRE(companyId, tenantId, modoGlobal, periodosOrd, "DRE");
+  const dre = await buildDRE(companyId, tenantId, modoGlobal, periodosOrd, "DRE", mascara);
 
   // valor por linha/período no DRE
   const dreVal = (descricao: string, p: string) =>
@@ -840,20 +866,18 @@ async function buildDFC(
         PREFIXO_EMPRESTIMOS_CP,
         PREFIXO_EMPRESTIMOS_LP,
         PREFIXO_CAPITAL_SOCIAL,
-      ]),
+      ], mascara),
       getSnapshotPorPrefixo(companyId, tenantId, modoGlobal, p, [
         PREFIXO_CAIXA,
         PREFIXO_IMOBILIZADO,
         PREFIXO_EMPRESTIMOS_CP,
         PREFIXO_EMPRESTIMOS_LP,
         PREFIXO_CAPITAL_SOCIAL,
-      ]),
+      ], mascara),
     ]);
 
     const filtPref = (snap: ContaSnapshot[], pref: string) =>
-      snap.filter(
-        (s) => s.classificacao === pref || s.classificacao.startsWith(pref + "."),
-      );
+      snap.filter((s) => descendeDe(s.classificacao, pref, mascara));
 
     const caixaIni = sumSnapshots(filtPref(snapPrev, PREFIXO_CAIXA));
     const caixaFim = sumSnapshots(filtPref(snapCurr, PREFIXO_CAIXA));
@@ -933,9 +957,10 @@ async function buildDLPA(
   tenantId: string,
   modoGlobal: boolean,
   periodos: string[],
+  mascara: MascaraConfig,
 ): Promise<FlatRow[]> {
   const periodosOrd = [...periodos].sort();
-  const dre = await buildDRE(companyId, tenantId, modoGlobal, periodosOrd, "DRE");
+  const dre = await buildDRE(companyId, tenantId, modoGlobal, periodosOrd, "DRE", mascara);
   const dreVal = (descricao: string, p: string) =>
     dre.find((r) => r.descricao === descricao && r.periodo === p)?.valor ?? 0;
 
@@ -947,15 +972,15 @@ async function buildDLPA(
         PREFIXO_LUCROS_ACUM,
         PREFIXO_LUCROS_ACUM_ALT,
         PREFIXO_CAPITAL_SOCIAL,
-      ]),
+      ], mascara),
       getSnapshotPorPrefixo(companyId, tenantId, modoGlobal, p, [
         PREFIXO_LUCROS_ACUM,
         PREFIXO_LUCROS_ACUM_ALT,
         PREFIXO_CAPITAL_SOCIAL,
-      ]),
+      ], mascara),
     ]);
     const filtPref = (snap: ContaSnapshot[], prefs: string[]) =>
-      snap.filter((s) => prefs.some((pref) => s.classificacao === pref || s.classificacao.startsWith(pref + ".")));
+      snap.filter((s) => prefs.some((pref) => descendeDe(s.classificacao, pref, mascara)));
 
     // Passivo é credor: para PL exibir como positivo invertemos o sinal
     const saldoInicial = -sumSnapshots(
@@ -1013,9 +1038,10 @@ async function buildDVA(
   tenantId: string,
   modoGlobal: boolean,
   periodos: string[],
+  mascara: MascaraConfig,
 ): Promise<FlatRow[]> {
   const periodosOrd = [...periodos].sort();
-  const dre = await buildDRE(companyId, tenantId, modoGlobal, periodosOrd, "DRE");
+  const dre = await buildDRE(companyId, tenantId, modoGlobal, periodosOrd, "DRE", mascara);
 
   const dreVal = (descricao: string, p: string) =>
     dre.find((r) => r.descricao === descricao && r.periodo === p)?.valor ?? 0;

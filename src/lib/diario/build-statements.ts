@@ -95,16 +95,17 @@ async function getPlanoPorTipo(
   tenantId: string,
   modoGlobal: boolean,
   tiposPlano: string[],
+  opts: { incluirParticipantes?: boolean } = {},
 ): Promise<Plano[]> {
   return fetchAllPaginated<Plano>((from, to) => {
-    const q = supabase
+    let q = supabase
       .from("plano_contas")
       .select("codigo, classificacao, descricao, nivel, is_participante")
       .eq("tenant_id", tenantId)
       .eq("ativo", true)
-      .eq("is_participante", false)
       .in("tipo", tiposPlano)
       .range(from, to);
+    if (!opts.incluirParticipantes) q = q.eq("is_participante", false);
     return modoGlobal ? q.is("company_id", null) : q.eq("company_id", companyId);
   });
 }

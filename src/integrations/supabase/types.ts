@@ -716,6 +716,7 @@ export type Database = {
           created_at: string
           grupos: Json
           id: string
+          larguras: number[] | null
           niveis: Json
           separador: string
           tenant_id: string
@@ -726,6 +727,7 @@ export type Database = {
           created_at?: string
           grupos?: Json
           id?: string
+          larguras?: number[] | null
           niveis?: Json
           separador?: string
           tenant_id: string
@@ -736,6 +738,7 @@ export type Database = {
           created_at?: string
           grupos?: Json
           id?: string
+          larguras?: number[] | null
           niveis?: Json
           separador?: string
           tenant_id?: string

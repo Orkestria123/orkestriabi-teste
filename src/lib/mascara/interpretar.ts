@@ -175,7 +175,7 @@ export async function getMascaraConfig(opts: {
   // tenta config da empresa; cai para config do tenant; cai para default
   const { data } = await supabase
     .from("mascara_classificacao" as any)
-    .select("separador, niveis, grupos, company_id")
+    .select("separador, niveis, grupos, larguras, company_id")
     .eq("tenant_id", opts.tenantId);
 
   const rows = (data ?? []) as any[];
@@ -190,6 +190,7 @@ export async function getMascaraConfig(opts: {
         separador: row.separador ?? ".",
         niveis: (row.niveis as NivelMascara[]) ?? MASCARA_DEFAULT.niveis,
         grupos: (row.grupos as Record<string, GrupoContabil>) ?? MASCARA_DEFAULT.grupos,
+        larguras: (row.larguras as number[] | null) ?? undefined,
       }
     : MASCARA_DEFAULT;
   cache.set(key, cfg);

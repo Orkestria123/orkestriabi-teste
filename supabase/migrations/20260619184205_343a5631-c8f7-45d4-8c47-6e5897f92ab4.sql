@@ -1,0 +1,1 @@
+ALTER TABLE public.mascara_classificacao ADD COLUMN IF NOT EXISTS larguras integer[];

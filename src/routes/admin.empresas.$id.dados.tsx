@@ -23,6 +23,7 @@ import { salvarPlanoContas, salvarDiarioUpload, removerUpload } from "@/lib/diar
 import { sugerirMapeamento, classificacoesNaoMapeadas, type MapeamentoSugerido, type TipoDemonstracao } from "@/lib/diario/suggest-mapping";
 import { formatBRL } from "@/lib/format";
 import { MascaraConfigPanel } from "@/components/mascara-config";
+import { BalancoFechaBadge } from "@/components/balanco-fecha-badge";
 import { getMascaraConfig } from "@/lib/mascara/interpretar";
 
 export const Route = createFileRoute("/admin/empresas/$id/dados")({
@@ -75,6 +76,9 @@ function Page() {
           Para editar, vá em <Link to="/admin/configuracoes" className="underline">Configurações &gt; Plano Global</Link>.
         </Card>
       )}
+
+      {company && <BalancoFechaBadge tenantId={company.tenant_id!} companyId={company.id} />}
+
 
       <Tabs value={tab} onValueChange={(v) => setTab(v as any)}>
         <TabsList>

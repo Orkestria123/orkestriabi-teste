@@ -357,6 +357,7 @@ function emitirArvoreBP(
   periodo: string,
   linhaOrdemBase: number,
   planoPrefixos: Map<string, string>,
+  mascara: MascaraConfig,
 ): FlatRow[] {
   const out: FlatRow[] = [];
   const totalParent = pontos.reduce((a, b) => a + b.valor, 0);
@@ -371,7 +372,7 @@ function emitirArvoreBP(
   });
   if (pontos.length === 0) return out;
 
-  const profMin = Math.min(...pontos.map((p) => p.classificacao.split(".").length));
+  const profMin = Math.min(...pontos.map((p) => nivelDe(p.classificacao, mascara)));
 
   type Node = {
     classif: string;
@@ -382,10 +383,10 @@ function emitirArvoreBP(
   const root = new Map<string, Node>();
 
   for (const p of pontos) {
-    const parts = p.classificacao.split(".");
+    const parts = dividir(p.classificacao, mascara);
     let map = root;
     for (let level = profMin; level <= parts.length; level++) {
-      const prefix = parts.slice(0, level).join(".");
+      const prefix = juntar(parts.slice(0, level), mascara);
       let node = map.get(prefix);
       if (!node) {
         node = { classif: prefix, valor: 0, depth: level, children: new Map() };
@@ -430,6 +431,7 @@ async function buildDRE(
   modoGlobal: boolean,
   periodos: string[],
   tipo: "DRE" | "DFC",
+  mascara: MascaraConfig,
 ): Promise<FlatRow[]> {
   const [mapas, saldos, plano] = await Promise.all([
     getMapa(companyId, tenantId, modoGlobal, tipo),
@@ -445,7 +447,7 @@ async function buildDRE(
     planoPorClassificacao.set(p.classificacao, p);
     planoPrefixos.set(p.classificacao, p.descricao);
   }
-  const matcher = buildMatcher(mapas);
+  const matcher = buildMatcher(mapas, mascara);
 
   // Linhas mapeadas únicas, com ordem
   const linhasMeta = new Map<string, { ordem: number }>();
@@ -483,7 +485,7 @@ async function buildDRE(
     }
 
 
-    const pontos = aplicarMapaESinal(saldosPorConta, planoMap, matcher);
+    const pontos = aplicarMapaESinal(saldosPorConta, planoMap, matcher, mascara);
 
     // Agrupa por linha mapeada
     const porLinha = new Map<
@@ -501,7 +503,7 @@ async function buildDRE(
         classificacao: pt.classificacao,
         descricao: conta?.descricao ?? pt.classificacao,
         valor: pt.valor,
-        nivelPlano: conta?.nivel ?? pt.classificacao.split(".").length,
+        nivelPlano: conta?.nivel ?? nivelDe(pt.classificacao, mascara),
       });
     }
 
@@ -511,7 +513,7 @@ async function buildDRE(
     );
     for (const [linha, info] of linhasOrd) {
       const base = info.ordem * 1000;
-      out.push(...emitirHierarquia({ linha, ordem: info.ordem }, info.itens, p, base, planoPrefixos));
+      out.push(...emitirHierarquia({ linha, ordem: info.ordem }, info.itens, p, base, planoPrefixos, mascara));
     }
   }
 

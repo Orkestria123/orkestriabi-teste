@@ -211,12 +211,13 @@ function aplicarMapaESinal(
   saldosPorConta: Map<string, number>,
   planoMap: Map<string, Plano>,
   matcher: (c: string) => Mapa | null,
+  opts: { incluirParticipantes?: boolean } = {},
 ): { mapa: Mapa; classificacao: string; valor: number }[] {
   const out: { mapa: Mapa; classificacao: string; valor: number }[] = [];
   for (const [codigo, valor] of saldosPorConta) {
     const conta = planoMap.get(codigo);
     if (!conta) continue;
-    if (conta.is_participante) continue;
+    if (conta.is_participante && !opts.incluirParticipantes) continue;
     if (SKIP_APURACAO.test(conta.classificacao)) continue;
     const m = matcher(conta.classificacao);
     if (!m) continue;

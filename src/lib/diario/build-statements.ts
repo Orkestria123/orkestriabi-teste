@@ -234,15 +234,17 @@ async function getSaldosAteData(
 async function getAberturaMaisRecente(
   companyId: string,
 ): Promise<Map<string, number>> {
-  const { data, error } = await supabase
-    .from("saldos_abertura")
-    .select("conta_codigo, data_referencia, saldo")
-    .eq("company_id", companyId)
-    .order("data_referencia", { ascending: false });
-  if (error) throw error;
+  const data = await fetchAllPaginated<any>((from, to) =>
+    supabase
+      .from("saldos_abertura")
+      .select("conta_codigo, data_referencia, saldo")
+      .eq("company_id", companyId)
+      .order("data_referencia", { ascending: false })
+      .range(from, to),
+  );
   const m = new Map<string, number>();
   const seen = new Set<string>();
-  for (const r of (data ?? []) as any[]) {
+  for (const r of data) {
     if (!seen.has(r.conta_codigo)) {
       seen.add(r.conta_codigo);
       m.set(r.conta_codigo, Number(r.saldo) || 0);

@@ -627,9 +627,15 @@ async function buildBP(
   const planoMap = new Map<string, Plano>();
   const planoPorClassificacao = new Map<string, Plano>();
   const planoPrefixos = new Map<string, string>();
+  const classificacoesEstruturais = new Set<string>();
   for (const p of plano) {
     planoMap.set(p.codigo, p);
-    planoPorClassificacao.set(p.classificacao, p);
+    if (!p.is_participante) {
+      planoPorClassificacao.set(p.classificacao, p);
+      classificacoesEstruturais.add(p.classificacao);
+    } else if (!planoPorClassificacao.has(p.classificacao)) {
+      planoPorClassificacao.set(p.classificacao, p);
+    }
     // Prefere a descrição da conta ESTRUTURAL para os prefixos pais
     // (evita rotular a conta pai "CLIENTES" com o nome de um cliente individual).
     if (!p.is_participante || !planoPrefixos.has(p.classificacao)) {
@@ -668,6 +674,12 @@ async function buildBP(
 
     const snapshot = new Map(acumPorConta);
     const pontos = aplicarMapaESinal(snapshot, planoMap, matcher, mascara, { incluirParticipantes: true });
+    const pontosConsolidados = pontos.map((pt) => ({
+      ...pt,
+      classificacao: pt.isParticipante
+        ? prefixoEstruturalMaisProximo(pt.classificacao, classificacoesEstruturais, mascara)
+        : pt.classificacao,
+    }));
 
     const porLinha = new Map<
       string,
@@ -676,7 +688,7 @@ async function buildBP(
     for (const [linha, meta] of linhasMeta) {
       porLinha.set(linha, { ordem: meta.ordem, itens: [] });
     }
-    for (const pt of pontos) {
+    for (const pt of pontosConsolidados) {
       const linha = pt.mapa.linha_demonstracao;
       const conta = planoPorClassificacao.get(pt.classificacao);
       const bucket = porLinha.get(linha)!;

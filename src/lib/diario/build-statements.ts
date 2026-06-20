@@ -245,10 +245,6 @@ function aplicarMapaESinal(
   return out;
 }
 
-interface NodeAgg {
-  classificacao: string;
-  valor: number;
-}
 
 /**
  * Monta linhas planas para UMA linha mapeada (parent) + grupos do plano abaixo.
@@ -265,84 +261,9 @@ function emitirHierarquia(
   planoPrefixos: Map<string, string>,
   mascara: MascaraConfig,
 ): FlatRow[] {
-  const out: FlatRow[] = [];
-
-  // Total do parent
-  const totalParent = pontos.reduce((a, b) => a + b.valor, 0);
-  out.push({
-    linha_ordem: linhaOrdemBase,
-    descricao: parent.linha,
-    codigo_conta: null,
-    nivel: 0,
-    is_subtotal: true,
-    periodo,
-    valor: totalParent,
-  });
-
-  if (pontos.length === 0) return out;
-
-  // Detecta nivel base (menor profundidade da classificação)
-  const profMin = Math.min(...pontos.map((p) => nivelDe(p.classificacao, mascara)));
-  const niv1 = profMin; // grupos diretos abaixo do parent
-  const niv2 = profMin + 1; // detalhe
-
-  const agrupadoN1 = new Map<string, NodeAgg>();
-  const agrupadoN2 = new Map<string, Map<string, NodeAgg>>(); // n1 → n2 → agg
-
-  for (const p of pontos) {
-    const k1 = prefixoAteNivel(p.classificacao, niv1, mascara);
-    const k2 = prefixoAteNivel(p.classificacao, niv2, mascara);
-    const a1 = agrupadoN1.get(k1) ?? { classificacao: k1, valor: 0 };
-    a1.valor += p.valor;
-    agrupadoN1.set(k1, a1);
-
-    let mapN2 = agrupadoN2.get(k1);
-    if (!mapN2) {
-      mapN2 = new Map();
-      agrupadoN2.set(k1, mapN2);
-    }
-    const a2 = mapN2.get(k2) ?? { classificacao: k2, valor: 0 };
-    a2.valor += p.valor;
-    mapN2.set(k2, a2);
-  }
-
-  const sortedN1 = Array.from(agrupadoN1.values()).sort((a, b) =>
-    a.classificacao.localeCompare(b.classificacao),
-  );
-
-  let i = 1;
-  for (const n1 of sortedN1) {
-    out.push({
-      linha_ordem: linhaOrdemBase + i++,
-      descricao: planoPrefixos.get(n1.classificacao) ?? n1.classificacao,
-      codigo_conta: n1.classificacao,
-      nivel: 1,
-      is_subtotal: false,
-      periodo,
-      valor: n1.valor,
-    });
-
-    const childs = Array.from(agrupadoN2.get(n1.classificacao)?.values() ?? []).sort(
-      (a, b) => a.classificacao.localeCompare(b.classificacao),
-    );
-    // Só mostra nivel 2 se houver mais de um filho (evita ruído)
-    if (childs.length > 1) {
-      for (const c of childs) {
-        if (c.classificacao === n1.classificacao) continue;
-        out.push({
-          linha_ordem: linhaOrdemBase + i++,
-          descricao: planoPrefixos.get(c.classificacao) ?? c.classificacao,
-          codigo_conta: c.classificacao,
-          nivel: 2,
-          is_subtotal: false,
-          periodo,
-          valor: c.valor,
-        });
-      }
-    }
-  }
-
-  return out;
+  // Mesma árvore hierárquica completa usada no Balanço: emite todos os
+  // níveis do plano para que StatementTable mostre chevron expansível.
+  return emitirArvoreBP(parent, pontos, periodo, linhaOrdemBase, planoPrefixos, mascara);
 }
 
 /**

@@ -119,16 +119,40 @@ function DashboardLayout() {
 
 function PeriodSync({ companyId }: { companyId: string | null }) {
   const { data } = useAvailablePeriods(companyId);
-  const { setAvailableYears, setAvailablePeriods, years, setYears } = useFilters();
+  const {
+    setAvailableYears,
+    setAvailablePeriods,
+    years,
+    setYears,
+    months,
+    setMonths,
+  } = useFilters();
   useEffect(() => {
     if (!data) return;
     setAvailablePeriods(data);
-    const ys = Array.from(new Set(data.map((p) => new Date(p).getUTCFullYear()))).sort();
-    if (ys.length > 0) {
-      setAvailableYears(ys);
-      // If currently selected years have no data, default to the most recent available year
-      const overlap = years.filter((y) => ys.includes(y));
-      if (overlap.length === 0) setYears([ys[ys.length - 1]]);
+    const ys = Array.from(
+      new Set(data.map((p) => new Date(p).getUTCFullYear())),
+    ).sort();
+    if (ys.length === 0) return;
+    setAvailableYears(ys);
+
+    // Se o ano selecionado não tem dados, cai para o ano mais recente disponível
+    const overlap = years.filter((y) => ys.includes(y));
+    const targetYear = overlap.length === 0 ? ys[ys.length - 1] : overlap[overlap.length - 1];
+    if (overlap.length === 0) setYears([targetYear]);
+
+    // Garante que os meses selecionados existam dentro do ano alvo;
+    // caso contrário, marca todos os meses disponíveis nesse ano.
+    const monthsDoAno = Array.from(
+      new Set(
+        data
+          .filter((p) => new Date(p).getUTCFullYear() === targetYear)
+          .map((p) => new Date(p).getUTCMonth() + 1),
+      ),
+    ).sort((a, b) => a - b);
+    const overlapMonths = months.filter((m) => monthsDoAno.includes(m));
+    if (overlapMonths.length === 0 && monthsDoAno.length > 0) {
+      setMonths(monthsDoAno);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data]);

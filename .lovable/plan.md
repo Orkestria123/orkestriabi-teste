@@ -1,62 +1,35 @@
-## Diagnóstico
+## Objetivo
 
-Em `emitirArvoreBP` (src/lib/diario/build-statements.ts:296), a profundidade inicial da árvore é:
+Hoje "Ativo Não Circulante" mostra o total correto (R$ 15.984.736,54), mas seus filhos (Realizável a Longo Prazo, Investimentos, Imobilizado, Intangível) aparecem como linhas irmãs no mesmo nível de indentação. Precisamos que fiquem recuados e expansíveis abaixo do pai, igual ao comportamento do "Ativo Circulante".
 
-```ts
-const profMin = Math.min(...pontos.map((p) => nivelDe(p.classificacao, mascara)));
+## Mudança (arquivo: `src/lib/diario/build-statements.ts`, função `buildBP`)
+
+No loop que monta as linhas por período (linhas ~651-670):
+
+1. Para cada `linha` que é filho estrutural (`childSet.has(linha)`), reordenar para que suas rows fiquem imediatamente depois do header do pai e antes da próxima linha-mãe:
+   - Calcular `base` do filho como `parentOrdem * 1000 + (10 + indexDoFilho) * 10`, onde `parentOrdem` é o `ordem` da linha "Ativo Não Circulante" e `indexDoFilho` é a posição do filho na lista `STRUCT_GROUPS[parent]`.
+   - Isso garante que `linha_ordem` dos filhos caia entre o header do pai e a próxima linha de topo.
+
+2. Para cada row emitida de um filho estrutural, somar `+1` ao `nivel` (recuo visual) — o header do filho vira nível 1, suas sub-rows nível 2, etc.
+
+3. Marcar o header do pai estrutural como `is_subtotal: true` (já é, mas garantir) para manter o visual de pai expansível. O componente de árvore já usa `nivel` para indentar e detectar filhos pela diferença de nível subsequente — não requer mudança no componente.
+
+4. Manter a agregação atual de `parentValor` (que já está somando corretamente) e a soma de `totalLado`.
+
+## Resultado esperado
+
+```
+> Ativo Circulante                       R$ 2.462.497,34
+v Ativo Não Circulante                  R$ 15.984.736,54
+    Realizável a Longo Prazo                   R$ 0,00
+  > Imobilizado                        R$ 15.955.184,83
+  > Investimentos                          R$ 29.551,71
+    Intangível                                 R$ 0,00
+  Total do Ativo                       R$ 18.447.233,88
 ```
 
-Como `pontos` contém apenas **contas analíticas** (folhas), `profMin` acaba sendo o nível das próprias folhas (5 ou 6 no plano da Transpio). O loop:
+## Fora de escopo
 
-```ts
-for (let level = profMin; level <= parts.length; level++) {
-```
-
-começa em `profMin = 5`, então **não emite os níveis 2, 3 e 4** (CIRCULANTE, DISPONIVEL, BANCOS CONTA MOVIMENTO, CLIENTES, etc.). Resultado: a "árvore" aparece como lista plana de folhas sob a linha mapeada — sem chevrons, sem hierarquia visível. É exatamente o que o usuário vê no Balanço.
-
-Confirmação com o CSV anexado (`Transpio Balanço.csv`):
-- Folhas como `1.01.01.01.01 CAIXA` (nível 5) e `1.01.02.01.01.01 CLIENTES` (nível 6) coexistem
-- `profMin = 5` → níveis 1–4 ("ATIVO", "CIRCULANTE", "DISPONIVEL", "CAIXA GERAL", "CLIENTES") são pulados
-- A árvore esperada exibiria, por baixo da linha mapeada, os agrupamentos estruturais (DISPONIVEL → CAIXA GERAL → CAIXA, etc.)
-
-## Correção
-
-### 1. `src/lib/diario/build-statements.ts` — `emitirArvoreBP`
-
-Começar a árvore no **nível do prefixo comum** do bucket (Longest Common Prefix), não no nível mínimo das folhas:
-
-```ts
-function commonPrefixLen(classifs: string[], mascara: MascaraConfig): number {
-  if (classifs.length === 0) return 1;
-  const split = classifs.map((c) => dividir(c, mascara));
-  const min = Math.min(...split.map((s) => s.length));
-  let n = 0;
-  outer: for (let i = 0; i < min; i++) {
-    const seg = split[0][i];
-    for (const s of split) if (s[i] !== seg) break outer;
-    n++;
-  }
-  return Math.max(1, n);
-}
-```
-
-Substituir `profMin` por `commonPrefixLen(pontos.map(p => p.classificacao), mascara)`. Isso garante que **todos os níveis intermediários** entre o ancestral comum e cada folha sejam emitidos como nós com chevron.
-
-### 2. Opcional — colapsar nó intermediário redundante
-
-Quando um nó tem exatamente 1 filho com o mesmo valor, evitar o ruído visual (ex.: "CAIXA GERAL → CAIXA" quando só existe CAIXA). Implementar no `walk()` pulando esses intermediários.
-
-### 3. Validação
-
-- Carregar o CSV de teste como saldo inicial (já existe parser)
-- Após o build do BP, verificar que a árvore exibe: ATIVO > CIRCULANTE > DISPONIVEL > CAIXA GERAL > CAIXA / BANCOS CONTA MOVIMENTO > [bancos]
-- Confirmar somas: `CREDITOS` = 2.583.417,87; `CLIENTES` = 1.539.255,93; Total Ativo = 18.991.489,71
-
-### 4. Não alterar
-
-- `emitirHierarquia` já delega para `emitirArvoreBP` (DRE/DFC/DLPA/DVA) — recebem o mesmo benefício automaticamente.
-- `StatementTable` já calcula `childrenMap` por `nivel` — basta termos níveis intermediários presentes.
-- `initialExpandLevel={3}` já está em todos.
-
-## Arquivos editados
-- `src/lib/diario/build-statements.ts` (função `emitirArvoreBP` e novo helper `commonPrefixLen`)
+- Não alterar Passivo nesta rodada (usuário escolheu apenas Ativo).
+- Não mexer em DRE/DFC/DLPA/DVA.
+- Não alterar componentes de UI da árvore.

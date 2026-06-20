@@ -245,10 +245,6 @@ function aplicarMapaESinal(
   return out;
 }
 
-interface NodeAgg {
-  classificacao: string;
-  valor: number;
-}
 
 /**
  * Monta linhas planas para UMA linha mapeada (parent) + grupos do plano abaixo.

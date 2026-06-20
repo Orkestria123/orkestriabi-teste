@@ -105,6 +105,7 @@ export function makeStatementPage(tipo: string, title: string, avBase?: string, 
             showTotal
             basePeriod={basePeriod}
             avBaseCodigo={avBase}
+            initialExpandLevel={3}
           />
         )}
       </div>

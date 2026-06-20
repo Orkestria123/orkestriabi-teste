@@ -270,8 +270,8 @@ function aplicarMapaESinal(
   matcher: (c: string) => Mapa | null,
   mascara: MascaraConfig,
   opts: { incluirParticipantes?: boolean } = {},
-): { mapa: Mapa; classificacao: string; valor: number }[] {
-  const out: { mapa: Mapa; classificacao: string; valor: number }[] = [];
+): { mapa: Mapa; classificacao: string; valor: number; isParticipante: boolean }[] {
+  const out: { mapa: Mapa; classificacao: string; valor: number; isParticipante: boolean }[] = [];
   for (const [codigo, valor] of saldosPorConta) {
     const conta = planoMap.get(codigo);
     if (!conta) continue;
@@ -280,7 +280,7 @@ function aplicarMapaESinal(
     const m = matcher(conta.classificacao);
     if (!m) continue;
     const v = m.inverter_sinal ? -valor : valor;
-    out.push({ mapa: m, classificacao: conta.classificacao, valor: v });
+    out.push({ mapa: m, classificacao: conta.classificacao, valor: v, isParticipante: conta.is_participante });
   }
   return out;
 }
@@ -401,6 +401,19 @@ function commonPrefixLen(classifs: string[], mascara: MascaraConfig): number {
     n++;
   }
   return Math.max(1, n);
+}
+
+function prefixoEstruturalMaisProximo(
+  classificacao: string,
+  estruturais: Set<string>,
+  mascara: MascaraConfig,
+): string {
+  const partes = dividir(classificacao, mascara);
+  for (let level = partes.length; level >= 1; level--) {
+    const prefixo = juntar(partes.slice(0, level), mascara);
+    if (estruturais.has(prefixo)) return prefixo;
+  }
+  return classificacao;
 }
 
 

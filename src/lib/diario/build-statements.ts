@@ -114,13 +114,29 @@ async function getPlanoPorTipo(
   tiposPlano: string[],
   opts: { incluirParticipantes?: boolean } = {},
 ): Promise<Plano[]> {
+  // Quando o caller pede participantes, expandimos o filtro de "tipo" para
+  // também trazer Clientes (4/6) junto com 1-Ativo e Fornecedores (5/7)
+  // junto com 2-Passivo. Caso contrário, contas tipo 4-7 ficariam de fora
+  // mesmo com incluirParticipantes=true (cada cliente/fornecedor é uma conta
+  // analítica distinta com saldo real que precisa somar na conta-pai).
+  const tiposExpandidos = new Set(tiposPlano);
+  if (opts.incluirParticipantes) {
+    if (tiposPlano.includes("1-Ativo")) {
+      tiposExpandidos.add("4-Cli. Nac.");
+      tiposExpandidos.add("6-Cli. Ex.");
+    }
+    if (tiposPlano.includes("2-Passivo")) {
+      tiposExpandidos.add("5-For. Nac.");
+      tiposExpandidos.add("7-For. Ex.");
+    }
+  }
   return fetchAllPaginated<Plano>((from, to) => {
     let q = supabase
       .from("plano_contas")
       .select("codigo, classificacao, descricao, nivel, is_participante")
       .eq("tenant_id", tenantId)
       .eq("ativo", true)
-      .in("tipo", tiposPlano)
+      .in("tipo", Array.from(tiposExpandidos))
       .range(from, to);
     if (!opts.incluirParticipantes) q = q.eq("is_participante", false);
     return modoGlobal ? q.is("company_id", null) : q.eq("company_id", companyId);

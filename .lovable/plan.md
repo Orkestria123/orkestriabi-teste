@@ -1,45 +1,27 @@
 ## Diagnóstico
 
-Após a correção do bug anterior (incluir contas participantes 4/5/6/7 no plano para o BP), a função `getPlanoPorTipo` agora baixa o plano inteiro, incluindo **TODOS os clientes e fornecedores cadastrados**:
+- A conta Fornecedores existe no backend e tem saldo:
+  - Saldo inicial de fornecedores: **R$ 7.491.455,42** no passivo.
+  - Em jan/2025, após movimentos, fica aproximadamente **R$ 6.726.755,62**.
+- O Balanço aparece vazio na tela porque o filtro está selecionado em **2026**, enquanto os períodos disponíveis da empresa são apenas **2025-01 a 2025-12**.
+- Há também um risco na montagem da árvore: os fornecedores participantes estão em `2.01.01.01.01.01`, mas não existe conta estrutural exatamente nesse último nível; por isso a descrição pode cair para classificação em vez de consolidar claramente sob a conta-pai `FORNECEDORES NACIONAIS` / `FORNECEDORES`.
 
-```
-1-Ativo         322
-4-Cli. Nac.     113.099   ← todos os clientes (a maioria SEM saldo)
-6-Cli. Ex.         264
-2-Passivo       223
-5-For. Nac.     21.191
-7-For. Ex.          52
-```
+## Plano de correção
 
-Total: ~113k linhas para o lado Ativo e ~21k para o Passivo, paginadas de 1000 em 1000 (113+ requisições sequenciais por lado). Isso estoura o tempo de resposta antes do `useMonthlyStatement` resolver, e o Balanço renderiza vazio ("Nenhum dado encontrado").
+1. **Corrigir sincronização do filtro de períodos**
+   - Ajustar o `PeriodSync` para, ao carregar os períodos disponíveis da empresa, selecionar automaticamente o ano mais recente com dados quando o ano atual não possui dados.
+   - Garantir que a página não permaneça em 2026 quando só existe 2025.
 
-A própria função já comenta que precisa dos participantes "que tem saldo real" — mas o filtro de tipo traz todos cadastrados, não só os com movimento.
+2. **Melhorar consolidação visual de participantes no BP**
+   - Ajustar a montagem da árvore do Balanço para não criar/rotular o nível analítico dos participantes individualmente.
+   - Consolidar participantes no prefixo estrutural existente mais próximo, mantendo o saldo somado em Fornecedores, sem listar os 103 fornecedores.
 
-## Correção
+3. **Validar com os dados reais**
+   - Conferir que, em 2025, o Passivo Circulante carrega valores.
+   - Conferir que Fornecedores aparece consolidado no Passivo Circulante.
+   - Conferir que o Balanço deixa de ficar vazio por seleção indevida de 2026.
 
-Em `src/lib/diario/build-statements.ts`, função `getPlanoPorTipo` (linhas 110-144):
+## Arquivos previstos
 
-1. Quando `incluirParticipantes` for `true`, **NÃO** fazer um único `.in("tipo", ...)` aberto.
-2. Em vez disso:
-   - Buscar normalmente as contas estruturais (`tipo IN ('1-Ativo')` ou `('2-Passivo')`, `is_participante=false`).
-   - Buscar os participantes **apenas pelos `codigo`s que aparecem em `saldos_abertura` ou `saldos_mensais` da empresa** (até a data de referência), em `.in("codigo", codigos)` paginado.
-3. Mesclar os dois conjuntos no mesmo array `Plano[]`.
-
-Para isso, `getPlanoPorTipo` passa a aceitar um parâmetro opcional com a lista de `conta_codigo` que efetivamente têm saldo. Em `buildBP`:
-
-- Primeiro buscar `abertura` e `saldosAcum` (já são buscados).
-- Extrair o set de `conta_codigo` distintos.
-- Chamar `getPlanoPorTipo(..., { incluirParticipantes: true, codigosComSaldo: [...] })`.
-- A função filtra `4/5/6/7` por `.in("codigo", codigos)`, mas mantém `1/2` (estruturais) intactos.
-
-## Impacto
-
-- Apenas escopo do BP (Ativo / Passivo). DRE / DFC / DLPA / DVA continuam usando `incluirParticipantes:false` (não afetados).
-- Não muda agregação, sinais, nem hierarquia visual já corrigida.
-- Resultado esperado: Balanço volta a carregar; Clientes/Fornecedores continuam somando corretamente, pois só são úteis os que têm saldo.
-
-## Validação
-
-1. Abrir `/dashboard/balanco`, Jan 2025 — deve mostrar Ativo e Passivo com valores.
-2. Verificar que `Clientes ≈ R$ 1.539.255,93` (Ativo Circulante) e `Fornecedores ≈ R$ 7.491.455,42` (Passivo Circulante) seguem presentes.
-3. Diferença Ativo vs Passivo+PL = R$ 0,00.
+- `src/routes/dashboard.tsx`
+- `src/lib/diario/build-statements.ts`

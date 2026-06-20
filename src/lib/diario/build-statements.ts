@@ -646,10 +646,23 @@ async function buildBP(
     const isStructParent = (linha: string) => linha in STRUCT_GROUPS;
     const childrenOf = (linha: string) => STRUCT_GROUPS[linha] ?? [];
     const childSet = new Set(Object.values(STRUCT_GROUPS).flat());
+    // child → parent linha lookup
+    const parentOf = new Map<string, string>();
+    for (const [p, kids] of Object.entries(STRUCT_GROUPS)) {
+      kids.forEach((k) => parentOf.set(k, p));
+    }
+    // ordem do parent estrutural na lista de linhasMeta
+    const ordemDe = (linha: string) => linhasMeta.get(linha)?.ordem ?? 0;
 
     const parentValor = new Map<string, number>();
     for (const [linha, info] of linhasOrd) {
-      const base = info.ordem * 1000;
+      let base = info.ordem * 1000;
+      const parentLinha = parentOf.get(linha);
+      if (parentLinha) {
+        // Reordena: filhos estruturais caem logo após o header do pai.
+        const idx = childrenOf(parentLinha).indexOf(linha);
+        base = ordemDe(parentLinha) * 1000 + (idx + 1) * 20;
+      }
       const linhas = emitirArvoreBP(
         { linha, ordem: info.ordem },
         info.itens,
@@ -662,6 +675,9 @@ async function buildBP(
         // Só o header (nivel 0) — valor será agregado dos filhos abaixo
         const header = linhas.find((l) => l.nivel === 0);
         if (header) out.push(header);
+      } else if (parentLinha) {
+        // Filho estrutural: recua todas as rows em +1 nível
+        for (const l of linhas) out.push({ ...l, nivel: l.nivel + 1 });
       } else {
         out.push(...linhas);
       }
@@ -686,6 +702,7 @@ async function buildBP(
         totalLado += parentValor.get(linha) ?? 0;
       }
     }
+
 
     // Total do lado (Ativo / Passivo + PL)
     out.push({

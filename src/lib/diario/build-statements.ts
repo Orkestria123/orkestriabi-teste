@@ -234,15 +234,17 @@ async function getSaldosAteData(
 async function getAberturaMaisRecente(
   companyId: string,
 ): Promise<Map<string, number>> {
-  const { data, error } = await supabase
-    .from("saldos_abertura")
-    .select("conta_codigo, data_referencia, saldo")
-    .eq("company_id", companyId)
-    .order("data_referencia", { ascending: false });
-  if (error) throw error;
+  const data = await fetchAllPaginated<any>((from, to) =>
+    supabase
+      .from("saldos_abertura")
+      .select("conta_codigo, data_referencia, saldo")
+      .eq("company_id", companyId)
+      .order("data_referencia", { ascending: false })
+      .range(from, to),
+  );
   const m = new Map<string, number>();
   const seen = new Set<string>();
-  for (const r of (data ?? []) as any[]) {
+  for (const r of data) {
     if (!seen.has(r.conta_codigo)) {
       seen.add(r.conta_codigo);
       m.set(r.conta_codigo, Number(r.saldo) || 0);
@@ -270,8 +272,8 @@ function aplicarMapaESinal(
   matcher: (c: string) => Mapa | null,
   mascara: MascaraConfig,
   opts: { incluirParticipantes?: boolean } = {},
-): { mapa: Mapa; classificacao: string; valor: number }[] {
-  const out: { mapa: Mapa; classificacao: string; valor: number }[] = [];
+): { mapa: Mapa; classificacao: string; valor: number; isParticipante: boolean }[] {
+  const out: { mapa: Mapa; classificacao: string; valor: number; isParticipante: boolean }[] = [];
   for (const [codigo, valor] of saldosPorConta) {
     const conta = planoMap.get(codigo);
     if (!conta) continue;
@@ -280,7 +282,7 @@ function aplicarMapaESinal(
     const m = matcher(conta.classificacao);
     if (!m) continue;
     const v = m.inverter_sinal ? -valor : valor;
-    out.push({ mapa: m, classificacao: conta.classificacao, valor: v });
+    out.push({ mapa: m, classificacao: conta.classificacao, valor: v, isParticipante: conta.is_participante });
   }
   return out;
 }
@@ -401,6 +403,19 @@ function commonPrefixLen(classifs: string[], mascara: MascaraConfig): number {
     n++;
   }
   return Math.max(1, n);
+}
+
+function prefixoEstruturalMaisProximo(
+  classificacao: string,
+  estruturais: Set<string>,
+  mascara: MascaraConfig,
+): string {
+  const partes = dividir(classificacao, mascara);
+  for (let level = partes.length; level >= 1; level--) {
+    const prefixo = juntar(partes.slice(0, level), mascara);
+    if (estruturais.has(prefixo)) return prefixo;
+  }
+  return classificacao;
 }
 
 
@@ -614,9 +629,15 @@ async function buildBP(
   const planoMap = new Map<string, Plano>();
   const planoPorClassificacao = new Map<string, Plano>();
   const planoPrefixos = new Map<string, string>();
+  const classificacoesEstruturais = new Set<string>();
   for (const p of plano) {
     planoMap.set(p.codigo, p);
-    planoPorClassificacao.set(p.classificacao, p);
+    if (!p.is_participante) {
+      planoPorClassificacao.set(p.classificacao, p);
+      classificacoesEstruturais.add(p.classificacao);
+    } else if (!planoPorClassificacao.has(p.classificacao)) {
+      planoPorClassificacao.set(p.classificacao, p);
+    }
     // Prefere a descrição da conta ESTRUTURAL para os prefixos pais
     // (evita rotular a conta pai "CLIENTES" com o nome de um cliente individual).
     if (!p.is_participante || !planoPrefixos.has(p.classificacao)) {
@@ -655,6 +676,12 @@ async function buildBP(
 
     const snapshot = new Map(acumPorConta);
     const pontos = aplicarMapaESinal(snapshot, planoMap, matcher, mascara, { incluirParticipantes: true });
+    const pontosConsolidados = pontos.map((pt) => ({
+      ...pt,
+      classificacao: pt.isParticipante
+        ? prefixoEstruturalMaisProximo(pt.classificacao, classificacoesEstruturais, mascara)
+        : pt.classificacao,
+    }));
 
     const porLinha = new Map<
       string,
@@ -663,7 +690,7 @@ async function buildBP(
     for (const [linha, meta] of linhasMeta) {
       porLinha.set(linha, { ordem: meta.ordem, itens: [] });
     }
-    for (const pt of pontos) {
+    for (const pt of pontosConsolidados) {
       const linha = pt.mapa.linha_demonstracao;
       const conta = planoPorClassificacao.get(pt.classificacao);
       const bucket = porLinha.get(linha)!;

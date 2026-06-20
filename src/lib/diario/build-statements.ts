@@ -112,35 +112,59 @@ async function getPlanoPorTipo(
   tenantId: string,
   modoGlobal: boolean,
   tiposPlano: string[],
-  opts: { incluirParticipantes?: boolean } = {},
+  opts: { incluirParticipantes?: boolean; codigosComSaldo?: string[] } = {},
 ): Promise<Plano[]> {
-  // Quando o caller pede participantes, expandimos o filtro de "tipo" para
-  // também trazer Clientes (4/6) junto com 1-Ativo e Fornecedores (5/7)
-  // junto com 2-Passivo. Caso contrário, contas tipo 4-7 ficariam de fora
-  // mesmo com incluirParticipantes=true (cada cliente/fornecedor é uma conta
-  // analítica distinta com saldo real que precisa somar na conta-pai).
-  const tiposExpandidos = new Set(tiposPlano);
-  if (opts.incluirParticipantes) {
-    if (tiposPlano.includes("1-Ativo")) {
-      tiposExpandidos.add("4-Cli. Nac.");
-      tiposExpandidos.add("6-Cli. Ex.");
-    }
-    if (tiposPlano.includes("2-Passivo")) {
-      tiposExpandidos.add("5-For. Nac.");
-      tiposExpandidos.add("7-For. Ex.");
-    }
-  }
-  return fetchAllPaginated<Plano>((from, to) => {
-    let q = supabase
+  // Contas estruturais (1-Ativo, 2-Passivo, 3-DRE, ...): trazer todas.
+  const estruturais = await fetchAllPaginated<Plano>((from, to) => {
+    const q = supabase
       .from("plano_contas")
       .select("codigo, classificacao, descricao, nivel, is_participante")
       .eq("tenant_id", tenantId)
       .eq("ativo", true)
-      .in("tipo", Array.from(tiposExpandidos))
+      .in("tipo", tiposPlano)
+      .eq("is_participante", false)
       .range(from, to);
-    if (!opts.incluirParticipantes) q = q.eq("is_participante", false);
     return modoGlobal ? q.is("company_id", null) : q.eq("company_id", companyId);
   });
+
+  if (!opts.incluirParticipantes) return estruturais;
+
+  // Participantes (4-Cli. Nac., 5-For. Nac., 6-Cli. Ex., 7-For. Ex.):
+  // o cadastro pode ter dezenas/centenas de milhares de linhas (todos os
+  // clientes/fornecedores). Restringimos APENAS aos códigos que efetivamente
+  // possuem saldo (abertura + movimento) na empresa — caso contrário a fetch
+  // estoura e o Balanço renderiza vazio.
+  const tiposParticipantes: string[] = [];
+  if (tiposPlano.includes("1-Ativo")) {
+    tiposParticipantes.push("4-Cli. Nac.", "6-Cli. Ex.");
+  }
+  if (tiposPlano.includes("2-Passivo")) {
+    tiposParticipantes.push("5-For. Nac.", "7-For. Ex.");
+  }
+  if (tiposParticipantes.length === 0) return estruturais;
+
+  const codigos = Array.from(new Set(opts.codigosComSaldo ?? []));
+  if (codigos.length === 0) return estruturais;
+
+  // .in("codigo", ...) em lotes para evitar URLs gigantescas
+  const CHUNK = 500;
+  const participantes: Plano[] = [];
+  for (let i = 0; i < codigos.length; i += CHUNK) {
+    const lote = codigos.slice(i, i + CHUNK);
+    const rows = await fetchAllPaginated<Plano>((from, to) => {
+      const q = supabase
+        .from("plano_contas")
+        .select("codigo, classificacao, descricao, nivel, is_participante")
+        .eq("tenant_id", tenantId)
+        .eq("ativo", true)
+        .in("tipo", tiposParticipantes)
+        .in("codigo", lote)
+        .range(from, to);
+      return modoGlobal ? q.is("company_id", null) : q.eq("company_id", companyId);
+    });
+    participantes.push(...rows);
+  }
+  return [...estruturais, ...participantes];
 }
 
 async function getMapa(
@@ -569,14 +593,23 @@ async function buildBP(
   const tipoPlano = tipo === "BP_ATIVO" ? ["1-Ativo"] : ["2-Passivo"];
   const ateData = [...periodos].sort().pop()!;
 
-  const [mapas, plano, abertura, saldosAcum] = await Promise.all([
+  // Busca primeiro abertura + saldos para descobrir quais conta_codigo
+  // realmente têm saldo. Em seguida usa esse set para restringir a busca
+  // de contas participantes (clientes/fornecedores) — o cadastro completo
+  // pode ter 100k+ linhas e estoura o fetch.
+  const [mapas, abertura, saldosAcum] = await Promise.all([
     getMapa(companyId, tenantId, modoGlobal, tipo),
-    // BP precisa de TODAS as analíticas, inclusive participantes (clientes,
-    // fornecedores) — eles carregam saldo real e somam na conta-pai estrutural.
-    getPlanoPorTipo(companyId, tenantId, modoGlobal, tipoPlano, { incluirParticipantes: true }),
     getAberturaMaisRecente(companyId),
     getSaldosAteData(companyId, ateData),
   ]);
+  const codigosComSaldo = new Set<string>();
+  for (const c of abertura.keys()) codigosComSaldo.add(c);
+  for (const s of saldosAcum) codigosComSaldo.add(s.conta_codigo);
+
+  const plano = await getPlanoPorTipo(companyId, tenantId, modoGlobal, tipoPlano, {
+    incluirParticipantes: true,
+    codigosComSaldo: Array.from(codigosComSaldo),
+  });
 
   const planoMap = new Map<string, Plano>();
   const planoPorClassificacao = new Map<string, Plano>();

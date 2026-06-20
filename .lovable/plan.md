@@ -1,35 +1,45 @@
-## Objetivo
+## Diagnóstico
 
-Hoje "Ativo Não Circulante" mostra o total correto (R$ 15.984.736,54), mas seus filhos (Realizável a Longo Prazo, Investimentos, Imobilizado, Intangível) aparecem como linhas irmãs no mesmo nível de indentação. Precisamos que fiquem recuados e expansíveis abaixo do pai, igual ao comportamento do "Ativo Circulante".
-
-## Mudança (arquivo: `src/lib/diario/build-statements.ts`, função `buildBP`)
-
-No loop que monta as linhas por período (linhas ~651-670):
-
-1. Para cada `linha` que é filho estrutural (`childSet.has(linha)`), reordenar para que suas rows fiquem imediatamente depois do header do pai e antes da próxima linha-mãe:
-   - Calcular `base` do filho como `parentOrdem * 1000 + (10 + indexDoFilho) * 10`, onde `parentOrdem` é o `ordem` da linha "Ativo Não Circulante" e `indexDoFilho` é a posição do filho na lista `STRUCT_GROUPS[parent]`.
-   - Isso garante que `linha_ordem` dos filhos caia entre o header do pai e a próxima linha de topo.
-
-2. Para cada row emitida de um filho estrutural, somar `+1` ao `nivel` (recuo visual) — o header do filho vira nível 1, suas sub-rows nível 2, etc.
-
-3. Marcar o header do pai estrutural como `is_subtotal: true` (já é, mas garantir) para manter o visual de pai expansível. O componente de árvore já usa `nivel` para indentar e detectar filhos pela diferença de nível subsequente — não requer mudança no componente.
-
-4. Manter a agregação atual de `parentValor` (que já está somando corretamente) e a soma de `totalLado`.
-
-## Resultado esperado
+Após a correção do bug anterior (incluir contas participantes 4/5/6/7 no plano para o BP), a função `getPlanoPorTipo` agora baixa o plano inteiro, incluindo **TODOS os clientes e fornecedores cadastrados**:
 
 ```
-> Ativo Circulante                       R$ 2.462.497,34
-v Ativo Não Circulante                  R$ 15.984.736,54
-    Realizável a Longo Prazo                   R$ 0,00
-  > Imobilizado                        R$ 15.955.184,83
-  > Investimentos                          R$ 29.551,71
-    Intangível                                 R$ 0,00
-  Total do Ativo                       R$ 18.447.233,88
+1-Ativo         322
+4-Cli. Nac.     113.099   ← todos os clientes (a maioria SEM saldo)
+6-Cli. Ex.         264
+2-Passivo       223
+5-For. Nac.     21.191
+7-For. Ex.          52
 ```
 
-## Fora de escopo
+Total: ~113k linhas para o lado Ativo e ~21k para o Passivo, paginadas de 1000 em 1000 (113+ requisições sequenciais por lado). Isso estoura o tempo de resposta antes do `useMonthlyStatement` resolver, e o Balanço renderiza vazio ("Nenhum dado encontrado").
 
-- Não alterar Passivo nesta rodada (usuário escolheu apenas Ativo).
-- Não mexer em DRE/DFC/DLPA/DVA.
-- Não alterar componentes de UI da árvore.
+A própria função já comenta que precisa dos participantes "que tem saldo real" — mas o filtro de tipo traz todos cadastrados, não só os com movimento.
+
+## Correção
+
+Em `src/lib/diario/build-statements.ts`, função `getPlanoPorTipo` (linhas 110-144):
+
+1. Quando `incluirParticipantes` for `true`, **NÃO** fazer um único `.in("tipo", ...)` aberto.
+2. Em vez disso:
+   - Buscar normalmente as contas estruturais (`tipo IN ('1-Ativo')` ou `('2-Passivo')`, `is_participante=false`).
+   - Buscar os participantes **apenas pelos `codigo`s que aparecem em `saldos_abertura` ou `saldos_mensais` da empresa** (até a data de referência), em `.in("codigo", codigos)` paginado.
+3. Mesclar os dois conjuntos no mesmo array `Plano[]`.
+
+Para isso, `getPlanoPorTipo` passa a aceitar um parâmetro opcional com a lista de `conta_codigo` que efetivamente têm saldo. Em `buildBP`:
+
+- Primeiro buscar `abertura` e `saldosAcum` (já são buscados).
+- Extrair o set de `conta_codigo` distintos.
+- Chamar `getPlanoPorTipo(..., { incluirParticipantes: true, codigosComSaldo: [...] })`.
+- A função filtra `4/5/6/7` por `.in("codigo", codigos)`, mas mantém `1/2` (estruturais) intactos.
+
+## Impacto
+
+- Apenas escopo do BP (Ativo / Passivo). DRE / DFC / DLPA / DVA continuam usando `incluirParticipantes:false` (não afetados).
+- Não muda agregação, sinais, nem hierarquia visual já corrigida.
+- Resultado esperado: Balanço volta a carregar; Clientes/Fornecedores continuam somando corretamente, pois só são úteis os que têm saldo.
+
+## Validação
+
+1. Abrir `/dashboard/balanco`, Jan 2025 — deve mostrar Ativo e Passivo com valores.
+2. Verificar que `Clientes ≈ R$ 1.539.255,93` (Ativo Circulante) e `Fornecedores ≈ R$ 7.491.455,42` (Passivo Circulante) seguem presentes.
+3. Diferença Ativo vs Passivo+PL = R$ 0,00.

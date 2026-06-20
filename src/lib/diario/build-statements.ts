@@ -293,7 +293,7 @@ function emitirArvoreBP(
   });
   if (pontos.length === 0) return out;
 
-  const profMin = Math.min(...pontos.map((p) => nivelDe(p.classificacao, mascara)));
+  const profMin = commonPrefixLen(pontos.map((p) => p.classificacao), mascara);
 
   type Node = {
     classif: string;
@@ -319,13 +319,19 @@ function emitirArvoreBP(
   }
 
   let counter = 1;
-  const walk = (map: Map<string, Node>) => {
+  const walk = (map: Map<string, Node>, baseDepth: number) => {
     const sorted = Array.from(map.values()).sort((a, b) =>
       a.classif.localeCompare(b.classif),
     );
     for (const n of sorted) {
-      // Se este nó tem exatamente um filho com o mesmo valor, evita ruído
-      // (não emite o intermediário redundante).
+      // Colapsa intermediário redundante: 1 filho com mesmo valor → pula este nó
+      if (n.children.size === 1) {
+        const only = n.children.values().next().value!;
+        if (Math.abs(only.valor - n.valor) < 0.005) {
+          walk(n.children, baseDepth);
+          continue;
+        }
+      }
       const nivel = n.depth - profMin + 1;
       out.push({
         linha_ordem: linhaOrdemBase + counter++,
@@ -336,13 +342,27 @@ function emitirArvoreBP(
         periodo,
         valor: n.valor,
       });
-      if (n.children.size > 0) walk(n.children);
+      if (n.children.size > 0) walk(n.children, baseDepth);
     }
   };
-  walk(root);
+  walk(root, profMin);
 
   return out;
 }
+
+function commonPrefixLen(classifs: string[], mascara: MascaraConfig): number {
+  if (classifs.length === 0) return 1;
+  const split = classifs.map((c) => dividir(c, mascara));
+  const min = Math.min(...split.map((s) => s.length));
+  let n = 0;
+  outer: for (let i = 0; i < min; i++) {
+    const seg = split[0][i];
+    for (const s of split) if (s[i] !== seg) { break outer; }
+    n++;
+  }
+  return Math.max(1, n);
+}
+
 
 // ---------- DRE / DFC ----------
 

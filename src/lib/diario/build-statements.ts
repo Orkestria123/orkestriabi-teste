@@ -593,14 +593,23 @@ async function buildBP(
   const tipoPlano = tipo === "BP_ATIVO" ? ["1-Ativo"] : ["2-Passivo"];
   const ateData = [...periodos].sort().pop()!;
 
-  const [mapas, plano, abertura, saldosAcum] = await Promise.all([
+  // Busca primeiro abertura + saldos para descobrir quais conta_codigo
+  // realmente têm saldo. Em seguida usa esse set para restringir a busca
+  // de contas participantes (clientes/fornecedores) — o cadastro completo
+  // pode ter 100k+ linhas e estoura o fetch.
+  const [mapas, abertura, saldosAcum] = await Promise.all([
     getMapa(companyId, tenantId, modoGlobal, tipo),
-    // BP precisa de TODAS as analíticas, inclusive participantes (clientes,
-    // fornecedores) — eles carregam saldo real e somam na conta-pai estrutural.
-    getPlanoPorTipo(companyId, tenantId, modoGlobal, tipoPlano, { incluirParticipantes: true }),
     getAberturaMaisRecente(companyId),
     getSaldosAteData(companyId, ateData),
   ]);
+  const codigosComSaldo = new Set<string>();
+  for (const c of abertura.keys()) codigosComSaldo.add(c);
+  for (const s of saldosAcum) codigosComSaldo.add(s.conta_codigo);
+
+  const plano = await getPlanoPorTipo(companyId, tenantId, modoGlobal, tipoPlano, {
+    incluirParticipantes: true,
+    codigosComSaldo: Array.from(codigosComSaldo),
+  });
 
   const planoMap = new Map<string, Plano>();
   const planoPorClassificacao = new Map<string, Plano>();

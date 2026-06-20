@@ -629,7 +629,25 @@ async function buildBP(
     const linhasOrd = Array.from(porLinha.entries()).sort(
       (a, b) => a[1].ordem - b[1].ordem,
     );
-    let totalLado = 0;
+    // Grupos estruturais: linhas-mãe que totalizam outras linhas mapeadas
+    // (necessário porque o matcher escolhe o prefixo MAIS específico, deixando
+    // o pai estrutural sem itens próprios).
+    const STRUCT_GROUPS: Record<string, string[]> =
+      tipo === "BP_ATIVO"
+        ? {
+            "Ativo Não Circulante": [
+              "Realizável a Longo Prazo",
+              "Investimentos",
+              "Imobilizado",
+              "Intangível",
+            ],
+          }
+        : {};
+    const isStructParent = (linha: string) => linha in STRUCT_GROUPS;
+    const childrenOf = (linha: string) => STRUCT_GROUPS[linha] ?? [];
+    const childSet = new Set(Object.values(STRUCT_GROUPS).flat());
+
+    const parentValor = new Map<string, number>();
     for (const [linha, info] of linhasOrd) {
       const base = info.ordem * 1000;
       const linhas = emitirArvoreBP(
@@ -640,10 +658,33 @@ async function buildBP(
         planoPrefixos,
         mascara,
       );
-      out.push(...linhas);
-      // soma só do parent (nivel 0) para o total
+      if (isStructParent(linha)) {
+        // Só o header (nivel 0) — valor será agregado dos filhos abaixo
+        const header = linhas.find((l) => l.nivel === 0);
+        if (header) out.push(header);
+      } else {
+        out.push(...linhas);
+      }
       const parent = linhas.find((l) => l.nivel === 0);
-      if (parent) totalLado += parent.valor;
+      if (parent) parentValor.set(linha, parent.valor);
+    }
+
+    // Agrega valor dos parents estruturais e soma totalLado sem dupla contagem
+    let totalLado = 0;
+    for (const [linha] of linhasOrd) {
+      if (isStructParent(linha)) {
+        const v = childrenOf(linha).reduce(
+          (a, c) => a + (parentValor.get(c) ?? 0),
+          0,
+        );
+        const header = out.find(
+          (r) => r.periodo === ref && r.descricao === linha && r.nivel === 0,
+        );
+        if (header) header.valor = v;
+        totalLado += v;
+      } else if (!childSet.has(linha)) {
+        totalLado += parentValor.get(linha) ?? 0;
+      }
     }
 
     // Total do lado (Ativo / Passivo + PL)

@@ -8,6 +8,22 @@ export function formatBRL(value: number | null | undefined): string {
   return v < 0 ? `(R$ ${abs})` : `R$ ${abs}`;
 }
 
+/** Sem prefixo "R$", negativos entre parênteses. */
+export function formatBRLPlain(
+  value: number | null | undefined,
+  opts?: { digits?: number; scale?: number },
+): string {
+  if (value == null || isNaN(value as number)) return "—";
+  const digits = opts?.digits ?? 2;
+  const scale = opts?.scale ?? 1;
+  const v = Number(value) / scale;
+  const abs = Math.abs(v).toLocaleString("pt-BR", {
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  });
+  return v < 0 ? `(${abs})` : abs;
+}
+
 export function formatBRLCompact(value: number | null | undefined): string {
   if (value == null || isNaN(value as number)) return "—";
   const v = Number(value);

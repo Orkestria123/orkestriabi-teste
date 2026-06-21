@@ -1,6 +1,6 @@
 import { useMemo, useState, Fragment } from "react";
 import { ChevronRight, ChevronDown } from "lucide-react";
-import { formatBRL, formatPct, periodoLabel } from "@/lib/format";
+import { formatBRLPlain, formatPct, periodoLabel } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { InlineDrilldown } from "@/components/inline-drilldown";
 
@@ -114,45 +114,60 @@ export function StatementTable({
     );
   }
 
+  const [emMilhares, setEmMilhares] = useState(false);
+  const scale = emMilhares ? 1000 : 1;
+  const digits = emMilhares ? 1 : 2;
+  const fmt = (n: number) => formatBRLPlain(n, { digits, scale });
+  const unidadeLabel = emMilhares ? "Valores em R$ mil" : "Valores em R$";
+
   return (
     <div className="rounded-lg border bg-card overflow-hidden">
-      {allParents.length > 0 && (
-        <div className="flex items-center justify-end gap-2 px-3 py-2 border-b bg-muted/20 text-xs">
+      <div className="flex items-center justify-between gap-2 px-3 py-2 border-b bg-muted/20 text-xs">
+        <span className="text-muted-foreground">{unidadeLabel}</span>
+        <div className="flex items-center gap-2">
           <button
-            onClick={allCollapsed ? expandAll : collapseAll}
+            onClick={() => setEmMilhares((v) => !v)}
             className="px-2 h-7 rounded-md border border-border hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
           >
-            {allCollapsed ? "Expandir todos" : "Recolher todos"}
+            {emMilhares ? "Mostrar valor cheio" : "Mostrar em R$ mil"}
           </button>
+          {allParents.length > 0 && (
+            <button
+              onClick={allCollapsed ? expandAll : collapseAll}
+              className="px-2 h-7 rounded-md border border-border hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
+            >
+              {allCollapsed ? "Expandir todos" : "Recolher todos"}
+            </button>
+          )}
         </div>
-      )}
+      </div>
       <div className="overflow-x-auto">
-        <table className="w-full text-xs">
+        <table className="w-full text-xs border-separate border-spacing-0">
           <thead>
             <tr className="border-b bg-muted/30">
-              <th className="text-left font-medium text-[10px] uppercase tracking-wider text-muted-foreground px-2 py-2 sticky left-0 bg-muted/30">
+              <th className="text-left font-medium text-[10px] uppercase tracking-wider text-muted-foreground px-2 py-2 sticky left-0 z-10 bg-muted/30 min-w-[220px] max-w-[280px] border-b">
                 Descrição
               </th>
               {periods.map((p) => (
                 <th
                   key={p}
-                  className="text-right font-medium text-[10px] uppercase tracking-wider text-muted-foreground px-2 py-2 tabular-nums"
+                  className="text-right font-medium text-[10px] uppercase tracking-wider text-muted-foreground px-2 py-2 tabular-nums whitespace-nowrap min-w-[110px] border-b"
                 >
                   {periodoLabel(p)}
                 </th>
               ))}
               {showTotal && periods.length > 0 && (
-                <th className="text-right font-medium text-[10px] uppercase tracking-wider text-muted-foreground px-2 py-2 tabular-nums border-l">
+                <th className="text-right font-medium text-[10px] uppercase tracking-wider text-muted-foreground px-2 py-2 tabular-nums whitespace-nowrap min-w-[110px] border-l border-b">
                   Total
                 </th>
               )}
               {showAV && (
-                <th className="text-right font-medium text-[10px] uppercase tracking-wider text-muted-foreground px-2 py-2">
+                <th className="text-right font-medium text-[10px] uppercase tracking-wider text-muted-foreground px-2 py-2 whitespace-nowrap min-w-[70px] border-b">
                   AV%
                 </th>
               )}
               {showAH && basePeriod && (
-                <th className="text-right font-medium text-[10px] uppercase tracking-wider text-muted-foreground px-2 py-2">
+                <th className="text-right font-medium text-[10px] uppercase tracking-wider text-muted-foreground px-2 py-2 whitespace-nowrap min-w-[70px] border-b">
                   AH%
                 </th>
               )}
@@ -189,13 +204,13 @@ export function StatementTable({
                   >
                     <td
                       className={cn(
-                        "px-2 py-1 sticky left-0 bg-card",
+                        "px-2 py-1 sticky left-0 z-10 bg-card text-sm min-w-[220px] max-w-[280px]",
                         row.is_subtotal && "bg-muted/40",
                         isExpanded && "bg-accent/30",
                       )}
                       style={{ paddingLeft: `${8 + row.nivel * 12}px` }}
                     >
-                      <div className="flex items-center gap-1">
+                      <div className="flex items-center gap-1 min-w-0">
                         {hasChildren ? (
                           <button
                             onClick={() => toggle(idx)}
@@ -217,22 +232,24 @@ export function StatementTable({
                             type="button"
                             onClick={() => toggleExpand(idx)}
                             className={cn(
-                              "text-left hover:text-primary transition-colors inline-flex items-center gap-1 group",
+                              "text-left hover:text-primary transition-colors inline-flex items-center gap-1 group min-w-0 truncate",
                               row.nivel >= 3 && !row.is_subtotal && "text-muted-foreground",
                             )}
-                            title="Ver contas analíticas"
+                            title={row.descricao}
                           >
                             <ChevronDown
                               className={cn(
-                                "h-3 w-3 text-muted-foreground/60 group-hover:text-primary transition-transform",
+                                "h-3 w-3 shrink-0 text-muted-foreground/60 group-hover:text-primary transition-transform",
                                 isExpanded && "rotate-180 text-primary",
                               )}
                             />
-                            {row.descricao}
+                            <span className="truncate">{row.descricao}</span>
                           </button>
                         ) : (
                           <span
+                            title={row.descricao}
                             className={cn(
+                              "truncate",
                               row.nivel >= 3 && !row.is_subtotal && "text-muted-foreground",
                             )}
                           >
@@ -242,24 +259,24 @@ export function StatementTable({
                       </div>
                     </td>
                     {periods.map((p) => (
-                      <td key={p} className="px-2 py-1 text-right tabular-nums">
-                        {formatBRL(row.values[p] ?? 0)}
+                      <td key={p} className="px-2 py-1 text-right tabular-nums whitespace-nowrap text-xs min-w-[110px]">
+                        {fmt(row.values[p] ?? 0)}
                       </td>
                     ))}
                     {showTotal && periods.length > 0 && (
-                      <td className="px-2 py-1 text-right tabular-nums font-semibold border-l">
-                        {formatBRL(total)}
+                      <td className="px-2 py-1 text-right tabular-nums whitespace-nowrap text-xs font-semibold border-l min-w-[110px]">
+                        {fmt(total)}
                       </td>
                     )}
                     {showAV && (
-                      <td className="px-2 py-1 text-right tabular-nums text-muted-foreground">
+                      <td className="px-2 py-1 text-right tabular-nums whitespace-nowrap text-xs text-muted-foreground min-w-[70px]">
                         {av != null ? formatPct(av) : "—"}
                       </td>
                     )}
                     {showAH && basePeriod && (
                       <td
                         className={cn(
-                          "px-2 py-1 text-right tabular-nums",
+                          "px-2 py-1 text-right tabular-nums whitespace-nowrap text-xs min-w-[70px]",
                           ah != null && ah > 0 && "text-success",
                           ah != null && ah < 0 && "text-destructive",
                         )}

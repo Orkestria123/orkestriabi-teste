@@ -114,45 +114,60 @@ export function StatementTable({
     );
   }
 
+  const [emMilhares, setEmMilhares] = useState(false);
+  const scale = emMilhares ? 1000 : 1;
+  const digits = emMilhares ? 1 : 2;
+  const fmt = (n: number) => formatBRLPlain(n, { digits, scale });
+  const unidadeLabel = emMilhares ? "Valores em R$ mil" : "Valores em R$";
+
   return (
     <div className="rounded-lg border bg-card overflow-hidden">
-      {allParents.length > 0 && (
-        <div className="flex items-center justify-end gap-2 px-3 py-2 border-b bg-muted/20 text-xs">
+      <div className="flex items-center justify-between gap-2 px-3 py-2 border-b bg-muted/20 text-xs">
+        <span className="text-muted-foreground">{unidadeLabel}</span>
+        <div className="flex items-center gap-2">
           <button
-            onClick={allCollapsed ? expandAll : collapseAll}
+            onClick={() => setEmMilhares((v) => !v)}
             className="px-2 h-7 rounded-md border border-border hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
           >
-            {allCollapsed ? "Expandir todos" : "Recolher todos"}
+            {emMilhares ? "Mostrar valor cheio" : "Mostrar em R$ mil"}
           </button>
+          {allParents.length > 0 && (
+            <button
+              onClick={allCollapsed ? expandAll : collapseAll}
+              className="px-2 h-7 rounded-md border border-border hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
+            >
+              {allCollapsed ? "Expandir todos" : "Recolher todos"}
+            </button>
+          )}
         </div>
-      )}
+      </div>
       <div className="overflow-x-auto">
-        <table className="w-full text-xs">
+        <table className="w-full text-xs border-separate border-spacing-0">
           <thead>
             <tr className="border-b bg-muted/30">
-              <th className="text-left font-medium text-[10px] uppercase tracking-wider text-muted-foreground px-2 py-2 sticky left-0 bg-muted/30">
+              <th className="text-left font-medium text-[10px] uppercase tracking-wider text-muted-foreground px-2 py-2 sticky left-0 z-10 bg-muted/30 min-w-[220px] max-w-[280px] border-b">
                 Descrição
               </th>
               {periods.map((p) => (
                 <th
                   key={p}
-                  className="text-right font-medium text-[10px] uppercase tracking-wider text-muted-foreground px-2 py-2 tabular-nums"
+                  className="text-right font-medium text-[10px] uppercase tracking-wider text-muted-foreground px-2 py-2 tabular-nums whitespace-nowrap min-w-[110px] border-b"
                 >
                   {periodoLabel(p)}
                 </th>
               ))}
               {showTotal && periods.length > 0 && (
-                <th className="text-right font-medium text-[10px] uppercase tracking-wider text-muted-foreground px-2 py-2 tabular-nums border-l">
+                <th className="text-right font-medium text-[10px] uppercase tracking-wider text-muted-foreground px-2 py-2 tabular-nums whitespace-nowrap min-w-[110px] border-l border-b">
                   Total
                 </th>
               )}
               {showAV && (
-                <th className="text-right font-medium text-[10px] uppercase tracking-wider text-muted-foreground px-2 py-2">
+                <th className="text-right font-medium text-[10px] uppercase tracking-wider text-muted-foreground px-2 py-2 whitespace-nowrap min-w-[70px] border-b">
                   AV%
                 </th>
               )}
               {showAH && basePeriod && (
-                <th className="text-right font-medium text-[10px] uppercase tracking-wider text-muted-foreground px-2 py-2">
+                <th className="text-right font-medium text-[10px] uppercase tracking-wider text-muted-foreground px-2 py-2 whitespace-nowrap min-w-[70px] border-b">
                   AH%
                 </th>
               )}

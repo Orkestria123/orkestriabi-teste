@@ -269,14 +269,14 @@ export function StatementTable({
                       </td>
                     )}
                     {showAV && (
-                      <td className="px-2 py-1 text-right tabular-nums text-muted-foreground">
+                      <td className="px-2 py-1 text-right tabular-nums whitespace-nowrap text-xs text-muted-foreground min-w-[70px]">
                         {av != null ? formatPct(av) : "—"}
                       </td>
                     )}
                     {showAH && basePeriod && (
                       <td
                         className={cn(
-                          "px-2 py-1 text-right tabular-nums",
+                          "px-2 py-1 text-right tabular-nums whitespace-nowrap text-xs min-w-[70px]",
                           ah != null && ah > 0 && "text-success",
                           ah != null && ah < 0 && "text-destructive",
                         )}

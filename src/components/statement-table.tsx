@@ -104,6 +104,12 @@ export function StatementTable({
       return next;
     });
 
+  const [emMilhares, setEmMilhares] = useState(false);
+  const scale = emMilhares ? 1000 : 1;
+  const digits = emMilhares ? 1 : 2;
+  const fmt = (n: number) => formatBRLPlain(n, { digits, scale });
+  const unidadeLabel = emMilhares ? "Valores em R$ mil" : "Valores em R$";
+
   if (rows.length === 0) {
     return (
       <div className="rounded-lg border bg-card p-10 text-center text-sm text-muted-foreground">
@@ -114,11 +120,6 @@ export function StatementTable({
     );
   }
 
-  const [emMilhares, setEmMilhares] = useState(false);
-  const scale = emMilhares ? 1000 : 1;
-  const digits = emMilhares ? 1 : 2;
-  const fmt = (n: number) => formatBRLPlain(n, { digits, scale });
-  const unidadeLabel = emMilhares ? "Valores em R$ mil" : "Valores em R$";
 
   return (
     <div className="rounded-lg border bg-card overflow-hidden">

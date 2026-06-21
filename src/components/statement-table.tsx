@@ -1,6 +1,6 @@
 import { useMemo, useState, Fragment } from "react";
 import { ChevronRight, ChevronDown } from "lucide-react";
-import { formatBRL, formatPct, periodoLabel } from "@/lib/format";
+import { formatBRLPlain, formatPct, periodoLabel } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { InlineDrilldown } from "@/components/inline-drilldown";
 

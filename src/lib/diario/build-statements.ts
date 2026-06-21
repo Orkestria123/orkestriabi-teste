@@ -612,14 +612,39 @@ async function buildBP(
   // realmente têm saldo. Em seguida usa esse set para restringir a busca
   // de contas participantes (clientes/fornecedores) — o cadastro completo
   // pode ter 100k+ linhas e estoura o fetch.
-  const [mapas, abertura, saldosAcum] = await Promise.all([
+  const [mapas, abertura, saldosAcum, planoDRE] = await Promise.all([
     getMapa(companyId, tenantId, modoGlobal, tipo),
     getAberturaMaisRecente(companyId),
     getSaldosAteData(companyId, ateData),
+    tipo === "BP_PASSIVO"
+      ? getPlanoPorTipo(companyId, tenantId, modoGlobal, ["3-DRE"])
+      : Promise.resolve([] as Plano[]),
   ]);
   const codigosComSaldo = new Set<string>();
   for (const c of abertura.keys()) codigosComSaldo.add(c);
   for (const s of saldosAcum) codigosComSaldo.add(s.conta_codigo);
+
+  // Resultado acumulado do exercício até cada período de referência (apenas BP_PASSIVO).
+  // resultado = -(Σ movimento contas grupo 3 do início do ano até ref).
+  // Em meses de prejuízo o valor é negativo (reduz o PL); em lucro, positivo.
+  const dreCodigos = new Set<string>(planoDRE.map((p) => p.codigo));
+  const resultadoExercicioPorRef = new Map<string, number>();
+  if (tipo === "BP_PASSIVO" && dreCodigos.size > 0) {
+    for (const ref of periodos) {
+      const inicioExerc = `${ref.slice(0, 4)}-01`;
+      let soma = 0;
+      for (const s of saldosAcum) {
+        if (
+          s.competencia >= inicioExerc &&
+          s.competencia <= ref &&
+          dreCodigos.has(s.conta_codigo)
+        ) {
+          soma += s.movimento;
+        }
+      }
+      resultadoExercicioPorRef.set(ref, -soma);
+    }
+  }
 
   const plano = await getPlanoPorTipo(companyId, tenantId, modoGlobal, tipoPlano, {
     incluirParticipantes: true,

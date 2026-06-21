@@ -204,13 +204,13 @@ export function StatementTable({
                   >
                     <td
                       className={cn(
-                        "px-2 py-1 sticky left-0 bg-card",
+                        "px-2 py-1 sticky left-0 z-10 bg-card text-sm min-w-[220px] max-w-[280px]",
                         row.is_subtotal && "bg-muted/40",
                         isExpanded && "bg-accent/30",
                       )}
                       style={{ paddingLeft: `${8 + row.nivel * 12}px` }}
                     >
-                      <div className="flex items-center gap-1">
+                      <div className="flex items-center gap-1 min-w-0">
                         {hasChildren ? (
                           <button
                             onClick={() => toggle(idx)}
@@ -232,22 +232,24 @@ export function StatementTable({
                             type="button"
                             onClick={() => toggleExpand(idx)}
                             className={cn(
-                              "text-left hover:text-primary transition-colors inline-flex items-center gap-1 group",
+                              "text-left hover:text-primary transition-colors inline-flex items-center gap-1 group min-w-0 truncate",
                               row.nivel >= 3 && !row.is_subtotal && "text-muted-foreground",
                             )}
-                            title="Ver contas analíticas"
+                            title={row.descricao}
                           >
                             <ChevronDown
                               className={cn(
-                                "h-3 w-3 text-muted-foreground/60 group-hover:text-primary transition-transform",
+                                "h-3 w-3 shrink-0 text-muted-foreground/60 group-hover:text-primary transition-transform",
                                 isExpanded && "rotate-180 text-primary",
                               )}
                             />
-                            {row.descricao}
+                            <span className="truncate">{row.descricao}</span>
                           </button>
                         ) : (
                           <span
+                            title={row.descricao}
                             className={cn(
+                              "truncate",
                               row.nivel >= 3 && !row.is_subtotal && "text-muted-foreground",
                             )}
                           >
@@ -257,13 +259,13 @@ export function StatementTable({
                       </div>
                     </td>
                     {periods.map((p) => (
-                      <td key={p} className="px-2 py-1 text-right tabular-nums">
-                        {formatBRL(row.values[p] ?? 0)}
+                      <td key={p} className="px-2 py-1 text-right tabular-nums whitespace-nowrap text-xs min-w-[110px]">
+                        {fmt(row.values[p] ?? 0)}
                       </td>
                     ))}
                     {showTotal && periods.length > 0 && (
-                      <td className="px-2 py-1 text-right tabular-nums font-semibold border-l">
-                        {formatBRL(total)}
+                      <td className="px-2 py-1 text-right tabular-nums whitespace-nowrap text-xs font-semibold border-l min-w-[110px]">
+                        {fmt(total)}
                       </td>
                     )}
                     {showAV && (

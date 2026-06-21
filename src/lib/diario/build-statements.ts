@@ -805,6 +805,21 @@ async function buildBP(
     }
 
 
+    // Resultado do Exercício no PL (apenas BP_PASSIVO)
+    if (tipo === "BP_PASSIVO") {
+      const resultado = resultadoExercicioPorRef.get(ref) ?? 0;
+      out.push({
+        linha_ordem: 9_998_500,
+        descricao: "Resultado do Exercício",
+        codigo_conta: null,
+        nivel: 1,
+        is_subtotal: false,
+        periodo: ref,
+        valor: resultado,
+      });
+      totalLado += resultado;
+    }
+
     // Total do lado (Ativo / Passivo + PL)
     out.push({
       linha_ordem: 9_999_000,

@@ -10,7 +10,9 @@ import { useMemo, useState } from "react";
 function buildRows(data: any[]): StatementRow[] {
   const map = new Map<string, StatementRow>();
   for (const r of data) {
-    const key = `${r.linha_ordem}-${r.descricao}`;
+    const identity = r.codigo_conta ?? `sub:${r.descricao}`;
+    const key = `${r.linha_ordem}|${identity}`;
+
     if (!map.has(key)) map.set(key, {
       descricao: r.descricao,
       codigo_conta: r.codigo_conta,

@@ -502,11 +502,18 @@ async function buildDRE(
 
   const out: FlatRow[] = [];
 
+  // Coleta pontos por (linha mapeada, período). A árvore será construída UMA
+  // única vez por linha, a partir da união dos períodos — assim cada nó recebe
+  // o mesmo `linha_ordem` em todos os meses.
+  const porLinhaPeriodo = new Map<
+    string,
+    { ordem: number; pontosPor: Map<string, Ponto[]> }
+  >();
+  for (const [linha, meta] of linhasMeta) {
+    porLinhaPeriodo.set(linha, { ordem: meta.ordem, pontosPor: new Map() });
+  }
+
   for (const p of periodos) {
-    // Valor mensal "limpo" por conta: usa SOMENTE o lado natural da conta.
-    // O encerramento de dezembro (apuração) bate no lado oposto — debita
-    // receita, credita despesa — e, se subtraíssemos os dois lados, o mês
-    // de dez ficaria zerado. Receita = créditos; despesa = débitos.
     const saldosPorConta = new Map<string, number>();
     for (const s of saldos) {
       if (s.competencia !== p) continue;
@@ -526,38 +533,46 @@ async function buildDRE(
       );
     }
 
-
     const pontos = aplicarMapaESinal(saldosPorConta, planoMap, matcher, mascara);
 
-    // Agrupa por linha mapeada
-    const porLinha = new Map<
-      string,
-      { ordem: number; itens: { classificacao: string; descricao: string; valor: number; nivelPlano: number }[] }
-    >();
-    for (const [linha, meta] of linhasMeta) {
-      porLinha.set(linha, { ordem: meta.ordem, itens: [] });
-    }
     for (const pt of pontos) {
       const linha = pt.mapa.linha_demonstracao;
       const conta = planoPorClassificacao.get(pt.classificacao);
-      const bucket = porLinha.get(linha)!;
-      bucket.itens.push({
+      const bucket = porLinhaPeriodo.get(linha)!;
+      const arr = bucket.pontosPor.get(p) ?? [];
+      arr.push({
         classificacao: pt.classificacao,
         descricao: conta?.descricao ?? pt.classificacao,
         valor: pt.valor,
         nivelPlano: conta?.nivel ?? nivelDe(pt.classificacao, mascara),
       });
-    }
-
-    // Emite hierarquia por linha mapeada (ordenadas)
-    const linhasOrd = Array.from(porLinha.entries()).sort(
-      (a, b) => a[1].ordem - b[1].ordem,
-    );
-    for (const [linha, info] of linhasOrd) {
-      const base = info.ordem * 1000;
-      out.push(...emitirHierarquia({ linha, ordem: info.ordem }, info.itens, p, base, planoPrefixos, mascara));
+      bucket.pontosPor.set(p, arr);
     }
   }
+
+  // Garante entrada vazia por período em cada linha (para o header nivel 0).
+  for (const bucket of porLinhaPeriodo.values()) {
+    for (const p of periodos) {
+      if (!bucket.pontosPor.has(p)) bucket.pontosPor.set(p, []);
+    }
+  }
+
+  const linhasOrd = Array.from(porLinhaPeriodo.entries()).sort(
+    (a, b) => a[1].ordem - b[1].ordem,
+  );
+  for (const [linha, info] of linhasOrd) {
+    const base = info.ordem * 1000;
+    out.push(
+      ...emitirArvoreMulti(
+        { linha, ordem: info.ordem },
+        info.pontosPor,
+        base,
+        planoPrefixos,
+        mascara,
+      ),
+    );
+  }
+
 
   // Subtotais calculados da DRE
   if (tipo === "DRE") addDRECalculatedTotals(out, periodos);

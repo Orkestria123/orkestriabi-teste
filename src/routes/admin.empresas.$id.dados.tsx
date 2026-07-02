@@ -88,6 +88,7 @@ function Page() {
           <TabsTrigger value="saldo-inicial">3. Saldo Inicial</TabsTrigger>
           <TabsTrigger value="diarios">4. Diários</TabsTrigger>
           <TabsTrigger value="mascara">5. Máscara</TabsTrigger>
+          <TabsTrigger value="indicadores">6. Indicadores</TabsTrigger>
         </TabsList>
 
         <TabsContent value="mascara">
@@ -96,6 +97,15 @@ function Page() {
               tenantId={company.tenant_id!}
               companyId={modoGlobal ? null : company.id}
               escopo={modoGlobal ? "tenant" : "empresa"}
+            />
+          )}
+        </TabsContent>
+
+        <TabsContent value="indicadores">
+          {company && (
+            <IndicadoresConfigPanel
+              tenantId={company.tenant_id!}
+              companyId={company.id}
             />
           )}
         </TabsContent>

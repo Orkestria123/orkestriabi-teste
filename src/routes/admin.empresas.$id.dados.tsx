@@ -33,7 +33,7 @@ export const Route = createFileRoute("/admin/empresas/$id/dados")({
 
 function Page() {
   const { id } = useParams({ from: "/admin/empresas/$id/dados" });
-  const [tab, setTab] = useState<"plano" | "mapeamento" | "saldo-inicial" | "diarios" | "mascara">("plano");
+  const [tab, setTab] = useState<"plano" | "mapeamento" | "saldo-inicial" | "diarios" | "mascara" | "indicadores">("plano");
 
   const { data: company } = useQuery({
     queryKey: ["company", id],

@@ -11,7 +11,12 @@ function buildRows(data: any[]): { rows: StatementRow[]; periods: string[] } {
   const map = new Map<string, StatementRow>();
   const periodSet = new Set<string>();
   for (const r of data) {
-    const key = `${r.linha_ordem}-${r.descricao}`;
+    // Chaveia pela CLASSIFICAÇÃO (codigo_conta) quando disponível — assim
+    // contas com o mesmo `descricao` (ex.: PRO-LABORE em centros de custo
+    // diferentes) não colapsam na mesma linha. Subtotais/headers sem
+    // codigo_conta continuam sendo identificados por linha_ordem+descricao.
+    const identity = r.codigo_conta ?? `sub:${r.descricao}`;
+    const key = `${r.linha_ordem}|${identity}`;
     if (!map.has(key)) {
       map.set(key, {
         descricao: r.descricao,
@@ -30,6 +35,7 @@ function buildRows(data: any[]): { rows: StatementRow[]; periods: string[] } {
     periods: Array.from(periodSet).sort(),
   };
 }
+
 
 export function makeStatementPage(tipo: string, title: string, avBase?: string, opts?: { categoryFilter?: boolean }) {
   return function Page() {

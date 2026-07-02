@@ -752,14 +752,29 @@ async function buildBP(
   const acumPorConta = new Map<string, number>(abertura);
   let cursor = 0;
 
+  // Fase 1: coleta pontos consolidados por (linha mapeada, ref) — assim como
+  // no DRE, para construir a árvore UMA vez a partir da união dos períodos.
+  const porLinha = new Map<
+    string,
+    { ordem: number; pontosPor: Map<string, Ponto[]> }
+  >();
+  for (const [linha, meta] of linhasMeta) {
+    porLinha.set(linha, { ordem: meta.ordem, pontosPor: new Map() });
+  }
+  // totalPorRef[ref][linha] = valor total daquela linha naquele ref
+  const totalPorLinhaRef = new Map<string, Map<string, number>>();
+  const initRefMap = (linha: string) => {
+    let m = totalPorLinhaRef.get(linha);
+    if (!m) { m = new Map(); totalPorLinhaRef.set(linha, m); }
+    return m;
+  };
+
   for (const ref of periodosOrd) {
-    // Avança o cursor incluindo movimentos com competência <= ref
     while (cursor < saldosOrd.length && saldosOrd[cursor].competencia <= ref) {
       const s = saldosOrd[cursor];
       acumPorConta.set(s.conta_codigo, (acumPorConta.get(s.conta_codigo) ?? 0) + s.movimento);
       cursor++;
     }
-
     const snapshot = new Map(acumPorConta);
     const pontos = aplicarMapaESinal(snapshot, planoMap, matcher, mascara, { incluirParticipantes: true });
     const pontosConsolidados = pontos.map((pt) => ({
@@ -769,104 +784,96 @@ async function buildBP(
         : pt.classificacao,
     }));
 
-    const porLinha = new Map<
-      string,
-      { ordem: number; itens: { classificacao: string; descricao: string; valor: number; nivelPlano: number }[] }
-    >();
-    for (const [linha, meta] of linhasMeta) {
-      porLinha.set(linha, { ordem: meta.ordem, itens: [] });
-    }
     for (const pt of pontosConsolidados) {
       const linha = pt.mapa.linha_demonstracao;
       const conta = planoPorClassificacao.get(pt.classificacao);
       const bucket = porLinha.get(linha)!;
-      bucket.itens.push({
+      const arr = bucket.pontosPor.get(ref) ?? [];
+      arr.push({
         classificacao: pt.classificacao,
         descricao: conta?.descricao ?? pt.classificacao,
         valor: pt.valor,
         nivelPlano: conta?.nivel ?? nivelDe(pt.classificacao, mascara),
       });
+      bucket.pontosPor.set(ref, arr);
+      const tm = initRefMap(linha);
+      tm.set(ref, (tm.get(ref) ?? 0) + pt.valor);
     }
+    // Garante entrada vazia por ref para todas as linhas (header por período).
+    for (const [linha, bucket] of porLinha) {
+      if (!bucket.pontosPor.has(ref)) {
+        bucket.pontosPor.set(ref, []);
+        const tm = initRefMap(linha);
+        if (!tm.has(ref)) tm.set(ref, 0);
+      }
+    }
+  }
 
-    const linhasOrd = Array.from(porLinha.entries()).sort(
-      (a, b) => a[1].ordem - b[1].ordem,
+  const linhasOrd = Array.from(porLinha.entries()).sort(
+    (a, b) => a[1].ordem - b[1].ordem,
+  );
+  const STRUCT_GROUPS: Record<string, string[]> =
+    tipo === "BP_ATIVO"
+      ? {
+          "Ativo Não Circulante": [
+            "Realizável a Longo Prazo",
+            "Investimentos",
+            "Imobilizado",
+            "Intangível",
+          ],
+        }
+      : {};
+  const isStructParent = (linha: string) => linha in STRUCT_GROUPS;
+  const childrenOf = (linha: string) => STRUCT_GROUPS[linha] ?? [];
+  const childSet = new Set(Object.values(STRUCT_GROUPS).flat());
+  const parentOf = new Map<string, string>();
+  for (const [p, kids] of Object.entries(STRUCT_GROUPS)) {
+    kids.forEach((k) => parentOf.set(k, p));
+  }
+  const ordemDe = (linha: string) => linhasMeta.get(linha)?.ordem ?? 0;
+
+  // Fase 2: emite a árvore por linha (uma vez, com todos os períodos).
+  for (const [linha, info] of linhasOrd) {
+    let base = info.ordem * 1000;
+    const parentLinha = parentOf.get(linha);
+    if (parentLinha) {
+      const idx = childrenOf(parentLinha).indexOf(linha);
+      base = ordemDe(parentLinha) * 1000 + (idx + 1) * 20;
+    }
+    const linhas = emitirArvoreMulti(
+      { linha, ordem: info.ordem },
+      info.pontosPor,
+      base,
+      planoPrefixos,
+      mascara,
     );
-    // Grupos estruturais: linhas-mãe que totalizam outras linhas mapeadas
-    // (necessário porque o matcher escolhe o prefixo MAIS específico, deixando
-    // o pai estrutural sem itens próprios).
-    const STRUCT_GROUPS: Record<string, string[]> =
-      tipo === "BP_ATIVO"
-        ? {
-            "Ativo Não Circulante": [
-              "Realizável a Longo Prazo",
-              "Investimentos",
-              "Imobilizado",
-              "Intangível",
-            ],
-          }
-        : {};
-    const isStructParent = (linha: string) => linha in STRUCT_GROUPS;
-    const childrenOf = (linha: string) => STRUCT_GROUPS[linha] ?? [];
-    const childSet = new Set(Object.values(STRUCT_GROUPS).flat());
-    // child → parent linha lookup
-    const parentOf = new Map<string, string>();
-    for (const [p, kids] of Object.entries(STRUCT_GROUPS)) {
-      kids.forEach((k) => parentOf.set(k, p));
+    if (isStructParent(linha)) {
+      // Só os headers (nivel 0, um por período) — valor será agregado dos filhos.
+      for (const l of linhas) if (l.nivel === 0) out.push(l);
+    } else if (parentLinha) {
+      for (const l of linhas) out.push({ ...l, nivel: l.nivel + 1 });
+    } else {
+      out.push(...linhas);
     }
-    // ordem do parent estrutural na lista de linhasMeta
-    const ordemDe = (linha: string) => linhasMeta.get(linha)?.ordem ?? 0;
+  }
 
-    const parentValor = new Map<string, number>();
-    for (const [linha, info] of linhasOrd) {
-      let base = info.ordem * 1000;
-      const parentLinha = parentOf.get(linha);
-      if (parentLinha) {
-        // Reordena: filhos estruturais caem logo após o header do pai.
-        const idx = childrenOf(parentLinha).indexOf(linha);
-        base = ordemDe(parentLinha) * 1000 + (idx + 1) * 20;
-      }
-      const linhas = emitirArvoreBP(
-        { linha, ordem: info.ordem },
-        info.itens,
-        ref,
-        base,
-        planoPrefixos,
-        mascara,
-      );
-      if (isStructParent(linha)) {
-        // Só o header (nivel 0) — valor será agregado dos filhos abaixo
-        const header = linhas.find((l) => l.nivel === 0);
-        if (header) out.push(header);
-      } else if (parentLinha) {
-        // Filho estrutural: recua todas as rows em +1 nível
-        for (const l of linhas) out.push({ ...l, nivel: l.nivel + 1 });
-      } else {
-        out.push(...linhas);
-      }
-      const parent = linhas.find((l) => l.nivel === 0);
-      if (parent) parentValor.set(linha, parent.valor);
-    }
-
-    // Agrega valor dos parents estruturais e soma totalLado sem dupla contagem
+  // Fase 3: por período, agrega parents estruturais, resultado do exercício, total.
+  for (const ref of periodosOrd) {
+    const valorLinhaRef = (linha: string) => totalPorLinhaRef.get(linha)?.get(ref) ?? 0;
     let totalLado = 0;
     for (const [linha] of linhasOrd) {
       if (isStructParent(linha)) {
-        const v = childrenOf(linha).reduce(
-          (a, c) => a + (parentValor.get(c) ?? 0),
-          0,
-        );
+        const v = childrenOf(linha).reduce((a, c) => a + valorLinhaRef(c), 0);
         const header = out.find(
           (r) => r.periodo === ref && r.descricao === linha && r.nivel === 0,
         );
         if (header) header.valor = v;
         totalLado += v;
       } else if (!childSet.has(linha)) {
-        totalLado += parentValor.get(linha) ?? 0;
+        totalLado += valorLinhaRef(linha);
       }
     }
 
-
-    // Resultado do Exercício no PL (apenas BP_PASSIVO)
     if (tipo === "BP_PASSIVO") {
       const resultado = resultadoExercicioPorRef.get(ref) ?? 0;
       out.push({
@@ -881,7 +888,6 @@ async function buildBP(
       totalLado += resultado;
     }
 
-    // Total do lado (Ativo / Passivo + PL)
     out.push({
       linha_ordem: 9_999_000,
       descricao: tipo === "BP_ATIVO" ? "Total do Ativo" : "Total do Passivo + PL",
@@ -892,6 +898,7 @@ async function buildBP(
       valor: totalLado,
     });
   }
+
 
   out.sort((a, b) => a.linha_ordem - b.linha_ordem || a.periodo.localeCompare(b.periodo));
   return out;

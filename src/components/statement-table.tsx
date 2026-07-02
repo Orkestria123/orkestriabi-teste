@@ -375,27 +375,23 @@ export function StatementTable({
                           key={`p-${c.period}`}
                           className={cn(
                             "px-2 py-1 text-right tabular-nums whitespace-nowrap text-xs min-w-[110px]",
-                            c.firstOfYear && "border-l",
+                            c.firstOfBucket && "border-l",
                           )}
                         >
                           {fmt(row.values[c.period] ?? 0)}
                         </td>
                       ) : (
                         <td
-                          key={`sub-${c.year}-${i}`}
+                          key={`sub-${i}`}
                           className={cn(
                             "px-2 py-1 text-right tabular-nums whitespace-nowrap text-xs font-semibold border-l min-w-[110px] bg-muted/40",
                           )}
                         >
-                          {fmt(subtotalYear(row, { year: c.year, periods: c.periods }))}
+                          {fmt(subtotalValue(row, c.periods))}
                         </td>
                       ),
                     )}
-                    {effectiveShowTotal && (
-                      <td className="px-2 py-1 text-right tabular-nums whitespace-nowrap text-xs font-semibold border-l min-w-[110px]">
-                        {fmt(total)}
-                      </td>
-                    )}
+
                     {showAV && (
                       <td className="px-2 py-1 text-right tabular-nums whitespace-nowrap text-xs text-muted-foreground min-w-[70px]">
                         {av != null ? formatPct(av) : "—"}

@@ -301,10 +301,9 @@ export function StatementTable({
               const isCollapsed = collapsed.has(idx);
               const isExpanded = expanded.has(idx);
               const canDrill = !!row.codigo_conta;
-              const extraMiddle = isMultiYear ? yearGroups.length : 0;
-              const rightCols =
-                (effectiveShowTotal ? 1 : 0) + (showAV ? 1 : 0) + (showAH && basePeriod ? 1 : 0);
-              const total = periods.reduce((acc, p) => acc + (row.values[p] ?? 0), 0);
+              const extraMiddle = bucketGroups.length;
+              const rightCols = (showAV ? 1 : 0) + (showAH && basePeriod ? 1 : 0);
+
               return (
                 <Fragment key={idx}>
                   <tr

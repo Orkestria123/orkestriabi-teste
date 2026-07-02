@@ -113,46 +113,88 @@ export function StatementTable({
   const fmt = (n: number) => formatBRLPlain(n, { digits, scale });
   const unidadeLabel = emMilhares ? "Valores em R$ mil" : "Valores em R$";
 
-  // Agrupa períodos por ano (na ordem cronológica em que aparecem).
-  const yearGroups = useMemo(() => {
-    const groups: { year: number; periods: string[] }[] = [];
-    for (const p of periods) {
-      const y = new Date(p).getUTCFullYear();
-      const last = groups[groups.length - 1];
-      if (last && last.year === y) last.periods.push(p);
-      else groups.push({ year: y, periods: [p] });
-    }
-    return groups;
+  // Anos distintos entre os períodos selecionados.
+  const anosSelecionados = useMemo(() => {
+    const s = new Set<number>();
+    for (const p of periods) s.add(new Date(p).getUTCFullYear());
+    return Array.from(s).sort((a, b) => a - b);
   }, [periods]);
+  const isMultiYear = anosSelecionados.length > 1;
 
-  const isMultiYear = yearGroups.length > 1;
+  type BucketOpt = "mes" | "trimestre" | "semestre" | "ano" | "selecao";
+  const [bucketOpt, setBucketOpt] = useState<BucketOpt>(() =>
+    isMultiYear ? "ano" : "selecao",
+  );
 
-  // Colunas efetivas: períodos + subtotais anuais intercalados (quando multi-ano).
+  // Chave/label do bucket a partir de um período.
+  function bucketOf(period: string): { key: string; label: string } {
+    const d = new Date(period);
+    const y = d.getUTCFullYear();
+    const m = d.getUTCMonth(); // 0-11
+    const anoSuf = isMultiYear ? ` ${y}` : "";
+    switch (bucketOpt) {
+      case "mes":
+        return { key: `${y}-${m}`, label: "" };
+      case "trimestre": {
+        const q = Math.floor(m / 3) + 1;
+        return { key: `${y}-q${q}`, label: `${q}º Tri${anoSuf}` };
+      }
+      case "semestre": {
+        const s = m < 6 ? 1 : 2;
+        return { key: `${y}-s${s}`, label: `${s}º Sem${anoSuf}` };
+      }
+      case "ano":
+        return { key: `${y}`, label: `Total ${y}` };
+      case "selecao":
+        return { key: "all", label: "Total" };
+    }
+  }
+
+  // Agrupa períodos por bucket em ordem cronológica.
+  const bucketGroups = useMemo(() => {
+    if (!showTotal || bucketOpt === "mes") return [] as { key: string; label: string; periods: string[] }[];
+    const out: { key: string; label: string; periods: string[] }[] = [];
+    for (const p of periods) {
+      const { key, label } = bucketOf(p);
+      const last = out[out.length - 1];
+      if (last && last.key === key) last.periods.push(p);
+      else out.push({ key, label, periods: [p] });
+    }
+    return out;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [periods, bucketOpt, showTotal, isMultiYear]);
+
+  // Colunas efetivas: períodos + subtotais intercalados.
   type Col =
-    | { kind: "p"; period: string; firstOfYear: boolean }
-    | { kind: "sub"; year: number; periods: string[] };
+    | { kind: "p"; period: string; firstOfBucket: boolean }
+    | { kind: "sub"; label: string; periods: string[] };
   const columns = useMemo<Col[]>(() => {
     const cols: Col[] = [];
-    for (const g of yearGroups) {
+    if (bucketGroups.length === 0) {
+      for (const p of periods) cols.push({ kind: "p", period: p, firstOfBucket: false });
+      return cols;
+    }
+    for (const g of bucketGroups) {
       g.periods.forEach((p, i) => {
-        cols.push({ kind: "p", period: p, firstOfYear: isMultiYear && i === 0 });
+        cols.push({ kind: "p", period: p, firstOfBucket: i === 0 && bucketGroups.length > 1 });
       });
-      if (isMultiYear) cols.push({ kind: "sub", year: g.year, periods: g.periods });
+      cols.push({ kind: "sub", label: g.label, periods: g.periods });
     }
     return cols;
-  }, [yearGroups, isMultiYear]);
+  }, [periods, bucketGroups]);
 
-  // Só mostra total geral quando NÃO for multi-ano (aí não faz sentido somar anos).
-  const effectiveShowTotal = showTotal && !isMultiYear && periods.length > 0;
-
-  const subtotalYear = (row: StatementRow, group: { year: number; periods: string[] }) => {
+  const subtotalValue = (row: StatementRow, groupPeriods: string[]) => {
     if (variante === "bp") {
-      // Posição patrimonial: último mês selecionado do ano.
-      const last = group.periods[group.periods.length - 1];
+      const last = groupPeriods[groupPeriods.length - 1];
       return row.values[last] ?? 0;
     }
-    return group.periods.reduce((a, p) => a + (row.values[p] ?? 0), 0);
+    return groupPeriods.reduce((a, p) => a + (row.values[p] ?? 0), 0);
   };
+
+  // Banda superior com o ano só faz sentido no agrupamento "ano" multi-ano.
+  const yearBand = bucketOpt === "ano" && isMultiYear ? bucketGroups : null;
+
+
 
   if (rows.length === 0) {
     return (
@@ -169,6 +211,22 @@ export function StatementTable({
       <div className="flex items-center justify-between gap-2 px-3 py-2 border-b bg-muted/20 text-xs">
         <span className="text-muted-foreground">{unidadeLabel}</span>
         <div className="flex items-center gap-2">
+          {showTotal && periods.length > 0 && (
+            <label className="flex items-center gap-1.5 text-muted-foreground">
+              <span>Totalizar por:</span>
+              <select
+                value={bucketOpt}
+                onChange={(e) => setBucketOpt(e.target.value as BucketOpt)}
+                className="h-7 px-2 rounded-md border border-border bg-background hover:bg-accent transition-colors text-foreground"
+              >
+                <option value="mes">Mês</option>
+                <option value="trimestre">Trimestre</option>
+                <option value="semestre">Semestre</option>
+                <option value="ano">Ano</option>
+                <option value="selecao">Seleção inteira</option>
+              </select>
+            </label>
+          )}
           <button
             onClick={() => setEmMilhares((v) => !v)}
             className="px-2 h-7 rounded-md border border-border hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
@@ -184,23 +242,23 @@ export function StatementTable({
             </button>
           )}
         </div>
+
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-xs border-separate border-spacing-0">
           <thead>
-            {isMultiYear && (
+            {yearBand && (
               <tr className="border-b bg-muted/20">
                 <th className="sticky left-0 z-10 bg-muted/20 border-b" />
-                {yearGroups.map((g) => (
+                {yearBand.map((g) => (
                   <th
-                    key={g.year}
+                    key={g.key}
                     colSpan={g.periods.length + 1}
                     className="text-center font-semibold text-[11px] text-foreground px-2 py-1.5 border-l border-b"
                   >
-                    {g.year}
+                    {g.key}
                   </th>
                 ))}
-                {effectiveShowTotal && <th className="border-l border-b" />}
                 {showAV && <th className="border-b" />}
                 {showAH && basePeriod && <th className="border-b" />}
               </tr>
@@ -215,24 +273,19 @@ export function StatementTable({
                     key={`p-${c.period}`}
                     className={cn(
                       "text-right font-medium text-[10px] uppercase tracking-wider text-muted-foreground px-2 py-2 tabular-nums whitespace-nowrap min-w-[110px] border-b",
-                      c.firstOfYear && "border-l",
+                      c.firstOfBucket && "border-l",
                     )}
                   >
                     {periodoLabel(c.period)}
                   </th>
                 ) : (
                   <th
-                    key={`sub-${c.year}-${i}`}
+                    key={`sub-${i}`}
                     className="text-right font-semibold text-[10px] uppercase tracking-wider text-foreground px-2 py-2 tabular-nums whitespace-nowrap min-w-[110px] border-b border-l bg-muted/40"
                   >
-                    Total {c.year}
+                    {c.label}
                   </th>
                 ),
-              )}
-              {effectiveShowTotal && (
-                <th className="text-right font-medium text-[10px] uppercase tracking-wider text-muted-foreground px-2 py-2 tabular-nums whitespace-nowrap min-w-[110px] border-l border-b">
-                  Total
-                </th>
               )}
               {showAV && (
                 <th className="text-right font-medium text-[10px] uppercase tracking-wider text-muted-foreground px-2 py-2 whitespace-nowrap min-w-[70px] border-b">
@@ -246,6 +299,7 @@ export function StatementTable({
               )}
             </tr>
           </thead>
+
           <tbody>
             {rows.map((row, idx) => {
               if (hidden.has(idx)) return null;
@@ -264,10 +318,9 @@ export function StatementTable({
               const isCollapsed = collapsed.has(idx);
               const isExpanded = expanded.has(idx);
               const canDrill = !!row.codigo_conta;
-              const extraMiddle = isMultiYear ? yearGroups.length : 0;
-              const rightCols =
-                (effectiveShowTotal ? 1 : 0) + (showAV ? 1 : 0) + (showAH && basePeriod ? 1 : 0);
-              const total = periods.reduce((acc, p) => acc + (row.values[p] ?? 0), 0);
+              const extraMiddle = bucketGroups.length;
+              const rightCols = (showAV ? 1 : 0) + (showAH && basePeriod ? 1 : 0);
+
               return (
                 <Fragment key={idx}>
                   <tr
@@ -339,27 +392,23 @@ export function StatementTable({
                           key={`p-${c.period}`}
                           className={cn(
                             "px-2 py-1 text-right tabular-nums whitespace-nowrap text-xs min-w-[110px]",
-                            c.firstOfYear && "border-l",
+                            c.firstOfBucket && "border-l",
                           )}
                         >
                           {fmt(row.values[c.period] ?? 0)}
                         </td>
                       ) : (
                         <td
-                          key={`sub-${c.year}-${i}`}
+                          key={`sub-${i}`}
                           className={cn(
                             "px-2 py-1 text-right tabular-nums whitespace-nowrap text-xs font-semibold border-l min-w-[110px] bg-muted/40",
                           )}
                         >
-                          {fmt(subtotalYear(row, { year: c.year, periods: c.periods }))}
+                          {fmt(subtotalValue(row, c.periods))}
                         </td>
                       ),
                     )}
-                    {effectiveShowTotal && (
-                      <td className="px-2 py-1 text-right tabular-nums whitespace-nowrap text-xs font-semibold border-l min-w-[110px]">
-                        {fmt(total)}
-                      </td>
-                    )}
+
                     {showAV && (
                       <td className="px-2 py-1 text-right tabular-nums whitespace-nowrap text-xs text-muted-foreground min-w-[70px]">
                         {av != null ? formatPct(av) : "—"}

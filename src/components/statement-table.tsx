@@ -23,6 +23,8 @@ interface Props {
   avBaseCodigo?: string;
   /** Nível máximo expandido por padrão (padrão: tudo expandido). */
   initialExpandLevel?: number;
+  /** Contexto do drill-down: "bp" inclui saldo inicial. */
+  variante?: "dre" | "bp";
 }
 
 export function StatementTable({
@@ -34,6 +36,7 @@ export function StatementTable({
   basePeriod,
   avBaseCodigo,
   initialExpandLevel,
+  variante = "dre",
 }: Props) {
   const avBase = useMemo(() => {
     if (!avBaseCodigo) return null;
@@ -293,6 +296,8 @@ export function StatementTable({
                       periods={periods}
                       colSpanLeft={1}
                       colSpanRight={rightCols}
+                      variante={variante}
+                      emMilhares={emMilhares}
                     />
                   )}
                 </Fragment>

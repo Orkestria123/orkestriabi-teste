@@ -211,6 +211,22 @@ export function StatementTable({
       <div className="flex items-center justify-between gap-2 px-3 py-2 border-b bg-muted/20 text-xs">
         <span className="text-muted-foreground">{unidadeLabel}</span>
         <div className="flex items-center gap-2">
+          {showTotal && periods.length > 0 && (
+            <label className="flex items-center gap-1.5 text-muted-foreground">
+              <span>Totalizar por:</span>
+              <select
+                value={bucketOpt}
+                onChange={(e) => setBucketOpt(e.target.value as BucketOpt)}
+                className="h-7 px-2 rounded-md border border-border bg-background hover:bg-accent transition-colors text-foreground"
+              >
+                <option value="mes">Mês</option>
+                <option value="trimestre">Trimestre</option>
+                <option value="semestre">Semestre</option>
+                <option value="ano">Ano</option>
+                <option value="selecao">Seleção inteira</option>
+              </select>
+            </label>
+          )}
           <button
             onClick={() => setEmMilhares((v) => !v)}
             className="px-2 h-7 rounded-md border border-border hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
@@ -226,6 +242,7 @@ export function StatementTable({
             </button>
           )}
         </div>
+
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-xs border-separate border-spacing-0">

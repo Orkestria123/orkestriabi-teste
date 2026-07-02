@@ -11,9 +11,12 @@ interface Props {
   periods: string[];
   colSpanLeft: number;
   colSpanRight: number;
+  /** Colunas extras (subtotais de ano intercalados) somadas ao colspan. */
+  extraMiddleCols?: number;
   variante?: "dre" | "bp";
   emMilhares?: boolean;
 }
+
 
 function formatData(iso: string): string {
   const [y, m, d] = iso.split("-");

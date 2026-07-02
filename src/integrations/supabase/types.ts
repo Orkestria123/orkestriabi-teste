@@ -523,6 +523,57 @@ export type Database = {
           },
         ]
       }
+      indicador_config_empresa: {
+        Row: {
+          company_id: string
+          contas_por_termo: Json
+          created_at: string
+          id: string
+          indicador_key: string
+          ordem: number
+          tenant_id: string
+          updated_at: string
+          visibilidade: string
+        }
+        Insert: {
+          company_id: string
+          contas_por_termo?: Json
+          created_at?: string
+          id?: string
+          indicador_key: string
+          ordem?: number
+          tenant_id: string
+          updated_at?: string
+          visibilidade?: string
+        }
+        Update: {
+          company_id?: string
+          contas_por_termo?: Json
+          created_at?: string
+          id?: string
+          indicador_key?: string
+          ordem?: number
+          tenant_id?: string
+          updated_at?: string
+          visibilidade?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "indicador_config_empresa_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "indicador_config_empresa_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       indicator_configs: {
         Row: {
           categoria: string | null

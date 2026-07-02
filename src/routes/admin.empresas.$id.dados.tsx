@@ -25,6 +25,7 @@ import { formatBRL } from "@/lib/format";
 import { MascaraConfigPanel } from "@/components/mascara-config";
 import { BalancoFechaBadge } from "@/components/balanco-fecha-badge";
 import { getMascaraConfig } from "@/lib/mascara/interpretar";
+import { IndicadoresConfigPanel } from "@/components/indicadores-config-panel";
 
 export const Route = createFileRoute("/admin/empresas/$id/dados")({
   component: Page,
@@ -32,7 +33,7 @@ export const Route = createFileRoute("/admin/empresas/$id/dados")({
 
 function Page() {
   const { id } = useParams({ from: "/admin/empresas/$id/dados" });
-  const [tab, setTab] = useState<"plano" | "mapeamento" | "saldo-inicial" | "diarios" | "mascara">("plano");
+  const [tab, setTab] = useState<"plano" | "mapeamento" | "saldo-inicial" | "diarios" | "mascara" | "indicadores">("plano");
 
   const { data: company } = useQuery({
     queryKey: ["company", id],
@@ -87,6 +88,7 @@ function Page() {
           <TabsTrigger value="saldo-inicial">3. Saldo Inicial</TabsTrigger>
           <TabsTrigger value="diarios">4. Diários</TabsTrigger>
           <TabsTrigger value="mascara">5. Máscara</TabsTrigger>
+          <TabsTrigger value="indicadores">6. Indicadores</TabsTrigger>
         </TabsList>
 
         <TabsContent value="mascara">
@@ -95,6 +97,15 @@ function Page() {
               tenantId={company.tenant_id!}
               companyId={modoGlobal ? null : company.id}
               escopo={modoGlobal ? "tenant" : "empresa"}
+            />
+          )}
+        </TabsContent>
+
+        <TabsContent value="indicadores">
+          {company && (
+            <IndicadoresConfigPanel
+              tenantId={company.tenant_id!}
+              companyId={company.id}
             />
           )}
         </TabsContent>

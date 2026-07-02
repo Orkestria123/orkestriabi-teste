@@ -9,6 +9,9 @@ import {
   type FlatRow,
 } from "@/lib/indicators";
 import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { INDICADOR_DEFS, isConfigurado, type IndicadorConfigRow } from "@/lib/indicadores/definicoes";
 import { cn } from "@/lib/utils";
 import { IndicatorCard } from "@/components/indicators/indicator-card";
 import { IndicatorDrilldown } from "@/components/indicators/indicator-drilldown";

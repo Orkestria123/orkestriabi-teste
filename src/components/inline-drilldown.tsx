@@ -11,9 +11,12 @@ interface Props {
   periods: string[];
   colSpanLeft: number;
   colSpanRight: number;
+  /** Colunas extras (subtotais de ano intercalados) somadas ao colspan. */
+  extraMiddleCols?: number;
   variante?: "dre" | "bp";
   emMilhares?: boolean;
 }
+
 
 function formatData(iso: string): string {
   const [y, m, d] = iso.split("-");
@@ -26,6 +29,7 @@ export function InlineDrilldown({
   periods,
   colSpanLeft,
   colSpanRight,
+  extraMiddleCols = 0,
   variante = "dre",
   emMilhares = false,
 }: Props) {
@@ -46,7 +50,8 @@ export function InlineDrilldown({
     n === 0 ? "—" : formatBRLPlain(n, { digits, scale });
   const fmtValor = (n: number) => formatBRLPlain(n, { digits, scale });
 
-  const totalCols = colSpanLeft + periods.length + colSpanRight;
+  const totalCols = colSpanLeft + periods.length + extraMiddleCols + colSpanRight;
+
 
   return (
     <tr className="bg-muted/20">

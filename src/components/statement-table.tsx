@@ -230,19 +230,18 @@ export function StatementTable({
       <div className="overflow-x-auto">
         <table className="w-full text-xs border-separate border-spacing-0">
           <thead>
-            {isMultiYear && (
+            {yearBand && (
               <tr className="border-b bg-muted/20">
                 <th className="sticky left-0 z-10 bg-muted/20 border-b" />
-                {yearGroups.map((g) => (
+                {yearBand.map((g) => (
                   <th
-                    key={g.year}
+                    key={g.key}
                     colSpan={g.periods.length + 1}
                     className="text-center font-semibold text-[11px] text-foreground px-2 py-1.5 border-l border-b"
                   >
-                    {g.year}
+                    {g.key}
                   </th>
                 ))}
-                {effectiveShowTotal && <th className="border-l border-b" />}
                 {showAV && <th className="border-b" />}
                 {showAH && basePeriod && <th className="border-b" />}
               </tr>
@@ -257,24 +256,19 @@ export function StatementTable({
                     key={`p-${c.period}`}
                     className={cn(
                       "text-right font-medium text-[10px] uppercase tracking-wider text-muted-foreground px-2 py-2 tabular-nums whitespace-nowrap min-w-[110px] border-b",
-                      c.firstOfYear && "border-l",
+                      c.firstOfBucket && "border-l",
                     )}
                   >
                     {periodoLabel(c.period)}
                   </th>
                 ) : (
                   <th
-                    key={`sub-${c.year}-${i}`}
+                    key={`sub-${i}`}
                     className="text-right font-semibold text-[10px] uppercase tracking-wider text-foreground px-2 py-2 tabular-nums whitespace-nowrap min-w-[110px] border-b border-l bg-muted/40"
                   >
-                    Total {c.year}
+                    {c.label}
                   </th>
                 ),
-              )}
-              {effectiveShowTotal && (
-                <th className="text-right font-medium text-[10px] uppercase tracking-wider text-muted-foreground px-2 py-2 tabular-nums whitespace-nowrap min-w-[110px] border-l border-b">
-                  Total
-                </th>
               )}
               {showAV && (
                 <th className="text-right font-medium text-[10px] uppercase tracking-wider text-muted-foreground px-2 py-2 whitespace-nowrap min-w-[70px] border-b">
@@ -288,6 +282,7 @@ export function StatementTable({
               )}
             </tr>
           </thead>
+
           <tbody>
             {rows.map((row, idx) => {
               if (hidden.has(idx)) return null;

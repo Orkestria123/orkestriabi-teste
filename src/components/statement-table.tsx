@@ -296,6 +296,8 @@ export function StatementTable({
                       periods={periods}
                       colSpanLeft={1}
                       colSpanRight={rightCols}
+                      variante={variante}
+                      emMilhares={emMilhares}
                     />
                   )}
                 </Fragment>

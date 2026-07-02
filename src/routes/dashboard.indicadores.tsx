@@ -51,16 +51,38 @@ function Page() {
   const [drill, setDrill] = useState<IndicadorCompleto | null>(null);
   const [modo, setModo] = useState<"empresario" | "contador">("empresario");
 
-  const indicadores = useMemo(
-    () =>
-      computeIndicadoresCompletos(
-        (dre ?? []) as FlatRow[],
-        (bpA ?? []) as FlatRow[],
-        (bpP ?? []) as FlatRow[],
-        periodos,
-      ),
-    [dre, bpA, bpP, periodos],
-  );
+  const { data: configs } = useQuery({
+    queryKey: ["indic-configs-view", companyId],
+    enabled: !!companyId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("indicador_config_empresa")
+        .select("*")
+        .eq("company_id", companyId!);
+      if (error) throw error;
+      return (data ?? []) as IndicadorConfigRow[];
+    },
+  });
+
+  const indicadores = useMemo(() => {
+    const todos = computeIndicadoresCompletos(
+      (dre ?? []) as FlatRow[],
+      (bpA ?? []) as FlatRow[],
+      (bpP ?? []) as FlatRow[],
+      periodos,
+    );
+    // Filtra pelas configurações: só exibe indicadores configurados
+    // com visibilidade "indicadores" ou "ambos".
+    const cfgByKey = new Map((configs ?? []).map((c) => [c.indicador_key, c] as const));
+    const defByKey = new Map(INDICADOR_DEFS.map((d) => [d.key, d] as const));
+    return todos.filter((i) => {
+      const cfg = cfgByKey.get(i.key);
+      const def = defByKey.get(i.key);
+      if (!cfg || !def) return false;
+      if (cfg.visibilidade !== "indicadores" && cfg.visibilidade !== "ambos") return false;
+      return isConfigurado(def, cfg.contas_por_termo);
+    });
+  }, [dre, bpA, bpP, periodos, configs]);
 
   const periodoLabel =
     periodos.length === 0

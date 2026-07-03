@@ -340,12 +340,13 @@ export function IndicadoresEmpresaPanel({
 // ------------------------------------------------------------
 
 function IndicadorCard({
-  ind, labelDaConta, periodos, ctx, onVisChange, onEditar, onDuplicar, onExcluir,
+  ind, labelDaConta, periodos, ctx, resolver, onVisChange, onEditar, onDuplicar, onExcluir,
 }: {
   ind: IndicadorEmpresa;
   labelDaConta: (cls: string) => string;
   periodos: string[];
   ctx: ReturnType<typeof useIndicadorData>["data"];
+  resolver: import("@/lib/indicadores/engine").ResolverLinha;
   onVisChange: (v: Visibilidade) => void;
   onEditar: () => void;
   onDuplicar: () => void;
@@ -353,9 +354,9 @@ function IndicadorCard({
 }) {
   const previa = useMemo(() => {
     if (!ctx || periodos.length === 0) return [];
-    const serie = calcularSerie(ind, periodos, ctx);
+    const serie = calcularSerie(ind, periodos, ctx, resolver);
     return aplicarModo(serie, ind.modo_analise).serie;
-  }, [ind, periodos, ctx]);
+  }, [ind, periodos, ctx, resolver]);
 
   return (
     <Card className="p-3">

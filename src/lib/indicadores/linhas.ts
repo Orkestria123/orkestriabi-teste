@@ -139,6 +139,34 @@ function sumPrefixesFromRoot(
   return total;
 }
 
+// Resultado acumulado do exercício até o período (Σ movimento contas grupo 3,
+// do início do ano até a competência, na natureza credora → lucro positivo).
+function resultadoExercicioAte(ctx: EngineContext, periodo: string): number {
+  const inicio = `${periodo.slice(0, 4)}-01`;
+  let total = 0;
+  for (const p of ctx.plano) {
+    if (p.is_sintetica) continue;
+    const g = grupoDe(p.classificacao, ctx.mascara);
+    if (g !== "receita" && g !== "despesa" && g !== "resultado") continue;
+    const saldos = ctx.saldosByClass.get(p.classificacao);
+    if (!saldos) continue;
+    const naturezaRaw = (p.natureza ?? "").toUpperCase();
+    const natureza: "C" | "D" =
+      naturezaRaw === "C" || naturezaRaw === "D"
+        ? (naturezaRaw as "C" | "D")
+        : g === "despesa"
+        ? "D"
+        : "C";
+    for (const [comp, s] of saldos) {
+      if (comp < inicio || comp > periodo) continue;
+      total += natureza === "C"
+        ? Number(s.total_creditos) - Number(s.total_debitos)
+        : Number(s.total_debitos) - Number(s.total_creditos);
+    }
+  }
+  return total;
+}
+
 // ------------------------------------------------------------
 // Resolver
 // ------------------------------------------------------------

@@ -93,6 +93,33 @@ export function IndicadoresEmpresaPanel({
   // Seed dos padrões usando LINHAS DE DEMONSTRAÇÃO (não contas de apuração).
   // Cada indicador é definido em termos de conceitos padronizados que a DRE
   // e o Balanço já calculam, garantindo consistência.
+  // Migração leve: apaga PADRÕES antigos que só usavam contas do plano
+  // (versão pré-catálogo de linhas). O seeder abaixo recria com termos
+  // "demonstracao", que são consistentes com a DRE/Balanço.
+  useEffect(() => {
+    if (!indicadores || indicadores.length === 0) return;
+    const legacy = indicadores.filter((ind) => {
+      if (!ind.is_padrao) return false;
+      const tokens = ind.formula?.expressao ?? [];
+      const temLinha = tokens.some(
+        (t: any) => t.tipo === "termo" && t.origem === "demonstracao",
+      );
+      return !temLinha;
+    });
+    if (legacy.length === 0) return;
+    (async () => {
+      const ids = legacy.map((l) => l.id);
+      const { error } = await supabase
+        .from("indicadores_empresa" as any)
+        .delete()
+        .in("id", ids);
+      if (!error) qc.invalidateQueries({ queryKey: ["indicadores-empresa", companyId] });
+    })();
+  }, [indicadores, companyId, qc]);
+
+  // Seed dos padrões usando LINHAS DE DEMONSTRAÇÃO (não contas de apuração).
+  // Cada indicador é definido em termos de conceitos padronizados que a DRE
+  // e o Balanço já calculam, garantindo consistência.
   useEffect(() => {
     if (!indicadores || !plano) return;
     if (indicadores.length > 0 || plano.length === 0) return;

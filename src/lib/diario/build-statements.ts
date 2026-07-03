@@ -475,11 +475,17 @@ async function buildDRE(
   tipo: "DRE" | "DFC",
   mascara: MascaraConfig,
 ): Promise<FlatRow[]> {
-  const [mapas, saldos, plano] = await Promise.all([
+  const [mapasRaw, saldos, plano] = await Promise.all([
     getMapa(companyId, tenantId, modoGlobal, tipo),
     getSaldos(companyId, periodos),
     getPlanoPorTipo(companyId, tenantId, modoGlobal, ["3-DRE"]),
   ]);
+  // Filtra prefixos que são contas de apuração (.98/.99): não têm lançamento
+  // próprio, seriam ignoradas em aplicarMapaESinal e apenas geram linhas
+  // fantasma zeradas que duplicam subtotais calculados (ex.: "Receita Líquida"
+  // mapeada em 3.01.99 vira duplicata do "(=) Receita Líquida" calculado).
+  const mapas = mapasRaw.filter((m) => !isApuracao(m.classificacao_prefixo, mascara));
+
 
   const planoMap = new Map<string, Plano>();
   const planoPorClassificacao = new Map<string, Plano>();
@@ -673,7 +679,7 @@ async function buildBP(
   // realmente têm saldo. Em seguida usa esse set para restringir a busca
   // de contas participantes (clientes/fornecedores) — o cadastro completo
   // pode ter 100k+ linhas e estoura o fetch.
-  const [mapas, abertura, saldosAcum, planoDRE] = await Promise.all([
+  const [mapasRaw, abertura, saldosAcum, planoDRE] = await Promise.all([
     getMapa(companyId, tenantId, modoGlobal, tipo),
     getAberturaMaisRecente(companyId),
     getSaldosAteData(companyId, ateData),
@@ -681,6 +687,8 @@ async function buildBP(
       ? getPlanoPorTipo(companyId, tenantId, modoGlobal, ["3-DRE"])
       : Promise.resolve([] as Plano[]),
   ]);
+  const mapas = mapasRaw.filter((m) => !isApuracao(m.classificacao_prefixo, mascara));
+
   const codigosComSaldo = new Set<string>();
   for (const c of abertura.keys()) codigosComSaldo.add(c);
   for (const s of saldosAcum) codigosComSaldo.add(s.conta_codigo);

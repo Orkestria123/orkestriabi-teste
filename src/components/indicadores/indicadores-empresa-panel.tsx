@@ -296,6 +296,7 @@ export function IndicadoresEmpresaPanel({
                 labelDaConta={labelDaConta}
                 periodos={periodos}
                 ctx={ctx}
+                resolver={resolver}
                 onVisChange={(v) => atualizarVis(ind.id, v)}
                 onEditar={() => abrirEditar(ind)}
                 onDuplicar={() => duplicar(ind)}

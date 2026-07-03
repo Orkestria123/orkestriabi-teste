@@ -1331,6 +1331,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      indicador_snapshot: { Args: { _company_id: string }; Returns: Json }
       is_orkestria_admin: { Args: never; Returns: boolean }
       reverter_upload_diario: {
         Args: { _upload_id: string }

@@ -158,20 +158,26 @@ function PlanoTab({ tenantId, companyId, readonly }: { tenantId: string; company
   const { data: existente, isLoading } = useQuery({
     queryKey: ["plano-stats", tenantId, companyId],
     queryFn: async () => {
-      const q = supabase
-        .from("plano_contas")
-        .select("tipo, is_participante", { count: "exact" })
-        .eq("tenant_id", tenantId);
-      const r = companyId == null ? await q.is("company_id", null) : await q.eq("company_id", companyId);
-      if (r.error) throw r.error;
-      const rows = r.data ?? [];
       const porTipo: Record<string, number> = {};
-      let estr = 0, part = 0;
-      for (const x of rows as any[]) {
-        porTipo[x.tipo] = (porTipo[x.tipo] ?? 0) + 1;
-        if (x.is_participante) part++; else estr++;
+      let estr = 0, part = 0, total = 0;
+      const step = 1000;
+      for (let from = 0; ; from += step) {
+        const q = supabase
+          .from("plano_contas")
+          .select("tipo, is_participante")
+          .eq("tenant_id", tenantId)
+          .range(from, from + step - 1);
+        const r = companyId == null ? await q.is("company_id", null) : await q.eq("company_id", companyId);
+        if (r.error) throw r.error;
+        const rows = (r.data ?? []) as any[];
+        for (const x of rows) {
+          porTipo[x.tipo] = (porTipo[x.tipo] ?? 0) + 1;
+          if (x.is_participante) part++; else estr++;
+        }
+        total += rows.length;
+        if (rows.length < step) break;
       }
-      return { total: rows.length, estruturais: estr, participantes: part, porTipo };
+      return { total, estruturais: estr, participantes: part, porTipo };
     },
   });
 

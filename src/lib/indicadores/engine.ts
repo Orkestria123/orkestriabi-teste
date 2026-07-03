@@ -17,10 +17,22 @@ import {
 export type ModoAnalise = "numero" | "reais" | "percentual" | "ah_percent" | "ah_valor";
 export type Visibilidade = "invisivel" | "indicadores" | "dashboard" | "ambos";
 
+/**
+ * Um TERMO pode ter duas origens:
+ *  - "conta"        (default): usa uma ou várias contas do plano (com sinais internos).
+ *  - "demonstracao": referencia uma LINHA de demonstração (ex.: "Receita Líquida",
+ *                    "Ativo Total") — resolvida pelo MESMO motor da DRE/BP.
+ */
 export type Token =
   | { tipo: "parentese"; valor: "(" | ")" }
   | { tipo: "operador"; valor: "+" | "-" | "*" | "/" }
-  | { tipo: "termo"; contas: string[]; sinais?: ("+" | "-")[] }
+  | {
+      tipo: "termo";
+      origem?: "conta" | "demonstracao";
+      contas?: string[];
+      sinais?: ("+" | "-")[];
+      linha?: string;
+    }
   | { tipo: "constante"; valor: number };
 
 export interface Formula {
@@ -97,7 +109,12 @@ export function validarExpressao(tokens: Token[]): string[] {
     const cur = tokens[i];
     const next = tokens[i + 1];
     if (cur.tipo === "termo") {
-      if (!cur.contas || cur.contas.length === 0) err.push("Termo sem contas selecionadas.");
+      const origem = cur.origem ?? "conta";
+      if (origem === "conta") {
+        if (!cur.contas || cur.contas.length === 0) err.push("Termo sem contas selecionadas.");
+      } else if (origem === "demonstracao") {
+        if (!cur.linha) err.push("Termo de linha de demonstração sem linha selecionada.");
+      }
     }
     if (isOp(cur) && (!next || (isOp(next) && (next as any).valor !== "("))) {
       err.push("Operador seguido de outro operador ou fim da expressão.");
@@ -292,10 +309,18 @@ function valorTermo(
   return total;
 }
 
+/**
+ * Resolver injetável para termos com `origem: "demonstracao"`.
+ * (linha, periodo) => valor | null. Injetado para evitar dependência
+ * circular entre engine e o catálogo de linhas.
+ */
+export type ResolverLinha = (linha: string, periodo: string) => number | null;
+
 export function avaliarExpressao(
   tokens: Token[],
   periodo: string,
   ctx: EngineContext,
+  resolverLinha?: ResolverLinha,
 ): number | null {
   // Converte para RPN
   const output: Token[] = [];
@@ -327,7 +352,15 @@ export function avaliarExpressao(
   const rpn: number[] = [];
   for (const t of output) {
     if (t.tipo === "termo") {
-      rpn.push(valorTermo(t.contas, t.sinais, periodo, ctx));
+      const origem = t.origem ?? "conta";
+      if (origem === "demonstracao") {
+        if (!t.linha || !resolverLinha) return null;
+        const v = resolverLinha(t.linha, periodo);
+        if (v == null) return null;
+        rpn.push(v);
+      } else {
+        rpn.push(valorTermo(t.contas ?? [], t.sinais, periodo, ctx));
+      }
     } else if (t.tipo === "constante") {
       rpn.push(Number(t.valor) || 0);
     } else if (t.tipo === "operador") {
@@ -362,8 +395,12 @@ export function calcularSerie(
   ind: IndicadorEmpresa,
   periodos: string[],
   ctx: EngineContext,
+  resolverLinha?: ResolverLinha,
 ): SeriePonto[] {
-  return periodos.map((p) => ({ periodo: p, valor: avaliarExpressao(ind.formula.expressao, p, ctx) }));
+  return periodos.map((p) => ({
+    periodo: p,
+    valor: avaliarExpressao(ind.formula.expressao, p, ctx, resolverLinha),
+  }));
 }
 
 /**
@@ -410,6 +447,7 @@ export function formatarValor(v: number | null, modo: ModoAnalise): string {
 export function formulaParaTexto(
   formula: Formula,
   labelDaConta: (cls: string) => string,
+  labelDaLinha?: (linhaKey: string) => string,
 ): string {
   const parts: string[] = [];
   for (const t of formula.expressao) {
@@ -419,10 +457,18 @@ export function formulaParaTexto(
       parts.push(map[t.valor] ?? t.valor);
     } else if (t.tipo === "constante") parts.push(String(t.valor));
     else {
-      const inside = t.contas
-        .map((c, i) => `${t.sinais?.[i] === "-" ? "− " : i > 0 ? "+ " : ""}[${labelDaConta(c) || c}]`)
-        .join(" ");
-      parts.push(t.contas.length > 1 ? `(${inside})` : inside);
+      const origem = t.origem ?? "conta";
+      if (origem === "demonstracao") {
+        const key = t.linha ?? "";
+        const label = labelDaLinha ? labelDaLinha(key) : key;
+        parts.push(`[${label || "?"}]`);
+      } else {
+        const contas = t.contas ?? [];
+        const inside = contas
+          .map((c, i) => `${t.sinais?.[i] === "-" ? "− " : i > 0 ? "+ " : ""}[${labelDaConta(c) || c}]`)
+          .join(" ");
+        parts.push(contas.length > 1 ? `(${inside})` : inside);
+      }
     }
   }
   return parts.join(" ");

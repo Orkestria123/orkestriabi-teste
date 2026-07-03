@@ -81,8 +81,8 @@ export function DuplicarIndicadoresDialog({
         // Verifica se alguma conta da fórmula não existe no plano atual.
         let revisar = false;
         for (const tk of ind.formula?.expressao ?? []) {
-          if (tk.tipo === "termo") {
-            for (const c of tk.contas) {
+          if (tk.tipo === "termo" && (tk.origem ?? "conta") === "conta") {
+            for (const c of tk.contas ?? []) {
               if (!planoClassificacoes.has(c)) { revisar = true; break; }
             }
           }

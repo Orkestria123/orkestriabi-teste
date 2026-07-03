@@ -1,6 +1,10 @@
 // Fetch consolidado (via RPC) para alimentar o engine de indicadores por empresa.
 // A RPC devolve apenas o subconjunto útil do plano (estruturais + participantes
 // com movimento), evitando baixar 100k+ contas de clientes/fornecedores.
+//
+// `useDemoValues` traz também a DRE já calculada pelo mesmo motor das
+// demonstrações — usada para resolver termos de fórmula com origem
+// "demonstracao" (Receita Líquida, EBIT, Lucro Líquido, …).
 
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -10,7 +14,10 @@ import {
   type EngineContext,
   type PlanoRowEng,
   type SaldoRow,
+  type ResolverLinha,
 } from "@/lib/indicadores/engine";
+import { buildStatementFromDiario } from "@/lib/diario/build-statements";
+import { resolverLinha as resolverLinhaCatalogo, keyDre, type DemoDre } from "@/lib/indicadores/linhas";
 
 export function useIndicadorData(
   tenantId: string | undefined,
@@ -61,7 +68,6 @@ export function useIndicadorData(
 
       const aberturas = new Map<string, number>();
       const seen = new Set<string>();
-      // Ordena por data desc para pegar a mais recente por conta
       const abertOrdenado = [...(snap.aberturas ?? [])].sort((a: any, b: any) =>
         String(b.data_referencia).localeCompare(String(a.data_referencia)),
       );
@@ -75,4 +81,61 @@ export function useIndicadorData(
       return buildContext({ plano: planoEng, saldos, aberturas, mascara });
     },
   });
+}
+
+/**
+ * Traz os valores da DRE (mesmo motor das demonstrações) para os períodos
+ * pedidos + devolve um resolver pronto para o engine de indicadores.
+ * Se `periodos` estiver vazio, retorna resolver que só funciona para BP.
+ */
+export function useDemoValues(
+  tenantId: string | undefined,
+  companyId: string | undefined,
+  periodos: string[],
+) {
+  const key = periodos.slice().sort().join(",");
+  return useQuery({
+    queryKey: ["indic-demo-dre", tenantId, companyId, key],
+    enabled: !!tenantId && !!companyId,
+    staleTime: 5 * 60_000,
+    retry: 1,
+    queryFn: async (): Promise<DemoDre> => {
+      if (!periodos || periodos.length === 0) return new Map();
+      // Descobre o modoGlobal do tenant (plano_contas por empresa vs global)
+      const { data: t } = await supabase
+        .from("tenants")
+        .select("plano_contas_modo")
+        .eq("id", tenantId!)
+        .maybeSingle();
+      const modoGlobal = ((t as any)?.plano_contas_modo ?? "empresa") === "global";
+      try {
+        const rows = await buildStatementFromDiario(
+          companyId!,
+          tenantId!,
+          modoGlobal,
+          "DRE",
+          periodos,
+        );
+        const map: DemoDre = new Map();
+        for (const r of rows) {
+          map.set(keyDre(r.descricao, r.periodo), Number(r.valor) || 0);
+        }
+        return map;
+      } catch (e) {
+        console.warn("[useDemoValues] falha ao montar DRE:", e);
+        return new Map();
+      }
+    },
+  });
+}
+
+/** Cria um `ResolverLinha` para o motor de indicadores. */
+export function criarResolverLinha(
+  ctx: EngineContext | undefined,
+  demoDre: DemoDre | undefined,
+): ResolverLinha {
+  return (linha: string, periodo: string) => {
+    if (!ctx) return null;
+    return resolverLinhaCatalogo(linha, periodo, ctx, demoDre);
+  };
 }

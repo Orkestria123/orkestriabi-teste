@@ -278,11 +278,15 @@ export function IndicadorCardCliente({ ind, serie, valor, faixa, onClick }: Prop
       <p className="mt-3 truncate font-mono text-[10px] text-muted-foreground/80" title={formulaTexto}>
         {formulaTexto}
       </p>
-      {ind.descricao && (
-        <p className="mt-1 text-[11px] leading-snug text-muted-foreground line-clamp-2">
-          {ind.descricao}
+
+      <div className="mt-2 flex items-start gap-1.5 rounded-md border border-border/60 bg-muted/30 p-2">
+        <Sparkles className="mt-0.5 h-3 w-3 shrink-0 text-primary" />
+        <p className="text-[11px] leading-snug text-muted-foreground">
+          {analiseLoading && !analise
+            ? "Analisando…"
+            : analise?.texto ?? ind.descricao ?? "—"}
         </p>
-      )}
+      </div>
     </Card>
   );
 }

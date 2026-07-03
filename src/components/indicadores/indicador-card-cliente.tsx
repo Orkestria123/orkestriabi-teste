@@ -137,7 +137,8 @@ export function IndicadorCardCliente({ ind, serie, valor, faixa, onClick }: Prop
     }
   }
 
-  const formulaTexto = formulaParaTexto(ind.formula, () => "", labelLinha);
+
+
 
   return (
     <Card

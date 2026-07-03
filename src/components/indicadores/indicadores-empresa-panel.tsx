@@ -54,13 +54,16 @@ export function IndicadoresEmpresaPanel({
   const { data: plano } = useQuery({
     queryKey: ["indic-plano-empresa", tenantId, companyId],
     queryFn: async () => {
+      // Filtra participantes no servidor: indicadores usam apenas contas
+      // estruturais (~1.1k), nunca as ~134k subcontas de clientes/fornecedores.
       const { data, error } = await supabase
         .from("plano_contas")
         .select("classificacao, descricao, is_sintetica, is_participante, nivel")
         .eq("tenant_id", tenantId)
+        .eq("is_participante", false)
         .or(`company_id.eq.${companyId},company_id.is.null`)
         .order("classificacao")
-        .range(0, 9999);
+        .range(0, 4999);
       if (error) throw error;
       return (data ?? []) as ContaPlanoItem[];
     },

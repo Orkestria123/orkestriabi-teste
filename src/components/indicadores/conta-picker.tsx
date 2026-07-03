@@ -38,7 +38,7 @@ export function ContaPicker({ plano, selecionadas, onChange, buttonLabel = "Esco
           p.descricao.toLowerCase().includes(b)
         );
       })
-      .slice(0, 500);
+      .slice(0, 2000);
   }, [plano, busca]);
 
   const sel = new Set(selecionadas);

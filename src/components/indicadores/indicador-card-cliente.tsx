@@ -101,6 +101,30 @@ export function IndicadorCardCliente({ ind, serie, valor, faixa, onClick }: Prop
   const ultimoIdx = pontos.length - 1;
   const temSerie = pontos.filter((p) => p.valor != null).length >= 2;
   const faixasEsc = faixasNoMesmoEscalar(ind.faixas, ind.modo_analise);
+  const formulaTexto = formulaParaTexto(ind.formula, () => "", labelLinha);
+
+  const explicarFn = useServerFn(explicarIndicador);
+  const chaveSerie = serie
+    .map((p) => `${p.periodo.slice(0, 7)}:${p.valor == null ? "-" : p.valor.toFixed(4)}`)
+    .join("|");
+  const { data: analise, isLoading: analiseLoading } = useQuery({
+    queryKey: ["indic-explicacao", ind.id, faixa, chaveSerie],
+    enabled: serie.some((p) => p.valor != null && isFinite(p.valor)),
+    staleTime: 24 * 60 * 60_000,
+    gcTime: 24 * 60 * 60_000,
+    retry: 0,
+    queryFn: () =>
+      explicarFn({
+        data: {
+          nome: ind.nome,
+          categoria: ind.categoria,
+          formulaTexto,
+          modo: ind.modo_analise,
+          faixa,
+          serie: serie.map((p) => ({ periodo: p.periodo, valor: p.valor })),
+        },
+      }),
+  });
 
   // Banda saudável (só quando faixas configuradas com bom/otimo)
   let band: { y1: number; y2: number } | null = null;

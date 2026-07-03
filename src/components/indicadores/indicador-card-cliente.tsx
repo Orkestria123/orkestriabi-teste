@@ -2,6 +2,7 @@
 // 1 período  -> número grande e limpo.
 // 2+ períodos -> AreaChart com gradiente, hover, último ponto destacado
 //                e (opcional) faixa saudável como banda de fundo.
+// Análise em linguagem clara gerada por IA (cache por indicador+série).
 
 import { useId, useMemo } from "react";
 import {
@@ -14,6 +15,8 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { useQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -27,6 +30,9 @@ import {
   type SeriePonto,
 } from "@/lib/indicadores/engine";
 import { labelLinha } from "@/lib/indicadores/linhas";
+import { explicarIndicador } from "@/lib/api/indicador-explicacao.functions";
+import { Sparkles } from "lucide-react";
+
 
 interface Props {
   ind: IndicadorEmpresa;

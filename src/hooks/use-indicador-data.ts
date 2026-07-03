@@ -12,7 +12,7 @@ import {
 } from "@/lib/indicadores/engine";
 
 async function fetchAll<T>(
-  q: (from: number, to: number) => Promise<{ data: T[] | null; error: any }>,
+  q: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: any }>,
 ): Promise<T[]> {
   const step = 1000;
   let from = 0;

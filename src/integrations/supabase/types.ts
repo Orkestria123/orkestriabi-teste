@@ -574,6 +574,75 @@ export type Database = {
           },
         ]
       }
+      indicadores_empresa: {
+        Row: {
+          categoria: string
+          company_id: string
+          created_at: string
+          descricao: string | null
+          faixas: Json | null
+          formula: Json
+          id: string
+          is_padrao: boolean
+          modo_analise: string
+          nome: string
+          ordem: number
+          revisar_contas: boolean
+          tenant_id: string
+          updated_at: string
+          visibilidade: string
+        }
+        Insert: {
+          categoria?: string
+          company_id: string
+          created_at?: string
+          descricao?: string | null
+          faixas?: Json | null
+          formula?: Json
+          id?: string
+          is_padrao?: boolean
+          modo_analise?: string
+          nome: string
+          ordem?: number
+          revisar_contas?: boolean
+          tenant_id: string
+          updated_at?: string
+          visibilidade?: string
+        }
+        Update: {
+          categoria?: string
+          company_id?: string
+          created_at?: string
+          descricao?: string | null
+          faixas?: Json | null
+          formula?: Json
+          id?: string
+          is_padrao?: boolean
+          modo_analise?: string
+          nome?: string
+          ordem?: number
+          revisar_contas?: boolean
+          tenant_id?: string
+          updated_at?: string
+          visibilidade?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "indicadores_empresa_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "indicadores_empresa_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       indicator_configs: {
         Row: {
           categoria: string | null

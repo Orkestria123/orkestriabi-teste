@@ -19,6 +19,7 @@ import {
   AXIS_PROPS, GRID_PROPS, TOOLTIP_STYLE, ANIMATION,
   tooltipFormatBRL, tooltipFormatBRLCompact, CHART_COLORS,
 } from "@/lib/chart-config";
+import { IndicadoresClienteGrid } from "@/components/indicadores/indicadores-cliente";
 
 export const Route = createFileRoute("/dashboard/")({ component: DashboardHome });
 

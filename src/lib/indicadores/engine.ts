@@ -222,7 +222,20 @@ export function valorContaAnalitica(
   if (!p) return 0;
   const grupo = grupoDe(classificacao, ctx.mascara);
   const isPatrimonial = grupo === "ativo" || grupo === "passivo" || grupo === "pl";
-  const natureza = (p.natureza ?? "").toUpperCase() === "C" ? "C" : "D";
+
+  // Natureza contábil (Débito × Crédito) para inverter o sinal do movimento.
+  // O campo `natureza` do plano guarda "S/A" (sintética/analítica) na maioria
+  // dos escritórios brasileiros, então NÃO dá para inferir C/D dele.
+  // Usamos o GRUPO da classificação como fonte de verdade:
+  //   ativo, despesa  → devedor (D)
+  //   passivo, pl, receita, resultado → credor (C)
+  const naturezaRaw = (p.natureza ?? "").toUpperCase();
+  const natureza: "C" | "D" =
+    naturezaRaw === "C" || naturezaRaw === "D"
+      ? (naturezaRaw as "C" | "D")
+      : (grupo === "passivo" || grupo === "pl" || grupo === "receita" || grupo === "resultado")
+      ? "C"
+      : "D";
 
   const saldosMap = ctx.saldosByClass.get(classificacao);
 
@@ -233,7 +246,6 @@ export function valorContaAnalitica(
 
   if (isPatrimonial) {
     const abertura = ctx.aberturas.get(classificacao) ?? 0;
-    // sinal da abertura já está no mesmo sentido do BP quando salvamos.
     let acum = Number(abertura) || 0;
     if (saldosMap) {
       for (const [comp, s] of saldosMap) {
@@ -242,7 +254,7 @@ export function valorContaAnalitica(
     }
     return acum;
   }
-  // resultado
+  // resultado (receita/despesa)
   if (!saldosMap) return 0;
   const s = saldosMap.get(periodo);
   return s ? signMov(s) : 0;

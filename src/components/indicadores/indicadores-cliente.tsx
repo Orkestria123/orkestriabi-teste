@@ -133,7 +133,7 @@ export function IndicadoresClienteGrid({
               <IndicadorCardCliente
                 key={ind.id}
                 ind={ind}
-                serie={compacto ? serie.slice(-1) : serie}
+                serie={serie}
                 valor={valor}
                 faixa={faixa}
               />

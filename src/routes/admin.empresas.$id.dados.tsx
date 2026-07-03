@@ -103,7 +103,7 @@ function Page() {
 
         <TabsContent value="indicadores">
           {company && (
-            <IndicadoresConfigPanel
+            <IndicadoresEmpresaPanel
               tenantId={company.tenant_id!}
               companyId={company.id}
             />

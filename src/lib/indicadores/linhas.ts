@@ -276,13 +276,13 @@ export function resolverLinha(
       return sumPrefixes(ctx, periodo, pref);
     }
     case "PASSIVO_TOTAL_E_PL":
-      return sumByGrupo(ctx, periodo, ["passivo", "pl"]);
+      return sumByGrupo(ctx, periodo, ["passivo", "pl"]) + resultadoExercicioAte(ctx, periodo);
     case "PASSIVO_CIRCULANTE":
       return sumPrefixesFromRoot(ctx, periodo, ["2.01"]);
     case "PASSIVO_NAO_CIRCULANTE":
       return sumPrefixesFromRoot(ctx, periodo, ["2.02"]);
     case "PATRIMONIO_LIQUIDO":
-      return sumPrefixesFromRoot(ctx, periodo, ["2.03", "2.04", "2.05"]);
+      return sumPrefixesFromRoot(ctx, periodo, ["2.03", "2.04", "2.05"]) + resultadoExercicioAte(ctx, periodo);
     case "FORNECEDORES": {
       const pref = findPrefixByDesc(ctx, /fornec/i, ["passivo", "pl"]);
       return sumPrefixes(ctx, periodo, pref);

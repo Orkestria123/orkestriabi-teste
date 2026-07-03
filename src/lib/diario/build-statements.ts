@@ -475,11 +475,17 @@ async function buildDRE(
   tipo: "DRE" | "DFC",
   mascara: MascaraConfig,
 ): Promise<FlatRow[]> {
-  const [mapas, saldos, plano] = await Promise.all([
+  const [mapasRaw, saldos, plano] = await Promise.all([
     getMapa(companyId, tenantId, modoGlobal, tipo),
     getSaldos(companyId, periodos),
     getPlanoPorTipo(companyId, tenantId, modoGlobal, ["3-DRE"]),
   ]);
+  // Filtra prefixos que são contas de apuração (.98/.99): não têm lançamento
+  // próprio, seriam ignoradas em aplicarMapaESinal e apenas geram linhas
+  // fantasma zeradas que duplicam subtotais calculados (ex.: "Receita Líquida"
+  // mapeada em 3.01.99 vira duplicata do "(=) Receita Líquida" calculado).
+  const mapas = mapasRaw.filter((m) => !isApuracao(m.classificacao_prefixo, mascara));
+
 
   const planoMap = new Map<string, Plano>();
   const planoPorClassificacao = new Map<string, Plano>();

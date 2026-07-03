@@ -162,6 +162,17 @@ function DashboardHome() {
       </div>
 
       {view === "geral" && (
+        <IndicadoresClienteGrid
+          tenantId={company?.tenant_id ?? undefined}
+          companyId={companyId ?? undefined}
+          periodos={activePeriods}
+          visibilidade={["dashboard", "ambos"]}
+          compacto
+          hideWhenEmpty
+        />
+      )}
+
+      {view === "geral" && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <InsightsCard companyId={companyId} periodos={activePeriods} />
           <AlertsCard indicators={indicators} periodos={activePeriods} />

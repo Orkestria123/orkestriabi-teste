@@ -25,7 +25,7 @@ import { formatBRL } from "@/lib/format";
 import { MascaraConfigPanel } from "@/components/mascara-config";
 import { BalancoFechaBadge } from "@/components/balanco-fecha-badge";
 import { getMascaraConfig } from "@/lib/mascara/interpretar";
-import { IndicadoresConfigPanel } from "@/components/indicadores-config-panel";
+import { IndicadoresEmpresaPanel } from "@/components/indicadores/indicadores-empresa-panel";
 
 export const Route = createFileRoute("/admin/empresas/$id/dados")({
   component: Page,

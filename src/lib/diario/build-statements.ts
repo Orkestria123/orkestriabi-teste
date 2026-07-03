@@ -822,7 +822,13 @@ async function buildBP(
             "Intangível",
           ],
         }
-      : {};
+      : {
+          "Patrimônio Líquido": [
+            "Capital Social",
+            "Reservas",
+            "Lucros/Prejuízos Acumulados",
+          ],
+        };
   const isStructParent = (linha: string) => linha in STRUCT_GROUPS;
   const childrenOf = (linha: string) => STRUCT_GROUPS[linha] ?? [];
   const childSet = new Set(Object.values(STRUCT_GROUPS).flat());
@@ -857,13 +863,35 @@ async function buildBP(
     }
   }
 
-  // Fase 3: por período, agrega parents estruturais, resultado do exercício, total.
+  // Fase 2b: no passivo, emite "Resultado do Exercício" como filha do PL.
+  if (tipo === "BP_PASSIVO") {
+    const baseRes =
+      ordemDe("Patrimônio Líquido") * 1000 +
+      (childrenOf("Patrimônio Líquido").length + 1) * 20;
+    for (const ref of periodosOrd) {
+      const resultado = resultadoExercicioPorRef.get(ref) ?? 0;
+      out.push({
+        linha_ordem: baseRes,
+        descricao: "Resultado do Exercício",
+        codigo_conta: null,
+        nivel: 2,
+        is_subtotal: false,
+        periodo: ref,
+        valor: resultado,
+      });
+    }
+  }
+
+  // Fase 3: agrega parents estruturais e total do lado.
   for (const ref of periodosOrd) {
     const valorLinhaRef = (linha: string) => totalPorLinhaRef.get(linha)?.get(ref) ?? 0;
     let totalLado = 0;
     for (const [linha] of linhasOrd) {
       if (isStructParent(linha)) {
-        const v = childrenOf(linha).reduce((a, c) => a + valorLinhaRef(c), 0);
+        let v = childrenOf(linha).reduce((a, c) => a + valorLinhaRef(c), 0);
+        if (tipo === "BP_PASSIVO" && linha === "Patrimônio Líquido") {
+          v += resultadoExercicioPorRef.get(ref) ?? 0;
+        }
         const header = out.find(
           (r) => r.periodo === ref && r.descricao === linha && r.nivel === 0,
         );
@@ -872,20 +900,6 @@ async function buildBP(
       } else if (!childSet.has(linha)) {
         totalLado += valorLinhaRef(linha);
       }
-    }
-
-    if (tipo === "BP_PASSIVO") {
-      const resultado = resultadoExercicioPorRef.get(ref) ?? 0;
-      out.push({
-        linha_ordem: 9_998_500,
-        descricao: "Resultado do Exercício",
-        codigo_conta: null,
-        nivel: 1,
-        is_subtotal: false,
-        periodo: ref,
-        valor: resultado,
-      });
-      totalLado += resultado;
     }
 
     out.push({
@@ -898,6 +912,7 @@ async function buildBP(
       valor: totalLado,
     });
   }
+
 
 
   out.sort((a, b) => a.linha_ordem - b.linha_ordem || a.periodo.localeCompare(b.periodo));

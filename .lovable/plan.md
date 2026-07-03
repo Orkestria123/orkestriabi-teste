@@ -1,85 +1,91 @@
-## Problema
 
-O drill-down atual (`useAccountDrilldown` em `src/hooks/use-drilldown.ts`) consulta `chart_of_accounts` + `account_balances` filtrando por prefixo de `codigo_conta`. Como as demonstrações são construídas a partir de `plano_contas` + `lancamentos_diario`/`saldos_abertura`/`saldos_mensais`, essas tabelas ficam vazias — daí a mensagem "Nenhuma conta analítica encontrada".
+# Sistema de Indicadores Customizáveis por Empresa
 
-Além disso, no `build-statements.ts`, o `row.codigo_conta` das linhas da árvore recebe a **classificação** (ex.: `2.1.3.05.02`), não o **código da conta** (`plano_contas.codigo`, ex.: `4903`). O drill-down precisa mapear classificação → contas (`plano_contas.codigo`) para então buscar lançamentos.
+Substitui o painel atual (que só permitia vincular contas a indicadores padrão fixos) por um construtor completo de indicadores por empresa. A visão do cliente permanece somente leitura.
 
-## Objetivo
+## 1. Schema (migration)
 
-Ao clicar em uma linha da DRE/Balanço, exibir os **lançamentos do diário** (`lancamentos_diario`) que compõem o valor daquela linha, no(s) período(s) selecionado(s), somando exatamente ao valor mostrado. No Balanço, incluir uma linha "Saldo inicial" quando houver.
+Nova tabela `indicadores_empresa`:
 
-## Escopo
+- `id uuid PK`, `tenant_id`, `company_id`, `created_at`, `updated_at`
+- `nome text`, `categoria text` (livre; sugestões: Liquidez, Rentabilidade, Endividamento, Atividade, Personalizado)
+- `formula jsonb` — expressão tokenizada (ver formato abaixo)
+- `modo_analise text` — `numero | reais | percentual | ah_percent | ah_valor`
+- `faixas jsonb` — `{ otimo, bom, atencao, critico, direcao: 'maior_melhor'|'menor_melhor' }` (opcional)
+- `descricao text`
+- `visibilidade text DEFAULT 'indicadores'` — `invisivel | indicadores | dashboard | ambos`
+- `is_padrao boolean`, `revisar_contas boolean`, `ordem int`
+- RLS: tenant/company scoping via `get_my_tenant_id` / `has_role('orkestria_admin'|'tenant_admin')`
+- GRANTs padrão para `authenticated` e `service_role`
 
-### 1. Novo hook `useLancamentosDrilldown` (`src/hooks/use-drilldown.ts`)
+Formato de `formula.expressao` (array de tokens):
 
-Assinatura:
-```ts
-useLancamentosDrilldown(companyId, classificacao, periodos, {
-  incluirSaldoInicial: boolean   // true no Balanço, false na DRE
-}, enabled)
+```
+{ tipo: "parentese", valor: "(" | ")" }
+{ tipo: "operador",  valor: "+" | "-" | "*" | "/" }
+{ tipo: "termo",     contas: ["3.06.01.01", "..."], sinais: ["+","-", ...] }
+{ tipo: "constante", valor: 100 }   // opcional, para futuras fórmulas com literais
 ```
 
-Fluxo:
-1. Consulta `plano_contas` do company: `select codigo, descricao, classificacao, is_sintetica where classificacao = :classif OR classificacao like :classif + separador + '%'` — retorna todas as contas descendentes.
-2. Filtra apenas contas **analíticas** (`is_sintetica = false`) → lista de `conta_codigo`s.
-3. Se vazio: retorna `{ entries: [], saldoInicial: null, contasEncontradas: 0 }` com mensagem específica ("Sem contas analíticas mapeadas para esta linha").
-4. Determina range de competência a partir de `periodos` (min/max mês).
-5. Consulta em batch:
-   ```sql
-   select data, historico, debito, credito, conta_codigo, competencia
-   from lancamentos_diario
-   where company_id = :c
-     and conta_codigo in (:contas)
-     and competencia between :min and :max
-   order by data, id
-   ```
-6. Se `incluirSaldoInicial`: consulta `saldos_abertura` (mesma lista de `conta_codigo`, `data_referencia` ≤ início do range).
-7. Retorna `{ entries, saldoInicial, contasMap }` onde `contasMap[conta_codigo] = { codigo, descricao }` para enriquecer a exibição.
+Cada `conta` é o `classificacao` (código estruturado) — se for sintética, o cálculo expande para a soma de todas as analíticas descendentes.
 
-Batch de `in()` deve ser dividido em lotes de ≤ 500 caso a lista fique grande (contas participantes).
+`indicador_config_empresa` (tabela antiga) será mantida em coexistência mas o app deixa de lê-la. Não drop na mesma migration.
 
-### 2. Reescrever `src/components/inline-drilldown.tsx`
+## 2. Motor de cálculo (`src/lib/indicadores/engine.ts`)
 
-Nova UI (tabela substituindo a atual):
+- `expandirContas(codigos, plano)` → resolve sintéticas em analíticas descendentes (via `mascara/interpretar`).
+- `valorConta(codigo, periodo, saldos, natureza)` → sinal correto por natureza/grupo (mesma lógica do build-statements).
+- `avaliarExpressao(tokens, resolverConta, periodo)` → shunting-yard → RPN → resultado.
+- `calcularIndicador(ind, periodos, plano, saldos)` → série `{ periodo, valor }[]`.
+- Modo AH% / AH$: compara primeiro vs último período da seleção.
+- Validação de expressão: parênteses balanceados, sem operador duplo, termos com ≥1 conta.
 
-| Data | Conta | Histórico | Débito | Crédito | Valor |
-|---|---|---|---|---|---|
+## 3. Componentes de UI (admin)
 
-- Coluna "Conta" só aparece se >1 conta analítica no drill (senão redundante).
-- "Valor" = `débito - crédito` (com sinal, formatação pt-BR, respeitando `emMilhares` do pai — passar via prop).
-- Débito/Crédito em cinza quando zero.
-- Linha inicial "Saldo inicial em dd/mm/aaaa" (quando `incluirSaldoInicial` e houver).
-- Linha final "Total (N lançamentos)" com soma.
-- Empty states específicos:
-  - Nenhuma conta analítica no plano de contas para essa classificação.
-  - Contas encontradas, mas sem lançamentos no período.
-- Loading com spinner (padrão atual).
+`src/components/indicadores/formula-builder.tsx`
+- Lista visual de tokens; botões: "Adicionar termo", "+", "−", "×", "÷", "(", ")", "Remover".
+- Cada `termo` renderiza chips de contas com sinal individual (+/−) e um botão "Escolher contas" que abre popover da árvore do plano (reaproveita `TermoSelector` já existente, adaptado).
+- Preview textual da fórmula: `( [Desp Adm] − [INSS] ) ÷ [Receita]`.
+- Validação inline (erros em vermelho abaixo).
 
-Nova prop `variante: "dre" | "bp"` para decidir `incluirSaldoInicial`.
+`src/components/indicadores/indicador-editor-dialog.tsx`
+- Dialog com: nome, categoria, descrição, `FormulaBuilder`, modo de análise, faixas opcionais.
+- Botão Salvar (insert/update).
 
-### 3. Ajustes em `src/components/statement-table.tsx`
+`src/components/indicadores/duplicar-dialog.tsx`
+- Passo 1: select de empresa de origem (do mesmo tenant).
+- Passo 2: lista de indicadores dessa empresa com checkboxes.
+- Ao confirmar: insert de cópias com `company_id` atual; valida se contas existem no plano-alvo → marca `revisar_contas=true` quando faltar.
 
-- Aceitar prop `variante: "dre" | "bp"` (default `"dre"`) e repassar ao `<InlineDrilldown>`.
-- Passar `emMilhares` como prop para o drill-down formatar coerente.
-- `canDrill` continua sendo `!!row.codigo_conta`. Sintéticos internos continuam clicáveis: o hook agregará lançamentos de todas as analíticas filhas — comportamento coerente com o pedido do usuário ("no sintético expande a árvore", que já existe via chevron, e ao clicar no nome mostra o detalhe consolidado).
+`src/components/indicadores/indicadores-empresa-panel.tsx` (substitui o atual `indicadores-config-panel.tsx`)
+- Header: botões `[+ Criar Indicador]` e `[Duplicar de outra empresa]`.
+- Lista de indicadores (card por linha) com: nome, categoria, fórmula renderizada, modo, prévia (últimos 3 períodos calculados via engine), select de visibilidade, badge "Revisar contas" quando aplicável, ações Editar/Duplicar/Excluir.
 
-### 4. Chamadas nas rotas
+`src/routes/admin.empresas.$id.dados.tsx`: troca import do panel antigo pelo novo.
 
-- `src/routes/dashboard.dre.tsx`: `<StatementTable variante="dre" ... />`
-- `src/routes/dashboard.balanco.tsx`: `<StatementTable variante="bp" ... />`
+## 4. Seed dos padrões
 
-### 5. Depreciar (não remover) `useAccountDrilldown`
+Ao abrir a aba com zero indicadores E com plano já importado, disparar seed client-side inserindo indicadores padrão de `INDICADOR_DEFS` traduzidos para o novo formato (`formula.expressao`), com contas sugeridas quando encontradas por match de descrição no plano; caso contrário, contas vazias + `revisar_contas=true`. `is_padrao=true`.
 
-Mantém o export atual para não quebrar `account-drilldown-sheet.tsx`. Marcar com JSDoc `@deprecated` explicando que a nova fonte é `lancamentos_diario`. Sheet fica para trabalho futuro, não é acessado no fluxo relatado.
+## 5. Visão do cliente
 
-## Observações técnicas
+`src/routes/dashboard.indicadores.tsx`
+- Passa a ler `indicadores_empresa` (visibilidade ∈ {indicadores, ambos}) da empresa atual.
+- Calcula com o novo engine usando `plano_contas` + `saldos_mensais` dos períodos selecionados.
+- Sem botões de configuração. Faixas do próprio indicador determinam a cor.
 
-- Períodos no filtro chegam como `YYYY-MM`; competência é `date` (primeiro dia do mês). Converter: min → `${minAno}-${minMes}-01`, max → último dia do mês do maior período (basta usar `${maxAno}-${maxMes}-01` no BETWEEN se a coluna sempre for dia 1; senão, próximo mês menos 1).
-- Ordenação secundária por `id` para estabilidade quando há vários lançamentos na mesma data.
-- Nenhuma mudança em `build-statements.ts` — o `codigo_conta = classificação` continua correto; o mapeamento é feito no hook.
-- Nenhuma mudança de schema/RLS.
+`src/routes/dashboard.index.tsx` (Dashboard)
+- Se já mostra indicadores, filtrar por visibilidade ∈ {dashboard, ambos}. Se não mostrar, adicionar seção "Indicadores em destaque" simples (grid compacto).
 
-## Fora de escopo
+## 6. Fora do escopo desta entrega
 
-- Refatoração do `account-drilldown-sheet.tsx` (não usado no ponto de clique atual).
-- Paginação da lista de lançamentos (assumindo volumes controláveis; se necessário, adicionar depois).
+- Remoção da tabela `indicador_config_empresa` (mantém por compatibilidade; podemos limpar depois).
+- Editor visual de faixas com sliders (usaremos inputs numéricos simples).
+- Fórmulas com funções (ABS, IF, MÉDIA) — apenas +, −, ×, ÷ e parênteses nesta versão.
+
+## Detalhes técnicos
+
+- Todo cruzamento usa `classificacao` (código estruturado) do `plano_contas`, não `descricao`.
+- Sintética = `is_sintetica=true`; expansão via `descendeDe` da máscara.
+- Saldo do período de conta de resultado = movimento do mês; conta patrimonial = saldo acumulado (mesma regra de `build-statements`).
+- RLS: `orkestria_admin` vê tudo; `tenant_admin` só do próprio tenant; cliente só leitura das visíveis da própria empresa.

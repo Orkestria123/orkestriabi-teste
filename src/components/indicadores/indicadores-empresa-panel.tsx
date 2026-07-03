@@ -20,9 +20,8 @@ import {
   type IndicadorEmpresa,
   type Visibilidade,
 } from "@/lib/indicadores/engine";
-import { useIndicadorData } from "@/hooks/use-indicador-data";
-import { INDICADOR_DEFS } from "@/lib/indicadores/definicoes";
-import { sugerirContasPorLabel } from "@/lib/indicadores/engine";
+import { useIndicadorData, useDemoValues, criarResolverLinha } from "@/hooks/use-indicador-data";
+import { labelLinha } from "@/lib/indicadores/linhas";
 
 const VIS_OPTS: { value: Visibilidade; label: string }[] = [
   { value: "invisivel", label: "Invisível" },
@@ -91,42 +90,131 @@ export function IndicadoresEmpresaPanel({
     [plano],
   );
 
-  // Seed dos padrões quando a lista está vazia e há plano importado.
+  // Seed dos padrões usando LINHAS DE DEMONSTRAÇÃO (não contas de apuração).
+  // Cada indicador é definido em termos de conceitos padronizados que a DRE
+  // e o Balanço já calculam, garantindo consistência.
+  // Migração leve: apaga PADRÕES antigos que só usavam contas do plano
+  // (versão pré-catálogo de linhas). O seeder abaixo recria com termos
+  // "demonstracao", que são consistentes com a DRE/Balanço.
+  useEffect(() => {
+    if (!indicadores || indicadores.length === 0) return;
+    const legacy = indicadores.filter((ind) => {
+      if (!ind.is_padrao) return false;
+      const tokens = ind.formula?.expressao ?? [];
+      const temLinha = tokens.some(
+        (t: any) => t.tipo === "termo" && t.origem === "demonstracao",
+      );
+      return !temLinha;
+    });
+    if (legacy.length === 0) return;
+    (async () => {
+      const ids = legacy.map((l) => l.id);
+      const { error } = await supabase
+        .from("indicadores_empresa" as any)
+        .delete()
+        .in("id", ids);
+      if (!error) qc.invalidateQueries({ queryKey: ["indicadores-empresa", companyId] });
+    })();
+  }, [indicadores, companyId, qc]);
+
+  // Seed dos padrões usando LINHAS DE DEMONSTRAÇÃO (não contas de apuração).
+  // Cada indicador é definido em termos de conceitos padronizados que a DRE
+  // e o Balanço já calculam, garantindo consistência.
   useEffect(() => {
     if (!indicadores || !plano) return;
     if (indicadores.length > 0 || plano.length === 0) return;
     (async () => {
-      const inserts = INDICADOR_DEFS.map((def, i) => {
-        // Constrói uma expressão simples: (termo1) op (termo2) ...
-        // Como não temos a expressão original, criamos uma fórmula "placeholder"
-        // baseada nos rótulos, com contas sugeridas quando encontradas.
-        const contasPorTermo = def.termos.map((t) => sugerirContasPorLabel(t.label, (plano as any)));
-        const anyMissing = contasPorTermo.some((c) => c.length === 0);
-        // fórmula: primeiro termo / segundo termo (fallback simples)
-        // Melhor: um único termo somando todos, apenas para servir de esqueleto.
-        const expressao = contasPorTermo.length >= 2
-          ? [
-              { tipo: "termo", contas: contasPorTermo[0], sinais: contasPorTermo[0].map(() => "+") } as const,
-              { tipo: "operador", valor: "/" } as const,
-              { tipo: "termo", contas: contasPorTermo[1], sinais: contasPorTermo[1].map(() => "+") } as const,
-            ]
-          : [
-              { tipo: "termo", contas: contasPorTermo[0] ?? [], sinais: (contasPorTermo[0] ?? []).map(() => "+") } as const,
-            ];
-        return {
-          tenant_id: tenantId,
-          company_id: companyId,
-          nome: def.label,
-          categoria: def.categoria,
-          descricao: def.formulaTexto,
-          modo_analise: def.formato === "percent" ? "percentual" : def.formato === "money" ? "reais" : "numero",
-          formula: { expressao },
-          visibilidade: "invisivel",
-          is_padrao: true,
-          revisar_contas: anyMissing,
-          ordem: i * 10,
-        };
-      });
+      const termoLinha = (linha: string) => ({ tipo: "termo" as const, origem: "demonstracao" as const, linha });
+      const op = (v: "+" | "-" | "*" | "/") => ({ tipo: "operador" as const, valor: v });
+      const par = (v: "(" | ")") => ({ tipo: "parentese" as const, valor: v });
+
+      const PADROES: {
+        nome: string; categoria: string; modo: "percentual" | "numero" | "reais";
+        descricao: string; expressao: any[];
+        direcao?: "maior_melhor" | "menor_melhor";
+      }[] = [
+        // Liquidez
+        {
+          nome: "Liquidez Corrente", categoria: "Liquidez", modo: "numero",
+          descricao: "Ativo Circulante ÷ Passivo Circulante",
+          expressao: [termoLinha("ATIVO_CIRCULANTE"), op("/"), termoLinha("PASSIVO_CIRCULANTE")],
+        },
+        {
+          nome: "Liquidez Seca", categoria: "Liquidez", modo: "numero",
+          descricao: "(Ativo Circulante − Estoques) ÷ Passivo Circulante",
+          expressao: [par("("), termoLinha("ATIVO_CIRCULANTE"), op("-"), termoLinha("ESTOQUES"), par(")"), op("/"), termoLinha("PASSIVO_CIRCULANTE")],
+        },
+        {
+          nome: "Liquidez Imediata", categoria: "Liquidez", modo: "numero",
+          descricao: "Disponível ÷ Passivo Circulante",
+          expressao: [termoLinha("DISPONIVEL"), op("/"), termoLinha("PASSIVO_CIRCULANTE")],
+        },
+        // Endividamento
+        {
+          nome: "Endividamento Geral", categoria: "Endividamento", modo: "percentual",
+          descricao: "(Passivo Circulante + Passivo Não Circulante) ÷ Ativo Total",
+          direcao: "menor_melhor",
+          expressao: [par("("), termoLinha("PASSIVO_CIRCULANTE"), op("+"), termoLinha("PASSIVO_NAO_CIRCULANTE"), par(")"), op("/"), termoLinha("ATIVO_TOTAL")],
+        },
+        {
+          nome: "Composição do Endividamento", categoria: "Endividamento", modo: "percentual",
+          descricao: "Passivo Circulante ÷ (Passivo Circulante + Passivo Não Circulante)",
+          direcao: "menor_melhor",
+          expressao: [termoLinha("PASSIVO_CIRCULANTE"), op("/"), par("("), termoLinha("PASSIVO_CIRCULANTE"), op("+"), termoLinha("PASSIVO_NAO_CIRCULANTE"), par(")")],
+        },
+        // Rentabilidade
+        {
+          nome: "Margem Bruta", categoria: "Rentabilidade", modo: "percentual",
+          descricao: "Lucro Bruto ÷ Receita Líquida",
+          expressao: [termoLinha("LUCRO_BRUTO"), op("/"), termoLinha("RECEITA_LIQUIDA")],
+        },
+        {
+          nome: "Margem Líquida", categoria: "Rentabilidade", modo: "percentual",
+          descricao: "Lucro Líquido ÷ Receita Líquida",
+          expressao: [termoLinha("LUCRO_LIQUIDO"), op("/"), termoLinha("RECEITA_LIQUIDA")],
+        },
+        {
+          nome: "Margem EBITDA", categoria: "Rentabilidade", modo: "percentual",
+          descricao: "EBITDA ÷ Receita Líquida",
+          expressao: [termoLinha("EBITDA"), op("/"), termoLinha("RECEITA_LIQUIDA")],
+        },
+        {
+          nome: "Margem Operacional", categoria: "Rentabilidade", modo: "percentual",
+          descricao: "EBIT ÷ Receita Líquida",
+          expressao: [termoLinha("EBIT"), op("/"), termoLinha("RECEITA_LIQUIDA")],
+        },
+        {
+          nome: "ROE", categoria: "Rentabilidade", modo: "percentual",
+          descricao: "Lucro Líquido ÷ Patrimônio Líquido",
+          expressao: [termoLinha("LUCRO_LIQUIDO"), op("/"), termoLinha("PATRIMONIO_LIQUIDO")],
+        },
+        {
+          nome: "ROA", categoria: "Rentabilidade", modo: "percentual",
+          descricao: "Lucro Líquido ÷ Ativo Total",
+          expressao: [termoLinha("LUCRO_LIQUIDO"), op("/"), termoLinha("ATIVO_TOTAL")],
+        },
+        // Atividade
+        {
+          nome: "Giro do Ativo", categoria: "Atividade", modo: "numero",
+          descricao: "Receita Líquida ÷ Ativo Total",
+          expressao: [termoLinha("RECEITA_LIQUIDA"), op("/"), termoLinha("ATIVO_TOTAL")],
+        },
+      ];
+
+      const inserts = PADROES.map((p, i) => ({
+        tenant_id: tenantId,
+        company_id: companyId,
+        nome: p.nome,
+        categoria: p.categoria,
+        descricao: p.descricao,
+        modo_analise: p.modo,
+        formula: { expressao: p.expressao },
+        faixas: p.direcao ? { direcao: p.direcao } : null,
+        visibilidade: "invisivel",
+        is_padrao: true,
+        revisar_contas: false,
+        ordem: i * 10,
+      }));
       const { error } = await supabase.from("indicadores_empresa" as any).insert(inserts);
       if (!error) qc.invalidateQueries({ queryKey: ["indicadores-empresa", companyId] });
     })();
@@ -173,6 +261,8 @@ export function IndicadoresEmpresaPanel({
   };
 
   const periodos = useMemo(() => (ctx?.periodosDisponiveis ?? []).slice(-3), [ctx]);
+  const { data: demoDre } = useDemoValues(tenantId, companyId, periodos);
+  const resolver = useMemo(() => criarResolverLinha(ctx, demoDre), [ctx, demoDre]);
 
   if (isLoading) {
     return (
@@ -233,6 +323,7 @@ export function IndicadoresEmpresaPanel({
                 labelDaConta={labelDaConta}
                 periodos={periodos}
                 ctx={ctx}
+                resolver={resolver}
                 onVisChange={(v) => atualizarVis(ind.id, v)}
                 onEditar={() => abrirEditar(ind)}
                 onDuplicar={() => duplicar(ind)}
@@ -276,12 +367,13 @@ export function IndicadoresEmpresaPanel({
 // ------------------------------------------------------------
 
 function IndicadorCard({
-  ind, labelDaConta, periodos, ctx, onVisChange, onEditar, onDuplicar, onExcluir,
+  ind, labelDaConta, periodos, ctx, resolver, onVisChange, onEditar, onDuplicar, onExcluir,
 }: {
   ind: IndicadorEmpresa;
   labelDaConta: (cls: string) => string;
   periodos: string[];
   ctx: ReturnType<typeof useIndicadorData>["data"];
+  resolver: import("@/lib/indicadores/engine").ResolverLinha;
   onVisChange: (v: Visibilidade) => void;
   onEditar: () => void;
   onDuplicar: () => void;
@@ -289,9 +381,9 @@ function IndicadorCard({
 }) {
   const previa = useMemo(() => {
     if (!ctx || periodos.length === 0) return [];
-    const serie = calcularSerie(ind, periodos, ctx);
+    const serie = calcularSerie(ind, periodos, ctx, resolver);
     return aplicarModo(serie, ind.modo_analise).serie;
-  }, [ind, periodos, ctx]);
+  }, [ind, periodos, ctx, resolver]);
 
   return (
     <Card className="p-3">
@@ -308,7 +400,7 @@ function IndicadorCard({
             )}
           </div>
           <div className="text-[11px] text-muted-foreground font-mono truncate">
-            {formulaParaTexto(ind.formula, labelDaConta) || "—"}
+            {formulaParaTexto(ind.formula, labelDaConta, labelLinha) || "—"}
           </div>
         </div>
 

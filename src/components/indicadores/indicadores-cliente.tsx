@@ -5,7 +5,7 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useIndicadorData } from "@/hooks/use-indicador-data";
+import { useIndicadorData, useDemoValues, criarResolverLinha } from "@/hooks/use-indicador-data";
 import {
   aplicarModo,
   calcularSerie,
@@ -15,6 +15,7 @@ import {
   type IndicadorEmpresa,
   type Visibilidade,
 } from "@/lib/indicadores/engine";
+import { labelLinha } from "@/lib/indicadores/linhas";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -68,16 +69,23 @@ export function IndicadoresClienteGrid({
     error: errorCtx,
   } = useIndicadorData(tenantId, companyId);
 
-  const isLoading = loadingInd || loadingCtx;
+  const periodosEfetivos = periodos.length > 0 ? periodos : (ctx?.periodosDisponiveis ?? []);
+  const {
+    data: demoDre,
+    isLoading: loadingDemo,
+  } = useDemoValues(tenantId, companyId, periodosEfetivos);
+
+  const isLoading = loadingInd || loadingCtx || loadingDemo;
   const carregamentoErro = errorInd ?? errorCtx;
   const [calcErro, setCalcErro] = useState<string | null>(null);
 
   const calculados = useMemo(() => {
     if (!ctx || !indicadores) return [];
     try {
+      const resolver = criarResolverLinha(ctx, demoDre);
       const out = indicadores.map((ind) => {
         const periodosUsar = periodos.length > 0 ? periodos : ctx.periodosDisponiveis;
-        const serie = calcularSerie(ind, periodosUsar, ctx);
+        const serie = calcularSerie(ind, periodosUsar, ctx, resolver);
         const { serie: serieMostrar, valorPrincipal } = aplicarModo(serie, ind.modo_analise);
         const valor = valorPrincipal == null || !isFinite(valorPrincipal) ? null : valorPrincipal;
         const faixa = classificarFaixa(valor, ind.faixas);
@@ -90,7 +98,7 @@ export function IndicadoresClienteGrid({
       setCalcErro(e?.message ?? String(e));
       return [];
     }
-  }, [ctx, indicadores, periodos]);
+  }, [ctx, indicadores, periodos, demoDre]);
 
   const porCategoria = useMemo(() => {
     const m = new Map<string, typeof calculados>();
@@ -139,7 +147,7 @@ export function IndicadoresClienteGrid({
                   <div className="min-w-0">
                     <h4 className="font-semibold truncate">{ind.nome}</h4>
                     <p className="text-[11px] font-mono text-muted-foreground truncate">
-                      {formulaParaTexto(ind.formula, () => "")}
+                      {formulaParaTexto(ind.formula, () => "", labelLinha)}
                     </p>
                   </div>
                   <Badge variant="outline" className="text-[9px]">{ind.categoria}</Badge>

@@ -10,23 +10,11 @@ import {
   aplicarModo,
   calcularSerie,
   classificarFaixa,
-  formatarValor,
-  formulaParaTexto,
   type IndicadorEmpresa,
   type Visibilidade,
 } from "@/lib/indicadores/engine";
-import { labelLinha } from "@/lib/indicadores/linhas";
 import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
-
-const CORES: Record<string, string> = {
-  otimo: "text-emerald-600 border-emerald-500/40 bg-emerald-500/5",
-  bom: "text-blue-600 border-blue-500/40 bg-blue-500/5",
-  atencao: "text-amber-600 border-amber-500/40 bg-amber-500/5",
-  critico: "text-destructive border-destructive/40 bg-destructive/5",
-  neutro: "text-foreground border-border bg-card",
-};
+import { IndicadorCardCliente } from "./indicador-card-cliente";
 
 interface Props {
   tenantId: string | undefined;

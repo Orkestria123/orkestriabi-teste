@@ -130,32 +130,13 @@ export function IndicadoresClienteGrid({
           <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{cat}</h3>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {items.map(({ ind, valor, serie, faixa }) => (
-              <Card key={ind.id} className={cn("p-4 border", CORES[faixa])}>
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <h4 className="font-semibold truncate">{ind.nome}</h4>
-                    <p className="text-[11px] font-mono text-muted-foreground truncate">
-                      {formulaParaTexto(ind.formula, () => "", labelLinha)}
-                    </p>
-                  </div>
-                  <Badge variant="outline" className="text-[9px]">{ind.categoria}</Badge>
-                </div>
-                <div className="mt-3 text-2xl font-semibold tabular-nums">
-                  {formatarValor(valor, ind.modo_analise)}
-                </div>
-                {!compacto && serie.length > 1 && (
-                  <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
-                    {serie.map((p) => (
-                      <span key={p.periodo}>
-                        {p.periodo.slice(0, 7)}: <span className="font-mono">{formatarValor(p.valor, ind.modo_analise)}</span>
-                      </span>
-                    ))}
-                  </div>
-                )}
-                {ind.descricao && (
-                  <p className="mt-2 text-[11px] text-muted-foreground">{ind.descricao}</p>
-                )}
-              </Card>
+              <IndicadorCardCliente
+                key={ind.id}
+                ind={ind}
+                serie={compacto ? serie.slice(-1) : serie}
+                valor={valor}
+                faixa={faixa}
+              />
             ))}
           </div>
         </section>

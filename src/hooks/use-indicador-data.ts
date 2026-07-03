@@ -1,5 +1,6 @@
-// Fetch consolidado de plano_contas + saldos_mensais + saldos_abertura
-// para alimentar o engine de indicadores por empresa.
+// Fetch consolidado (via RPC) para alimentar o engine de indicadores por empresa.
+// A RPC devolve apenas o subconjunto útil do plano (estruturais + participantes
+// com movimento), evitando baixar 100k+ contas de clientes/fornecedores.
 
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -11,23 +12,6 @@ import {
   type SaldoRow,
 } from "@/lib/indicadores/engine";
 
-async function fetchAll<T>(
-  q: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: any }>,
-): Promise<T[]> {
-  const step = 1000;
-  let from = 0;
-  const out: T[] = [];
-  for (;;) {
-    const { data, error } = await q(from, from + step - 1);
-    if (error) throw error;
-    const rows = data ?? [];
-    out.push(...rows);
-    if (rows.length < step) break;
-    from += step;
-  }
-  return out;
-}
-
 export function useIndicadorData(
   tenantId: string | undefined,
   companyId: string | undefined,
@@ -36,20 +20,23 @@ export function useIndicadorData(
     queryKey: ["indic-engine-data", tenantId, companyId],
     enabled: !!tenantId && !!companyId,
     staleTime: 5 * 60_000,
+    retry: 1,
     queryFn: async (): Promise<EngineContext> => {
       const mascara = await getMascaraConfig({ tenantId: tenantId!, companyId: companyId! });
 
-      const plano = await fetchAll<any>((from, to) =>
-        supabase
-          .from("plano_contas")
-          .select("codigo, classificacao, descricao, natureza, is_sintetica, is_participante")
-          .eq("tenant_id", tenantId!)
-          .or(`company_id.eq.${companyId},company_id.is.null`)
-          .range(from, to),
-      );
+      const { data, error } = await supabase.rpc("indicador_snapshot" as any, {
+        _company_id: companyId!,
+      });
+      if (error) throw new Error(error.message);
+
+      const snap = (data ?? {}) as {
+        plano?: any[];
+        saldos?: any[];
+        aberturas?: any[];
+      };
 
       const codigoToClass = new Map<string, string>();
-      const planoEng: PlanoRowEng[] = plano.map((p: any) => {
+      const planoEng: PlanoRowEng[] = (snap.plano ?? []).map((p: any) => {
         codigoToClass.set(p.codigo, p.classificacao);
         return {
           classificacao: p.classificacao,
@@ -60,16 +47,8 @@ export function useIndicadorData(
         };
       });
 
-      const saldosRaw = await fetchAll<any>((from, to) =>
-        supabase
-          .from("saldos_mensais")
-          .select("conta_codigo, competencia, total_debitos, total_creditos")
-          .eq("company_id", companyId!)
-          .range(from, to),
-      );
-      // Mapear conta_codigo → classificacao (a engine indexa por classificacao)
       const saldos: SaldoRow[] = [];
-      for (const s of saldosRaw) {
+      for (const s of snap.saldos ?? []) {
         const cls = codigoToClass.get(s.conta_codigo);
         if (!cls) continue;
         saldos.push({
@@ -80,17 +59,13 @@ export function useIndicadorData(
         });
       }
 
-      const abertRaw = await fetchAll<any>((from, to) =>
-        supabase
-          .from("saldos_abertura")
-          .select("conta_codigo, data_referencia, saldo")
-          .eq("company_id", companyId!)
-          .order("data_referencia", { ascending: false })
-          .range(from, to),
-      );
       const aberturas = new Map<string, number>();
       const seen = new Set<string>();
-      for (const r of abertRaw) {
+      // Ordena por data desc para pegar a mais recente por conta
+      const abertOrdenado = [...(snap.aberturas ?? [])].sort((a: any, b: any) =>
+        String(b.data_referencia).localeCompare(String(a.data_referencia)),
+      );
+      for (const r of abertOrdenado) {
         const cls = codigoToClass.get(r.conta_codigo);
         if (!cls || seen.has(cls)) continue;
         seen.add(cls);

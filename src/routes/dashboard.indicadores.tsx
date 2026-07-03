@@ -33,9 +33,14 @@ function Page() {
   const { companyId, company } = useDashboardCompany();
   const { periodos } = useFilters();
 
-  const { data: indicadores } = useQuery({
+  const {
+    data: indicadores,
+    isLoading: loadingInd,
+    error: errorInd,
+  } = useQuery({
     queryKey: ["cliente-indicadores", companyId],
     enabled: !!companyId,
+    retry: 1,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("indicadores_empresa" as any)
@@ -50,19 +55,39 @@ function Page() {
     },
   });
 
-  const { data: ctx, isLoading } = useIndicadorData(
+  const {
+    data: ctx,
+    isLoading: loadingCtx,
+    error: errorCtx,
+  } = useIndicadorData(
     company?.tenant_id ?? undefined,
     companyId ?? undefined,
   );
 
+  const isLoading = loadingInd || loadingCtx;
+  const carregamentoErro = errorInd ?? errorCtx;
+
+  const [calcErro, setCalcErro] = useState<string | null>(null);
+
   const calculados = useMemo(() => {
     if (!ctx || !indicadores) return [];
-    return indicadores.map((ind) => {
-      const serie = calcularSerie(ind, periodos.length > 0 ? periodos : ctx.periodosDisponiveis, ctx);
-      const { serie: serieMostrar, valorPrincipal } = aplicarModo(serie, ind.modo_analise);
-      const faixa = classificarFaixa(valorPrincipal, ind.faixas);
-      return { ind, serie: serieMostrar, valor: valorPrincipal, faixa };
-    });
+    try {
+      const out = indicadores.map((ind) => {
+        const periodosUsar = periodos.length > 0 ? periodos : ctx.periodosDisponiveis;
+        const serie = calcularSerie(ind, periodosUsar, ctx);
+        const { serie: serieMostrar, valorPrincipal } = aplicarModo(serie, ind.modo_analise);
+        const valor = valorPrincipal == null || !isFinite(valorPrincipal) ? null : valorPrincipal;
+        const faixa = classificarFaixa(valor, ind.faixas);
+        return { ind, serie: serieMostrar, valor, faixa };
+      });
+      setCalcErro(null);
+      return out;
+    } catch (e: any) {
+      // Nunca deixa a tela travada: registra erro e devolve lista vazia
+      console.error("[indicadores] erro no cálculo:", e);
+      setCalcErro(e?.message ?? String(e));
+      return [];
+    }
   }, [ctx, indicadores, periodos]);
 
   const porCategoria = useMemo(() => {
@@ -82,6 +107,8 @@ function Page() {
       ? periodos[0].slice(0, 7)
       : `${periodos[0].slice(0, 7)} a ${periodos[periodos.length - 1].slice(0, 7)}`;
 
+  const semIndicadores = !isLoading && !carregamentoErro && (indicadores?.length ?? 0) === 0;
+
   return (
     <div className="space-y-6">
       <div>
@@ -91,9 +118,23 @@ function Page() {
 
       {isLoading && <div className="text-sm text-muted-foreground">Calculando…</div>}
 
-      {!isLoading && calculados.length === 0 && (
+      {!isLoading && carregamentoErro && (
+        <Card className="p-6 text-sm border-destructive/40 bg-destructive/5">
+          <div className="font-semibold text-destructive mb-1">Erro ao carregar indicadores</div>
+          <div className="text-muted-foreground">{(carregamentoErro as Error).message}</div>
+        </Card>
+      )}
+
+      {!isLoading && !carregamentoErro && calcErro && (
+        <Card className="p-6 text-sm border-destructive/40 bg-destructive/5">
+          <div className="font-semibold text-destructive mb-1">Erro no cálculo do indicador</div>
+          <div className="text-muted-foreground">{calcErro}</div>
+        </Card>
+      )}
+
+      {semIndicadores && (
         <Card className="p-6 text-sm text-muted-foreground text-center">
-          Nenhum indicador liberado para esta empresa. Fale com seu contador.
+          Nenhum indicador configurado para esta empresa. Fale com seu contador.
         </Card>
       )}
 

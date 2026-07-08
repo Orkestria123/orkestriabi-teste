@@ -996,6 +996,199 @@ export type Database = {
           },
         ]
       }
+      orcamento_itens: {
+        Row: {
+          company_id: string
+          contas: Json
+          created_at: string
+          id: string
+          orcamento_id: string
+          ordem: number | null
+          rotulo: string
+          tenant_id: string
+          tipo_conta: string | null
+        }
+        Insert: {
+          company_id: string
+          contas?: Json
+          created_at?: string
+          id?: string
+          orcamento_id: string
+          ordem?: number | null
+          rotulo: string
+          tenant_id: string
+          tipo_conta?: string | null
+        }
+        Update: {
+          company_id?: string
+          contas?: Json
+          created_at?: string
+          id?: string
+          orcamento_id?: string
+          ordem?: number | null
+          rotulo?: string
+          tenant_id?: string
+          tipo_conta?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orcamento_itens_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orcamento_itens_orcamento_id_fkey"
+            columns: ["orcamento_id"]
+            isOneToOne: false
+            referencedRelation: "orcamentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orcamento_itens_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      orcamento_valores: {
+        Row: {
+          company_id: string
+          competencia: string
+          created_at: string
+          id: string
+          item_id: string
+          orcamento_id: string
+          tenant_id: string
+          updated_at: string
+          valor_orcado: number
+        }
+        Insert: {
+          company_id: string
+          competencia: string
+          created_at?: string
+          id?: string
+          item_id: string
+          orcamento_id: string
+          tenant_id: string
+          updated_at?: string
+          valor_orcado?: number
+        }
+        Update: {
+          company_id?: string
+          competencia?: string
+          created_at?: string
+          id?: string
+          item_id?: string
+          orcamento_id?: string
+          tenant_id?: string
+          updated_at?: string
+          valor_orcado?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orcamento_valores_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orcamento_valores_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "orcamento_itens"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orcamento_valores_orcamento_id_fkey"
+            columns: ["orcamento_id"]
+            isOneToOne: false
+            referencedRelation: "orcamentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orcamento_valores_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      orcamentos: {
+        Row: {
+          ano: number
+          company_id: string
+          created_at: string
+          criado_por: string | null
+          id: string
+          nome: string
+          periodo_base_fim: string | null
+          periodo_base_inicio: string | null
+          realizado_visao: string
+          status: string
+          tenant_id: string
+          tipo_base: string
+          updated_at: string
+        }
+        Insert: {
+          ano: number
+          company_id: string
+          created_at?: string
+          criado_por?: string | null
+          id?: string
+          nome: string
+          periodo_base_fim?: string | null
+          periodo_base_inicio?: string | null
+          realizado_visao?: string
+          status?: string
+          tenant_id: string
+          tipo_base?: string
+          updated_at?: string
+        }
+        Update: {
+          ano?: number
+          company_id?: string
+          created_at?: string
+          criado_por?: string | null
+          id?: string
+          nome?: string
+          periodo_base_fim?: string | null
+          periodo_base_inicio?: string | null
+          realizado_visao?: string
+          status?: string
+          tenant_id?: string
+          tipo_base?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orcamentos_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orcamentos_criado_por_fkey"
+            columns: ["criado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orcamentos_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       plano_contas: {
         Row: {
           ativo: boolean

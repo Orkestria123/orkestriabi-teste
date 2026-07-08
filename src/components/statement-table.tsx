@@ -474,8 +474,46 @@ export function StatementTable({
                         )}
                       </div>
                     </td>
-                    {columns.map((c, i) =>
-                      c.kind === "p" ? (
+                    {columns.map((c, i) => {
+                      if (c.kind === "sub") {
+                        return (
+                          <td
+                            key={`sub-${i}`}
+                            className={cn(
+                              "px-2 py-1 text-right tabular-nums whitespace-nowrap text-xs font-semibold border-l min-w-[110px] bg-muted/40",
+                            )}
+                          >
+                            {fmt(subtotalValue(row, c.periods))}
+                          </td>
+                        );
+                      }
+                      if (isComparativo) {
+                        const vc = row.values[c.period] ?? 0;
+                        const vg = row.valuesGer?.[c.period] ?? vc;
+                        const diff = vg - vc;
+                        return (
+                          <Fragment key={`p-${c.period}`}>
+                            <td className="px-2 py-1 text-right tabular-nums whitespace-nowrap text-xs min-w-[110px] border-l">
+                              {fmt(vc)}
+                            </td>
+                            <td className="px-2 py-1 text-right tabular-nums whitespace-nowrap text-xs min-w-[110px]">
+                              {fmt(vg)}
+                            </td>
+                            <td
+                              className={cn(
+                                "px-2 py-1 text-right tabular-nums whitespace-nowrap text-xs font-semibold min-w-[110px]",
+                                diff > 0 && "text-success",
+                                diff < 0 && "text-destructive",
+                              )}
+                            >
+                              {diff === 0
+                                ? <span className="text-muted-foreground/60">—</span>
+                                : (diff > 0 ? "+" : "") + fmt(diff)}
+                            </td>
+                          </Fragment>
+                        );
+                      }
+                      return (
                         <td
                           key={`p-${c.period}`}
                           className={cn(
@@ -485,17 +523,8 @@ export function StatementTable({
                         >
                           {fmt(row.values[c.period] ?? 0)}
                         </td>
-                      ) : (
-                        <td
-                          key={`sub-${i}`}
-                          className={cn(
-                            "px-2 py-1 text-right tabular-nums whitespace-nowrap text-xs font-semibold border-l min-w-[110px] bg-muted/40",
-                          )}
-                        >
-                          {fmt(subtotalValue(row, c.periods))}
-                        </td>
-                      ),
-                    )}
+                      );
+                    })}
 
                     {showAV && (
                       <td className="px-2 py-1 text-right tabular-nums whitespace-nowrap text-xs text-muted-foreground min-w-[70px]">

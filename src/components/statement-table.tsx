@@ -166,13 +166,17 @@ export function StatementTable({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [periods, bucketOpt, showTotal, isMultiYear]);
 
+  // Detecta modo comparativo: pelo menos uma linha traz valuesGer.
+  const isComparativo = useMemo(() => rows.some((r) => r.valuesGer), [rows]);
+
   // Colunas efetivas: períodos + subtotais intercalados.
   type Col =
     | { kind: "p"; period: string; firstOfBucket: boolean }
     | { kind: "sub"; label: string; periods: string[] };
   const columns = useMemo<Col[]>(() => {
     const cols: Col[] = [];
-    if (bucketGroups.length === 0) {
+    // Modo comparativo: sem buckets/subtotais para manter a tabela legível.
+    if (isComparativo || bucketGroups.length === 0) {
       for (const p of periods) cols.push({ kind: "p", period: p, firstOfBucket: false });
       return cols;
     }
@@ -183,7 +187,7 @@ export function StatementTable({
       cols.push({ kind: "sub", label: g.label, periods: g.periods });
     }
     return cols;
-  }, [periods, bucketGroups]);
+  }, [periods, bucketGroups, isComparativo]);
 
   const subtotalValue = (row: StatementRow, groupPeriods: string[]) => {
     if (variante === "bp") {
@@ -194,7 +198,33 @@ export function StatementTable({
   };
 
   // Banda superior com o ano só faz sentido no agrupamento "ano" multi-ano.
-  const yearBand = bucketOpt === "ano" && isMultiYear ? bucketGroups : null;
+  const yearBand = !isComparativo && bucketOpt === "ano" && isMultiYear ? bucketGroups : null;
+
+  // Resumo do impacto dos ajustes gerenciais por período (só no comparativo).
+  // Mostramos a diferença da ÚLTIMA linha de subtotal — que é a linha "final"
+  // da demonstração (Lucro Líquido na DRE, Total do Passivo+PL no BP etc.).
+  // Se a última for zero (ex.: BP fecha), procuramos rows "chave" com maior
+  // impacto absoluto ("Resultado do Exercício" no PL etc.).
+  const impactoResumo = useMemo(() => {
+    if (!isComparativo) return null;
+    // Escolhe uma linha "resumo": preferimos as que casam com palavras-chave.
+    const kw = /lucro\s+l[ií]quido|resultado do exerc[ií]cio|resultado l[ií]quido/i;
+    let target: StatementRow | undefined = rows.find((r) => kw.test(r.descricao));
+    if (!target) {
+      // fallback: última linha subtotal
+      const subs = rows.filter((r) => r.is_subtotal);
+      target = subs[subs.length - 1] ?? rows[rows.length - 1];
+    }
+    if (!target) return null;
+    return {
+      label: target.descricao,
+      diffs: periods.map((p) => ({
+        p,
+        diff: (target!.valuesGer?.[p] ?? target!.values[p] ?? 0) - (target!.values[p] ?? 0),
+      })),
+    };
+  }, [isComparativo, rows, periods]);
+
 
 
 

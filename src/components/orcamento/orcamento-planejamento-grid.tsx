@@ -134,15 +134,26 @@ export function OrcamentoPlanejamentoGrid({ orcamento, itens }: Props) {
 
   useEffect(() => {
     if (!valoresRaw) return;
-    const m: Record<string, number> = {};
+    const fromDb: Record<string, number> = {};
     for (const v of valoresRaw) {
       const ym = v.competencia.slice(0, 7);
-      m[`${v.item_id}|${ym}`] = v.valor_orcado;
+      fromDb[`${v.item_id}|${ym}`] = v.valor_orcado;
     }
-    setLocal(m);
+    // Preserva rascunhos ainda não salvos (dirty) para não sobrescrever
+    // valores em edição quando um refetch chega. Só substitui o que
+    // realmente veio do banco; mantém o restante do estado local.
+    setLocal((prev) => {
+      const next: Record<string, number> = { ...prev, ...fromDb };
+      // Restaura valores dirty por cima (nunca deixe o refetch apagá-los)
+      for (const k of dirty) {
+        if (prev[k] !== undefined) next[k] = prev[k];
+      }
+      return next;
+    });
     setDrafts({});
-    setDirty(new Set());
+    // NÃO limpar `dirty` aqui — só limpamos quando o próprio save confirma.
   }, [valoresRaw]);
+
 
   const getVal = (itemId: string, ym: string): number => local[`${itemId}|${ym}`] ?? 0;
 
@@ -207,7 +218,12 @@ export function OrcamentoPlanejamentoGrid({ orcamento, itens }: Props) {
         .from("orcamento_valores")
         .upsert(rows, { onConflict: "item_id,competencia" });
       if (error) throw error;
-      setDirty(new Set());
+      setDirty((prev) => {
+        const next = new Set(prev);
+        for (const k of keys) next.delete(k);
+        return next;
+      });
+
       toast.success(`${rows.length} valor(es) salvos`);
       qc.invalidateQueries({ queryKey: ["orcamento-valores", orcamento.id] });
     } catch (e: any) {
@@ -240,10 +256,15 @@ export function OrcamentoPlanejamentoGrid({ orcamento, itens }: Props) {
     valores: Array<{ itemId: string; ym: string; valor: number }>,
     msg: string,
   ) => {
-    // Atualiza local + persiste em bloco
-    const next = { ...local };
-    for (const v of valores) next[`${v.itemId}|${v.ym}`] = v.valor;
-    setLocal(next);
+    // Só toca nas células explicitamente presentes em `valores`.
+    // Nunca zera nem apaga células fora dessa lista — os demais valores
+    // do estado local ficam intocados.
+    const touchedKeys = new Set(valores.map((v) => `${v.itemId}|${v.ym}`));
+    setLocal((prev) => {
+      const next = { ...prev };
+      for (const v of valores) next[`${v.itemId}|${v.ym}`] = v.valor;
+      return next;
+    });
     const rows = valores.map((v) => ({
       tenant_id: orcamento.tenant_id,
       company_id: orcamento.company_id,
@@ -253,17 +274,25 @@ export function OrcamentoPlanejamentoGrid({ orcamento, itens }: Props) {
       valor_orcado: v.valor,
     }));
     try {
-      const { error } = await supabase
-        .from("orcamento_valores")
-        .upsert(rows, { onConflict: "item_id,competencia" });
-      if (error) throw error;
-      setDirty(new Set());
+      if (rows.length > 0) {
+        const { error } = await supabase
+          .from("orcamento_valores")
+          .upsert(rows, { onConflict: "item_id,competencia" });
+        if (error) throw error;
+      }
+      // Só limpa dirty das chaves que acabamos de persistir.
+      setDirty((prev) => {
+        const next = new Set(prev);
+        for (const k of touchedKeys) next.delete(k);
+        return next;
+      });
       qc.invalidateQueries({ queryKey: ["orcamento-valores", orcamento.id] });
       toast.success(msg);
     } catch (e: any) {
       toast.error(e.message ?? String(e));
     }
   };
+
 
   const copiarParaTodos = async (itemId: string, ymOrigem: string) => {
     const valor = getVal(itemId, ymOrigem);

@@ -14,6 +14,7 @@ import {
   FileSpreadsheet,
   LogOut,
   Briefcase,
+  Target,
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";

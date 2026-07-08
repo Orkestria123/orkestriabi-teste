@@ -263,7 +263,8 @@ export function IndicadoresEmpresaPanel({
   };
 
   const periodos = useMemo(() => (ctx?.periodosDisponiveis ?? []).slice(-3), [ctx]);
-  const { data: demoDre } = useDemoValues(tenantId, companyId, periodos);
+  const { data: demoDreRaw } = useDemoValues(tenantId, companyId, periodos);
+  const demoDre = demoDreRaw as import("@/lib/indicadores/linhas").DemoDre | undefined;
   const resolver = useMemo(() => criarResolverLinha(ctx, demoDre), [ctx, demoDre]);
 
   if (isLoading) {

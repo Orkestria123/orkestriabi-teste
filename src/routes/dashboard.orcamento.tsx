@@ -3,7 +3,7 @@
 // toggle Mês/Acumulado (YTD). Tabela por item com semáforo por tipo de conta,
 // respeitando meses sem dados. Realizado calculado pelo motor da Etapa 4.
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   ChevronDown,

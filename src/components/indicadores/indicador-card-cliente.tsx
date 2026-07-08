@@ -36,10 +36,16 @@ import { Sparkles } from "lucide-react";
 
 interface Props {
   ind: IndicadorEmpresa;
-  serie: SeriePonto[]; // já no modo de exibição (aplicarModo)
+  serie: SeriePonto[]; // já no modo de exibição (aplicarModo) — visão contábil (ou única)
   valor: number | null;
   faixa: FaixaChave;
   onClick?: () => void;
+  /** Etapa 6: quando o seletor global está em "comparativo", o card recebe */
+  /* também a série gerencial e exibe as duas lado a lado. */
+  visao?: "contabil" | "gerencial" | "comparativo";
+  serieGerencial?: SeriePonto[];
+  valorGerencial?: number | null;
+  faixaGerencial?: FaixaChave;
 }
 
 const FAIXA_COLOR: Record<FaixaChave, string> = {

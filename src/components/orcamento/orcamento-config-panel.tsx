@@ -419,6 +419,11 @@ export function OrcamentoConfigPanel({ tenantId, companyId }: Props) {
         )}
       </Card>
 
+      {/* Grade de planejamento (Etapa 3) */}
+      {orcamento && (itens?.length ?? 0) > 0 && (
+        <OrcamentoPlanejamentoGrid orcamento={orcamento} itens={itens!} />
+      )}
+
       {/* Diálogos */}
       <OrcamentoHeaderDialog
         open={openNovo}

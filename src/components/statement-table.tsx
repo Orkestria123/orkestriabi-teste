@@ -265,7 +265,7 @@ export function StatementTable({
       <div className="flex items-center justify-between gap-2 px-3 py-2 border-b bg-muted/20 text-xs">
         <span className="text-muted-foreground">{unidadeLabel}</span>
         <div className="flex items-center gap-2">
-          {showTotal && periods.length > 0 && (
+          {showTotal && !isComparativo && periods.length > 0 && (
             <label className="flex items-center gap-1.5 text-muted-foreground">
               <span>Totalizar por:</span>
               <select

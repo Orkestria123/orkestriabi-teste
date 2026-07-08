@@ -212,13 +212,26 @@ export function IndicadorCardCliente({
 
       {temSerie ? (
         <div className="mt-3 -mx-1">
-          <div className="mb-1 flex items-baseline justify-between px-1">
+          <div className="mb-1 flex items-baseline justify-between px-1 gap-2 flex-wrap">
             <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
               Evolução
             </span>
-            <span className="text-sm font-semibold tabular-nums" style={{ color: cor }}>
-              {formatarValor(valor, ind.modo_analise)}
-            </span>
+            {isComparativo ? (
+              <div className="flex items-baseline gap-2 text-[11px]">
+                <span className="text-muted-foreground">Cont.</span>
+                <span className="font-semibold tabular-nums" style={{ color: cor }}>
+                  {formatarValor(valor, ind.modo_analise)}
+                </span>
+                <span className="text-muted-foreground">Ger.</span>
+                <span className="font-semibold tabular-nums" style={{ color: corGer }}>
+                  {formatarValor(valorGerencial ?? null, ind.modo_analise)}
+                </span>
+              </div>
+            ) : (
+              <span className="text-sm font-semibold tabular-nums" style={{ color: cor }}>
+                {formatarValor(valor, ind.modo_analise)}
+              </span>
+            )}
           </div>
           <ResponsiveContainer width="100%" height={140}>
             <AreaChart
@@ -229,6 +242,10 @@ export function IndicadorCardCliente({
                 <linearGradient id={`grad-${uid}`} x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor={cor} stopOpacity={0.28} />
                   <stop offset="100%" stopColor={cor} stopOpacity={0} />
+                </linearGradient>
+                <linearGradient id={`gradg-${uid}`} x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor={corGer} stopOpacity={0.22} />
+                  <stop offset="100%" stopColor={corGer} stopOpacity={0} />
                 </linearGradient>
               </defs>
               <CartesianGrid stroke="var(--border)" strokeDasharray="2 4" vertical={false} opacity={0.5} />

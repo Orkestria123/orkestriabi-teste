@@ -1,20 +1,36 @@
 // Grade de indicadores para a visão do cliente.
 // Reutilizado tanto na aba /dashboard/indicadores quanto no /dashboard (home),
 // filtrando por visibilidade.
+//
+// Etapa 6 (Visão Gerencial): a grade respeita o seletor global de visão.
+//  - contabil   → calcula sobre o ctx contábil (comportamento original)
+//  - gerencial  → calcula sobre o ctx gerencial (contábil + ajustes)
+//  - comparativo→ calcula os dois e passa ambos para o card, que exibe
+//                 lado a lado com a diferença.
 
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useIndicadorData, useDemoValues, criarResolverLinha } from "@/hooks/use-indicador-data";
+import {
+  useIndicadorData,
+  useDemoValues,
+  criarResolverLinha,
+  isCtxPair,
+  isDemoPair,
+} from "@/hooks/use-indicador-data";
 import {
   aplicarModo,
   calcularSerie,
   classificarFaixa,
+  type EngineContext,
   type IndicadorEmpresa,
+  type SeriePonto,
   type Visibilidade,
 } from "@/lib/indicadores/engine";
+import type { DemoDre } from "@/lib/indicadores/linhas";
 import { Card } from "@/components/ui/card";
 import { IndicadorCardCliente } from "./indicador-card-cliente";
+import { useVisaoGerencial } from "@/hooks/use-visao-gerencial";
 
 interface Props {
   tenantId: string | undefined;
@@ -26,9 +42,24 @@ interface Props {
   hideWhenEmpty?: boolean;
 }
 
+function computeOne(
+  ind: IndicadorEmpresa,
+  periodos: string[],
+  ctx: EngineContext,
+  demoDre: DemoDre | undefined,
+) {
+  const resolver = criarResolverLinha(ctx, demoDre);
+  const serie = calcularSerie(ind, periodos, ctx, resolver);
+  const { serie: serieMostrar, valorPrincipal } = aplicarModo(serie, ind.modo_analise);
+  const valor = valorPrincipal == null || !isFinite(valorPrincipal) ? null : valorPrincipal;
+  return { serie: serieMostrar, valor };
+}
+
 export function IndicadoresClienteGrid({
-  tenantId, companyId, periodos, visibilidade, compacto, emptyMessage, hideWhenEmpty,
+  tenantId, companyId, periodos, visibilidade, emptyMessage, hideWhenEmpty,
 }: Props) {
+  const { visao } = useVisaoGerencial();
+
   const {
     data: indicadores,
     isLoading: loadingInd,
@@ -52,32 +83,68 @@ export function IndicadoresClienteGrid({
   });
 
   const {
-    data: ctx,
+    data: ctxData,
     isLoading: loadingCtx,
     error: errorCtx,
-  } = useIndicadorData(tenantId, companyId);
+  } = useIndicadorData(tenantId, companyId, visao);
 
-  const periodosEfetivos = periodos.length > 0 ? periodos : (ctx?.periodosDisponiveis ?? []);
+  // Um ctx qualquer só para descobrir períodos disponíveis quando o filtro estiver vazio.
+  const ctxSample: EngineContext | undefined = ctxData
+    ? isCtxPair(ctxData) ? ctxData.contabil : ctxData
+    : undefined;
+
+  const periodosEfetivos = periodos.length > 0 ? periodos : (ctxSample?.periodosDisponiveis ?? []);
   const {
-    data: demoDre,
+    data: demoData,
     isLoading: loadingDemo,
-  } = useDemoValues(tenantId, companyId, periodosEfetivos);
+  } = useDemoValues(tenantId, companyId, periodosEfetivos, visao);
 
   const isLoading = loadingInd || loadingCtx || loadingDemo;
   const carregamentoErro = errorInd ?? errorCtx;
   const [calcErro, setCalcErro] = useState<string | null>(null);
 
   const calculados = useMemo(() => {
-    if (!ctx || !indicadores) return [];
+    if (!ctxData || !indicadores) return [] as Array<{
+      ind: IndicadorEmpresa;
+      serie: SeriePonto[];
+      valor: number | null;
+      faixa: ReturnType<typeof classificarFaixa>;
+      serieGerencial?: SeriePonto[];
+      valorGerencial?: number | null;
+      faixaGerencial?: ReturnType<typeof classificarFaixa>;
+      isComparativo?: boolean;
+    }>;
     try {
-      const resolver = criarResolverLinha(ctx, demoDre);
+      const isDual = isCtxPair(ctxData);
       const out = indicadores.map((ind) => {
-        const periodosUsar = periodos.length > 0 ? periodos : ctx.periodosDisponiveis;
-        const serie = calcularSerie(ind, periodosUsar, ctx, resolver);
-        const { serie: serieMostrar, valorPrincipal } = aplicarModo(serie, ind.modo_analise);
-        const valor = valorPrincipal == null || !isFinite(valorPrincipal) ? null : valorPrincipal;
-        const faixa = classificarFaixa(valor, ind.faixas);
-        return { ind, serie: serieMostrar, valor, faixa };
+        const periodosUsar =
+          periodos.length > 0
+            ? periodos
+            : (isDual ? ctxData.contabil : ctxData).periodosDisponiveis;
+
+        if (isDual && isDemoPair(demoData)) {
+          const c = computeOne(ind, periodosUsar, ctxData.contabil, demoData.contabil);
+          const g = computeOne(ind, periodosUsar, ctxData.gerencial, demoData.gerencial);
+          return {
+            ind,
+            serie: c.serie,
+            valor: c.valor,
+            faixa: classificarFaixa(c.valor, ind.faixas),
+            serieGerencial: g.serie,
+            valorGerencial: g.valor,
+            faixaGerencial: classificarFaixa(g.valor, ind.faixas),
+            isComparativo: true,
+          };
+        }
+        const ctxSingle = ctxData as EngineContext;
+        const demoSingle = (demoData as DemoDre | undefined) ?? undefined;
+        const r = computeOne(ind, periodosUsar, ctxSingle, demoSingle);
+        return {
+          ind,
+          serie: r.serie,
+          valor: r.valor,
+          faixa: classificarFaixa(r.valor, ind.faixas),
+        };
       });
       setCalcErro(null);
       return out;
@@ -86,7 +153,7 @@ export function IndicadoresClienteGrid({
       setCalcErro(e?.message ?? String(e));
       return [];
     }
-  }, [ctx, indicadores, periodos, demoDre]);
+  }, [ctxData, indicadores, periodos, demoData]);
 
   const porCategoria = useMemo(() => {
     const m = new Map<string, typeof calculados>();
@@ -129,13 +196,17 @@ export function IndicadoresClienteGrid({
         <section key={cat}>
           <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{cat}</h3>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {items.map(({ ind, valor, serie, faixa }) => (
+            {items.map((c) => (
               <IndicadorCardCliente
-                key={ind.id}
-                ind={ind}
-                serie={serie}
-                valor={valor}
-                faixa={faixa}
+                key={c.ind.id}
+                ind={c.ind}
+                serie={c.serie}
+                valor={c.valor}
+                faixa={c.faixa}
+                visao={visao}
+                serieGerencial={c.serieGerencial}
+                valorGerencial={c.valorGerencial}
+                faixaGerencial={c.faixaGerencial}
               />
             ))}
           </div>

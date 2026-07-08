@@ -53,7 +53,8 @@ export function VisaoToggle({
 
 export function VisaoBadge({ className }: { className?: string }) {
   const { visao } = useVisaoGerencial();
-  if (visao !== "gerencial") return null;
+  if (visao === "contabil") return null;
+  const label = visao === "gerencial" ? "Visão: Gerencial" : "Visão: Comparativo";
   return (
     <span
       className={cn(

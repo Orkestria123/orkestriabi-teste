@@ -6,6 +6,7 @@ import { StatementTable, type StatementRow } from "@/components/statement-table"
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ExportMenu } from "@/components/export-menu";
+import { VisaoBadge } from "@/components/visao-toggle";
 
 function buildRows(data: any[]): { rows: StatementRow[]; periods: string[] } {
   const map = new Map<string, StatementRow>();

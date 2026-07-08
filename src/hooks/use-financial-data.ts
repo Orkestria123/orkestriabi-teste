@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { buildStatementFromDiario } from "@/lib/diario/build-statements";
+import { useVisaoGerencial } from "@/hooks/use-visao-gerencial";
 
 export interface Company {
   id: string;
@@ -118,8 +119,9 @@ export function useMonthlyStatement(
   tipo: string,
   periodos: string[],
 ) {
+  const { visao } = useVisaoGerencial();
   return useQuery({
-    queryKey: ["monthly-stmt", companyId, tipo, periodos.join(",")],
+    queryKey: ["monthly-stmt", companyId, tipo, periodos.join(","), visao],
     enabled: !!companyId && periodos.length > 0,
     queryFn: async () => {
       // Roteamento por fonte_dados. Se a empresa já está no novo pipeline (diario),
@@ -127,7 +129,7 @@ export function useMonthlyStatement(
       const meta = await getCompanyMeta(companyId!);
       if (meta?.fonteDados === "diario") {
         const t = tipo as "DRE" | "BP_ATIVO" | "BP_PASSIVO" | "DFC" | "DLPA" | "DVA";
-        return buildStatementFromDiario(companyId!, meta.tenantId, meta.modoGlobal, t, periodos);
+        return buildStatementFromDiario(companyId!, meta.tenantId, meta.modoGlobal, t, periodos, visao);
       }
       const [stmtRes, chartRes, balRes] = await Promise.all([
         supabase

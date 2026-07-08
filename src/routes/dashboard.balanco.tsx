@@ -6,6 +6,7 @@ import { StatementTable, type StatementRow } from "@/components/statement-table"
 import { ExportMenu } from "@/components/export-menu";
 import { Button } from "@/components/ui/button";
 import { useMemo, useState } from "react";
+import { VisaoBadge } from "@/components/visao-toggle";
 
 function buildRows(data: any[]): StatementRow[] {
   const map = new Map<string, StatementRow>();
@@ -42,7 +43,10 @@ function Page() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <h2 className="text-2xl font-semibold tracking-tight">Balanço Patrimonial</h2>
+        <div className="flex items-center gap-2 flex-wrap">
+          <h2 className="text-2xl font-semibold tracking-tight">Balanço Patrimonial</h2>
+          <VisaoBadge />
+        </div>
         <div className="flex items-center gap-2 flex-wrap">
           <Button size="sm" variant={showAV ? "default" : "outline"} onClick={() => setShowAV((v) => !v)}>AV%</Button>
           <Button size="sm" variant={showAH ? "default" : "outline"} onClick={() => setShowAH((v) => !v)}>AH%</Button>

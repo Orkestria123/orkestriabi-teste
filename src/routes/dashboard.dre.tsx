@@ -6,6 +6,7 @@ import { StatementTable, type StatementRow } from "@/components/statement-table"
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ExportMenu } from "@/components/export-menu";
+import { VisaoBadge } from "@/components/visao-toggle";
 
 function buildRows(data: any[]): { rows: StatementRow[]; periods: string[] } {
   const map = new Map<string, StatementRow>();
@@ -69,7 +70,10 @@ export function makeStatementPage(tipo: string, title: string, avBase?: string, 
     return (
       <div className="space-y-4">
         <div className="flex items-center justify-between flex-wrap gap-3">
-          <h2 className="text-2xl font-semibold tracking-tight">{title}</h2>
+          <div className="flex items-center gap-2 flex-wrap">
+            <h2 className="text-2xl font-semibold tracking-tight">{title}</h2>
+            <VisaoBadge />
+          </div>
           <div className="flex items-center gap-2 flex-wrap">
             {opts?.categoryFilter && (
               <div className="inline-flex rounded-lg border border-border bg-card p-0.5 mr-1">

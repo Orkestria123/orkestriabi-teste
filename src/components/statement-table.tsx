@@ -526,12 +526,12 @@ export function StatementTable({
                       );
                     })}
 
-                    {showAV && (
+                    {showAV && !isComparativo && (
                       <td className="px-2 py-1 text-right tabular-nums whitespace-nowrap text-xs text-muted-foreground min-w-[70px]">
                         {av != null ? formatPct(av) : "—"}
                       </td>
                     )}
-                    {showAH && basePeriod && (
+                    {showAH && basePeriod && !isComparativo && (
                       <td
                         className={cn(
                           "px-2 py-1 text-right tabular-nums whitespace-nowrap text-xs min-w-[70px]",

@@ -21,6 +21,14 @@ import {
   MASCARA_DEFAULT,
   type MascaraConfig,
 } from "@/lib/mascara/interpretar";
+import {
+  getAjustesGerenciais,
+  ajustesToSaldosVirtuais,
+  contasGerenciaisToPlanoVirtual,
+  type AjustesGerenciaisData,
+} from "@/lib/gerencial/ajustes";
+
+export type ModoDemonstracao = "contabil" | "gerencial";
 
 type Tipo = "DRE" | "BP_ATIVO" | "BP_PASSIVO" | "DFC" | "DLPA" | "DVA";
 

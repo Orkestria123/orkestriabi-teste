@@ -143,10 +143,8 @@ export function useMonthlyStatement(
             r.codigo_conta ? `c:${r.codigo_conta}` : `s:${r.descricao}`;
           // Mapa contábil: identidade|periodo -> valor
           const cMap = new Map<string, number>();
-          const cRowByIdent = new Map<string, any>();
           for (const r of rowsC) {
             cMap.set(`${identityOf(r)}|${r.periodo}`, Number((r as any).valor) || 0);
-            cRowByIdent.set(identityOf(r), r);
           }
           // Base = gerencial (superset: contém as virtuais). Ordem preservada.
           const gIdents = new Set<string>();

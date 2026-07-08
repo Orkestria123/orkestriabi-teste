@@ -694,6 +694,8 @@ async function buildBP(
   periodos: string[],
   tipo: "BP_ATIVO" | "BP_PASSIVO",
   mascara: MascaraConfig,
+  modo: ModoDemonstracao = "contabil",
+  gerData?: AjustesGerenciaisData,
 ): Promise<FlatRow[]> {
   const tipoPlano = tipo === "BP_ATIVO" ? ["1-Ativo"] : ["2-Passivo"];
   const ateData = [...periodos].sort().pop()!;
@@ -702,7 +704,7 @@ async function buildBP(
   // realmente têm saldo. Em seguida usa esse set para restringir a busca
   // de contas participantes (clientes/fornecedores) — o cadastro completo
   // pode ter 100k+ linhas e estoura o fetch.
-  const [mapasRaw, abertura, saldosAcum, planoDRE] = await Promise.all([
+  const [mapasRaw, abertura, saldosAcumContabil, planoDRE] = await Promise.all([
     getMapa(companyId, tenantId, modoGlobal, tipo),
     getAberturaMaisRecente(companyId),
     getSaldosAteData(companyId, ateData),
@@ -712,6 +714,18 @@ async function buildBP(
   ]);
   const mapas = mapasRaw.filter((m) => !isApuracao(m.classificacao_prefixo, mascara));
 
+  // Modo GERENCIAL: injeta saldos virtuais dos ajustes acumulados até
+  // `ateData` (posição, mesma regra do BP contábil), e adiciona contas
+  // gerenciais ao plano para que apareçam no grupo pai correto.
+  let saldosAcum = saldosAcumContabil;
+  let planoExtra: Plano[] = [];
+  if (modo === "gerencial") {
+    const ger = gerData ?? (await getAjustesGerenciais(companyId, tenantId));
+    const virtuais = ajustesToSaldosVirtuais(ger.ajustes, (c) => c <= ateData);
+    saldosAcum = [...saldosAcum, ...virtuais];
+    planoExtra = contasGerenciaisToPlanoVirtual(ger.contasGerenciais, mascara.separador || ".");
+  }
+
   const codigosComSaldo = new Set<string>();
   for (const c of abertura.keys()) codigosComSaldo.add(c);
   for (const s of saldosAcum) codigosComSaldo.add(s.conta_codigo);
@@ -719,6 +733,9 @@ async function buildBP(
   // Resultado acumulado do exercício até cada período de referência (apenas BP_PASSIVO).
   // resultado = -(Σ movimento contas grupo 3 do início do ano até ref).
   // Em meses de prejuízo o valor é negativo (reduz o PL); em lucro, positivo.
+  // No modo gerencial os movimentos virtuais de ajustes em contas DRE (grupo 3)
+  // já estão em saldosAcum e portanto propagam automaticamente para o resultado
+  // — mantendo Ativo = Passivo + PL na visão gerencial.
   const dreCodigos = new Set<string>(planoDRE.map((p) => p.codigo));
   const resultadoExercicioPorRef = new Map<string, number>();
   if (tipo === "BP_PASSIVO" && dreCodigos.size > 0) {
@@ -738,10 +755,11 @@ async function buildBP(
     }
   }
 
-  const plano = await getPlanoPorTipo(companyId, tenantId, modoGlobal, tipoPlano, {
+  const planoContabil = await getPlanoPorTipo(companyId, tenantId, modoGlobal, tipoPlano, {
     incluirParticipantes: true,
     codigosComSaldo: Array.from(codigosComSaldo),
   });
+  const plano = [...planoContabil, ...planoExtra];
 
   const planoMap = new Map<string, Plano>();
   const planoPorClassificacao = new Map<string, Plano>();

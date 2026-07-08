@@ -399,6 +399,15 @@ export function StatementTable({
               const extraMiddle = bucketGroups.length;
               const rightCols = (showAV ? 1 : 0) + (showAH && basePeriod ? 1 : 0);
 
+              // No modo comparativo, destaca linhas cuja diferença ≠ 0 em algum período.
+              const hasDiff =
+                isComparativo &&
+                periods.some((p) => {
+                  const c = row.values[p] ?? 0;
+                  const g = row.valuesGer?.[p] ?? c;
+                  return g - c !== 0;
+                });
+
               return (
                 <Fragment key={idx}>
                   <tr
@@ -406,6 +415,7 @@ export function StatementTable({
                       "border-b last:border-0 hover:bg-accent/40 transition-colors",
                       row.is_subtotal && "bg-muted/40 font-semibold",
                       isExpanded && "bg-accent/30",
+                      hasDiff && "bg-amber-500/5",
                     )}
                   >
                     <td

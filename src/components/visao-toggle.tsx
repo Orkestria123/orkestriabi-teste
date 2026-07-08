@@ -10,6 +10,7 @@ export function VisaoToggle({
   options = [
     { value: "contabil", label: "Contábil" },
     { value: "gerencial", label: "Gerencial" },
+    { value: "comparativo", label: "Comparativo" },
   ],
   className,
 }: {

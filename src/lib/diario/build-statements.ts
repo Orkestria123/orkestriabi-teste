@@ -548,7 +548,6 @@ async function buildDRE(
       if (s.competencia !== p) continue;
       const conta = planoMap.get(s.conta_codigo);
       if (!conta) continue;
-      const m = matcher(conta.classificacao);
       // Movimento líquido (d - c), consistente com o BP. Assim estornos
       // (créditos em contas de despesa, débitos em contas de receita) são
       // compensados no próprio movimento da conta, e o Lucro Líquido da

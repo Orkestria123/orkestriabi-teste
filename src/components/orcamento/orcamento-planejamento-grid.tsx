@@ -134,15 +134,26 @@ export function OrcamentoPlanejamentoGrid({ orcamento, itens }: Props) {
 
   useEffect(() => {
     if (!valoresRaw) return;
-    const m: Record<string, number> = {};
+    const fromDb: Record<string, number> = {};
     for (const v of valoresRaw) {
       const ym = v.competencia.slice(0, 7);
-      m[`${v.item_id}|${ym}`] = v.valor_orcado;
+      fromDb[`${v.item_id}|${ym}`] = v.valor_orcado;
     }
-    setLocal(m);
+    // Preserva rascunhos ainda não salvos (dirty) para não sobrescrever
+    // valores em edição quando um refetch chega. Só substitui o que
+    // realmente veio do banco; mantém o restante do estado local.
+    setLocal((prev) => {
+      const next: Record<string, number> = { ...prev, ...fromDb };
+      // Restaura valores dirty por cima (nunca deixe o refetch apagá-los)
+      for (const k of dirty) {
+        if (prev[k] !== undefined) next[k] = prev[k];
+      }
+      return next;
+    });
     setDrafts({});
-    setDirty(new Set());
+    // NÃO limpar `dirty` aqui — só limpamos quando o próprio save confirma.
   }, [valoresRaw]);
+
 
   const getVal = (itemId: string, ym: string): number => local[`${itemId}|${ym}`] ?? 0;
 

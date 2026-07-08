@@ -43,6 +43,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { OrcamentoPlanejamentoGrid } from "@/components/orcamento/orcamento-planejamento-grid";
 
 // ---------------------------------------------------------------------
 // Tipos

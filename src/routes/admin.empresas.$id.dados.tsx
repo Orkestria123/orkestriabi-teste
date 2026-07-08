@@ -26,6 +26,7 @@ import { MascaraConfigPanel } from "@/components/mascara-config";
 import { BalancoFechaBadge } from "@/components/balanco-fecha-badge";
 import { getMascaraConfig } from "@/lib/mascara/interpretar";
 import { IndicadoresEmpresaPanel } from "@/components/indicadores/indicadores-empresa-panel";
+import { AjustesGerenciaisPanel } from "@/components/gerencial/ajustes-gerenciais-panel";
 
 export const Route = createFileRoute("/admin/empresas/$id/dados")({
   component: Page,

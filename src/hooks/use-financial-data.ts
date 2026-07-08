@@ -130,29 +130,38 @@ export function useMonthlyStatement(
       if (meta?.fonteDados === "diario") {
         const t = tipo as "DRE" | "BP_ATIVO" | "BP_PASSIVO" | "DFC" | "DLPA" | "DVA";
         if (visao === "comparativo") {
-          // Roda os dois motores e devolve linhas com valor (contábil) e
-          // valor_gerencial (gerencial), pareadas por linha_ordem + codigo_conta + periodo.
+          // Roda os DOIS motores intactos e casa as linhas por IDENTIDADE
+          // (codigo_conta ou descricao para subtotais) — NUNCA por linha_ordem,
+          // porque a inserção de contas gerenciais virtuais desloca a ordem
+          // das sintéticas no lado gerencial e o pareamento por linha_ordem
+          // falha silenciosamente (a sintética contábil vira 0).
           const [rowsC, rowsG] = await Promise.all([
             buildStatementFromDiario(companyId!, meta.tenantId, meta.modoGlobal, t, periodos, "contabil"),
             buildStatementFromDiario(companyId!, meta.tenantId, meta.modoGlobal, t, periodos, "gerencial"),
           ]);
-          const gMap = new Map<string, number>();
-          for (const r of rowsG) {
-            const k = `${r.linha_ordem}|${r.codigo_conta ?? `sub:${r.descricao}`}|${r.periodo}`;
-            gMap.set(k, Number((r as any).valor) || 0);
+          const identityOf = (r: any) =>
+            r.codigo_conta ? `c:${r.codigo_conta}` : `s:${r.descricao}`;
+          // Mapa contábil: identidade|periodo -> valor
+          const cMap = new Map<string, number>();
+          const cRowByIdent = new Map<string, any>();
+          for (const r of rowsC) {
+            cMap.set(`${identityOf(r)}|${r.periodo}`, Number((r as any).valor) || 0);
+            cRowByIdent.set(identityOf(r), r);
           }
-          // Colecionamos linhas presentes no gerencial mas ausentes no contábil
-          // (ex.: contas gerenciais virtuais) para adicionar depois.
-          const cKeys = new Set<string>();
-          const merged: any[] = rowsC.map((r) => {
-            const k = `${r.linha_ordem}|${r.codigo_conta ?? `sub:${r.descricao}`}|${r.periodo}`;
-            cKeys.add(k);
-            return { ...r, valor_gerencial: gMap.get(k) ?? (Number((r as any).valor) || 0) };
+          // Base = gerencial (superset: contém as virtuais). Ordem preservada.
+          const gIdents = new Set<string>();
+          const merged: any[] = rowsG.map((r) => {
+            const id = identityOf(r);
+            gIdents.add(id);
+            const vc = cMap.get(`${id}|${r.periodo}`) ?? 0;
+            return { ...r, valor: vc, valor_gerencial: Number((r as any).valor) || 0 };
           });
-          for (const r of rowsG) {
-            const k = `${r.linha_ordem}|${r.codigo_conta ?? `sub:${r.descricao}`}|${r.periodo}`;
-            if (cKeys.has(k)) continue;
-            merged.push({ ...r, valor: 0, valor_gerencial: Number((r as any).valor) || 0 });
+          // Linhas do contábil que não aparecem no gerencial (raro): anexa
+          // ao final preservando os valores contábeis, gerencial = contábil.
+          for (const r of rowsC) {
+            if (gIdents.has(identityOf(r))) continue;
+            const vc = Number((r as any).valor) || 0;
+            merged.push({ ...r, valor: vc, valor_gerencial: vc });
           }
           return merged;
         }

@@ -9,7 +9,9 @@ export interface StatementRow {
   codigo_conta: string | null;
   nivel: number;
   is_subtotal: boolean;
-  values: Record<string, number>; // period -> value
+  values: Record<string, number>; // period -> value (contábil ou visão única)
+  /** Presente apenas no modo comparativo — valores da visão gerencial. */
+  valuesGer?: Record<string, number>;
   linha_ordem: number;
 }
 

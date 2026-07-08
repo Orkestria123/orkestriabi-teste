@@ -27,6 +27,7 @@ import { BalancoFechaBadge } from "@/components/balanco-fecha-badge";
 import { getMascaraConfig } from "@/lib/mascara/interpretar";
 import { IndicadoresEmpresaPanel } from "@/components/indicadores/indicadores-empresa-panel";
 import { AjustesGerenciaisPanel } from "@/components/gerencial/ajustes-gerenciais-panel";
+import { OrcamentoConfigPanel } from "@/components/orcamento/orcamento-config-panel";
 
 export const Route = createFileRoute("/admin/empresas/$id/dados")({
   component: Page,
@@ -34,7 +35,7 @@ export const Route = createFileRoute("/admin/empresas/$id/dados")({
 
 function Page() {
   const { id } = useParams({ from: "/admin/empresas/$id/dados" });
-  const [tab, setTab] = useState<"plano" | "mapeamento" | "saldo-inicial" | "diarios" | "mascara" | "indicadores" | "gerencial">("plano");
+  const [tab, setTab] = useState<"plano" | "mapeamento" | "saldo-inicial" | "diarios" | "mascara" | "indicadores" | "gerencial" | "orcamento">("plano");
 
   const { data: company } = useQuery({
     queryKey: ["company", id],
@@ -91,11 +92,21 @@ function Page() {
           <TabsTrigger value="mascara">5. Máscara</TabsTrigger>
           <TabsTrigger value="indicadores">6. Indicadores</TabsTrigger>
           <TabsTrigger value="gerencial">7. Ajustes Gerenciais</TabsTrigger>
+          <TabsTrigger value="orcamento">8. Orçamento</TabsTrigger>
         </TabsList>
 
         <TabsContent value="gerencial">
           {company && (
             <AjustesGerenciaisPanel
+              tenantId={company.tenant_id!}
+              companyId={company.id}
+            />
+          )}
+        </TabsContent>
+
+        <TabsContent value="orcamento">
+          {company && (
+            <OrcamentoConfigPanel
               tenantId={company.tenant_id!}
               companyId={company.id}
             />

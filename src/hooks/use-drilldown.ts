@@ -98,6 +98,18 @@ export interface SaldoInicialRow {
   saldo: number;
 }
 
+export interface AjusteGerencialRow {
+  id: string;
+  competencia: string; // YYYY-MM-DD
+  descricao: string;
+  valor: number;
+  debito: number;   // valor se nossa conta está no débito, senão 0
+  credito: number;  // valor se nossa conta está no crédito, senão 0
+  conta_codigo: string;    // nossa conta (lado que bateu)
+  contraconta: string;     // a outra conta da partida
+  isAnterior: boolean;     // true se competência < min (só relevante para BP)
+}
+
 export interface LancamentosDrilldownResult {
   entries: LancamentoRow[];
   saldoInicial: SaldoInicialRow[]; // por conta
@@ -105,7 +117,9 @@ export interface LancamentosDrilldownResult {
   contasEncontradas: number;
   minCompetencia: string;
   maxCompetencia: string;
+  ajustes: AjusteGerencialRow[];
 }
+
 
 function competenciaRange(periodos: string[]): { min: string; max: string } {
   // periodos: YYYY-MM ou YYYY-MM-01 (aceita ambos)

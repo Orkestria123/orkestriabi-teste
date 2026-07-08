@@ -229,6 +229,7 @@ export function OrcamentoPlanejamentoGrid({ orcamento, itens }: Props) {
   const [openDistribuir, setOpenDistribuir] = useState<{ itemId: string } | null>(
     null,
   );
+  const [openCopiar, setOpenCopiar] = useState(false);
 
   const podeHistorico =
     orcamento.tipo_base === "historico" &&
@@ -283,6 +284,24 @@ export function OrcamentoPlanejamentoGrid({ orcamento, itens }: Props) {
           <Button
             size="sm"
             variant="outline"
+            onClick={() =>
+              setOpenDistribuir({ itemId: itens[0]?.id ?? "" })
+            }
+            disabled={itens.length === 0}
+          >
+            <Wand2 className="h-4 w-4 mr-1" /> Distribuir
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setOpenCopiar(true)}
+            disabled={itens.length === 0}
+          >
+            <Copy className="h-4 w-4 mr-1" /> Copiar p/ todos
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
             onClick={() => setOpenReajuste(true)}
             disabled={itens.length === 0}
           >
@@ -302,6 +321,7 @@ export function OrcamentoPlanejamentoGrid({ orcamento, itens }: Props) {
           </Button>
         </div>
       </div>
+
 
       {isLoading ? (
         <div className="p-8 text-center text-sm text-muted-foreground">
@@ -438,20 +458,32 @@ export function OrcamentoPlanejamentoGrid({ orcamento, itens }: Props) {
         meses={meses}
         onAplicar={aplicarValores}
       />
-      {openDistribuir && (
+      {openDistribuir && itens.length > 0 && (
         <DistribuirDialog
           open={!!openDistribuir}
           onOpenChange={(v) => !v && setOpenDistribuir(null)}
-          item={itens.find((i) => i.id === openDistribuir.itemId)!}
+          itens={itens}
+          itemIdInicial={openDistribuir.itemId || itens[0].id}
           orcamento={orcamento}
           meses={meses}
-          totalAtual={totalItem(openDistribuir.itemId)}
+          totaisPorItem={Object.fromEntries(itens.map((i) => [i.id, totalItem(i.id)]))}
+          onAplicar={aplicarValores}
+        />
+      )}
+      {openCopiar && (
+        <CopiarDialog
+          open={openCopiar}
+          onOpenChange={setOpenCopiar}
+          itens={itens}
+          meses={meses}
+          local={local}
           onAplicar={aplicarValores}
         />
       )}
     </Card>
   );
 }
+
 
 // ---------------------------------------------------------------------
 // Dialog: Puxar do histórico
@@ -604,6 +636,8 @@ function ReajusteDialog({
 }) {
   const [pct, setPct] = useState<string>("10");
   const [alvo, setAlvo] = useState<"todos" | string>("todos");
+  const [escopo, setEscopo] = useState<"todos" | "apartir" | "apenas">("todos");
+  const [mesRef, setMesRef] = useState<string>(meses[0]);
   const [busy, setBusy] = useState(false);
 
   const aplicar = async () => {
@@ -612,10 +646,17 @@ function ReajusteDialog({
     const fator = 1 + p / 100;
     setBusy(true);
     try {
+      const idxRef = meses.indexOf(mesRef);
+      const mesesAlvo =
+        escopo === "todos"
+          ? meses
+          : escopo === "apartir"
+            ? meses.slice(Math.max(0, idxRef))
+            : [mesRef];
       const updates: Array<{ itemId: string; ym: string; valor: number }> = [];
       const alvoIds = alvo === "todos" ? itens.map((i) => i.id) : [alvo];
       for (const itemId of alvoIds) {
-        for (const m of meses) {
+        for (const m of mesesAlvo) {
           const key = `${itemId}|${m}`;
           const atual = local[key] ?? 0;
           if (atual === 0) continue;
@@ -626,9 +667,15 @@ function ReajusteDialog({
           });
         }
       }
+      const descEscopo =
+        escopo === "todos"
+          ? "todos os meses"
+          : escopo === "apartir"
+            ? `a partir de ${NOMES_MES[Math.max(0, idxRef)]}`
+            : `apenas ${NOMES_MES[Math.max(0, idxRef)]}`;
       await onAplicar(
         updates,
-        `Reajuste de ${p >= 0 ? "+" : ""}${p}% aplicado a ${updates.length} valor(es)`,
+        `Reajuste de ${p >= 0 ? "+" : ""}${p}% (${descEscopo}) aplicado a ${updates.length} valor(es)`,
       );
       onOpenChange(false);
     } catch (e: any) {
@@ -674,6 +721,36 @@ function ReajusteDialog({
               placeholder="+10 ou -5"
             />
           </div>
+          <div>
+            <Label className="text-xs">Aplicar em</Label>
+            <Select value={escopo} onValueChange={(v) => setEscopo(v as any)}>
+              <SelectTrigger className="h-9">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todos os meses</SelectItem>
+                <SelectItem value="apartir">A partir de…</SelectItem>
+                <SelectItem value="apenas">Apenas o mês…</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          {escopo !== "todos" && (
+            <div>
+              <Label className="text-xs">Mês</Label>
+              <Select value={mesRef} onValueChange={setMesRef}>
+                <SelectTrigger className="h-9">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {meses.map((m, i) => (
+                    <SelectItem key={m} value={m}>
+                      {NOMES_MES[i]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={busy}>
@@ -686,6 +763,7 @@ function ReajusteDialog({
       </DialogContent>
     </Dialog>
   );
+
 }
 
 // ---------------------------------------------------------------------
@@ -695,30 +773,41 @@ function ReajusteDialog({
 function DistribuirDialog({
   open,
   onOpenChange,
-  item,
+  itens,
+  itemIdInicial,
   orcamento,
   meses,
-  totalAtual,
+  totaisPorItem,
   onAplicar,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
-  item: OrcamentoItem;
+  itens: OrcamentoItem[];
+  itemIdInicial: string;
   orcamento: OrcamentoHeader;
   meses: string[];
-  totalAtual: number;
+  totaisPorItem: Record<string, number>;
   onAplicar: (
     v: Array<{ itemId: string; ym: string; valor: number }>,
     msg: string,
   ) => Promise<void>;
 }) {
+  const [itemId, setItemId] = useState<string>(itemIdInicial);
+  const item = itens.find((i) => i.id === itemId) ?? itens[0];
+  const totalAtual = totaisPorItem[itemId] ?? 0;
   const [totalStr, setTotalStr] = useState<string>(fmtInput(totalAtual));
   const [modo, setModo] = useState<"igual" | "sazonal">("igual");
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (open) setTotalStr(fmtInput(totalAtual));
-  }, [open, totalAtual]);
+    if (open) {
+      setItemId(itemIdInicial);
+    }
+  }, [open, itemIdInicial]);
+
+  useEffect(() => {
+    setTotalStr(fmtInput(totaisPorItem[itemId] ?? 0));
+  }, [itemId, totaisPorItem]);
 
   const podeSazonal =
     orcamento.tipo_base === "historico" &&
@@ -726,6 +815,7 @@ function DistribuirDialog({
     !!orcamento.periodo_base_fim;
 
   const distribuir = async () => {
+    if (!item) return;
     const total = parseBRL(totalStr);
     setBusy(true);
     try {
@@ -776,12 +866,27 @@ function DistribuirDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Distribuir total anual — {item.rotulo}</DialogTitle>
+          <DialogTitle>Distribuir total anual</DialogTitle>
           <DialogDescription>
             Informe o total do ano; o sistema divide entre os 12 meses.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
+          <div>
+            <Label className="text-xs">Item</Label>
+            <Select value={itemId} onValueChange={setItemId}>
+              <SelectTrigger className="h-9">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {itens.map((it) => (
+                  <SelectItem key={it.id} value={it.id}>
+                    {it.rotulo}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           <div>
             <Label className="text-xs">Total do ano</Label>
             <Input
@@ -817,3 +922,121 @@ function DistribuirDialog({
     </Dialog>
   );
 }
+
+// ---------------------------------------------------------------------
+// Dialog: Copiar valor para todos os meses
+// ---------------------------------------------------------------------
+
+function CopiarDialog({
+  open,
+  onOpenChange,
+  itens,
+  meses,
+  local,
+  onAplicar,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  itens: OrcamentoItem[];
+  meses: string[];
+  local: Record<string, number>;
+  onAplicar: (
+    v: Array<{ itemId: string; ym: string; valor: number }>,
+    msg: string,
+  ) => Promise<void>;
+}) {
+  const [itemId, setItemId] = useState<string>(itens[0]?.id ?? "");
+  const [mesOrigem, setMesOrigem] = useState<string>(meses[0]);
+  const [valorStr, setValorStr] = useState<string>("");
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    const atual = local[`${itemId}|${mesOrigem}`] ?? 0;
+    setValorStr(fmtInput(atual));
+  }, [open, itemId, mesOrigem, local]);
+
+  const aplicar = async () => {
+    if (!itemId) return;
+    const valor = parseBRL(valorStr);
+    setBusy(true);
+    try {
+      const updates = meses.map((m) => ({ itemId, ym: m, valor }));
+      const rot = itens.find((i) => i.id === itemId)?.rotulo ?? "";
+      await onAplicar(updates, `Valor replicado em todos os meses de "${rot}"`);
+      onOpenChange(false);
+    } catch (e: any) {
+      toast.error(e.message ?? String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Copiar para todos os meses</DialogTitle>
+          <DialogDescription>
+            Preenche todos os 12 meses do item com o mesmo valor. Útil para despesas
+            fixas (aluguel, mensalidades, etc.).
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3">
+          <div>
+            <Label className="text-xs">Item</Label>
+            <Select value={itemId} onValueChange={setItemId}>
+              <SelectTrigger className="h-9">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {itens.map((it) => (
+                  <SelectItem key={it.id} value={it.id}>
+                    {it.rotulo}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label className="text-xs">Valor</Label>
+            <Input
+              value={valorStr}
+              onChange={(e) => setValorStr(e.target.value)}
+              className="text-right tabular-nums"
+              placeholder="0,00"
+            />
+            <p className="text-[10px] text-muted-foreground mt-1">
+              Sugestão pré-preenchida com o valor atual de{" "}
+              {NOMES_MES[Math.max(0, meses.indexOf(mesOrigem))]}. Pode editar.
+            </p>
+          </div>
+          <div>
+            <Label className="text-xs">Referência (mês para pré-preencher)</Label>
+            <Select value={mesOrigem} onValueChange={setMesOrigem}>
+              <SelectTrigger className="h-9">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {meses.map((m, i) => (
+                  <SelectItem key={m} value={m}>
+                    {NOMES_MES[i]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={busy}>
+            Cancelar
+          </Button>
+          <Button onClick={aplicar} disabled={busy}>
+            {busy && <Loader2 className="h-4 w-4 mr-1 animate-spin" />} Aplicar
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+

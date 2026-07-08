@@ -110,7 +110,7 @@ function DrilldownTable({
 }) {
   const totalDeb = data.entries.reduce((a, r) => a + r.debito, 0);
   const totalCre = data.entries.reduce((a, r) => a + r.credito, 0);
-  const totalValor = totalDeb - totalCre;
+  void totalDeb; void totalCre;
   const saldoInicialTotal = data.saldoInicial.reduce((a, r) => a + r.saldo, 0);
   const ajustesDeb = data.ajustes.reduce((a, r) => a + r.debito, 0);
   const ajustesCre = data.ajustes.reduce((a, r) => a + r.credito, 0);

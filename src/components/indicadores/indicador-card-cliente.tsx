@@ -92,17 +92,37 @@ function faixasNoMesmoEscalar(faixas: Faixas | null | undefined, modo: ModoAnali
   };
 }
 
-export function IndicadorCardCliente({ ind, serie, valor, faixa, onClick }: Props) {
+export function IndicadorCardCliente({
+  ind,
+  serie,
+  valor,
+  faixa,
+  onClick,
+  visao = "contabil",
+  serieGerencial,
+  valorGerencial,
+  faixaGerencial,
+}: Props) {
   const uid = useId().replace(/:/g, "");
+  const isComparativo = visao === "comparativo" && !!serieGerencial;
   const cor = FAIXA_COLOR[faixa];
+  const corGer = FAIXA_COLOR[faixaGerencial ?? "neutro"];
   const pontos = useMemo(
     () =>
-      serie.map((p) => ({
+      serie.map((p, i) => ({
         periodo: p.periodo,
         mes: formatMes(p.periodo),
+        contabil: p.valor == null || !isFinite(p.valor) ? null : p.valor,
+        gerencial:
+          isComparativo && serieGerencial
+            ? (() => {
+                const g = serieGerencial[i]?.valor;
+                return g == null || !isFinite(g) ? null : g;
+              })()
+            : null,
         valor: p.valor == null || !isFinite(p.valor) ? null : p.valor,
       })),
-    [serie],
+    [serie, serieGerencial, isComparativo],
   );
   const ultimoIdx = pontos.length - 1;
   const temSerie = pontos.filter((p) => p.valor != null).length >= 2;

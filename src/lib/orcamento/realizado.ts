@@ -162,7 +162,7 @@ export async function computeRealizadoPorItem(params: {
       });
     }
     // Contas gerenciais virtuais têm classificação própria — inclui no map
-    for (const cg of ajData.contas) {
+    for (const cg of ajData.contasGerenciais) {
       if (!codigoToClass.has(cg.codigo)) {
         codigoToClass.set(cg.codigo, cg.classificacao);
         porCodigo.set(cg.codigo, cg.classificacao);

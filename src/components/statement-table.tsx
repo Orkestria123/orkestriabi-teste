@@ -240,6 +240,28 @@ export function StatementTable({
 
   return (
     <div className="rounded-lg border bg-card overflow-hidden">
+      {impactoResumo && (
+        <div className="px-3 py-2 border-b bg-primary/5 text-xs flex flex-wrap items-center gap-x-4 gap-y-1">
+          <span className="font-medium text-foreground">
+            Impacto dos ajustes gerenciais em {impactoResumo.label}:
+          </span>
+          {impactoResumo.diffs.map(({ p, diff }) => (
+            <span key={p} className="text-muted-foreground">
+              {periodoLabel(p)}:{" "}
+              <span
+                className={cn(
+                  "font-semibold tabular-nums",
+                  diff > 0 && "text-success",
+                  diff < 0 && "text-destructive",
+                  diff === 0 && "text-muted-foreground",
+                )}
+              >
+                {diff === 0 ? "—" : (diff > 0 ? "+" : "") + fmt(diff)}
+              </span>
+            </span>
+          ))}
+        </div>
+      )}
       <div className="flex items-center justify-between gap-2 px-3 py-2 border-b bg-muted/20 text-xs">
         <span className="text-muted-foreground">{unidadeLabel}</span>
         <div className="flex items-center gap-2">

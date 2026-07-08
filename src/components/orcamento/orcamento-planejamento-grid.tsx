@@ -458,20 +458,32 @@ export function OrcamentoPlanejamentoGrid({ orcamento, itens }: Props) {
         meses={meses}
         onAplicar={aplicarValores}
       />
-      {openDistribuir && (
+      {openDistribuir && itens.length > 0 && (
         <DistribuirDialog
           open={!!openDistribuir}
           onOpenChange={(v) => !v && setOpenDistribuir(null)}
-          item={itens.find((i) => i.id === openDistribuir.itemId)!}
+          itens={itens}
+          itemIdInicial={openDistribuir.itemId || itens[0].id}
           orcamento={orcamento}
           meses={meses}
-          totalAtual={totalItem(openDistribuir.itemId)}
+          totaisPorItem={Object.fromEntries(itens.map((i) => [i.id, totalItem(i.id)]))}
+          onAplicar={aplicarValores}
+        />
+      )}
+      {openCopiar && (
+        <CopiarDialog
+          open={openCopiar}
+          onOpenChange={setOpenCopiar}
+          itens={itens}
+          meses={meses}
+          local={local}
           onAplicar={aplicarValores}
         />
       )}
     </Card>
   );
 }
+
 
 // ---------------------------------------------------------------------
 // Dialog: Puxar do histórico

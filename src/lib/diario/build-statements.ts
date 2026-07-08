@@ -549,13 +549,11 @@ async function buildDRE(
       const conta = planoMap.get(s.conta_codigo);
       if (!conta) continue;
       const m = matcher(conta.classificacao);
-      const ehReceita = !!m?.inverter_sinal;
-      const d = s.total_debitos;
-      const c = s.total_creditos;
-      // Sinal "cru" (antes do inverter_sinal): receita fica negativa para
-      // que aplicarMapaESinal (inverter=true) devolva valor positivo;
-      // despesa permanece positiva.
-      const valor = ehReceita ? -c : d;
+      // Movimento líquido (d - c), consistente com o BP. Assim estornos
+      // (créditos em contas de despesa, débitos em contas de receita) são
+      // compensados no próprio movimento da conta, e o Lucro Líquido da
+      // DRE fica idêntico ao Resultado do Exercício do PL do BP.
+      const valor = s.total_debitos - s.total_creditos;
       saldosPorConta.set(
         s.conta_codigo,
         (saldosPorConta.get(s.conta_codigo) ?? 0) + valor,

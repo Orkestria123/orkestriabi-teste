@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { descendeDe, getMascaraConfig } from "@/lib/mascara/interpretar";
+import { useVisaoGerencial } from "@/hooks/use-visao-gerencial";
 
 export interface DrilldownAccount {
   codigo_conta: string;
@@ -97,6 +98,18 @@ export interface SaldoInicialRow {
   saldo: number;
 }
 
+export interface AjusteGerencialRow {
+  id: string;
+  competencia: string; // YYYY-MM-DD
+  descricao: string;
+  valor: number;
+  debito: number;   // valor se nossa conta está no débito, senão 0
+  credito: number;  // valor se nossa conta está no crédito, senão 0
+  conta_codigo: string;    // nossa conta (lado que bateu)
+  contraconta: string;     // a outra conta da partida
+  isAnterior: boolean;     // true se competência < min (só relevante para BP)
+}
+
 export interface LancamentosDrilldownResult {
   entries: LancamentoRow[];
   saldoInicial: SaldoInicialRow[]; // por conta
@@ -104,7 +117,9 @@ export interface LancamentosDrilldownResult {
   contasEncontradas: number;
   minCompetencia: string;
   maxCompetencia: string;
+  ajustes: AjusteGerencialRow[];
 }
+
 
 function competenciaRange(periodos: string[]): { min: string; max: string } {
   // periodos: YYYY-MM ou YYYY-MM-01 (aceita ambos)
@@ -149,6 +164,7 @@ export function useLancamentosDrilldown(
   enabled: boolean,
 ) {
   const { min, max } = competenciaRange(periodos);
+  const { visao } = useVisaoGerencial();
 
   return useQuery({
     queryKey: [
@@ -158,6 +174,7 @@ export function useLancamentosDrilldown(
       min,
       max,
       opts.incluirSaldoInicial,
+      visao,
     ],
     enabled: enabled && !!companyId && !!classificacao,
     queryFn: async (): Promise<LancamentosDrilldownResult> => {
@@ -165,6 +182,7 @@ export function useLancamentosDrilldown(
       const mascara = tenantId
         ? await getMascaraConfig({ tenantId, companyId })
         : undefined;
+      const sep = mascara?.separador || ".";
 
       // 1) Contas analíticas descendentes (inclui a própria)
       const { data: planoRows, error: pErr } = await supabase
@@ -187,7 +205,32 @@ export function useLancamentosDrilldown(
       }
       const codes = contas.map((r: any) => r.codigo);
 
-      if (codes.length === 0) {
+      // 1b) Contas gerenciais que caem sob esta classificação (visão gerencial).
+      // Classif. virtual = `${classificacao_pai}${sep}${codigo}`.
+      const gerCodes: string[] = [];
+      if (visao === "gerencial" && classificacao) {
+        const { data: gerRows, error: gErr } = await supabase
+          .from("contas_gerenciais")
+          .select("codigo, descricao, classificacao")
+          .eq("company_id", companyId!);
+        if (gErr) throw gErr;
+        for (const g of (gerRows ?? []) as any[]) {
+          const virtual = `${g.classificacao}${sep}${g.codigo}`;
+          const match =
+            virtual === classificacao ||
+            virtual.startsWith(`${classificacao}${sep}`);
+          if (match) {
+            gerCodes.push(g.codigo);
+            if (!contasMap[g.codigo]) {
+              contasMap[g.codigo] = { codigo: g.codigo, descricao: g.descricao };
+            }
+          }
+        }
+      }
+
+      const allOurCodes = new Set<string>([...codes, ...gerCodes]);
+
+      if (codes.length === 0 && gerCodes.length === 0) {
         return {
           entries: [],
           saldoInicial: [],
@@ -195,38 +238,41 @@ export function useLancamentosDrilldown(
           contasEncontradas: 0,
           minCompetencia: min,
           maxCompetencia: max,
+          ajustes: [],
         };
       }
 
-      // 2) Lançamentos
-      const entries = await fetchInBatches(codes, async (batch) => {
-        const { data, error } = await supabase
-          .from("lancamentos_diario")
-          .select("id, data, historico, debito, credito, conta_codigo")
-          .eq("company_id", companyId!)
-          .in("conta_codigo", batch)
-          .gte("competencia", min)
-          .lte("competencia", max)
-          .order("data", { ascending: true });
-        if (error) throw error;
-        return (data ?? []).map((r: any) => ({
-          id: r.id,
-          data: r.data,
-          historico: r.historico,
-          debito: Number(r.debito) || 0,
-          credito: Number(r.credito) || 0,
-          conta_codigo: r.conta_codigo,
-        })) as LancamentoRow[];
-      });
+      // 2) Lançamentos contábeis (só contas contábeis)
+      const entries = codes.length === 0
+        ? []
+        : await fetchInBatches(codes, async (batch) => {
+            const { data, error } = await supabase
+              .from("lancamentos_diario")
+              .select("id, data, historico, debito, credito, conta_codigo")
+              .eq("company_id", companyId!)
+              .in("conta_codigo", batch)
+              .gte("competencia", min)
+              .lte("competencia", max)
+              .order("data", { ascending: true });
+            if (error) throw error;
+            return (data ?? []).map((r: any) => ({
+              id: r.id,
+              data: r.data,
+              historico: r.historico,
+              debito: Number(r.debito) || 0,
+              credito: Number(r.credito) || 0,
+              conta_codigo: r.conta_codigo,
+            })) as LancamentoRow[];
+          });
 
       entries.sort((a, b) => {
         if (a.data === b.data) return a.id.localeCompare(b.id);
         return a.data.localeCompare(b.data);
       });
 
-      // 3) Saldo inicial (Balanço)
+      // 3) Saldo inicial (Balanço) — só contas contábeis
       let saldoInicial: SaldoInicialRow[] = [];
-      if (opts.incluirSaldoInicial) {
+      if (opts.incluirSaldoInicial && codes.length > 0) {
         saldoInicial = await fetchInBatches(codes, async (batch) => {
           const { data, error } = await supabase
             .from("saldos_abertura")
@@ -243,14 +289,65 @@ export function useLancamentosDrilldown(
         });
       }
 
+      // 4) Ajustes gerenciais (visão gerencial).
+      //    - DRE  (sem saldo inicial): apenas [min, max] (fluxo do período)
+      //    - BP   (com saldo inicial): tudo até max (posição acumulada)
+      const ajustes: AjusteGerencialRow[] = [];
+      if (visao === "gerencial") {
+        let q = supabase
+          .from("ajustes_gerenciais")
+          .select("id, competencia, descricao, valor, conta_debito, conta_credito")
+          .eq("company_id", companyId!)
+          .lte("competencia", max);
+        if (!opts.incluirSaldoInicial) q = q.gte("competencia", min);
+        const { data, error } = await q;
+        if (error) throw error;
+        for (const a of (data ?? []) as any[]) {
+          const valor = Number(a.valor) || 0;
+          const hitDeb = allOurCodes.has(a.conta_debito);
+          const hitCre = allOurCodes.has(a.conta_credito);
+          if (!hitDeb && !hitCre) continue;
+          const isAnterior = a.competencia < min;
+          if (hitDeb) {
+            ajustes.push({
+              id: `${a.id}:D`,
+              competencia: a.competencia,
+              descricao: a.descricao,
+              valor,
+              debito: valor,
+              credito: 0,
+              conta_codigo: a.conta_debito,
+              contraconta: a.conta_credito,
+              isAnterior,
+            });
+          }
+          if (hitCre) {
+            ajustes.push({
+              id: `${a.id}:C`,
+              competencia: a.competencia,
+              descricao: a.descricao,
+              valor,
+              debito: 0,
+              credito: valor,
+              conta_codigo: a.conta_credito,
+              contraconta: a.conta_debito,
+              isAnterior,
+            });
+          }
+        }
+        ajustes.sort((a, b) => a.competencia.localeCompare(b.competencia));
+      }
+
       return {
         entries,
         saldoInicial,
         contasMap,
-        contasEncontradas: codes.length,
+        contasEncontradas: codes.length + gerCodes.length,
         minCompetencia: min,
         maxCompetencia: max,
+        ajustes,
       };
     },
   });
 }
+

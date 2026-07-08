@@ -83,7 +83,9 @@ export function IndicadoresEmpresaPanel({
     },
   });
 
-  const { data: ctx } = useIndicadorData(tenantId, companyId);
+  // Admin: sempre modo contábil (visão default).
+  const { data: ctxRaw } = useIndicadorData(tenantId, companyId);
+  const ctx = ctxRaw as import("@/lib/indicadores/engine").EngineContext | undefined;
 
   const planoClassSet = useMemo(
     () => new Set((plano ?? []).map((p) => p.classificacao)),
@@ -261,7 +263,8 @@ export function IndicadoresEmpresaPanel({
   };
 
   const periodos = useMemo(() => (ctx?.periodosDisponiveis ?? []).slice(-3), [ctx]);
-  const { data: demoDre } = useDemoValues(tenantId, companyId, periodos);
+  const { data: demoDreRaw } = useDemoValues(tenantId, companyId, periodos);
+  const demoDre = demoDreRaw as import("@/lib/indicadores/linhas").DemoDre | undefined;
   const resolver = useMemo(() => criarResolverLinha(ctx, demoDre), [ctx, demoDre]);
 
   if (isLoading) {
@@ -372,7 +375,7 @@ function IndicadorCard({
   ind: IndicadorEmpresa;
   labelDaConta: (cls: string) => string;
   periodos: string[];
-  ctx: ReturnType<typeof useIndicadorData>["data"];
+  ctx: import("@/lib/indicadores/engine").EngineContext | undefined;
   resolver: import("@/lib/indicadores/engine").ResolverLinha;
   onVisChange: (v: Visibilidade) => void;
   onEditar: () => void;

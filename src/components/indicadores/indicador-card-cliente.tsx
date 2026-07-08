@@ -36,10 +36,16 @@ import { Sparkles } from "lucide-react";
 
 interface Props {
   ind: IndicadorEmpresa;
-  serie: SeriePonto[]; // já no modo de exibição (aplicarModo)
+  serie: SeriePonto[]; // já no modo de exibição (aplicarModo) — visão contábil (ou única)
   valor: number | null;
   faixa: FaixaChave;
   onClick?: () => void;
+  /** Etapa 6: quando o seletor global está em "comparativo", o card recebe */
+  /* também a série gerencial e exibe as duas lado a lado. */
+  visao?: "contabil" | "gerencial" | "comparativo";
+  serieGerencial?: SeriePonto[];
+  valorGerencial?: number | null;
+  faixaGerencial?: FaixaChave;
 }
 
 const FAIXA_COLOR: Record<FaixaChave, string> = {
@@ -86,17 +92,37 @@ function faixasNoMesmoEscalar(faixas: Faixas | null | undefined, modo: ModoAnali
   };
 }
 
-export function IndicadorCardCliente({ ind, serie, valor, faixa, onClick }: Props) {
+export function IndicadorCardCliente({
+  ind,
+  serie,
+  valor,
+  faixa,
+  onClick,
+  visao = "contabil",
+  serieGerencial,
+  valorGerencial,
+  faixaGerencial,
+}: Props) {
   const uid = useId().replace(/:/g, "");
+  const isComparativo = visao === "comparativo" && !!serieGerencial;
   const cor = FAIXA_COLOR[faixa];
+  const corGer = FAIXA_COLOR[faixaGerencial ?? "neutro"];
   const pontos = useMemo(
     () =>
-      serie.map((p) => ({
+      serie.map((p, i) => ({
         periodo: p.periodo,
         mes: formatMes(p.periodo),
+        contabil: p.valor == null || !isFinite(p.valor) ? null : p.valor,
+        gerencial:
+          isComparativo && serieGerencial
+            ? (() => {
+                const g = serieGerencial[i]?.valor;
+                return g == null || !isFinite(g) ? null : g;
+              })()
+            : null,
         valor: p.valor == null || !isFinite(p.valor) ? null : p.valor,
       })),
-    [serie],
+    [serie, serieGerencial, isComparativo],
   );
   const ultimoIdx = pontos.length - 1;
   const temSerie = pontos.filter((p) => p.valor != null).length >= 2;
@@ -104,24 +130,36 @@ export function IndicadorCardCliente({ ind, serie, valor, faixa, onClick }: Prop
   const formulaTexto = formulaParaTexto(ind.formula, () => "", labelLinha);
 
   const explicarFn = useServerFn(explicarIndicador);
-  const chaveSerie = serie
+  // Em comparativo, o texto do AI descreve a série gerencial (que é a
+  // "verdade" para o dono do negócio + o contábil é a base fiscal).
+  const serieParaAnalise =
+    isComparativo && serieGerencial ? serieGerencial : serie;
+  const faixaParaAnalise =
+    isComparativo && faixaGerencial ? faixaGerencial : faixa;
+  const nomeParaAnalise =
+    visao === "gerencial"
+      ? `${ind.nome} (ótica gerencial, com ajustes)`
+      : visao === "comparativo"
+        ? `${ind.nome} (ótica gerencial, com ajustes; contábil disponível para comparação)`
+        : ind.nome;
+  const chaveSerie = serieParaAnalise
     .map((p) => `${p.periodo.slice(0, 7)}:${p.valor == null ? "-" : p.valor.toFixed(4)}`)
     .join("|");
   const { data: analise, isLoading: analiseLoading } = useQuery({
-    queryKey: ["indic-explicacao", ind.id, faixa, chaveSerie],
-    enabled: serie.some((p) => p.valor != null && isFinite(p.valor)),
+    queryKey: ["indic-explicacao", ind.id, faixaParaAnalise, chaveSerie, visao],
+    enabled: serieParaAnalise.some((p) => p.valor != null && isFinite(p.valor)),
     staleTime: 24 * 60 * 60_000,
     gcTime: 24 * 60 * 60_000,
     retry: 0,
     queryFn: () =>
       explicarFn({
         data: {
-          nome: ind.nome,
+          nome: nomeParaAnalise,
           categoria: ind.categoria,
           formulaTexto,
           modo: ind.modo_analise,
-          faixa,
-          serie: serie.map((p) => ({ periodo: p.periodo, valor: p.valor })),
+          faixa: faixaParaAnalise,
+          serie: serieParaAnalise.map((p) => ({ periodo: p.periodo, valor: p.valor })),
         },
       }),
   });
@@ -174,13 +212,26 @@ export function IndicadorCardCliente({ ind, serie, valor, faixa, onClick }: Prop
 
       {temSerie ? (
         <div className="mt-3 -mx-1">
-          <div className="mb-1 flex items-baseline justify-between px-1">
+          <div className="mb-1 flex items-baseline justify-between px-1 gap-2 flex-wrap">
             <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
               Evolução
             </span>
-            <span className="text-sm font-semibold tabular-nums" style={{ color: cor }}>
-              {formatarValor(valor, ind.modo_analise)}
-            </span>
+            {isComparativo ? (
+              <div className="flex items-baseline gap-2 text-[11px]">
+                <span className="text-muted-foreground">Cont.</span>
+                <span className="font-semibold tabular-nums" style={{ color: cor }}>
+                  {formatarValor(valor, ind.modo_analise)}
+                </span>
+                <span className="text-muted-foreground">Ger.</span>
+                <span className="font-semibold tabular-nums" style={{ color: corGer }}>
+                  {formatarValor(valorGerencial ?? null, ind.modo_analise)}
+                </span>
+              </div>
+            ) : (
+              <span className="text-sm font-semibold tabular-nums" style={{ color: cor }}>
+                {formatarValor(valor, ind.modo_analise)}
+              </span>
+            )}
           </div>
           <ResponsiveContainer width="100%" height={140}>
             <AreaChart
@@ -191,6 +242,10 @@ export function IndicadorCardCliente({ ind, serie, valor, faixa, onClick }: Prop
                 <linearGradient id={`grad-${uid}`} x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor={cor} stopOpacity={0.28} />
                   <stop offset="100%" stopColor={cor} stopOpacity={0} />
+                </linearGradient>
+                <linearGradient id={`gradg-${uid}`} x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor={corGer} stopOpacity={0.22} />
+                  <stop offset="100%" stopColor={corGer} stopOpacity={0} />
                 </linearGradient>
               </defs>
               <CartesianGrid stroke="var(--border)" strokeDasharray="2 4" vertical={false} opacity={0.5} />
@@ -222,17 +277,27 @@ export function IndicadorCardCliente({ ind, serie, valor, faixa, onClick }: Prop
                   padding: "8px 12px",
                 }}
                 labelStyle={{ color: "var(--muted-foreground)", fontSize: 11 }}
-                formatter={(v: any) => [formatarValor(Number(v), ind.modo_analise), ind.nome]}
+                formatter={(v: any, name: any) => {
+                  const label =
+                    isComparativo
+                      ? name === "gerencial"
+                        ? `${ind.nome} — Gerencial`
+                        : `${ind.nome} — Contábil`
+                      : ind.nome;
+                  return [formatarValor(Number(v), ind.modo_analise), label];
+                }}
                 labelFormatter={(l: any) => String(l)}
               />
               <Area
                 type="monotone"
-                dataKey="valor"
+                dataKey={isComparativo ? "contabil" : "valor"}
+                name={isComparativo ? "contabil" : ind.nome}
                 stroke={cor}
-                strokeWidth={2.5}
+                strokeWidth={isComparativo ? 2 : 2.5}
+                strokeDasharray={isComparativo ? "4 4" : undefined}
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                fill={`url(#grad-${uid})`}
+                fill={isComparativo ? "transparent" : `url(#grad-${uid})`}
                 isAnimationActive
                 animationDuration={600}
                 animationEasing="ease-out"
@@ -258,6 +323,23 @@ export function IndicadorCardCliente({ ind, serie, valor, faixa, onClick }: Prop
                   strokeWidth: 2,
                 }}
               />
+              {isComparativo && (
+                <Area
+                  type="monotone"
+                  dataKey="gerencial"
+                  name="gerencial"
+                  stroke={corGer}
+                  strokeWidth={2.5}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  fill={`url(#gradg-${uid})`}
+                  isAnimationActive
+                  animationDuration={600}
+                  animationEasing="ease-out"
+                  connectNulls
+                  activeDot={{ r: 6, fill: corGer, stroke: "var(--card)", strokeWidth: 2 }}
+                />
+              )}
             </AreaChart>
           </ResponsiveContainer>
         </div>
@@ -266,12 +348,29 @@ export function IndicadorCardCliente({ ind, serie, valor, faixa, onClick }: Prop
           <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
             {pontos[0]?.mes ?? "Valor atual"}
           </span>
-          <span
-            className="mt-1 text-4xl font-semibold tabular-nums tracking-tight"
-            style={{ color: cor }}
-          >
-            {formatarValor(valor, ind.modo_analise)}
-          </span>
+          {isComparativo ? (
+            <div className="mt-1 flex flex-col gap-1">
+              <div className="flex items-baseline gap-2">
+                <span className="text-[10px] text-muted-foreground w-14">Contábil</span>
+                <span className="text-2xl font-semibold tabular-nums" style={{ color: cor }}>
+                  {formatarValor(valor, ind.modo_analise)}
+                </span>
+              </div>
+              <div className="flex items-baseline gap-2">
+                <span className="text-[10px] text-muted-foreground w-14">Gerencial</span>
+                <span className="text-2xl font-semibold tabular-nums" style={{ color: corGer }}>
+                  {formatarValor(valorGerencial ?? null, ind.modo_analise)}
+                </span>
+              </div>
+            </div>
+          ) : (
+            <span
+              className="mt-1 text-4xl font-semibold tabular-nums tracking-tight"
+              style={{ color: cor }}
+            >
+              {formatarValor(valor, ind.modo_analise)}
+            </span>
+          )}
         </div>
       )}
 

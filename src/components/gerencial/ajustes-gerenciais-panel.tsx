@@ -185,12 +185,7 @@ export function AjustesGerenciaisPanel({ tenantId, companyId }: Props) {
       <Card className="p-4 flex flex-wrap items-end gap-3">
         <div>
           <Label className="text-xs">Competência</Label>
-          <Input
-            type="month"
-            value={competencia}
-            onChange={(e) => setCompetencia(e.target.value || hojeYM)}
-            className="h-9 w-[160px]"
-          />
+          <CompetenciaPicker value={competencia} onChange={setCompetencia} />
         </div>
         <div className="ml-auto flex gap-2">
           <Button variant="outline" size="sm" onClick={() => setOpenConta(true)}>

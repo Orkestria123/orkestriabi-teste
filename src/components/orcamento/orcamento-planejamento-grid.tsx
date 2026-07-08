@@ -218,7 +218,12 @@ export function OrcamentoPlanejamentoGrid({ orcamento, itens }: Props) {
         .from("orcamento_valores")
         .upsert(rows, { onConflict: "item_id,competencia" });
       if (error) throw error;
-      setDirty(new Set());
+      setDirty((prev) => {
+        const next = new Set(prev);
+        for (const k of keys) next.delete(k);
+        return next;
+      });
+
       toast.success(`${rows.length} valor(es) salvos`);
       qc.invalidateQueries({ queryKey: ["orcamento-valores", orcamento.id] });
     } catch (e: any) {

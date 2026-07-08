@@ -75,7 +75,7 @@ export function InlineDrilldown({
             <div className="py-3 text-xs text-muted-foreground">
               Nenhuma conta analítica encontrada no plano de contas para esta classificação.
             </div>
-          ) : data.entries.length === 0 && data.saldoInicial.length === 0 ? (
+          ) : data.entries.length === 0 && data.saldoInicial.length === 0 && data.ajustes.length === 0 ? (
             <div className="py-3 text-xs text-muted-foreground">
               Sem lançamentos no período selecionado para as {data.contasEncontradas} conta(s) desta linha.
             </div>
@@ -88,6 +88,7 @@ export function InlineDrilldown({
               showConta={data.contasEncontradas > 1}
             />
           )}
+
         </div>
       </td>
     </tr>

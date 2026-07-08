@@ -147,7 +147,7 @@ export function useMonthlyStatement(
           const merged: any[] = rowsC.map((r) => {
             const k = `${r.linha_ordem}|${r.codigo_conta ?? `sub:${r.descricao}`}|${r.periodo}`;
             cKeys.add(k);
-            return { ...r, valor_gerencial: gMap.get(k) ?? Number((r as any).valor) || 0 };
+            return { ...r, valor_gerencial: gMap.get(k) ?? (Number((r as any).valor) || 0) };
           });
           for (const r of rowsG) {
             const k = `${r.linha_ordem}|${r.codigo_conta ?? `sub:${r.descricao}`}|${r.periodo}`;

@@ -17,6 +17,7 @@ import { Route as OrkestriaAdminIndexRouteImport } from './routes/orkestria-admi
 import { Route as DashboardIndexRouteImport } from './routes/dashboard.index'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as OrkestriaAdminTenantsRouteImport } from './routes/orkestria-admin.tenants'
+import { Route as DashboardOrcamentoRouteImport } from './routes/dashboard.orcamento'
 import { Route as DashboardNotasFiscaisRouteImport } from './routes/dashboard.notas-fiscais'
 import { Route as DashboardIndicadoresRouteImport } from './routes/dashboard.indicadores'
 import { Route as DashboardFornecedoresRouteImport } from './routes/dashboard.fornecedores'
@@ -73,6 +74,11 @@ const OrkestriaAdminTenantsRoute = OrkestriaAdminTenantsRouteImport.update({
   id: '/orkestria-admin/tenants',
   path: '/orkestria-admin/tenants',
   getParentRoute: () => rootRouteImport,
+} as any)
+const DashboardOrcamentoRoute = DashboardOrcamentoRouteImport.update({
+  id: '/orcamento',
+  path: '/orcamento',
+  getParentRoute: () => DashboardRoute,
 } as any)
 const DashboardNotasFiscaisRoute = DashboardNotasFiscaisRouteImport.update({
   id: '/notas-fiscais',
@@ -175,6 +181,7 @@ export interface FileRoutesByFullPath {
   '/dashboard/fornecedores': typeof DashboardFornecedoresRoute
   '/dashboard/indicadores': typeof DashboardIndicadoresRoute
   '/dashboard/notas-fiscais': typeof DashboardNotasFiscaisRoute
+  '/dashboard/orcamento': typeof DashboardOrcamentoRoute
   '/orkestria-admin/tenants': typeof OrkestriaAdminTenantsRoute
   '/admin/': typeof AdminIndexRoute
   '/dashboard/': typeof DashboardIndexRoute
@@ -199,6 +206,7 @@ export interface FileRoutesByTo {
   '/dashboard/fornecedores': typeof DashboardFornecedoresRoute
   '/dashboard/indicadores': typeof DashboardIndicadoresRoute
   '/dashboard/notas-fiscais': typeof DashboardNotasFiscaisRoute
+  '/dashboard/orcamento': typeof DashboardOrcamentoRoute
   '/orkestria-admin/tenants': typeof OrkestriaAdminTenantsRoute
   '/admin': typeof AdminIndexRoute
   '/dashboard': typeof DashboardIndexRoute
@@ -226,6 +234,7 @@ export interface FileRoutesById {
   '/dashboard/fornecedores': typeof DashboardFornecedoresRoute
   '/dashboard/indicadores': typeof DashboardIndicadoresRoute
   '/dashboard/notas-fiscais': typeof DashboardNotasFiscaisRoute
+  '/dashboard/orcamento': typeof DashboardOrcamentoRoute
   '/orkestria-admin/tenants': typeof OrkestriaAdminTenantsRoute
   '/admin/': typeof AdminIndexRoute
   '/dashboard/': typeof DashboardIndexRoute
@@ -254,6 +263,7 @@ export interface FileRouteTypes {
     | '/dashboard/fornecedores'
     | '/dashboard/indicadores'
     | '/dashboard/notas-fiscais'
+    | '/dashboard/orcamento'
     | '/orkestria-admin/tenants'
     | '/admin/'
     | '/dashboard/'
@@ -278,6 +288,7 @@ export interface FileRouteTypes {
     | '/dashboard/fornecedores'
     | '/dashboard/indicadores'
     | '/dashboard/notas-fiscais'
+    | '/dashboard/orcamento'
     | '/orkestria-admin/tenants'
     | '/admin'
     | '/dashboard'
@@ -304,6 +315,7 @@ export interface FileRouteTypes {
     | '/dashboard/fornecedores'
     | '/dashboard/indicadores'
     | '/dashboard/notas-fiscais'
+    | '/dashboard/orcamento'
     | '/orkestria-admin/tenants'
     | '/admin/'
     | '/dashboard/'
@@ -384,6 +396,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/orkestria-admin/tenants'
       preLoaderRoute: typeof OrkestriaAdminTenantsRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/dashboard/orcamento': {
+      id: '/dashboard/orcamento'
+      path: '/orcamento'
+      fullPath: '/dashboard/orcamento'
+      preLoaderRoute: typeof DashboardOrcamentoRouteImport
+      parentRoute: typeof DashboardRoute
     }
     '/dashboard/notas-fiscais': {
       id: '/dashboard/notas-fiscais'
@@ -510,6 +529,7 @@ interface DashboardRouteChildren {
   DashboardFornecedoresRoute: typeof DashboardFornecedoresRoute
   DashboardIndicadoresRoute: typeof DashboardIndicadoresRoute
   DashboardNotasFiscaisRoute: typeof DashboardNotasFiscaisRoute
+  DashboardOrcamentoRoute: typeof DashboardOrcamentoRoute
   DashboardIndexRoute: typeof DashboardIndexRoute
 }
 
@@ -523,6 +543,7 @@ const DashboardRouteChildren: DashboardRouteChildren = {
   DashboardFornecedoresRoute: DashboardFornecedoresRoute,
   DashboardIndicadoresRoute: DashboardIndicadoresRoute,
   DashboardNotasFiscaisRoute: DashboardNotasFiscaisRoute,
+  DashboardOrcamentoRoute: DashboardOrcamentoRoute,
   DashboardIndexRoute: DashboardIndexRoute,
 }
 

@@ -14,6 +14,7 @@ import {
   FileSpreadsheet,
   LogOut,
   Briefcase,
+  Target,
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
@@ -44,6 +45,7 @@ const CLIENT_NAV: NavItem[] = [
   { to: "/dashboard/fornecedores", label: "Fornecedores", icon: Users },
   { to: "/dashboard/notas-fiscais", label: "Notas Fiscais", icon: FileSpreadsheet },
   { to: "/dashboard/analise", label: "Análise", icon: FileSpreadsheet },
+  { to: "/dashboard/orcamento", label: "Orçamento", icon: Target },
 ];
 
 export function AppSidebar({ variant }: { variant: "orkestria" | "admin" | "client" }) {

@@ -318,16 +318,21 @@ export function StatementTable({
               </tr>
             )}
             <tr className="border-b bg-muted/30">
-              <th className="text-left font-medium text-[10px] uppercase tracking-wider text-muted-foreground px-2 py-2 sticky left-0 z-10 bg-muted/30 min-w-[220px] max-w-[280px] border-b">
+              <th
+                rowSpan={isComparativo ? 2 : 1}
+                className="text-left font-medium text-[10px] uppercase tracking-wider text-muted-foreground px-2 py-2 sticky left-0 z-10 bg-muted/30 min-w-[220px] max-w-[280px] border-b"
+              >
                 Descrição
               </th>
               {columns.map((c, i) =>
                 c.kind === "p" ? (
                   <th
                     key={`p-${c.period}`}
+                    colSpan={isComparativo ? 3 : 1}
                     className={cn(
-                      "text-right font-medium text-[10px] uppercase tracking-wider text-muted-foreground px-2 py-2 tabular-nums whitespace-nowrap min-w-[110px] border-b",
-                      c.firstOfBucket && "border-l",
+                      "text-center font-medium text-[10px] uppercase tracking-wider text-muted-foreground px-2 py-2 tabular-nums whitespace-nowrap border-b",
+                      isComparativo ? "min-w-[330px] border-l" : "min-w-[110px] text-right",
+                      !isComparativo && c.firstOfBucket && "border-l",
                     )}
                   >
                     {periodoLabel(c.period)}
@@ -341,17 +346,36 @@ export function StatementTable({
                   </th>
                 ),
               )}
-              {showAV && (
+              {showAV && !isComparativo && (
                 <th className="text-right font-medium text-[10px] uppercase tracking-wider text-muted-foreground px-2 py-2 whitespace-nowrap min-w-[70px] border-b">
                   AV%
                 </th>
               )}
-              {showAH && basePeriod && (
+              {showAH && basePeriod && !isComparativo && (
                 <th className="text-right font-medium text-[10px] uppercase tracking-wider text-muted-foreground px-2 py-2 whitespace-nowrap min-w-[70px] border-b">
                   AH%
                 </th>
               )}
             </tr>
+            {isComparativo && (
+              <tr className="border-b bg-muted/20">
+                {columns.map((c) =>
+                  c.kind === "p" ? (
+                    <Fragment key={`ph-${c.period}`}>
+                      <th className="text-right font-medium text-[10px] text-muted-foreground px-2 py-1 whitespace-nowrap min-w-[110px] border-b border-l">
+                        Contábil
+                      </th>
+                      <th className="text-right font-medium text-[10px] text-muted-foreground px-2 py-1 whitespace-nowrap min-w-[110px] border-b">
+                        Gerencial
+                      </th>
+                      <th className="text-right font-medium text-[10px] text-muted-foreground px-2 py-1 whitespace-nowrap min-w-[110px] border-b">
+                        Diferença
+                      </th>
+                    </Fragment>
+                  ) : null,
+                )}
+              </tr>
+            )}
           </thead>
 
           <tbody>

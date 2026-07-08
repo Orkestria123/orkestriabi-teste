@@ -229,6 +229,7 @@ export function OrcamentoPlanejamentoGrid({ orcamento, itens }: Props) {
   const [openDistribuir, setOpenDistribuir] = useState<{ itemId: string } | null>(
     null,
   );
+  const [openCopiar, setOpenCopiar] = useState(false);
 
   const podeHistorico =
     orcamento.tipo_base === "historico" &&
@@ -283,6 +284,24 @@ export function OrcamentoPlanejamentoGrid({ orcamento, itens }: Props) {
           <Button
             size="sm"
             variant="outline"
+            onClick={() =>
+              setOpenDistribuir({ itemId: itens[0]?.id ?? "" })
+            }
+            disabled={itens.length === 0}
+          >
+            <Wand2 className="h-4 w-4 mr-1" /> Distribuir
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setOpenCopiar(true)}
+            disabled={itens.length === 0}
+          >
+            <Copy className="h-4 w-4 mr-1" /> Copiar p/ todos
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
             onClick={() => setOpenReajuste(true)}
             disabled={itens.length === 0}
           >
@@ -302,6 +321,7 @@ export function OrcamentoPlanejamentoGrid({ orcamento, itens }: Props) {
           </Button>
         </div>
       </div>
+
 
       {isLoading ? (
         <div className="p-8 text-center text-sm text-muted-foreground">

@@ -487,9 +487,8 @@ function OrcamentoAnalise() {
                 linhas.map((l) => {
                   const aberto = expandido === l.item.id;
                   return (
-                    <>
+                    <Fragment key={l.item.id}>
                       <tr
-                        key={l.item.id}
                         className={cn(
                           "border-t border-border cursor-pointer",
                           statusRowClass(l.status),

@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { buildStatementFromDiario } from "@/lib/diario/build-statements";
+import { useVisaoGerencial } from "@/hooks/use-visao-gerencial";
 
 export interface Company {
   id: string;

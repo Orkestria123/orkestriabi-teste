@@ -91,23 +91,26 @@ function DashboardLayout() {
         unstyled
         title={company?.name ?? "Dashboard"}
         actions={
-          role !== "client" && companies && companies.length > 0 ? (
-            <Select
-              value={selectedCompany ?? ""}
-              onValueChange={(v) => setCompany(v)}
-            >
-              <SelectTrigger className="w-[280px]">
-                <SelectValue placeholder="Selecione uma empresa" />
-              </SelectTrigger>
-              <SelectContent>
-                {companies.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>
-                    {c.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          ) : null
+          <div className="flex items-center gap-2">
+            <VisaoToggle />
+            {role !== "client" && companies && companies.length > 0 ? (
+              <Select
+                value={selectedCompany ?? ""}
+                onValueChange={(v) => setCompany(v)}
+              >
+                <SelectTrigger className="w-[280px]">
+                  <SelectValue placeholder="Selecione uma empresa" />
+                </SelectTrigger>
+                <SelectContent>
+                  {companies.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : null}
+          </div>
         }
       >
         <PeriodSync companyId={selectedCompany} />

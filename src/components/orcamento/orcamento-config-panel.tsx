@@ -43,6 +43,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { OrcamentoPlanejamentoGrid } from "@/components/orcamento/orcamento-planejamento-grid";
 
 // ---------------------------------------------------------------------
 // Tipos
@@ -418,6 +419,11 @@ export function OrcamentoConfigPanel({ tenantId, companyId }: Props) {
           </div>
         )}
       </Card>
+
+      {/* Grade de planejamento (Etapa 3) */}
+      {orcamento && (itens?.length ?? 0) > 0 && (
+        <OrcamentoPlanejamentoGrid orcamento={orcamento} itens={itens!} />
+      )}
 
       {/* Diálogos */}
       <OrcamentoHeaderDialog

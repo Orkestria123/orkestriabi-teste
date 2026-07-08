@@ -130,24 +130,36 @@ export function IndicadorCardCliente({
   const formulaTexto = formulaParaTexto(ind.formula, () => "", labelLinha);
 
   const explicarFn = useServerFn(explicarIndicador);
-  const chaveSerie = serie
+  // Em comparativo, o texto do AI descreve a série gerencial (que é a
+  // "verdade" para o dono do negócio + o contábil é a base fiscal).
+  const serieParaAnalise =
+    isComparativo && serieGerencial ? serieGerencial : serie;
+  const faixaParaAnalise =
+    isComparativo && faixaGerencial ? faixaGerencial : faixa;
+  const nomeParaAnalise =
+    visao === "gerencial"
+      ? `${ind.nome} (ótica gerencial, com ajustes)`
+      : visao === "comparativo"
+        ? `${ind.nome} (ótica gerencial, com ajustes; contábil disponível para comparação)`
+        : ind.nome;
+  const chaveSerie = serieParaAnalise
     .map((p) => `${p.periodo.slice(0, 7)}:${p.valor == null ? "-" : p.valor.toFixed(4)}`)
     .join("|");
   const { data: analise, isLoading: analiseLoading } = useQuery({
-    queryKey: ["indic-explicacao", ind.id, faixa, chaveSerie],
-    enabled: serie.some((p) => p.valor != null && isFinite(p.valor)),
+    queryKey: ["indic-explicacao", ind.id, faixaParaAnalise, chaveSerie, visao],
+    enabled: serieParaAnalise.some((p) => p.valor != null && isFinite(p.valor)),
     staleTime: 24 * 60 * 60_000,
     gcTime: 24 * 60 * 60_000,
     retry: 0,
     queryFn: () =>
       explicarFn({
         data: {
-          nome: ind.nome,
+          nome: nomeParaAnalise,
           categoria: ind.categoria,
           formulaTexto,
           modo: ind.modo_analise,
-          faixa,
-          serie: serie.map((p) => ({ periodo: p.periodo, valor: p.valor })),
+          faixa: faixaParaAnalise,
+          serie: serieParaAnalise.map((p) => ({ periodo: p.periodo, valor: p.valor })),
         },
       }),
   });

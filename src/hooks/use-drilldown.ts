@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { descendeDe, getMascaraConfig } from "@/lib/mascara/interpretar";
+import { useVisaoGerencial } from "@/hooks/use-visao-gerencial";
 
 export interface DrilldownAccount {
   codigo_conta: string;

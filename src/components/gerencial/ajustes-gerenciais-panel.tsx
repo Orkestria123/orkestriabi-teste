@@ -545,12 +545,7 @@ function AjusteDialog({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label className="text-xs">Competência *</Label>
-              <Input
-                type="month"
-                value={competencia}
-                onChange={(e) => setCompetencia(e.target.value)}
-                className="h-9"
-              />
+              <CompetenciaPicker value={competencia} onChange={setCompetencia} />
             </div>
             <div>
               <Label className="text-xs">Valor (R$) *</Label>

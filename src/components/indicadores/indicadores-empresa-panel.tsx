@@ -83,7 +83,9 @@ export function IndicadoresEmpresaPanel({
     },
   });
 
-  const { data: ctx } = useIndicadorData(tenantId, companyId);
+  // Admin: sempre modo contábil (visão default).
+  const { data: ctxRaw } = useIndicadorData(tenantId, companyId);
+  const ctx = ctxRaw as import("@/lib/indicadores/engine").EngineContext | undefined;
 
   const planoClassSet = useMemo(
     () => new Set((plano ?? []).map((p) => p.classificacao)),

@@ -21,6 +21,14 @@ import {
   MASCARA_DEFAULT,
   type MascaraConfig,
 } from "@/lib/mascara/interpretar";
+import {
+  getAjustesGerenciais,
+  ajustesToSaldosVirtuais,
+  contasGerenciaisToPlanoVirtual,
+  type AjustesGerenciaisData,
+} from "@/lib/gerencial/ajustes";
+
+export type ModoDemonstracao = "contabil" | "gerencial";
 
 type Tipo = "DRE" | "BP_ATIVO" | "BP_PASSIVO" | "DFC" | "DLPA" | "DVA";
 
@@ -474,8 +482,10 @@ async function buildDRE(
   periodos: string[],
   tipo: "DRE" | "DFC",
   mascara: MascaraConfig,
+  modo: ModoDemonstracao = "contabil",
+  gerData?: AjustesGerenciaisData,
 ): Promise<FlatRow[]> {
-  const [mapasRaw, saldos, plano] = await Promise.all([
+  const [mapasRaw, saldosContabeis, planoContabil] = await Promise.all([
     getMapa(companyId, tenantId, modoGlobal, tipo),
     getSaldos(companyId, periodos),
     getPlanoPorTipo(companyId, tenantId, modoGlobal, ["3-DRE"]),
@@ -486,11 +496,24 @@ async function buildDRE(
   // mapeada em 3.01.99 vira duplicata do "(=) Receita Líquida" calculado).
   const mapas = mapasRaw.filter((m) => !isApuracao(m.classificacao_prefixo, mascara));
 
+  // Modo GERENCIAL: injeta saldos virtuais dos ajustes gerenciais das
+  // competências selecionadas (fluxo, mesma regra da DRE contábil).
+  let saldos = saldosContabeis;
+  let planoExtra: Plano[] = [];
+  if (modo === "gerencial") {
+    const ger = gerData ?? (await getAjustesGerenciais(companyId, tenantId));
+    const perSet = new Set(periodos);
+    const virtuais = ajustesToSaldosVirtuais(ger.ajustes, (c) => perSet.has(c));
+    saldos = [...saldos, ...virtuais];
+    // Plano virtual para contas gerenciais (afeta apenas quando classificadas
+    // em grupo 3 — improvável para DRE, mas mantemos por simetria).
+    planoExtra = contasGerenciaisToPlanoVirtual(ger.contasGerenciais, mascara.separador || ".");
+  }
 
   const planoMap = new Map<string, Plano>();
   const planoPorClassificacao = new Map<string, Plano>();
   const planoPrefixos = new Map<string, string>();
-  for (const p of plano) {
+  for (const p of [...planoContabil, ...planoExtra]) {
     planoMap.set(p.codigo, p);
     planoPorClassificacao.set(p.classificacao, p);
     planoPrefixos.set(p.classificacao, p.descricao);
@@ -671,6 +694,8 @@ async function buildBP(
   periodos: string[],
   tipo: "BP_ATIVO" | "BP_PASSIVO",
   mascara: MascaraConfig,
+  modo: ModoDemonstracao = "contabil",
+  gerData?: AjustesGerenciaisData,
 ): Promise<FlatRow[]> {
   const tipoPlano = tipo === "BP_ATIVO" ? ["1-Ativo"] : ["2-Passivo"];
   const ateData = [...periodos].sort().pop()!;
@@ -679,7 +704,7 @@ async function buildBP(
   // realmente têm saldo. Em seguida usa esse set para restringir a busca
   // de contas participantes (clientes/fornecedores) — o cadastro completo
   // pode ter 100k+ linhas e estoura o fetch.
-  const [mapasRaw, abertura, saldosAcum, planoDRE] = await Promise.all([
+  const [mapasRaw, abertura, saldosAcumContabil, planoDRE] = await Promise.all([
     getMapa(companyId, tenantId, modoGlobal, tipo),
     getAberturaMaisRecente(companyId),
     getSaldosAteData(companyId, ateData),
@@ -689,6 +714,18 @@ async function buildBP(
   ]);
   const mapas = mapasRaw.filter((m) => !isApuracao(m.classificacao_prefixo, mascara));
 
+  // Modo GERENCIAL: injeta saldos virtuais dos ajustes acumulados até
+  // `ateData` (posição, mesma regra do BP contábil), e adiciona contas
+  // gerenciais ao plano para que apareçam no grupo pai correto.
+  let saldosAcum = saldosAcumContabil;
+  let planoExtra: Plano[] = [];
+  if (modo === "gerencial") {
+    const ger = gerData ?? (await getAjustesGerenciais(companyId, tenantId));
+    const virtuais = ajustesToSaldosVirtuais(ger.ajustes, (c) => c <= ateData);
+    saldosAcum = [...saldosAcum, ...virtuais];
+    planoExtra = contasGerenciaisToPlanoVirtual(ger.contasGerenciais, mascara.separador || ".");
+  }
+
   const codigosComSaldo = new Set<string>();
   for (const c of abertura.keys()) codigosComSaldo.add(c);
   for (const s of saldosAcum) codigosComSaldo.add(s.conta_codigo);
@@ -696,6 +733,9 @@ async function buildBP(
   // Resultado acumulado do exercício até cada período de referência (apenas BP_PASSIVO).
   // resultado = -(Σ movimento contas grupo 3 do início do ano até ref).
   // Em meses de prejuízo o valor é negativo (reduz o PL); em lucro, positivo.
+  // No modo gerencial os movimentos virtuais de ajustes em contas DRE (grupo 3)
+  // já estão em saldosAcum e portanto propagam automaticamente para o resultado
+  // — mantendo Ativo = Passivo + PL na visão gerencial.
   const dreCodigos = new Set<string>(planoDRE.map((p) => p.codigo));
   const resultadoExercicioPorRef = new Map<string, number>();
   if (tipo === "BP_PASSIVO" && dreCodigos.size > 0) {
@@ -715,10 +755,11 @@ async function buildBP(
     }
   }
 
-  const plano = await getPlanoPorTipo(companyId, tenantId, modoGlobal, tipoPlano, {
+  const planoContabil = await getPlanoPorTipo(companyId, tenantId, modoGlobal, tipoPlano, {
     incluirParticipantes: true,
     codigosComSaldo: Array.from(codigosComSaldo),
   });
+  const plano = [...planoContabil, ...planoExtra];
 
   const planoMap = new Map<string, Plano>();
   const planoPorClassificacao = new Map<string, Plano>();
@@ -935,16 +976,46 @@ export async function buildStatementFromDiario(
   modoGlobal: boolean,
   tipo: Tipo,
   periodos: string[],
+  modo: ModoDemonstracao = "contabil",
 ): Promise<FlatRow[]> {
   if (periodos.length === 0) return [];
   // Carrega máscara da empresa (cai para tenant/default) — fonte única
   // de verdade para split, prefixo, pai e grupo nas demonstrações.
   const mascara = await getMascaraConfig({ tenantId, companyId });
-  if (tipo === "DRE") return buildDRE(companyId, tenantId, modoGlobal, periodos, "DRE", mascara);
+  // Modo gerencial: carrega ajustes uma vez e reaproveita nas subchamadas
+  // (DRE + BP dentro de DFC/DLPA/DVA quando aplicável).
+  const gerData =
+    modo === "gerencial" ? await getAjustesGerenciais(companyId, tenantId) : undefined;
+  if (tipo === "DRE") return buildDRE(companyId, tenantId, modoGlobal, periodos, "DRE", mascara, modo, gerData);
   if (tipo === "DFC") return buildDFC(companyId, tenantId, modoGlobal, periodos, mascara);
   if (tipo === "DLPA") return buildDLPA(companyId, tenantId, modoGlobal, periodos, mascara);
   if (tipo === "DVA") return buildDVA(companyId, tenantId, modoGlobal, periodos, mascara);
-  return buildBP(companyId, tenantId, modoGlobal, periodos, tipo, mascara);
+  return buildBP(companyId, tenantId, modoGlobal, periodos, tipo, mascara, modo, gerData);
+}
+
+/**
+ * Verificação de fechamento do Balanço (Ativo = Passivo + PL) para um
+ * determinado modo. Retorna a diferença absoluta por período; deve ser
+ * ~0 em contábil e também em gerencial (partida dobrada D=C garante).
+ */
+export async function verificarFechamentoBP(
+  companyId: string,
+  tenantId: string,
+  modoGlobal: boolean,
+  periodos: string[],
+  modo: ModoDemonstracao = "contabil",
+): Promise<Array<{ periodo: string; ativo: number; passivoPl: number; diferenca: number }>> {
+  const [ativoRows, passivoRows] = await Promise.all([
+    buildStatementFromDiario(companyId, tenantId, modoGlobal, "BP_ATIVO", periodos, modo),
+    buildStatementFromDiario(companyId, tenantId, modoGlobal, "BP_PASSIVO", periodos, modo),
+  ]);
+  const totalDe = (rows: FlatRow[], desc: string, p: string) =>
+    rows.find((r) => r.descricao === desc && r.periodo === p)?.valor ?? 0;
+  return periodos.map((p) => {
+    const ativo = totalDe(ativoRows, "Total do Ativo", p);
+    const passivoPl = totalDe(passivoRows, "Total do Passivo + PL", p);
+    return { periodo: p, ativo, passivoPl, diferenca: ativo - passivoPl };
+  });
 }
 
 // ============================================================

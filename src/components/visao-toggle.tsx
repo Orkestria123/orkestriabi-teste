@@ -62,7 +62,7 @@ export function VisaoBadge({ className }: { className?: string }) {
         className,
       )}
     >
-      Visão: Gerencial
+      {label}
     </span>
   );
 }

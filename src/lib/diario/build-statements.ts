@@ -976,16 +976,46 @@ export async function buildStatementFromDiario(
   modoGlobal: boolean,
   tipo: Tipo,
   periodos: string[],
+  modo: ModoDemonstracao = "contabil",
 ): Promise<FlatRow[]> {
   if (periodos.length === 0) return [];
   // Carrega máscara da empresa (cai para tenant/default) — fonte única
   // de verdade para split, prefixo, pai e grupo nas demonstrações.
   const mascara = await getMascaraConfig({ tenantId, companyId });
-  if (tipo === "DRE") return buildDRE(companyId, tenantId, modoGlobal, periodos, "DRE", mascara);
+  // Modo gerencial: carrega ajustes uma vez e reaproveita nas subchamadas
+  // (DRE + BP dentro de DFC/DLPA/DVA quando aplicável).
+  const gerData =
+    modo === "gerencial" ? await getAjustesGerenciais(companyId, tenantId) : undefined;
+  if (tipo === "DRE") return buildDRE(companyId, tenantId, modoGlobal, periodos, "DRE", mascara, modo, gerData);
   if (tipo === "DFC") return buildDFC(companyId, tenantId, modoGlobal, periodos, mascara);
   if (tipo === "DLPA") return buildDLPA(companyId, tenantId, modoGlobal, periodos, mascara);
   if (tipo === "DVA") return buildDVA(companyId, tenantId, modoGlobal, periodos, mascara);
-  return buildBP(companyId, tenantId, modoGlobal, periodos, tipo, mascara);
+  return buildBP(companyId, tenantId, modoGlobal, periodos, tipo, mascara, modo, gerData);
+}
+
+/**
+ * Verificação de fechamento do Balanço (Ativo = Passivo + PL) para um
+ * determinado modo. Retorna a diferença absoluta por período; deve ser
+ * ~0 em contábil e também em gerencial (partida dobrada D=C garante).
+ */
+export async function verificarFechamentoBP(
+  companyId: string,
+  tenantId: string,
+  modoGlobal: boolean,
+  periodos: string[],
+  modo: ModoDemonstracao = "contabil",
+): Promise<Array<{ periodo: string; ativo: number; passivoPl: number; diferenca: number }>> {
+  const [ativoRows, passivoRows] = await Promise.all([
+    buildStatementFromDiario(companyId, tenantId, modoGlobal, "BP_ATIVO", periodos, modo),
+    buildStatementFromDiario(companyId, tenantId, modoGlobal, "BP_PASSIVO", periodos, modo),
+  ]);
+  const totalDe = (rows: FlatRow[], desc: string, p: string) =>
+    rows.find((r) => r.descricao === desc && r.periodo === p)?.valor ?? 0;
+  return periodos.map((p) => {
+    const ativo = totalDe(ativoRows, "Total do Ativo", p);
+    const passivoPl = totalDe(passivoRows, "Total do Passivo + PL", p);
+    return { periodo: p, ativo, passivoPl, diferenca: ativo - passivoPl };
+  });
 }
 
 // ============================================================

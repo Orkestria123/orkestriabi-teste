@@ -482,8 +482,10 @@ async function buildDRE(
   periodos: string[],
   tipo: "DRE" | "DFC",
   mascara: MascaraConfig,
+  modo: ModoDemonstracao = "contabil",
+  gerData?: AjustesGerenciaisData,
 ): Promise<FlatRow[]> {
-  const [mapasRaw, saldos, plano] = await Promise.all([
+  const [mapasRaw, saldosContabeis, planoContabil] = await Promise.all([
     getMapa(companyId, tenantId, modoGlobal, tipo),
     getSaldos(companyId, periodos),
     getPlanoPorTipo(companyId, tenantId, modoGlobal, ["3-DRE"]),
@@ -494,11 +496,24 @@ async function buildDRE(
   // mapeada em 3.01.99 vira duplicata do "(=) Receita Líquida" calculado).
   const mapas = mapasRaw.filter((m) => !isApuracao(m.classificacao_prefixo, mascara));
 
+  // Modo GERENCIAL: injeta saldos virtuais dos ajustes gerenciais das
+  // competências selecionadas (fluxo, mesma regra da DRE contábil).
+  let saldos = saldosContabeis;
+  let planoExtra: Plano[] = [];
+  if (modo === "gerencial") {
+    const ger = gerData ?? (await getAjustesGerenciais(companyId, tenantId));
+    const perSet = new Set(periodos);
+    const virtuais = ajustesToSaldosVirtuais(ger.ajustes, (c) => perSet.has(c));
+    saldos = [...saldos, ...virtuais];
+    // Plano virtual para contas gerenciais (afeta apenas quando classificadas
+    // em grupo 3 — improvável para DRE, mas mantemos por simetria).
+    planoExtra = contasGerenciaisToPlanoVirtual(ger.contasGerenciais, mascara.separador || ".");
+  }
 
   const planoMap = new Map<string, Plano>();
   const planoPorClassificacao = new Map<string, Plano>();
   const planoPrefixos = new Map<string, string>();
-  for (const p of plano) {
+  for (const p of [...planoContabil, ...planoExtra]) {
     planoMap.set(p.codigo, p);
     planoPorClassificacao.set(p.classificacao, p);
     planoPrefixos.set(p.classificacao, p.descricao);

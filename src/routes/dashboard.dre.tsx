@@ -11,11 +11,8 @@ import { VisaoBadge } from "@/components/visao-toggle";
 function buildRows(data: any[]): { rows: StatementRow[]; periods: string[] } {
   const map = new Map<string, StatementRow>();
   const periodSet = new Set<string>();
+  const hasComparativo = data.some((r) => r.valor_gerencial !== undefined);
   for (const r of data) {
-    // Chaveia pela CLASSIFICAÇÃO (codigo_conta) quando disponível — assim
-    // contas com o mesmo `descricao` (ex.: PRO-LABORE em centros de custo
-    // diferentes) não colapsam na mesma linha. Subtotais/headers sem
-    // codigo_conta continuam sendo identificados por linha_ordem+descricao.
     const identity = r.codigo_conta ?? `sub:${r.descricao}`;
     const key = `${r.linha_ordem}|${identity}`;
     if (!map.has(key)) {
@@ -25,10 +22,15 @@ function buildRows(data: any[]): { rows: StatementRow[]; periods: string[] } {
         nivel: r.nivel ?? 0,
         is_subtotal: r.is_subtotal ?? false,
         values: {},
+        valuesGer: hasComparativo ? {} : undefined,
         linha_ordem: r.linha_ordem ?? 0,
       });
     }
-    map.get(key)!.values[r.periodo] = Number(r.valor) || 0;
+    const row = map.get(key)!;
+    row.values[r.periodo] = Number(r.valor) || 0;
+    if (hasComparativo) {
+      row.valuesGer![r.periodo] = Number(r.valor_gerencial) || 0;
+    }
     periodSet.add(r.periodo);
   }
   return {

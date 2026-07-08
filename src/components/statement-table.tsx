@@ -9,7 +9,9 @@ export interface StatementRow {
   codigo_conta: string | null;
   nivel: number;
   is_subtotal: boolean;
-  values: Record<string, number>; // period -> value
+  values: Record<string, number>; // period -> value (contábil ou visão única)
+  /** Presente apenas no modo comparativo — valores da visão gerencial. */
+  valuesGer?: Record<string, number>;
   linha_ordem: number;
 }
 
@@ -164,13 +166,17 @@ export function StatementTable({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [periods, bucketOpt, showTotal, isMultiYear]);
 
+  // Detecta modo comparativo: pelo menos uma linha traz valuesGer.
+  const isComparativo = useMemo(() => rows.some((r) => r.valuesGer), [rows]);
+
   // Colunas efetivas: períodos + subtotais intercalados.
   type Col =
     | { kind: "p"; period: string; firstOfBucket: boolean }
     | { kind: "sub"; label: string; periods: string[] };
   const columns = useMemo<Col[]>(() => {
     const cols: Col[] = [];
-    if (bucketGroups.length === 0) {
+    // Modo comparativo: sem buckets/subtotais para manter a tabela legível.
+    if (isComparativo || bucketGroups.length === 0) {
       for (const p of periods) cols.push({ kind: "p", period: p, firstOfBucket: false });
       return cols;
     }
@@ -181,7 +187,7 @@ export function StatementTable({
       cols.push({ kind: "sub", label: g.label, periods: g.periods });
     }
     return cols;
-  }, [periods, bucketGroups]);
+  }, [periods, bucketGroups, isComparativo]);
 
   const subtotalValue = (row: StatementRow, groupPeriods: string[]) => {
     if (variante === "bp") {
@@ -192,7 +198,33 @@ export function StatementTable({
   };
 
   // Banda superior com o ano só faz sentido no agrupamento "ano" multi-ano.
-  const yearBand = bucketOpt === "ano" && isMultiYear ? bucketGroups : null;
+  const yearBand = !isComparativo && bucketOpt === "ano" && isMultiYear ? bucketGroups : null;
+
+  // Resumo do impacto dos ajustes gerenciais por período (só no comparativo).
+  // Mostramos a diferença da ÚLTIMA linha de subtotal — que é a linha "final"
+  // da demonstração (Lucro Líquido na DRE, Total do Passivo+PL no BP etc.).
+  // Se a última for zero (ex.: BP fecha), procuramos rows "chave" com maior
+  // impacto absoluto ("Resultado do Exercício" no PL etc.).
+  const impactoResumo = useMemo(() => {
+    if (!isComparativo) return null;
+    // Escolhe uma linha "resumo": preferimos as que casam com palavras-chave.
+    const kw = /lucro\s+l[ií]quido|resultado do exerc[ií]cio|resultado l[ií]quido/i;
+    let target: StatementRow | undefined = rows.find((r) => kw.test(r.descricao));
+    if (!target) {
+      // fallback: última linha subtotal
+      const subs = rows.filter((r) => r.is_subtotal);
+      target = subs[subs.length - 1] ?? rows[rows.length - 1];
+    }
+    if (!target) return null;
+    return {
+      label: target.descricao,
+      diffs: periods.map((p) => ({
+        p,
+        diff: (target!.valuesGer?.[p] ?? target!.values[p] ?? 0) - (target!.values[p] ?? 0),
+      })),
+    };
+  }, [isComparativo, rows, periods]);
+
 
 
 
@@ -208,10 +240,32 @@ export function StatementTable({
 
   return (
     <div className="rounded-lg border bg-card overflow-hidden">
+      {impactoResumo && (
+        <div className="px-3 py-2 border-b bg-primary/5 text-xs flex flex-wrap items-center gap-x-4 gap-y-1">
+          <span className="font-medium text-foreground">
+            Impacto dos ajustes gerenciais em {impactoResumo.label}:
+          </span>
+          {impactoResumo.diffs.map(({ p, diff }) => (
+            <span key={p} className="text-muted-foreground">
+              {periodoLabel(p)}:{" "}
+              <span
+                className={cn(
+                  "font-semibold tabular-nums",
+                  diff > 0 && "text-success",
+                  diff < 0 && "text-destructive",
+                  diff === 0 && "text-muted-foreground",
+                )}
+              >
+                {diff === 0 ? "—" : (diff > 0 ? "+" : "") + fmt(diff)}
+              </span>
+            </span>
+          ))}
+        </div>
+      )}
       <div className="flex items-center justify-between gap-2 px-3 py-2 border-b bg-muted/20 text-xs">
         <span className="text-muted-foreground">{unidadeLabel}</span>
         <div className="flex items-center gap-2">
-          {showTotal && periods.length > 0 && (
+          {showTotal && !isComparativo && periods.length > 0 && (
             <label className="flex items-center gap-1.5 text-muted-foreground">
               <span>Totalizar por:</span>
               <select
@@ -264,16 +318,21 @@ export function StatementTable({
               </tr>
             )}
             <tr className="border-b bg-muted/30">
-              <th className="text-left font-medium text-[10px] uppercase tracking-wider text-muted-foreground px-2 py-2 sticky left-0 z-10 bg-muted/30 min-w-[220px] max-w-[280px] border-b">
+              <th
+                rowSpan={isComparativo ? 2 : 1}
+                className="text-left font-medium text-[10px] uppercase tracking-wider text-muted-foreground px-2 py-2 sticky left-0 z-10 bg-muted/30 min-w-[220px] max-w-[280px] border-b"
+              >
                 Descrição
               </th>
               {columns.map((c, i) =>
                 c.kind === "p" ? (
                   <th
                     key={`p-${c.period}`}
+                    colSpan={isComparativo ? 3 : 1}
                     className={cn(
-                      "text-right font-medium text-[10px] uppercase tracking-wider text-muted-foreground px-2 py-2 tabular-nums whitespace-nowrap min-w-[110px] border-b",
-                      c.firstOfBucket && "border-l",
+                      "text-center font-medium text-[10px] uppercase tracking-wider text-muted-foreground px-2 py-2 tabular-nums whitespace-nowrap border-b",
+                      isComparativo ? "min-w-[330px] border-l" : "min-w-[110px] text-right",
+                      !isComparativo && c.firstOfBucket && "border-l",
                     )}
                   >
                     {periodoLabel(c.period)}
@@ -287,17 +346,36 @@ export function StatementTable({
                   </th>
                 ),
               )}
-              {showAV && (
+              {showAV && !isComparativo && (
                 <th className="text-right font-medium text-[10px] uppercase tracking-wider text-muted-foreground px-2 py-2 whitespace-nowrap min-w-[70px] border-b">
                   AV%
                 </th>
               )}
-              {showAH && basePeriod && (
+              {showAH && basePeriod && !isComparativo && (
                 <th className="text-right font-medium text-[10px] uppercase tracking-wider text-muted-foreground px-2 py-2 whitespace-nowrap min-w-[70px] border-b">
                   AH%
                 </th>
               )}
             </tr>
+            {isComparativo && (
+              <tr className="border-b bg-muted/20">
+                {columns.map((c) =>
+                  c.kind === "p" ? (
+                    <Fragment key={`ph-${c.period}`}>
+                      <th className="text-right font-medium text-[10px] text-muted-foreground px-2 py-1 whitespace-nowrap min-w-[110px] border-b border-l">
+                        Contábil
+                      </th>
+                      <th className="text-right font-medium text-[10px] text-muted-foreground px-2 py-1 whitespace-nowrap min-w-[110px] border-b">
+                        Gerencial
+                      </th>
+                      <th className="text-right font-medium text-[10px] text-muted-foreground px-2 py-1 whitespace-nowrap min-w-[110px] border-b">
+                        Diferença
+                      </th>
+                    </Fragment>
+                  ) : null,
+                )}
+              </tr>
+            )}
           </thead>
 
           <tbody>
@@ -318,8 +396,17 @@ export function StatementTable({
               const isCollapsed = collapsed.has(idx);
               const isExpanded = expanded.has(idx);
               const canDrill = !!row.codigo_conta;
-              const extraMiddle = bucketGroups.length;
-              const rightCols = (showAV ? 1 : 0) + (showAH && basePeriod ? 1 : 0);
+              const extraMiddle = isComparativo ? periods.length * 2 : bucketGroups.length;
+              const rightCols = isComparativo ? 0 : (showAV ? 1 : 0) + (showAH && basePeriod ? 1 : 0);
+
+              // No modo comparativo, destaca linhas cuja diferença ≠ 0 em algum período.
+              const hasDiff =
+                isComparativo &&
+                periods.some((p) => {
+                  const c = row.values[p] ?? 0;
+                  const g = row.valuesGer?.[p] ?? c;
+                  return g - c !== 0;
+                });
 
               return (
                 <Fragment key={idx}>
@@ -328,6 +415,7 @@ export function StatementTable({
                       "border-b last:border-0 hover:bg-accent/40 transition-colors",
                       row.is_subtotal && "bg-muted/40 font-semibold",
                       isExpanded && "bg-accent/30",
+                      hasDiff && "bg-amber-500/5",
                     )}
                   >
                     <td
@@ -386,8 +474,46 @@ export function StatementTable({
                         )}
                       </div>
                     </td>
-                    {columns.map((c, i) =>
-                      c.kind === "p" ? (
+                    {columns.map((c, i) => {
+                      if (c.kind === "sub") {
+                        return (
+                          <td
+                            key={`sub-${i}`}
+                            className={cn(
+                              "px-2 py-1 text-right tabular-nums whitespace-nowrap text-xs font-semibold border-l min-w-[110px] bg-muted/40",
+                            )}
+                          >
+                            {fmt(subtotalValue(row, c.periods))}
+                          </td>
+                        );
+                      }
+                      if (isComparativo) {
+                        const vc = row.values[c.period] ?? 0;
+                        const vg = row.valuesGer?.[c.period] ?? vc;
+                        const diff = vg - vc;
+                        return (
+                          <Fragment key={`p-${c.period}`}>
+                            <td className="px-2 py-1 text-right tabular-nums whitespace-nowrap text-xs min-w-[110px] border-l">
+                              {fmt(vc)}
+                            </td>
+                            <td className="px-2 py-1 text-right tabular-nums whitespace-nowrap text-xs min-w-[110px]">
+                              {fmt(vg)}
+                            </td>
+                            <td
+                              className={cn(
+                                "px-2 py-1 text-right tabular-nums whitespace-nowrap text-xs font-semibold min-w-[110px]",
+                                diff > 0 && "text-success",
+                                diff < 0 && "text-destructive",
+                              )}
+                            >
+                              {diff === 0
+                                ? <span className="text-muted-foreground/60">—</span>
+                                : (diff > 0 ? "+" : "") + fmt(diff)}
+                            </td>
+                          </Fragment>
+                        );
+                      }
+                      return (
                         <td
                           key={`p-${c.period}`}
                           className={cn(
@@ -397,24 +523,15 @@ export function StatementTable({
                         >
                           {fmt(row.values[c.period] ?? 0)}
                         </td>
-                      ) : (
-                        <td
-                          key={`sub-${i}`}
-                          className={cn(
-                            "px-2 py-1 text-right tabular-nums whitespace-nowrap text-xs font-semibold border-l min-w-[110px] bg-muted/40",
-                          )}
-                        >
-                          {fmt(subtotalValue(row, c.periods))}
-                        </td>
-                      ),
-                    )}
+                      );
+                    })}
 
-                    {showAV && (
+                    {showAV && !isComparativo && (
                       <td className="px-2 py-1 text-right tabular-nums whitespace-nowrap text-xs text-muted-foreground min-w-[70px]">
                         {av != null ? formatPct(av) : "—"}
                       </td>
                     )}
-                    {showAH && basePeriod && (
+                    {showAH && basePeriod && !isComparativo && (
                       <td
                         className={cn(
                           "px-2 py-1 text-right tabular-nums whitespace-nowrap text-xs min-w-[70px]",

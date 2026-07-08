@@ -10,6 +10,7 @@ export function VisaoToggle({
   options = [
     { value: "contabil", label: "Contábil" },
     { value: "gerencial", label: "Gerencial" },
+    { value: "comparativo", label: "Comparativo" },
   ],
   className,
 }: {
@@ -52,7 +53,8 @@ export function VisaoToggle({
 
 export function VisaoBadge({ className }: { className?: string }) {
   const { visao } = useVisaoGerencial();
-  if (visao !== "gerencial") return null;
+  if (visao === "contabil") return null;
+  const label = visao === "gerencial" ? "Visão: Gerencial" : "Visão: Comparativo";
   return (
     <span
       className={cn(
@@ -60,7 +62,7 @@ export function VisaoBadge({ className }: { className?: string }) {
         className,
       )}
     >
-      Visão: Gerencial
+      {label}
     </span>
   );
 }

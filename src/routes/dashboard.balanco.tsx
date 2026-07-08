@@ -10,6 +10,7 @@ import { VisaoBadge } from "@/components/visao-toggle";
 
 function buildRows(data: any[]): StatementRow[] {
   const map = new Map<string, StatementRow>();
+  const hasComparativo = data.some((r) => r.valor_gerencial !== undefined);
   for (const r of data) {
     const identity = r.codigo_conta ?? `sub:${r.descricao}`;
     const key = `${r.linha_ordem}|${identity}`;
@@ -20,9 +21,12 @@ function buildRows(data: any[]): StatementRow[] {
       nivel: r.nivel ?? 0,
       is_subtotal: r.is_subtotal ?? false,
       values: {},
+      valuesGer: hasComparativo ? {} : undefined,
       linha_ordem: r.linha_ordem ?? 0,
     });
-    map.get(key)!.values[r.periodo] = Number(r.valor) || 0;
+    const row = map.get(key)!;
+    row.values[r.periodo] = Number(r.valor) || 0;
+    if (hasComparativo) row.valuesGer![r.periodo] = Number(r.valor_gerencial) || 0;
   }
   return Array.from(map.values()).sort((a, b) => a.linha_ordem - b.linha_ordem);
 }

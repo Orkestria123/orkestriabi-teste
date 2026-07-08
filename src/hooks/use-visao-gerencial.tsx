@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 
-export type Visao = "contabil" | "gerencial";
+export type Visao = "contabil" | "gerencial" | "comparativo";
 
 const STORAGE_KEY = "orkestria:visao";
 
@@ -14,11 +14,10 @@ const VisaoContext = createContext<Ctx>({ visao: "contabil", setVisao: () => {} 
 export function VisaoGerencialProvider({ children }: { children: ReactNode }) {
   const [visao, setVisaoState] = useState<Visao>("contabil");
 
-  // hydrate from localStorage on client
   useEffect(() => {
     try {
       const v = localStorage.getItem(STORAGE_KEY);
-      if (v === "gerencial" || v === "contabil") setVisaoState(v);
+      if (v === "gerencial" || v === "contabil" || v === "comparativo") setVisaoState(v);
     } catch {}
   }, []);
 

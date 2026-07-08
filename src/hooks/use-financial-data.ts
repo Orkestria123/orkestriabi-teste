@@ -129,6 +129,33 @@ export function useMonthlyStatement(
       const meta = await getCompanyMeta(companyId!);
       if (meta?.fonteDados === "diario") {
         const t = tipo as "DRE" | "BP_ATIVO" | "BP_PASSIVO" | "DFC" | "DLPA" | "DVA";
+        if (visao === "comparativo") {
+          // Roda os dois motores e devolve linhas com valor (contábil) e
+          // valor_gerencial (gerencial), pareadas por linha_ordem + codigo_conta + periodo.
+          const [rowsC, rowsG] = await Promise.all([
+            buildStatementFromDiario(companyId!, meta.tenantId, meta.modoGlobal, t, periodos, "contabil"),
+            buildStatementFromDiario(companyId!, meta.tenantId, meta.modoGlobal, t, periodos, "gerencial"),
+          ]);
+          const gMap = new Map<string, number>();
+          for (const r of rowsG) {
+            const k = `${r.linha_ordem}|${r.codigo_conta ?? `sub:${r.descricao}`}|${r.periodo}`;
+            gMap.set(k, Number((r as any).valor) || 0);
+          }
+          // Colecionamos linhas presentes no gerencial mas ausentes no contábil
+          // (ex.: contas gerenciais virtuais) para adicionar depois.
+          const cKeys = new Set<string>();
+          const merged: any[] = rowsC.map((r) => {
+            const k = `${r.linha_ordem}|${r.codigo_conta ?? `sub:${r.descricao}`}|${r.periodo}`;
+            cKeys.add(k);
+            return { ...r, valor_gerencial: gMap.get(k) ?? (Number((r as any).valor) || 0) };
+          });
+          for (const r of rowsG) {
+            const k = `${r.linha_ordem}|${r.codigo_conta ?? `sub:${r.descricao}`}|${r.periodo}`;
+            if (cKeys.has(k)) continue;
+            merged.push({ ...r, valor: 0, valor_gerencial: Number((r as any).valor) || 0 });
+          }
+          return merged;
+        }
         return buildStatementFromDiario(companyId!, meta.tenantId, meta.modoGlobal, t, periodos, visao);
       }
       const [stmtRes, chartRes, balRes] = await Promise.all([

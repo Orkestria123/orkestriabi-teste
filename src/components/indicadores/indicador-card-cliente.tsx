@@ -277,17 +277,27 @@ export function IndicadorCardCliente({
                   padding: "8px 12px",
                 }}
                 labelStyle={{ color: "var(--muted-foreground)", fontSize: 11 }}
-                formatter={(v: any) => [formatarValor(Number(v), ind.modo_analise), ind.nome]}
+                formatter={(v: any, name: any) => {
+                  const label =
+                    isComparativo
+                      ? name === "gerencial"
+                        ? `${ind.nome} — Gerencial`
+                        : `${ind.nome} — Contábil`
+                      : ind.nome;
+                  return [formatarValor(Number(v), ind.modo_analise), label];
+                }}
                 labelFormatter={(l: any) => String(l)}
               />
               <Area
                 type="monotone"
-                dataKey="valor"
+                dataKey={isComparativo ? "contabil" : "valor"}
+                name={isComparativo ? "contabil" : ind.nome}
                 stroke={cor}
-                strokeWidth={2.5}
+                strokeWidth={isComparativo ? 2 : 2.5}
+                strokeDasharray={isComparativo ? "4 4" : undefined}
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                fill={`url(#grad-${uid})`}
+                fill={isComparativo ? "transparent" : `url(#grad-${uid})`}
                 isAnimationActive
                 animationDuration={600}
                 animationEasing="ease-out"
@@ -313,6 +323,23 @@ export function IndicadorCardCliente({
                   strokeWidth: 2,
                 }}
               />
+              {isComparativo && (
+                <Area
+                  type="monotone"
+                  dataKey="gerencial"
+                  name="gerencial"
+                  stroke={corGer}
+                  strokeWidth={2.5}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  fill={`url(#gradg-${uid})`}
+                  isAnimationActive
+                  animationDuration={600}
+                  animationEasing="ease-out"
+                  connectNulls
+                  activeDot={{ r: 6, fill: corGer, stroke: "var(--card)", strokeWidth: 2 }}
+                />
+              )}
             </AreaChart>
           </ResponsiveContainer>
         </div>
@@ -321,12 +348,29 @@ export function IndicadorCardCliente({
           <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
             {pontos[0]?.mes ?? "Valor atual"}
           </span>
-          <span
-            className="mt-1 text-4xl font-semibold tabular-nums tracking-tight"
-            style={{ color: cor }}
-          >
-            {formatarValor(valor, ind.modo_analise)}
-          </span>
+          {isComparativo ? (
+            <div className="mt-1 flex flex-col gap-1">
+              <div className="flex items-baseline gap-2">
+                <span className="text-[10px] text-muted-foreground w-14">Contábil</span>
+                <span className="text-2xl font-semibold tabular-nums" style={{ color: cor }}>
+                  {formatarValor(valor, ind.modo_analise)}
+                </span>
+              </div>
+              <div className="flex items-baseline gap-2">
+                <span className="text-[10px] text-muted-foreground w-14">Gerencial</span>
+                <span className="text-2xl font-semibold tabular-nums" style={{ color: corGer }}>
+                  {formatarValor(valorGerencial ?? null, ind.modo_analise)}
+                </span>
+              </div>
+            </div>
+          ) : (
+            <span
+              className="mt-1 text-4xl font-semibold tabular-nums tracking-tight"
+              style={{ color: cor }}
+            >
+              {formatarValor(valor, ind.modo_analise)}
+            </span>
+          )}
         </div>
       )}
 

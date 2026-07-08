@@ -636,6 +636,8 @@ function ReajusteDialog({
 }) {
   const [pct, setPct] = useState<string>("10");
   const [alvo, setAlvo] = useState<"todos" | string>("todos");
+  const [escopo, setEscopo] = useState<"todos" | "apartir" | "apenas">("todos");
+  const [mesRef, setMesRef] = useState<string>(meses[0]);
   const [busy, setBusy] = useState(false);
 
   const aplicar = async () => {
@@ -644,10 +646,17 @@ function ReajusteDialog({
     const fator = 1 + p / 100;
     setBusy(true);
     try {
+      const idxRef = meses.indexOf(mesRef);
+      const mesesAlvo =
+        escopo === "todos"
+          ? meses
+          : escopo === "apartir"
+            ? meses.slice(Math.max(0, idxRef))
+            : [mesRef];
       const updates: Array<{ itemId: string; ym: string; valor: number }> = [];
       const alvoIds = alvo === "todos" ? itens.map((i) => i.id) : [alvo];
       for (const itemId of alvoIds) {
-        for (const m of meses) {
+        for (const m of mesesAlvo) {
           const key = `${itemId}|${m}`;
           const atual = local[key] ?? 0;
           if (atual === 0) continue;
@@ -658,9 +667,15 @@ function ReajusteDialog({
           });
         }
       }
+      const descEscopo =
+        escopo === "todos"
+          ? "todos os meses"
+          : escopo === "apartir"
+            ? `a partir de ${NOMES_MES[Math.max(0, idxRef)]}`
+            : `apenas ${NOMES_MES[Math.max(0, idxRef)]}`;
       await onAplicar(
         updates,
-        `Reajuste de ${p >= 0 ? "+" : ""}${p}% aplicado a ${updates.length} valor(es)`,
+        `Reajuste de ${p >= 0 ? "+" : ""}${p}% (${descEscopo}) aplicado a ${updates.length} valor(es)`,
       );
       onOpenChange(false);
     } catch (e: any) {
@@ -706,6 +721,36 @@ function ReajusteDialog({
               placeholder="+10 ou -5"
             />
           </div>
+          <div>
+            <Label className="text-xs">Aplicar em</Label>
+            <Select value={escopo} onValueChange={(v) => setEscopo(v as any)}>
+              <SelectTrigger className="h-9">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todos os meses</SelectItem>
+                <SelectItem value="apartir">A partir de…</SelectItem>
+                <SelectItem value="apenas">Apenas o mês…</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          {escopo !== "todos" && (
+            <div>
+              <Label className="text-xs">Mês</Label>
+              <Select value={mesRef} onValueChange={setMesRef}>
+                <SelectTrigger className="h-9">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {meses.map((m, i) => (
+                    <SelectItem key={m} value={m}>
+                      {NOMES_MES[i]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={busy}>
@@ -718,6 +763,7 @@ function ReajusteDialog({
       </DialogContent>
     </Dialog>
   );
+
 }
 
 // ---------------------------------------------------------------------

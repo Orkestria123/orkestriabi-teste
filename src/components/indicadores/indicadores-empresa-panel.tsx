@@ -375,7 +375,7 @@ function IndicadorCard({
   ind: IndicadorEmpresa;
   labelDaConta: (cls: string) => string;
   periodos: string[];
-  ctx: ReturnType<typeof useIndicadorData>["data"];
+  ctx: import("@/lib/indicadores/engine").EngineContext | undefined;
   resolver: import("@/lib/indicadores/engine").ResolverLinha;
   onVisChange: (v: Visibilidade) => void;
   onEditar: () => void;

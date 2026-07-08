@@ -46,7 +46,23 @@ interface ItemInput {
   id: string;
   /** lista de códigos OU classificações do plano */
   contas: string[];
+  /** natureza contábil do item (para aplicar sinal) — se omitido, usa D-C */
+  tipo_conta?: string | null;
 }
+
+/**
+ * Devolve o sinal a aplicar sobre (debitos - creditos) para deixar o valor
+ * "positivo do ponto de vista do item". Ex.: item de despesa/custo é
+ * positivo quando débito > crédito (D-C, sinal +1); item de receita é
+ * positivo quando crédito > débito (C-D, sinal -1 sobre D-C).
+ */
+function sinalPorTipo(tipo?: string | null): 1 | -1 {
+  const t = (tipo ?? "").toLowerCase();
+  if (t === "receita" || t === "resultado") return -1;
+  // despesa, custo, ativo, passivo, pl → mantém D-C
+  return 1;
+}
+
 
 /**
  * Resolve as classificações-alvo de um item.

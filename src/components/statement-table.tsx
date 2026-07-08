@@ -396,8 +396,8 @@ export function StatementTable({
               const isCollapsed = collapsed.has(idx);
               const isExpanded = expanded.has(idx);
               const canDrill = !!row.codigo_conta;
-              const extraMiddle = bucketGroups.length;
-              const rightCols = (showAV ? 1 : 0) + (showAH && basePeriod ? 1 : 0);
+              const extraMiddle = isComparativo ? periods.length * 2 : bucketGroups.length;
+              const rightCols = isComparativo ? 0 : (showAV ? 1 : 0) + (showAH && basePeriod ? 1 : 0);
 
               // No modo comparativo, destaca linhas cuja diferença ≠ 0 em algum período.
               const hasDiff =

@@ -845,3 +845,58 @@ function ContaGerencialDialog({
     </Dialog>
   );
 }
+
+// ---------------------------------------------------------------------
+// CompetenciaPicker: dois selects (mês + ano). Substitui o input
+// type="month" nativo, que era inacessível em alguns browsers/temas.
+// value/onChange usam o formato "YYYY-MM".
+// ---------------------------------------------------------------------
+
+const MESES_LABEL = [
+  "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+  "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
+];
+
+function CompetenciaPicker({
+  value,
+  onChange,
+}: {
+  value: string;                       // "YYYY-MM"
+  onChange: (v: string) => void;
+}) {
+  const [ano, mes] = value.split("-");
+  const anoNum = Number(ano) || new Date().getFullYear();
+  const mesNum = Number(mes) || 1;
+  const anoAtual = new Date().getFullYear();
+  // 10 anos passados até 2 anos futuros
+  const anos: number[] = [];
+  for (let a = anoAtual - 10; a <= anoAtual + 2; a++) anos.push(a);
+
+  const setMes = (m: string) => onChange(`${anoNum}-${String(Number(m)).padStart(2, "0")}`);
+  const setAno = (a: string) => onChange(`${a}-${String(mesNum).padStart(2, "0")}`);
+
+  return (
+    <div className="flex gap-2">
+      <Select value={String(mesNum)} onValueChange={setMes}>
+        <SelectTrigger className="h-9 w-[140px]">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {MESES_LABEL.map((label, i) => (
+            <SelectItem key={i + 1} value={String(i + 1)}>{label}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <Select value={String(anoNum)} onValueChange={setAno}>
+        <SelectTrigger className="h-9 w-[100px]">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {anos.map((a) => (
+            <SelectItem key={a} value={String(a)}>{a}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+}

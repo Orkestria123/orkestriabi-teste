@@ -75,6 +75,73 @@ export type Database = {
           },
         ]
       }
+      ajustes_gerenciais: {
+        Row: {
+          company_id: string
+          competencia: string
+          conta_credito: string
+          conta_debito: string
+          created_at: string
+          criado_por: string | null
+          descricao: string
+          id: string
+          justificativa: string | null
+          tenant_id: string
+          updated_at: string
+          valor: number
+        }
+        Insert: {
+          company_id: string
+          competencia: string
+          conta_credito: string
+          conta_debito: string
+          created_at?: string
+          criado_por?: string | null
+          descricao: string
+          id?: string
+          justificativa?: string | null
+          tenant_id: string
+          updated_at?: string
+          valor: number
+        }
+        Update: {
+          company_id?: string
+          competencia?: string
+          conta_credito?: string
+          conta_debito?: string
+          created_at?: string
+          criado_por?: string | null
+          descricao?: string
+          id?: string
+          justificativa?: string | null
+          tenant_id?: string
+          updated_at?: string
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ajustes_gerenciais_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ajustes_gerenciais_criado_por_fkey"
+            columns: ["criado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ajustes_gerenciais_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chart_of_accounts: {
         Row: {
           codigo_conta: string
@@ -173,6 +240,54 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "companies_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contas_gerenciais: {
+        Row: {
+          classificacao: string
+          codigo: string
+          company_id: string
+          created_at: string
+          descricao: string
+          id: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          classificacao: string
+          codigo: string
+          company_id: string
+          created_at?: string
+          descricao: string
+          id?: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          classificacao?: string
+          codigo?: string
+          company_id?: string
+          created_at?: string
+          descricao?: string
+          id?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contas_gerenciais_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contas_gerenciais_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"

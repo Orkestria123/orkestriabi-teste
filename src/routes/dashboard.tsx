@@ -5,6 +5,8 @@ import { FilterProvider, FilterBar, useFilters } from "@/components/filter-bar";
 import { useAuth } from "@/hooks/use-auth";
 import { useMyCompanies, useAvailablePeriods } from "@/hooks/use-financial-data";
 import { DashboardCompanyContext } from "@/components/dashboard-context";
+import { VisaoGerencialProvider } from "@/hooks/use-visao-gerencial";
+import { VisaoToggle } from "@/components/visao-toggle";
 import {
   Select,
   SelectContent,
@@ -18,9 +20,11 @@ export const Route = createFileRoute("/dashboard")({
     company: typeof s.company === "string" ? s.company : undefined,
   }),
   component: () => (
-    <FilterProvider>
-      <DashboardLayout />
-    </FilterProvider>
+    <VisaoGerencialProvider>
+      <FilterProvider>
+        <DashboardLayout />
+      </FilterProvider>
+    </VisaoGerencialProvider>
   ),
 });
 

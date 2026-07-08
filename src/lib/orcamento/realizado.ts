@@ -46,7 +46,23 @@ interface ItemInput {
   id: string;
   /** lista de códigos OU classificações do plano */
   contas: string[];
+  /** natureza contábil do item (para aplicar sinal) — se omitido, usa D-C */
+  tipo_conta?: string | null;
 }
+
+/**
+ * Devolve o sinal a aplicar sobre (debitos - creditos) para deixar o valor
+ * "positivo do ponto de vista do item". Ex.: item de despesa/custo é
+ * positivo quando débito > crédito (D-C, sinal +1); item de receita é
+ * positivo quando crédito > débito (C-D, sinal -1 sobre D-C).
+ */
+function sinalPorTipo(tipo?: string | null): 1 | -1 {
+  const t = (tipo ?? "").toLowerCase();
+  if (t === "receita" || t === "resultado") return -1;
+  // despesa, custo, ativo, passivo, pl → mantém D-C
+  return 1;
+}
+
 
 /**
  * Resolve as classificações-alvo de um item.
@@ -204,4 +220,183 @@ export async function computeRealizadoPorItem(params: {
   }
 
   return { porItem, meses, mascara };
+}
+
+// =====================================================================
+// ETAPA 4 — Realizado por item para análise Orçado vs Realizado
+// =====================================================================
+// Diferenças em relação a `computeRealizadoPorItem`:
+//  - respeita o SINAL do tipo do item (receita → C-D positivo; despesa → D-C
+//    positivo), em vez de aplicar Math.abs. Isso deixa o realizado na mesma
+//    base do orçado (ambos positivos por natureza).
+//  - devolve também o ACUMULADO (YTD, jan → competência).
+//  - marca cada mês como `semDados` quando NÃO há nenhum lançamento no
+//    período para a empresa (mês futuro/sem movimento algum), distinto de
+//    "movimento existe mas soma zero".
+
+export interface RealizadoMes {
+  competencia: string; // YYYY-MM
+  valor: number; // já com sinal aplicado (positivo por convenção)
+  semDados: boolean; // true quando a empresa não tem nenhum lançamento no mês
+}
+
+export interface RealizadoItemDetalhado {
+  itemId: string;
+  tipoConta: string | null;
+  porMes: RealizadoMes[];
+  /** valor acumulado (YTD) por competência, seguindo a ordem de `porMes` */
+  ytd: RealizadoMes[];
+}
+
+/**
+ * Calcula realizado por item para um intervalo de meses. Reutiliza o mesmo
+ * motor do resto do módulo (saldos_mensais + descendeDe + ajustes gerenciais)
+ * — a diferença é a aplicação de sinal por tipo e o cálculo do YTD.
+ */
+export async function computeRealizadoDetalhado(params: {
+  tenantId: string;
+  companyId: string;
+  visao: Visao;
+  /** YYYY-MM (inclusive) */
+  inicio: string;
+  /** YYYY-MM (inclusive) */
+  fim: string;
+  itens: ItemInput[];
+}): Promise<{ porItem: Record<string, RealizadoItemDetalhado>; meses: string[] }> {
+  const { tenantId, companyId, visao, inicio, fim, itens } = params;
+  const meses = mesesEntre(inicio, fim);
+  const inicioD = `${inicio}-01`;
+  const [yF, mF] = fim.split("-").map(Number);
+  const proxMesY = mF === 12 ? yF + 1 : yF;
+  const proxMesM = mF === 12 ? 1 : mF + 1;
+  const fimExclusivoD = `${proxMesY}-${String(proxMesM).padStart(2, "0")}-01`;
+
+  const mascara = await getMascaraConfig({ tenantId, companyId }).catch(
+    () => MASCARA_DEFAULT,
+  );
+
+  const { data: planoRaw, error: ep } = await supabase
+    .from("plano_contas")
+    .select("codigo, classificacao")
+    .eq("tenant_id", tenantId)
+    .eq("company_id", companyId)
+    .range(0, 199999);
+  if (ep) throw ep;
+  const plano = (planoRaw ?? []) as PlanoRow[];
+  const porCodigo = new Map(plano.map((p) => [p.codigo, p.classificacao]));
+  const porClassificacao = new Set(plano.map((p) => p.classificacao));
+  const codigoToClass = new Map<string, string>(
+    plano.map((p) => [p.codigo, p.classificacao]),
+  );
+
+  const { data: saldosRaw, error: es } = await supabase
+    .from("saldos_mensais")
+    .select("conta_codigo, competencia, total_debitos, total_creditos")
+    .eq("company_id", companyId)
+    .gte("competencia", inicioD)
+    .lt("competencia", fimExclusivoD)
+    .range(0, 199999);
+  if (es) throw es;
+  const saldos = (saldosRaw ?? []) as SaldoRow[];
+
+  // "Sem dados": nenhum lançamento contábil naquela competência para a empresa.
+  const mesesComMovimento = new Set(saldos.map((s) => s.competencia.slice(0, 7)));
+
+  let ajustesRows: SaldoRow[] = [];
+  if (visao === "gerencial") {
+    const ajData = await getAjustesGerenciais(tenantId, companyId);
+    const naJanela = ajData.ajustes.filter(
+      (a) => a.competencia >= inicioD && a.competencia < fimExclusivoD,
+    );
+    for (const a of naJanela) {
+      ajustesRows.push({
+        conta_codigo: a.conta_debito,
+        competencia: a.competencia,
+        total_debitos: a.valor,
+        total_creditos: 0,
+      });
+      ajustesRows.push({
+        conta_codigo: a.conta_credito,
+        competencia: a.competencia,
+        total_debitos: 0,
+        total_creditos: a.valor,
+      });
+      mesesComMovimento.add(a.competencia.slice(0, 7));
+    }
+    for (const cg of ajData.contasGerenciais) {
+      if (!codigoToClass.has(cg.codigo)) {
+        codigoToClass.set(cg.codigo, cg.classificacao);
+        porCodigo.set(cg.codigo, cg.classificacao);
+      }
+    }
+  }
+  const todosSaldos = [...saldos, ...ajustesRows];
+
+  const porItem: Record<string, RealizadoItemDetalhado> = {};
+
+  for (const item of itens) {
+    const alvos = resolverClassificacoes(item.contas, porCodigo, porClassificacao);
+    const sinal = sinalPorTipo(item.tipo_conta);
+    const bruto: Record<string, number> = {};
+    for (const m of meses) bruto[m] = 0;
+
+    if (alvos.length > 0) {
+      for (const s of todosSaldos) {
+        const cls = codigoToClass.get(s.conta_codigo);
+        if (!cls) continue;
+        if (!alvos.some((a) => descendeDe(cls, a, mascara))) continue;
+        const mov = Number(s.total_debitos ?? 0) - Number(s.total_creditos ?? 0);
+        const mes = s.competencia.slice(0, 7);
+        bruto[mes] = (bruto[mes] ?? 0) + mov;
+      }
+    }
+
+    const porMes: RealizadoMes[] = meses.map((m) => ({
+      competencia: m,
+      valor: Math.round(bruto[m] * sinal * 100) / 100,
+      semDados: !mesesComMovimento.has(m),
+    }));
+
+    let acc = 0;
+    const ytd: RealizadoMes[] = porMes.map((r) => {
+      if (!r.semDados) acc = Math.round((acc + r.valor) * 100) / 100;
+      return { competencia: r.competencia, valor: acc, semDados: r.semDados };
+    });
+
+    porItem[item.id] = {
+      itemId: item.id,
+      tipoConta: item.tipo_conta ?? null,
+      porMes,
+      ytd,
+    };
+  }
+
+  return { porItem, meses };
+}
+
+/**
+ * Atalho: realizado de um único item para uma única competência (YYYY-MM).
+ * Retorna { valor, semDados, ytd } — ytd = acumulado do ano corrente até
+ * essa competência.
+ */
+export async function computeRealizadoItem(params: {
+  tenantId: string;
+  companyId: string;
+  visao: Visao;
+  competencia: string; // YYYY-MM
+  item: ItemInput;
+}): Promise<{ valor: number; semDados: boolean; ytd: number }> {
+  const ano = params.competencia.slice(0, 4);
+  const res = await computeRealizadoDetalhado({
+    tenantId: params.tenantId,
+    companyId: params.companyId,
+    visao: params.visao,
+    inicio: `${ano}-01`,
+    fim: params.competencia,
+    itens: [params.item],
+  });
+  const d = res.porItem[params.item.id];
+  const mes = d.porMes[d.porMes.length - 1];
+  const ytd = d.ytd[d.ytd.length - 1];
+  return { valor: mes.valor, semDados: mes.semDados, ytd: ytd.valor };
 }

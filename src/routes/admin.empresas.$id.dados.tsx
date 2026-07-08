@@ -90,7 +90,17 @@ function Page() {
           <TabsTrigger value="diarios">4. Diários</TabsTrigger>
           <TabsTrigger value="mascara">5. Máscara</TabsTrigger>
           <TabsTrigger value="indicadores">6. Indicadores</TabsTrigger>
+          <TabsTrigger value="gerencial">7. Ajustes Gerenciais</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="gerencial">
+          {company && (
+            <AjustesGerenciaisPanel
+              tenantId={company.tenant_id!}
+              companyId={company.id}
+            />
+          )}
+        </TabsContent>
 
         <TabsContent value="mascara">
           {company && (

@@ -501,8 +501,15 @@ function OrcamentoAnalise() {
       // Orçado — soma valor_orcado dos meses da coluna
       const orc = orcamentoPorAno.get(col.ano);
       let orcado: number | null = null;
+      const usaDraft = editMode && editingAno !== null && col.ano === editingAno;
       const usaCenario = anoCenario !== null && col.ano === anoCenario;
-      if (usaCenario) {
+      if (usaDraft) {
+        orcado = 0;
+        for (const m of col.meses) {
+          const key = `${item.id}|${col.ano}-${String(m).padStart(2, "0")}`;
+          orcado += Number(draft[key] ?? 0);
+        }
+      } else if (usaCenario) {
         orcado = 0;
         for (const m of col.meses) {
           const key = `${col.ano}-${String(m).padStart(2, "0")}`;

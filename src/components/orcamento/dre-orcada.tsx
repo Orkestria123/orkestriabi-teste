@@ -262,6 +262,7 @@ export default function DREOrcada({
   baseLabel,
   tolAmarelo,
   tolVermelho,
+  isDirty = false,
 }: Props) {
   const [tratamento, setTratamento] = useState<TratamentoLacuna>("vazio");
 

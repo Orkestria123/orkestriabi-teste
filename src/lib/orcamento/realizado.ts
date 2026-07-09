@@ -587,12 +587,8 @@ export async function computeRealizadoPorConta(params: {
   >();
 
   const registrar = (row: PlanoRow, saldo: SaldoRow) => {
-    const alvo = contas.find(
-      (c) =>
-        c === row.codigo ||
-        c === row.classificacao ||
-        descendeDe(row.classificacao, c, mascara),
-    );
+    if (codigosExcluidos.has(row.codigo)) return;
+    const alvo = alvosCls.find((a) => descendeDe(row.classificacao, a, mascara));
     if (!alvo) return;
     const mov = (Number(saldo.total_debitos ?? 0) - Number(saldo.total_creditos ?? 0)) * sinal;
     const mm = saldo.competencia.slice(0, 7);

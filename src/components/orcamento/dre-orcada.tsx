@@ -17,7 +17,7 @@ import {
   getMascaraConfig,
   type MascaraConfig,
 } from "@/lib/mascara/interpretar";
-import { formatBRL } from "@/lib/format";
+import { formatBRL, formatBRLPlain } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 import { Card } from "@/components/ui/card";
@@ -265,6 +265,8 @@ export default function DREOrcada({
   isDirty = false,
 }: Props) {
   const [tratamento, setTratamento] = useState<TratamentoLacuna>("vazio");
+  const [escala, setEscala] = useState<1 | 1000>(1);
+  const fmt = (v: number | null | undefined) => formatBRLPlain(v, { scale: escala });
 
   // ------------ periodos únicos (YYYY-MM-01) usados pelas colunas ------------
   // O motor da DRE (buildStatementFromDiario → getSaldos) filtra por
@@ -579,6 +581,18 @@ export default function DREOrcada({
             </SelectContent>
           </Select>
         </div>
+        <div>
+          <Label className="text-xs text-muted-foreground">Escala</Label>
+          <Select value={String(escala)} onValueChange={(v) => setEscala(Number(v) as 1 | 1000)}>
+            <SelectTrigger className="h-9 w-[130px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="1">R$ (unidade)</SelectItem>
+              <SelectItem value="1000">R$ mil</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
         <div className="text-xs text-muted-foreground max-w-md flex-1">
           <div className="flex items-center gap-2 flex-wrap mb-1">
             <span><b>Base:</b> {baseLabel}</span>
@@ -589,9 +603,8 @@ export default function DREOrcada({
             )}
           </div>
           Visão do realizado:{" "}
-          <b>{visao === "gerencial" ? "Gerencial" : "Contábil"}</b>. As linhas
-          da DRE são resolvidas automaticamente a partir das contas dos itens
-          via mapeamento da empresa.
+          <b>{visao === "gerencial" ? "Gerencial" : "Contábil"}</b>. Valores em{" "}
+          <b>R$ {escala === 1000 ? "mil" : ""}</b>; negativos entre parênteses.
         </div>
       </Card>
 

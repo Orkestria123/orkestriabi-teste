@@ -927,7 +927,11 @@ function OrcamentoAnalise() {
 
         <div className="min-w-[220px]">
           <Label className="text-xs text-muted-foreground">Comparar com</Label>
-          <Select value={baseAtivo} onValueChange={(v) => setBaseSel(v)}>
+          <Select
+            value={baseAtivo}
+            onValueChange={tentarTrocarBase}
+            disabled={editMode}
+          >
             <SelectTrigger className="h-9">
               <SelectValue />
             </SelectTrigger>

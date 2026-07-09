@@ -1046,15 +1046,17 @@ function DetalheItem({
     return (valor / Math.abs(itemReal)) * 100;
   };
 
-  const renderRealCells = (codigo: string) => (
+  const totalColSpan = 2 + colunas.length * 3 + 3;
+
+  const renderRealCellsInline = (codigo: string) => (
     <>
       {colunas.map((col, i) => {
         const { valor, semDados } = valorContaColuna(codigo, col);
         const pct = proporcaoContaCol(codigo, i);
         return (
           <Fragment key={`${codigo}-${col.key}`}>
-            <td className="px-2 py-1 border-l border-border/40" />
-            <td className="px-2 py-1 text-right tabular-nums text-xs">
+            <td className="px-2 py-1 border-l border-border/40 bg-muted/10" />
+            <td className="px-2 py-1 text-right tabular-nums text-xs bg-muted/10">
               {semDados ? (
                 <span className="text-muted-foreground">—</span>
               ) : (
@@ -1068,7 +1070,7 @@ function DetalheItem({
                 </div>
               )}
             </td>
-            <td className="px-2 py-1" />
+            <td className="px-2 py-1 bg-muted/10" />
           </Fragment>
         );
       })}
@@ -1125,104 +1127,104 @@ function DetalheItem({
   })();
 
   return (
-    <div className="space-y-2">
-      <div className="text-[11px] text-muted-foreground">
-        Contas que compõem <b>{item.rotulo}</b> — realizado por{" "}
-        {isMultiAno ? "ano" : "período"}. Classificações-alvo:{" "}
-        <span className="font-mono">{item.contas.join(", ")}</span>
-      </div>
-      <div className="text-[11px] text-muted-foreground">
-        Sob cada valor realizado, mostramos a <b>proporção da conta</b> dentro do realizado total
-        do item naquele período. A soma das proporções em cada coluna é 100%.
-      </div>
+    <>
+      <tr className="bg-muted/10 border-t border-border">
+        <td
+          colSpan={totalColSpan}
+          className="px-3 py-1.5 text-[11px] text-muted-foreground"
+        >
+          Contas que compõem <b>{item.rotulo}</b> — realizado por{" "}
+          {isMultiAno ? "ano" : "período"}. Sob cada valor, a{" "}
+          <b>proporção da conta</b> dentro do realizado do item na coluna
+          (soma = 100%).
+        </td>
+      </tr>
 
       {contasUnicas.length === 0 ? (
-        <div className="text-xs text-muted-foreground italic">
-          Nenhuma conta analítica com movimento no período para as classificações selecionadas.
-        </div>
+        <tr className="bg-muted/10 border-t border-border/40">
+          <td
+            colSpan={totalColSpan}
+            className="px-3 py-2 text-xs text-muted-foreground italic"
+          >
+            Nenhuma conta analítica com movimento no período para as
+            classificações selecionadas.
+          </td>
+        </tr>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="text-xs border-separate border-spacing-0 min-w-full">
-            <thead className="text-muted-foreground">
-              <tr>
-                <th className="text-left px-2 py-1 font-medium">Código</th>
-                <th className="text-left px-2 py-1 font-medium">Classificação</th>
-                <th className="text-left px-2 py-1 font-medium">Descrição</th>
-                {colunas.map((col) => (
-                  <th
-                    key={`h-${col.key}`}
-                    colSpan={3}
-                    className="text-center px-2 py-1 font-medium border-l border-border/40"
-                  >
-                    {col.label}
-                  </th>
-                ))}
-                <th
-                  colSpan={3}
-                  className="text-center px-2 py-1 font-medium border-l-2 border-border bg-primary/5"
-                >
-                  TOTAL
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {contasUnicas.map((c) => (
-                <tr key={c.codigo} className="border-t border-border/40">
-                  <td className="px-2 py-1 font-mono align-top">{c.codigo}</td>
-                  <td className="px-2 py-1 font-mono align-top">{c.classificacao}</td>
-                  <td className="px-2 py-1 align-top">{c.descricao || "—"}</td>
-                  {renderRealCells(c.codigo)}
-                </tr>
-              ))}
-              <tr className="border-t-2 border-border font-semibold bg-muted/40">
-                <td className="px-2 py-1" colSpan={3}>
-                  Total
-                </td>
-                {colunas.map((col, idx) => {
-                  const itemReal = itemCells[idx]?.realizado;
-                  const temPct = itemReal !== null && itemReal !== undefined && Math.abs(itemReal) > 0.005;
-                  return (
-                    <Fragment key={`tot-${col.key}`}>
-                      <td className="px-2 py-1 border-l border-border/40" />
-                      <td className="px-2 py-1 text-right tabular-nums">
-                        {totalPorColuna[idx].semDados ? (
-                          <span className="text-muted-foreground">—</span>
-                        ) : (
-                          <div className="flex flex-col items-end leading-tight">
-                            <span>{formatBRL(totalPorColuna[idx].valor)}</span>
-                            {temPct && (
-                              <span className="text-[10px] text-muted-foreground">100,0%</span>
-                            )}
-                          </div>
+        <>
+          {contasUnicas.map((c) => (
+            <tr
+              key={`drill-${c.codigo}`}
+              className="border-t border-border/40 bg-muted/10"
+            >
+              <td className="px-3 py-1 sticky left-0 bg-muted/10 border-r border-border z-10">
+                <div className="pl-4 text-[11px] leading-tight">
+                  <div className="font-mono">
+                    {c.codigo} · {c.classificacao}
+                  </div>
+                  <div className="text-muted-foreground truncate">
+                    {c.descricao || "—"}
+                  </div>
+                </div>
+              </td>
+              <td className="px-2 py-1 border-r border-border bg-muted/10" />
+              {renderRealCellsInline(c.codigo)}
+            </tr>
+          ))}
+          <tr className="border-t-2 border-border bg-muted/30 font-semibold">
+            <td className="px-3 py-1 sticky left-0 bg-muted/30 border-r border-border z-10 text-[11px]">
+              <div className="pl-4">Total das contas</div>
+            </td>
+            <td className="px-2 py-1 border-r border-border bg-muted/30" />
+            {colunas.map((col, idx) => {
+              const itemReal = itemCells[idx]?.realizado;
+              const temPct =
+                itemReal !== null &&
+                itemReal !== undefined &&
+                Math.abs(itemReal) > 0.005;
+              return (
+                <Fragment key={`tot-${col.key}`}>
+                  <td className="px-2 py-1 border-l border-border/40 bg-muted/30" />
+                  <td className="px-2 py-1 text-right tabular-nums text-xs bg-muted/30">
+                    {totalPorColuna[idx].semDados ? (
+                      <span className="text-muted-foreground">—</span>
+                    ) : (
+                      <div className="flex flex-col items-end leading-tight">
+                        <span>{formatBRL(totalPorColuna[idx].valor)}</span>
+                        {temPct && (
+                          <span className="text-[10px] text-muted-foreground">
+                            100,0%
+                          </span>
                         )}
-                      </td>
-                      <td className="px-2 py-1" />
-                    </Fragment>
-                  );
-                })}
-                <td className="px-2 py-1 border-l-2 border-border bg-primary/5" />
-                <td className="px-2 py-1 text-right tabular-nums bg-primary/5">
-                  {totalGeral.semDados ? (
-                    <span className="text-muted-foreground">—</span>
-                  ) : (
-                    <div className="flex flex-col items-end leading-tight">
-                      <span>{formatBRL(totalGeral.valor)}</span>
-                      {itemTotal.realizado !== null && itemTotal.realizado !== undefined && Math.abs(itemTotal.realizado) > 0.005 && (
-                        <span className="text-[10px] text-muted-foreground">100,0%</span>
-                      )}
-                    </div>
-                  )}
-                </td>
-                <td className="px-2 py-1 bg-primary/5" />
-              </tr>
-            </tbody>
-          </table>
-          <div className="text-[10px] text-muted-foreground mt-1">
-            A soma das contas em cada coluna deve bater com o Realizado do item na mesma coluna.
-          </div>
-        </div>
+                      </div>
+                    )}
+                  </td>
+                  <td className="px-2 py-1 bg-muted/30" />
+                </Fragment>
+              );
+            })}
+            <td className="px-2 py-1 border-l-2 border-border bg-primary/10" />
+            <td className="px-2 py-1 text-right tabular-nums text-xs bg-primary/10">
+              {totalGeral.semDados ? (
+                <span className="text-muted-foreground">—</span>
+              ) : (
+                <div className="flex flex-col items-end leading-tight">
+                  <span>{formatBRL(totalGeral.valor)}</span>
+                  {itemTotal.realizado !== null &&
+                    itemTotal.realizado !== undefined &&
+                    Math.abs(itemTotal.realizado) > 0.005 && (
+                      <span className="text-[10px] text-muted-foreground">
+                        100,0%
+                      </span>
+                    )}
+                </div>
+              )}
+            </td>
+            <td className="px-2 py-1 bg-primary/10" />
+          </tr>
+        </>
       )}
-    </div>
+    </>
   );
 }
 

@@ -949,15 +949,22 @@ function DetalheItem({
     })),
   });
 
+  const totalColSpanEarly = 2 + colunas.length * 3 + 3;
+  const msgRow = (msg: React.ReactNode, cls = "text-muted-foreground") => (
+    <tr className="bg-muted/10 border-t border-border/40">
+      <td colSpan={totalColSpanEarly} className={`px-3 py-2 text-xs ${cls}`}>
+        {msg}
+      </td>
+    </tr>
+  );
+
   if (item.contas.length === 0) {
-    return <div className="text-xs text-muted-foreground">Item sem contas associadas.</div>;
+    return msgRow("Item sem contas associadas.");
   }
   const loading = queries.some((q) => q.isLoading);
   const err = queries.find((q) => q.error)?.error as Error | undefined;
-  if (loading)
-    return <div className="text-xs text-muted-foreground">Carregando detalhes por conta…</div>;
-  if (err)
-    return <div className="text-xs text-red-600">Erro ao carregar detalhes: {err.message}</div>;
+  if (loading) return msgRow("Carregando detalhes por conta…");
+  if (err) return msgRow(`Erro ao carregar detalhes: ${err.message}`, "text-red-600");
 
   // Mapa ano → dados
   const porAno = new Map<number, { contas: any[]; mesesComMovimentoGlobal: Set<string> }>();

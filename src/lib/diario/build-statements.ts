@@ -216,6 +216,74 @@ async function getSaldos(
   }));
 }
 
+/**
+ * Encerramento de exercício: em 31/12 o sistema contábil transfere o saldo
+ * acumulado das contas de resultado (grupo 3) para uma conta de "Resultado
+ * do Exercício" no PL, zerando as contas 3.x no período. Se essas linhas
+ * ficarem nos saldos_mensais, a DRE do mês/ano dá zero (dezembro fica
+ * negativo == acumulado jan-nov).
+ *
+ * Solução: identificar esses lançamentos no diário e devolver o par
+ * (conta_codigo, competencia) → { debitos, creditos } para SUBTRAIR dos
+ * saldos antes de montar a DRE. BP não é afetado — mantém o encerramento
+ * (o PL continua com o Resultado do Exercício correto).
+ *
+ * Heurística (robusta ao SPED brasileiro): rows onde o histórico contém
+ * "Transferido Para Conta" e "Resultado" (case-insensitive). Cobre os
+ * padrões de ContMatic, Domínio, Sage/Folhamatic e similares.
+ */
+async function getCorrecoesEncerramento(
+  companyId: string,
+  periodos: string[],
+): Promise<Map<string, { debitos: number; creditos: number }>> {
+  const out = new Map<string, { debitos: number; creditos: number }>();
+  if (periodos.length === 0) return out;
+  const rows = await fetchAllPaginated<any>((from, to) =>
+    supabase
+      .from("lancamentos_diario")
+      .select("conta_codigo, competencia, debito, credito")
+      .eq("company_id", companyId)
+      .in("competencia", periodos)
+      .ilike("historico", "%Transferido Para Conta%Resultado%")
+      .range(from, to),
+  );
+  for (const r of rows) {
+    const k = `${r.conta_codigo}|${r.competencia}`;
+    const cur = out.get(k) ?? { debitos: 0, creditos: 0 };
+    cur.debitos += Number(r.debito) || 0;
+    cur.creditos += Number(r.credito) || 0;
+    out.set(k, cur);
+  }
+  return out;
+}
+
+/**
+ * Aplica as correções de encerramento em uma lista de saldos, restringindo
+ * a subtração ao grupo 3 (Resultado) — só a DRE precisa disso. Retorna a
+ * lista de saldos ajustada, mais o Set de meses efetivamente afetados.
+ */
+function aplicarCorrecoesEncerramento(
+  saldos: Saldo[],
+  correcoes: Map<string, { debitos: number; creditos: number }>,
+  contaEhResultado: (conta_codigo: string) => boolean,
+): Saldo[] {
+  if (correcoes.size === 0) return saldos;
+  return saldos.map((s) => {
+    if (!contaEhResultado(s.conta_codigo)) return s;
+    const k = `${s.conta_codigo}|${s.competencia}`;
+    const corr = correcoes.get(k);
+    if (!corr) return s;
+    const d = s.total_debitos - corr.debitos;
+    const c = s.total_creditos - corr.creditos;
+    return {
+      ...s,
+      total_debitos: d,
+      total_creditos: c,
+      movimento: d - c,
+    };
+  });
+}
+
 async function getSaldosAteData(
   companyId: string,
   ateData: string,
@@ -485,11 +553,22 @@ async function buildDRE(
   modo: ModoDemonstracao = "contabil",
   gerData?: AjustesGerenciaisData,
 ): Promise<FlatRow[]> {
-  const [mapasRaw, saldosContabeis, planoContabil] = await Promise.all([
+  const [mapasRaw, saldosContabeisRaw, planoContabil, correcoesEncerr] = await Promise.all([
     getMapa(companyId, tenantId, modoGlobal, tipo),
     getSaldos(companyId, periodos),
     getPlanoPorTipo(companyId, tenantId, modoGlobal, ["3-DRE"]),
+    getCorrecoesEncerramento(companyId, periodos),
   ]);
+  // Remove os lançamentos de encerramento do exercício dos saldos de contas
+  // do grupo 3 (Resultado). Sem isso, dezembro fica com o negativo do
+  // acumulado do ano e a soma anual dá zero. BP não é chamado aqui, então
+  // o encerramento permanece intacto para o Patrimônio Líquido.
+  const codigosResultado = new Set(planoContabil.map((p) => p.codigo));
+  const saldosContabeis = aplicarCorrecoesEncerramento(
+    saldosContabeisRaw,
+    correcoesEncerr,
+    (c) => codigosResultado.has(c),
+  );
   // Filtra prefixos que são contas de apuração (.98/.99): não têm lançamento
   // próprio, seriam ignoradas em aplicarMapaESinal e apenas geram linhas
   // fantasma zeradas que duplicam subtotais calculados (ex.: "Receita Líquida"

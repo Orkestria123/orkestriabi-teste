@@ -1185,25 +1185,39 @@ function DetalheItem({
                 <td className="px-2 py-1" colSpan={3}>
                   Total
                 </td>
-                {colunas.map((col, idx) => (
-                  <Fragment key={`tot-${col.key}`}>
-                    <td className="px-2 py-1 border-l border-border/40" />
-                    <td className="px-2 py-1 text-right tabular-nums">
-                      {totalPorColuna[idx].semDados ? (
-                        <span className="text-muted-foreground">—</span>
-                      ) : (
-                        formatBRL(totalPorColuna[idx].valor)
-                      )}
-                    </td>
-                    <td className="px-2 py-1" />
-                  </Fragment>
-                ))}
+                {colunas.map((col, idx) => {
+                  const itemReal = itemCells[idx]?.realizado;
+                  const temPct = itemReal !== null && itemReal !== undefined && Math.abs(itemReal) > 0.005;
+                  return (
+                    <Fragment key={`tot-${col.key}`}>
+                      <td className="px-2 py-1 border-l border-border/40" />
+                      <td className="px-2 py-1 text-right tabular-nums">
+                        {totalPorColuna[idx].semDados ? (
+                          <span className="text-muted-foreground">—</span>
+                        ) : (
+                          <div className="flex flex-col items-end leading-tight">
+                            <span>{formatBRL(totalPorColuna[idx].valor)}</span>
+                            {temPct && (
+                              <span className="text-[10px] text-muted-foreground">100,0%</span>
+                            )}
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-2 py-1" />
+                    </Fragment>
+                  );
+                })}
                 <td className="px-2 py-1 border-l-2 border-border bg-primary/5" />
                 <td className="px-2 py-1 text-right tabular-nums bg-primary/5">
                   {totalGeral.semDados ? (
                     <span className="text-muted-foreground">—</span>
                   ) : (
-                    formatBRL(totalGeral.valor)
+                    <div className="flex flex-col items-end leading-tight">
+                      <span>{formatBRL(totalGeral.valor)}</span>
+                      {itemTotal.realizado !== null && itemTotal.realizado !== undefined && Math.abs(itemTotal.realizado) > 0.005 && (
+                        <span className="text-[10px] text-muted-foreground">100,0%</span>
+                      )}
+                    </div>
                   )}
                 </td>
                 <td className="px-2 py-1 bg-primary/5" />

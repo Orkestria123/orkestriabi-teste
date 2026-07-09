@@ -20,7 +20,7 @@ import { useDashboardCompany } from "@/components/dashboard-context";
 import { useFilters, MONTHS } from "@/components/filter-bar";
 import {
   computeRealizadoDetalhado,
-  computeRealizadoPorConta,
+  computeContasDoItemMensal,
   type Visao,
 } from "@/lib/orcamento/realizado";
 import { formatBRL } from "@/lib/format";

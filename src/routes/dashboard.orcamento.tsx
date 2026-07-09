@@ -1898,22 +1898,25 @@ function DetalheItem({
         const pct = proporcaoContaCol(codigo, i);
         return (
           <Fragment key={`${codigo}-${col.key}`}>
-            <td className="px-2 py-1 border-l border-border/40 bg-muted/10" />
-            <td className="px-2 py-1 text-right tabular-nums text-xs bg-muted/10">
+            <td className="px-2 py-0.5 border-l border-border/40 bg-muted/10" />
+            <td
+              className="px-2 py-0.5 text-right tabular-nums text-[11px] whitespace-nowrap min-w-[90px] bg-muted/10"
+              title={semDados ? "" : `${fmt(valor)}${pct !== null ? ` · ${pct.toFixed(1).replace(".", ",")}% do item` : ""}`}
+            >
               {semDados ? (
                 <span className="text-muted-foreground">—</span>
               ) : (
-                <div className="flex flex-col items-end leading-tight">
-                  <span>{formatBRL(valor)}</span>
+                <span className="inline-flex items-center gap-1 justify-end">
+                  <span>{fmt(valor)}</span>
                   {pct !== null && (
                     <span className="text-[10px] text-muted-foreground">
-                      {pct.toFixed(1).replace(".", ",")}%
+                      ({pct.toFixed(1).replace(".", ",")}%)
                     </span>
                   )}
-                </div>
+                </span>
               )}
             </td>
-            <td className="px-2 py-1 bg-muted/10" />
+            <td className="px-2 py-0.5 bg-muted/10" />
           </Fragment>
         );
       })}
@@ -1922,22 +1925,22 @@ function DetalheItem({
         const pct = proporcaoContaTotal(codigo);
         return (
           <>
-            <td className="px-2 py-1 border-l-2 border-border bg-primary/5" />
-            <td className="px-2 py-1 text-right tabular-nums text-xs font-medium bg-primary/5">
+            <td className="px-2 py-0.5 border-l-2 border-border bg-primary/5" />
+            <td className="px-2 py-0.5 text-right tabular-nums text-[11px] whitespace-nowrap min-w-[90px] font-medium bg-primary/5">
               {semDados ? (
                 <span className="text-muted-foreground">—</span>
               ) : (
-                <div className="flex flex-col items-end leading-tight">
-                  <span>{formatBRL(valor)}</span>
+                <span className="inline-flex items-center gap-1 justify-end">
+                  <span>{fmt(valor)}</span>
                   {pct !== null && (
                     <span className="text-[10px] text-muted-foreground">
-                      {pct.toFixed(1).replace(".", ",")}%
+                      ({pct.toFixed(1).replace(".", ",")}%)
                     </span>
                   )}
-                </div>
+                </span>
               )}
             </td>
-            <td className="px-2 py-1 bg-primary/5" />
+            <td className="px-2 py-0.5 bg-primary/5" />
           </>
         );
       })()}
@@ -2000,12 +2003,12 @@ function DetalheItem({
               key={`drill-${c.codigo}`}
               className="border-t border-border/40 bg-muted/10"
             >
-              <td className="px-3 py-1 sticky left-0 bg-muted/10 border-r border-border z-10">
-                <div className="pl-4 text-[11px] leading-tight">
-                  <div className="font-mono">
+              <td className="px-3 py-0.5 sticky left-0 bg-muted/10 border-r border-border z-10 max-w-[240px]">
+                <div className="pl-4 text-[11px] leading-tight min-w-0">
+                  <div className="font-mono truncate" title={`${c.codigo} · ${c.classificacao}`}>
                     {c.codigo} · {c.classificacao}
                   </div>
-                  <div className="text-muted-foreground truncate">
+                  <div className="text-muted-foreground truncate" title={c.descricao || ""}>
                     {c.descricao || "—"}
                   </div>
                 </div>
@@ -2027,40 +2030,36 @@ function DetalheItem({
                 Math.abs(itemReal) > 0.005;
               return (
                 <Fragment key={`tot-${col.key}`}>
-                  <td className="px-2 py-1 border-l border-border/40 bg-muted/30" />
-                  <td className="px-2 py-1 text-right tabular-nums text-xs bg-muted/30">
+                  <td className="px-2 py-0.5 border-l border-border/40 bg-muted/30" />
+                  <td className="px-2 py-0.5 text-right tabular-nums text-[11px] whitespace-nowrap min-w-[90px] bg-muted/30">
                     {totalPorColuna[idx].semDados ? (
                       <span className="text-muted-foreground">—</span>
                     ) : (
-                      <div className="flex flex-col items-end leading-tight">
-                        <span>{formatBRL(totalPorColuna[idx].valor)}</span>
+                      <span className="inline-flex items-center gap-1 justify-end">
+                        <span>{fmt(totalPorColuna[idx].valor)}</span>
                         {temPct && (
-                          <span className="text-[10px] text-muted-foreground">
-                            100,0%
-                          </span>
+                          <span className="text-[10px] text-muted-foreground">(100,0%)</span>
                         )}
-                      </div>
+                      </span>
                     )}
                   </td>
-                  <td className="px-2 py-1 bg-muted/30" />
+                  <td className="px-2 py-0.5 bg-muted/30" />
                 </Fragment>
               );
             })}
-            <td className="px-2 py-1 border-l-2 border-border bg-primary/10" />
-            <td className="px-2 py-1 text-right tabular-nums text-xs bg-primary/10">
+            <td className="px-2 py-0.5 border-l-2 border-border bg-primary/10" />
+            <td className="px-2 py-0.5 text-right tabular-nums text-[11px] whitespace-nowrap min-w-[90px] bg-primary/10">
               {totalGeral.semDados ? (
                 <span className="text-muted-foreground">—</span>
               ) : (
-                <div className="flex flex-col items-end leading-tight">
-                  <span>{formatBRL(totalGeral.valor)}</span>
+                <span className="inline-flex items-center gap-1 justify-end">
+                  <span>{fmt(totalGeral.valor)}</span>
                   {itemTotal.realizado !== null &&
                     itemTotal.realizado !== undefined &&
                     Math.abs(itemTotal.realizado) > 0.005 && (
-                      <span className="text-[10px] text-muted-foreground">
-                        100,0%
-                      </span>
+                      <span className="text-[10px] text-muted-foreground">(100,0%)</span>
                     )}
-                </div>
+                </span>
               )}
             </td>
             <td className="px-2 py-1 bg-primary/10" />

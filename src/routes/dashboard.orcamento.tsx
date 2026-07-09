@@ -773,10 +773,9 @@ function OrcamentoAnalise() {
     let cenarioId: string;
     if (sobrescrever && editingCenarioId) {
       cenarioId = editingCenarioId;
-      const upd: Record<string, any> = { nome: nomeTrim, descricao: descricao || null };
       const { error: e1 } = await supabase
         .from("orcamento_cenarios")
-        .update(upd)
+        .update({ nome: nomeTrim, descricao: descricao || null })
         .eq("id", cenarioId);
       if (e1) throw e1;
       const { error: e2 } = await supabase

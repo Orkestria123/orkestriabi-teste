@@ -319,6 +319,58 @@ function OrcamentoAnalise() {
     },
   });
 
+  // ---- Cenários salvos para os orçamentos da família ----
+  const cenariosQ = useQuery({
+    queryKey: ["orcamento-cenarios", orcamentoIds.join(",")],
+    enabled: orcamentoIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("orcamento_cenarios")
+        .select("id, nome, orcamento_id, descricao, created_at")
+        .in("orcamento_id", orcamentoIds)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as {
+        id: string;
+        nome: string;
+        orcamento_id: string;
+        descricao: string | null;
+        created_at: string;
+      }[];
+    },
+  });
+  const cenarios = cenariosQ.data ?? [];
+
+  // Base ativa efetiva: se o cenário selecionado não pertence à família atual, cai para oficial
+  const baseAtivo = useMemo(() => {
+    if (baseSel === "oficial") return "oficial";
+    return cenarios.some((c) => c.id === baseSel) ? baseSel : "oficial";
+  }, [baseSel, cenarios]);
+
+  const cenarioSelecionado = useMemo(
+    () => (baseAtivo !== "oficial" ? cenarios.find((c) => c.id === baseAtivo) ?? null : null),
+    [baseAtivo, cenarios],
+  );
+
+  // ---- Valores do cenário selecionado (substituem o orçado quando ativo) ----
+  const cenarioValoresQ = useQuery({
+    queryKey: ["orcamento-cenario-valores", baseAtivo],
+    enabled: baseAtivo !== "oficial",
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("orcamento_cenario_valores")
+        .select("cenario_id, item_id, competencia, valor_orcado")
+        .eq("cenario_id", baseAtivo);
+      if (error) throw error;
+      return (data ?? []) as {
+        cenario_id: string;
+        item_id: string;
+        competencia: string;
+        valor_orcado: number;
+      }[];
+    },
+  });
+
   // ---- Realizado: 1 query por ano selecionado (Jan–Dez) ----
   // Rotulamos os itens uma vez por ID; o mapeamento item.contas→classificações
   // é feito dentro do motor. Para multi-ano, aplicamos os itens do orçamento

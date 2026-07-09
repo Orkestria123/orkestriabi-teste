@@ -1139,9 +1139,8 @@ function DetalheItem({
         <span className="font-mono">{item.contas.join(", ")}</span>
       </div>
       <div className="text-[11px] text-muted-foreground">
-        Sob o valor realizado, quando o item tem desvio vs orçado, mostramos a{" "}
-        <b>contribuição da conta</b> (variação vs período anterior) em R$ e como % da variação
-        total do item. A conta que mais contribuiu é destacada.
+        Sob cada valor realizado, mostramos a <b>proporção da conta</b> dentro do realizado total
+        do item naquele período. A soma das proporções em cada coluna é 100%.
       </div>
 
       {contasUnicas.length === 0 ? (

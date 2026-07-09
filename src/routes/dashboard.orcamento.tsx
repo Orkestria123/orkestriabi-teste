@@ -1441,6 +1441,13 @@ function OrcamentoAnalise() {
         onOpenChange={setOpenForecast}
         ano={anoParaEditar ?? new Date().getFullYear()}
         realizadoQueries={realizadoQueries}
+        itens={itens}
+        getRealizadoValor={getRealizadoValor}
+        getOficialValor={getOficialValor}
+        getBaseValor={(itemId, ano, m) =>
+          buildSnapshotDoAno(ano)[`${itemId}|${ano}-${String(m).padStart(2, "0")}`] ?? 0
+        }
+        cenarioBaseNome={cenarioSelecionado?.nome ?? null}
         onGerar={iniciarForecast}
       />
 

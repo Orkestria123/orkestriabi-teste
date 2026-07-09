@@ -401,7 +401,7 @@ export default function DREOrcada({
       const arr = colunas.map((col) => {
         let s = 0;
         for (const m of col.meses) {
-          const ym = `${col.ano}-${String(m).padStart(2, "0")}`;
+          const ym = `${col.ano}-${String(m).padStart(2, "0")}-01`;
           s += porDescPeriodo.get(`${linha}|${ym}`) ?? 0;
         }
         return s;

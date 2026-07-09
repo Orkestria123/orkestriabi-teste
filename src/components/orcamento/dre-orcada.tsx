@@ -60,6 +60,7 @@ interface Props {
   baseLabel: string; // "Orçamento oficial" ou "Cenário: X"
   tolAmarelo: number;
   tolVermelho: number;
+  isDirty?: boolean; // rascunho não salvo (modo simulação ativo com edições)
 }
 
 type TratamentoLacuna = "vazio" | "zero" | "realizado";
@@ -261,6 +262,7 @@ export default function DREOrcada({
   baseLabel,
   tolAmarelo,
   tolVermelho,
+  isDirty = false,
 }: Props) {
   const [tratamento, setTratamento] = useState<TratamentoLacuna>("vazio");
 
@@ -532,8 +534,16 @@ export default function DREOrcada({
             </SelectContent>
           </Select>
         </div>
-        <div className="text-xs text-muted-foreground max-w-md">
-          <b>Base:</b> {baseLabel}. Visão do realizado:{" "}
+        <div className="text-xs text-muted-foreground max-w-md flex-1">
+          <div className="flex items-center gap-2 flex-wrap mb-1">
+            <span><b>Base:</b> {baseLabel}</span>
+            {isDirty && (
+              <Badge variant="outline" className="border-amber-500/50 text-amber-700 dark:text-amber-400 bg-amber-500/10">
+                Rascunho não salvo
+              </Badge>
+            )}
+          </div>
+          Visão do realizado:{" "}
           <b>{visao === "gerencial" ? "Gerencial" : "Contábil"}</b>. As linhas
           da DRE são resolvidas automaticamente a partir das contas dos itens
           via mapeamento da empresa.

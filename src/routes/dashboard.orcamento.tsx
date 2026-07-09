@@ -1451,6 +1451,7 @@ function OrcamentoAnalise() {
               }
               tolAmarelo={tolAmarelo}
               tolVermelho={tolVermelho}
+              isDirty={isDirty}
             />
           ) : (
             <Card className="p-6 text-sm text-muted-foreground">

@@ -1406,16 +1406,60 @@ function OrcamentoAnalise() {
         </div>
       </Card>
 
-      <div className="text-xs text-muted-foreground px-1 space-y-1">
-        <div>
-          Visão do realizado:{" "}
-          <b>{visao === "gerencial" ? "Gerencial" : "Contábil"}</b> (definida no orçamento).
-        </div>
-        <div>
-          Coluna vazia ("—") em Orçado significa ano SEM orçamento cadastrado; em Realizado
-          significa ano/mês SEM lançamentos carregados.
-        </div>
-      </div>
+          <div className="text-xs text-muted-foreground px-1 space-y-1">
+            <div>
+              Visão do realizado:{" "}
+              <b>{visao === "gerencial" ? "Gerencial" : "Contábil"}</b> (definida no orçamento).
+            </div>
+            <div>
+              Coluna vazia ("—") em Orçado significa ano SEM orçamento cadastrado; em Realizado
+              significa ano/mês SEM lançamentos carregados.
+            </div>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="dre" className="space-y-4">
+          {company?.tenant_id && companyId ? (
+            <DREOrcada
+              companyId={companyId}
+              tenantId={company.tenant_id}
+              visao={visao}
+              colunas={colunas}
+              isMultiAno={isMultiAno}
+              totalizarPorLabel={
+                totalizarPor === "mes"
+                  ? "Mês"
+                  : totalizarPor === "trimestre"
+                  ? "Trimestre"
+                  : totalizarPor === "semestre"
+                  ? "Semestre"
+                  : "Ano"
+              }
+              itens={itens.map((i) => ({
+                id: i.id,
+                rotulo: i.rotulo,
+                contas: i.contas,
+                tipo_conta: i.tipo_conta,
+              }))}
+              orcadoPorItemCol={Object.fromEntries(
+                grid.map((l) => [l.item.id, l.cells.map((c) => c.orcado)]),
+              )}
+              baseLabel={
+                cenarioSelecionado
+                  ? `Cenário: ${cenarioSelecionado.nome}`
+                  : `Orçamento oficial${nomeAtivo ? ` — ${nomeAtivo}` : ""}`
+              }
+              tolAmarelo={tolAmarelo}
+              tolVermelho={tolVermelho}
+            />
+          ) : (
+            <Card className="p-6 text-sm text-muted-foreground">
+              Carregando…
+            </Card>
+          )}
+        </TabsContent>
+      </Tabs>
+
 
       {/* ---------- Dialogs de edição / cenário ---------- */}
       <ReajusteDialog

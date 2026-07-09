@@ -19,6 +19,7 @@ interface PlanoRow {
   codigo: string;
   classificacao: string;
   descricao?: string | null;
+  is_participante?: boolean;
 }
 
 /**

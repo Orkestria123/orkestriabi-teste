@@ -737,23 +737,16 @@ function OrcamentoAnalise() {
                         />
                       </tr>
                       {aberto && (
-                        <tr className="bg-muted/20 border-t border-border">
-                          <td
-                            colSpan={2 + colunas.length * 3 + 3}
-                            className="px-6 py-3"
-                          >
-                            <DetalheItem
-                              item={l.item}
-                              tenantId={company?.tenant_id ?? null}
-                              companyId={companyId}
-                              visao={visao}
-                              colunas={colunas}
-                              isMultiAno={isMultiAno}
-                              itemCells={l.cells}
-                              itemTotal={l.totalCell}
-                            />
-                          </td>
-                        </tr>
+                        <DetalheItem
+                          item={l.item}
+                          tenantId={company?.tenant_id ?? null}
+                          companyId={companyId}
+                          visao={visao}
+                          colunas={colunas}
+                          isMultiAno={isMultiAno}
+                          itemCells={l.cells}
+                          itemTotal={l.totalCell}
+                        />
                       )}
                     </Fragment>
                   );

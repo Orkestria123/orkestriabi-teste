@@ -4,7 +4,7 @@
 // anos são selecionados no filtro global. Cada coluna traz Orçado, Realizado
 // e Variação com semáforo, e permite drill-down por item nas contas do plano.
 import { createFileRoute } from "@tanstack/react-router";
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, useMemo, useState, type ReactNode } from "react";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import {
   ChevronDown,

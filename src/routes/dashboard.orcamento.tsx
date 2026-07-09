@@ -416,6 +416,7 @@ function OrcamentoAnalise() {
     orcamentosQ.isLoading ||
     itensQ.isLoading ||
     valoresQ.isLoading ||
+    cenarioValoresQ.isLoading ||
     realizadoQueries.some((q) => q.isLoading);
 
   // ---- Cálculo de célula para (item, coluna) ----
@@ -427,6 +428,11 @@ function OrcamentoAnalise() {
 
   const grid: LinhaGrid[] = useMemo(() => {
     const valores = valoresQ.data ?? [];
+    const cenarioValores = cenarioValoresQ.data ?? [];
+    // Ano do cenário selecionado (se houver): substitui o orçado apenas nesse ano
+    const anoCenario = cenarioSelecionado
+      ? orcamentos.find((o) => o.id === cenarioSelecionado.orcamento_id)?.ano ?? null
+      : null;
     const realPorAno = new Map<number, Record<string, any>>();
     for (const q of realizadoQueries) {
       const d = q.data;
@@ -434,10 +440,20 @@ function OrcamentoAnalise() {
     }
 
     const computeCell = (item: OrcamentoItem, col: Coluna): Cell => {
-      // Orçado — soma valor_orcado dos meses da coluna no orçamento daquele ano
+      // Orçado — soma valor_orcado dos meses da coluna
       const orc = orcamentoPorAno.get(col.ano);
       let orcado: number | null = null;
-      if (orc) {
+      const usaCenario = anoCenario !== null && col.ano === anoCenario;
+      if (usaCenario) {
+        orcado = 0;
+        for (const m of col.meses) {
+          const key = `${col.ano}-${String(m).padStart(2, "0")}`;
+          const v = cenarioValores.find(
+            (x) => x.item_id === item.id && x.competencia.slice(0, 7) === key,
+          );
+          if (v) orcado += Number(v.valor_orcado ?? 0);
+        }
+      } else if (orc) {
         orcado = 0;
         for (const m of col.meses) {
           const key = `${col.ano}-${String(m).padStart(2, "0")}`;
@@ -483,7 +499,6 @@ function OrcamentoAnalise() {
 
     return itens.map((item) => {
       const cells = colunas.map((c) => computeCell(item, c));
-      // Total = soma horizontal
       let tOrc: number | null = null;
       let tReal: number | null = null;
       for (const c of cells) {
@@ -496,7 +511,17 @@ function OrcamentoAnalise() {
         totalCell: { orcado: tOrc, realizado: tReal, semDados: tOrc === null && tReal === null },
       };
     });
-  }, [itens, colunas, valoresQ.data, realizadoQueries, orcamentoPorAno]);
+  }, [
+    itens,
+    colunas,
+    valoresQ.data,
+    cenarioValoresQ.data,
+    realizadoQueries,
+    orcamentoPorAno,
+    cenarioSelecionado,
+    orcamentos,
+  ]);
+
 
   // ---- Totais gerais para cards ----
   const totais = useMemo(() => {

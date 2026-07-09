@@ -1897,3 +1897,201 @@ function DetalheItem({
   );
 }
 
+// -------------------- Dialog: Salvar cenário --------------------
+
+function SalvarCenarioDialog({
+  open,
+  onOpenChange,
+  nomeSugerido,
+  podeSobrescrever,
+  nomeCenarioAtual,
+  onSalvar,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  nomeSugerido: string;
+  podeSobrescrever: boolean;
+  nomeCenarioAtual?: string;
+  onSalvar: (args: {
+    nome: string;
+    descricao: string;
+    sobrescrever: boolean;
+  }) => Promise<void>;
+}) {
+  const [nome, setNome] = useState(nomeSugerido);
+  const [descricao, setDescricao] = useState("");
+  const [modo, setModo] = useState<"novo" | "sobrescrever">("novo");
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      setNome(nomeSugerido);
+      setDescricao("");
+      setModo(podeSobrescrever ? "sobrescrever" : "novo");
+    }
+  }, [open, nomeSugerido, podeSobrescrever]);
+
+  const submit = async () => {
+    if (!nome.trim()) {
+      toast.error("Informe um nome para o cenário");
+      return;
+    }
+    setBusy(true);
+    try {
+      await onSalvar({
+        nome: nome.trim(),
+        descricao: descricao.trim(),
+        sobrescrever: modo === "sobrescrever" && podeSobrescrever,
+      });
+      onOpenChange(false);
+    } catch (e: any) {
+      toast.error(e.message ?? String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Salvar cenário</DialogTitle>
+          <DialogDescription>
+            O orçamento oficial não é alterado. O cenário guarda uma cópia completa dos
+            valores.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3">
+          {podeSobrescrever && (
+            <div>
+              <Label className="text-xs">Modo</Label>
+              <Select value={modo} onValueChange={(v) => setModo(v as any)}>
+                <SelectTrigger className="h-9">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="sobrescrever">
+                    Salvar sobre "{nomeCenarioAtual}"
+                  </SelectItem>
+                  <SelectItem value="novo">Salvar como novo cenário</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+          <div>
+            <Label className="text-xs">Nome</Label>
+            <Input value={nome} onChange={(e) => setNome(e.target.value)} />
+          </div>
+          <div>
+            <Label className="text-xs">Descrição (opcional)</Label>
+            <Textarea
+              value={descricao}
+              onChange={(e) => setDescricao(e.target.value)}
+              rows={3}
+              placeholder="Contexto: reunião, hipóteses assumidas, etc."
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={busy}>
+            Cancelar
+          </Button>
+          <Button onClick={submit} disabled={busy}>
+            <Save className="h-4 w-4 mr-1" /> Salvar
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// -------------------- Dialog: Forecast a partir do realizado --------------------
+
+function ForecastDialog({
+  open,
+  onOpenChange,
+  ano,
+  realizadoQueries,
+  onGerar,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  ano: number;
+  realizadoQueries: Array<{ data?: { ano: number; porItem: Record<string, any> } | undefined }>;
+  onGerar: (mesLimite: number, nome: string) => void;
+}) {
+  // Sugere o último mês com dado
+  const sugestao = useMemo(() => {
+    const q = realizadoQueries.find((x) => x.data?.ano === ano);
+    if (!q?.data) return 1;
+    let ultimo = 1;
+    for (const itemId of Object.keys(q.data.porItem)) {
+      const det = q.data.porItem[itemId];
+      if (!det?.porMes) continue;
+      for (const r of det.porMes as any[]) {
+        if (!r.semDados) {
+          const m = Number(r.competencia.slice(5, 7));
+          if (m > ultimo) ultimo = m;
+        }
+      }
+    }
+    return ultimo;
+  }, [realizadoQueries, ano]);
+
+  const [mes, setMes] = useState<number>(sugestao);
+  const [nome, setNome] = useState<string>("");
+
+  useEffect(() => {
+    if (open) {
+      setMes(sugestao);
+      setNome(`Forecast a partir de ${NOMES_MES[Math.max(0, sugestao - 1)]}/${ano}`);
+    }
+  }, [open, sugestao, ano]);
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Cenário a partir do realizado</DialogTitle>
+          <DialogDescription>
+            Meses até o mês escolhido usam o realizado; meses posteriores usam o orçado
+            atual — você ajusta e salva.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3">
+          <div>
+            <Label className="text-xs">Usar realizado até</Label>
+            <Select value={String(mes)} onValueChange={(v) => setMes(Number(v))}>
+              <SelectTrigger className="h-9">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
+                  <SelectItem key={m} value={String(m)}>
+                    {NOMES_MES[m - 1]}/{ano}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label className="text-xs">Nome sugerido do cenário</Label>
+            <Input value={nome} onChange={(e) => setNome(e.target.value)} />
+            <p className="text-[10px] text-muted-foreground mt-1">
+              Você poderá editar o nome ao salvar.
+            </p>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={() => onOpenChange(false)}>
+            Cancelar
+          </Button>
+          <Button onClick={() => onGerar(mes, nome)}>
+            <TrendingUp className="h-4 w-4 mr-1" /> Gerar rascunho
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+

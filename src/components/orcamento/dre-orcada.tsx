@@ -17,7 +17,7 @@ import {
   getMascaraConfig,
   type MascaraConfig,
 } from "@/lib/mascara/interpretar";
-import { formatBRL } from "@/lib/format";
+import { formatBRL, formatBRLPlain } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 import { Card } from "@/components/ui/card";
@@ -265,6 +265,8 @@ export default function DREOrcada({
   isDirty = false,
 }: Props) {
   const [tratamento, setTratamento] = useState<TratamentoLacuna>("vazio");
+  const [escala, setEscala] = useState<1 | 1000>(1);
+  const fmt = (v: number | null | undefined) => formatBRLPlain(v, { scale: escala });
 
   // ------------ periodos únicos (YYYY-MM-01) usados pelas colunas ------------
   // O motor da DRE (buildStatementFromDiario → getSaldos) filtra por
@@ -579,6 +581,18 @@ export default function DREOrcada({
             </SelectContent>
           </Select>
         </div>
+        <div>
+          <Label className="text-xs text-muted-foreground">Escala</Label>
+          <Select value={String(escala)} onValueChange={(v) => setEscala(Number(v) as 1 | 1000)}>
+            <SelectTrigger className="h-9 w-[130px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="1">R$ (unidade)</SelectItem>
+              <SelectItem value="1000">R$ mil</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
         <div className="text-xs text-muted-foreground max-w-md flex-1">
           <div className="flex items-center gap-2 flex-wrap mb-1">
             <span><b>Base:</b> {baseLabel}</span>
@@ -589,9 +603,8 @@ export default function DREOrcada({
             )}
           </div>
           Visão do realizado:{" "}
-          <b>{visao === "gerencial" ? "Gerencial" : "Contábil"}</b>. As linhas
-          da DRE são resolvidas automaticamente a partir das contas dos itens
-          via mapeamento da empresa.
+          <b>{visao === "gerencial" ? "Gerencial" : "Contábil"}</b>. Valores em{" "}
+          <b>R$ {escala === 1000 ? "mil" : ""}</b>; negativos entre parênteses.
         </div>
       </Card>
 
@@ -662,10 +675,10 @@ export default function DREOrcada({
       <Card className="overflow-hidden">
         <div className="overflow-x-auto">
           <table className="text-sm border-separate border-spacing-0 min-w-full">
-            <thead className="bg-muted/40 text-xs uppercase text-muted-foreground">
+            <thead className="bg-muted/40 text-[11px] uppercase text-muted-foreground">
               <tr>
                 <th
-                  className="text-left px-3 py-2 font-medium sticky left-0 bg-muted/60 z-10 border-r border-border min-w-[240px]"
+                  className="text-left px-3 py-1.5 font-medium sticky left-0 bg-muted/60 z-10 border-r border-border min-w-[220px] max-w-[260px] whitespace-nowrap"
                   rowSpan={2}
                 >
                   Linha da DRE
@@ -674,7 +687,7 @@ export default function DREOrcada({
                   <th
                     key={c.key}
                     colSpan={4}
-                    className="text-center px-2 py-1.5 font-semibold border-l border-border"
+                    className="text-center px-2 py-1 font-semibold border-l border-border whitespace-nowrap"
                   >
                     {c.label}
                     {!isMultiAno && totalizarPorLabel !== "Mês" && c.meses.length > 1 && (
@@ -686,7 +699,7 @@ export default function DREOrcada({
                 ))}
                 <th
                   colSpan={4}
-                  className="text-center px-2 py-1.5 font-semibold border-l-2 border-border bg-primary/5"
+                  className="text-center px-2 py-1 font-semibold border-l-2 border-border bg-primary/5 whitespace-nowrap"
                 >
                   TOTAL
                 </th>
@@ -694,20 +707,20 @@ export default function DREOrcada({
               <tr>
                 {colunas.map((c) => (
                   <Fragment key={`sub-${c.key}`}>
-                    <th className="text-right px-2 py-1 font-normal border-l border-border/60 text-[10px]">
+                    <th className="text-right px-2 py-0.5 font-normal border-l border-border/60 text-[10px] whitespace-nowrap min-w-[90px]">
                       Orç
                     </th>
-                    <th className="text-right px-2 py-1 font-normal text-[10px]">Real</th>
-                    <th className="text-right px-2 py-1 font-normal text-[10px]">Var%</th>
-                    <th className="text-center px-2 py-1 font-normal text-[10px]">•</th>
+                    <th className="text-right px-2 py-0.5 font-normal text-[10px] whitespace-nowrap min-w-[90px]">Real</th>
+                    <th className="text-right px-2 py-0.5 font-normal text-[10px] whitespace-nowrap min-w-[60px]">Var%</th>
+                    <th className="text-center px-1 py-0.5 font-normal text-[10px] whitespace-nowrap">•</th>
                   </Fragment>
                 ))}
-                <th className="text-right px-2 py-1 font-normal border-l-2 border-border bg-primary/5 text-[10px]">
+                <th className="text-right px-2 py-0.5 font-normal border-l-2 border-border bg-primary/5 text-[10px] whitespace-nowrap min-w-[90px]">
                   Orç
                 </th>
-                <th className="text-right px-2 py-1 font-normal bg-primary/5 text-[10px]">Real</th>
-                <th className="text-right px-2 py-1 font-normal bg-primary/5 text-[10px]">Var%</th>
-                <th className="text-center px-2 py-1 font-normal bg-primary/5 text-[10px]">•</th>
+                <th className="text-right px-2 py-0.5 font-normal bg-primary/5 text-[10px] whitespace-nowrap min-w-[90px]">Real</th>
+                <th className="text-right px-2 py-0.5 font-normal bg-primary/5 text-[10px] whitespace-nowrap min-w-[60px]">Var%</th>
+                <th className="text-center px-1 py-0.5 font-normal bg-primary/5 text-[10px] whitespace-nowrap">•</th>
               </tr>
             </thead>
             <tbody>
@@ -748,13 +761,13 @@ export default function DREOrcada({
                         isSemOrc && "text-muted-foreground",
                       )}
                     >
-                      <td className="px-3 py-2 sticky left-0 bg-background border-r border-border z-10">
-                        <div className="flex items-center gap-2">
-                          <span className={cn(info.isSubtotal && "font-semibold")}>
+                      <td className="px-3 py-1 sticky left-0 bg-background border-r border-border z-10 max-w-[260px] text-sm">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className={cn("truncate", info.isSubtotal && "font-semibold")} title={info.linha}>
                             {info.linha}
                           </span>
                           {isSemOrc && (
-                            <Badge variant="outline" className="text-[9px] px-1 py-0">
+                            <Badge variant="outline" className="text-[9px] px-1 py-0 shrink-0">
                               não orçada
                             </Badge>
                           )}
@@ -763,6 +776,7 @@ export default function DREOrcada({
                       {colunas.map((_, i) => {
                         const orc = getOrcCol(info.linha, i);
                         const real = getRealCol(info.linha, i);
+                        const varR = orc !== null ? real - orc : null;
                         const varP =
                           orc !== null && orc !== 0
                             ? ((real - orc) / Math.abs(orc)) * 100
@@ -778,29 +792,30 @@ export default function DREOrcada({
                           <Fragment key={`c-${i}`}>
                             <td
                               className={cn(
-                                "text-right px-2 py-1.5 border-l border-border/60 tabular-nums",
+                                "text-right px-2 py-1 border-l border-border/60 tabular-nums text-[11px] whitespace-nowrap min-w-[90px]",
                                 toneRow(status),
                               )}
                             >
                               {orc === null ? (
                                 <span className="text-muted-foreground">—</span>
                               ) : (
-                                formatBRL(orc)
+                                fmt(orc)
                               )}
                             </td>
                             <td
                               className={cn(
-                                "text-right px-2 py-1.5 tabular-nums",
+                                "text-right px-2 py-1 tabular-nums text-[11px] whitespace-nowrap min-w-[90px]",
                                 toneRow(status),
                               )}
                             >
-                              {formatBRL(real)}
+                              {fmt(real)}
                             </td>
                             <td
                               className={cn(
-                                "text-right px-2 py-1.5 tabular-nums text-[11px]",
+                                "text-right px-2 py-1 tabular-nums text-[10px] whitespace-nowrap min-w-[60px]",
                                 toneRow(status),
                               )}
+                              title={varR === null ? "" : `Variação: ${fmt(varR)}`}
                             >
                               {varP === null
                                 ? "—"
@@ -808,7 +823,7 @@ export default function DREOrcada({
                             </td>
                             <td
                               className={cn(
-                                "text-center px-2 py-1.5",
+                                "text-center px-1 py-1",
                                 toneRow(status),
                               )}
                             >
@@ -818,26 +833,25 @@ export default function DREOrcada({
                         );
                       })}
                       {/* TOTAL */}
-                      <td
-                        className={cn(
-                          "text-right px-2 py-1.5 border-l-2 border-border bg-primary/5 tabular-nums",
-                        )}
-                      >
+                      <td className="text-right px-2 py-1 border-l-2 border-border bg-primary/5 tabular-nums text-[11px] whitespace-nowrap min-w-[90px]">
                         {tOrc === null ? (
                           <span className="text-muted-foreground">—</span>
                         ) : (
-                          formatBRL(tOrc)
+                          fmt(tOrc)
                         )}
                       </td>
-                      <td className="text-right px-2 py-1.5 bg-primary/5 tabular-nums">
-                        {formatBRL(tReal)}
+                      <td className="text-right px-2 py-1 bg-primary/5 tabular-nums text-[11px] whitespace-nowrap min-w-[90px]">
+                        {fmt(tReal)}
                       </td>
-                      <td className="text-right px-2 py-1.5 bg-primary/5 tabular-nums text-[11px]">
+                      <td
+                        className="text-right px-2 py-1 bg-primary/5 tabular-nums text-[10px] whitespace-nowrap min-w-[60px]"
+                        title={tOrc === null ? "" : `Variação: ${fmt(tReal - tOrc)}`}
+                      >
                         {tVarP === null
                           ? "—"
                           : `${tVarP > 0 ? "+" : ""}${tVarP.toFixed(1).replace(".", ",")}%`}
                       </td>
-                      <td className="text-center px-2 py-1.5 bg-primary/5">
+                      <td className="text-center px-1 py-1 bg-primary/5">
                         <StatusPill status={tStatus} />
                       </td>
                     </tr>

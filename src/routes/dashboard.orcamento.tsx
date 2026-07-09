@@ -1739,6 +1739,7 @@ function DetalheItem({
   isMultiAno,
   itemCells,
   itemTotal,
+  escala = 1,
 }: {
   item: OrcamentoItem;
   tenantId: string | null;
@@ -1748,7 +1749,9 @@ function DetalheItem({
   isMultiAno: boolean;
   itemCells: Cell[];
   itemTotal: Cell;
+  escala?: 1 | 1000;
 }) {
+  const fmt = (v: number | null | undefined) => formatBRLPlain(v, { scale: escala });
   // Uma query por ano cobrindo o ano inteiro (Jan–Dez) — permite qualquer
   // agrupador (mês/trim/sem/ano) e multi-ano sem refetch por coluna.
   const anos = useMemo(

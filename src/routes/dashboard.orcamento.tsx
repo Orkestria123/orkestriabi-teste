@@ -1268,16 +1268,35 @@ function OrcamentoAnalise() {
                             {l.item.tipo_conta ?? "—"}
                           </Badge>
                         </td>
-                        {l.cells.map((cell, idx) => (
-                          <CellTrio
-                            key={colunas[idx].key}
-                            cell={cell}
-                            tipo={l.item.tipo_conta}
-                            varDisplay={varDisplay}
-                            tolAmarelo={tolAmarelo}
-                            tolVermelho={tolVermelho}
-                          />
-                        ))}
+                        {l.cells.map((cell, idx) => {
+                          const col = colunas[idx];
+                          const editableCol =
+                            editMode &&
+                            editingAno !== null &&
+                            col.ano === editingAno &&
+                            col.meses.length === 1;
+                          const editKey = editableCol
+                            ? `${l.item.id}|${col.ano}-${String(col.meses[0]).padStart(2, "0")}`
+                            : null;
+                          return (
+                            <CellTrio
+                              key={col.key}
+                              cell={cell}
+                              tipo={l.item.tipo_conta}
+                              varDisplay={varDisplay}
+                              tolAmarelo={tolAmarelo}
+                              tolVermelho={tolVermelho}
+                              editable={editableCol}
+                              editValue={editKey ? draft[editKey] ?? 0 : null}
+                              onEditChange={
+                                editKey
+                                  ? (v) =>
+                                      setDraft((prev) => ({ ...prev, [editKey]: v }))
+                                  : undefined
+                              }
+                            />
+                          );
+                        })}
                         <CellTrio
                           cell={l.totalCell}
                           tipo={l.item.tipo_conta}

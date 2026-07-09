@@ -49,6 +49,39 @@ async function fetchPlanoPorCodigos(
   return out;
 }
 
+/**
+ * Pagina `saldos_mensais` para contornar o cap de 1000 linhas do PostgREST.
+ */
+async function fetchSaldosMensais(
+  companyId: string,
+  inicioD: string,
+  fimExclusivoD: string,
+): Promise<SaldoRow[]> {
+  const PAGE = 1000;
+  const out: SaldoRow[] = [];
+  let from = 0;
+  while (true) {
+    const { data, error } = await supabase
+      .from("saldos_mensais")
+      .select("conta_codigo, competencia, total_debitos, total_creditos")
+      .eq("company_id", companyId)
+      .gte("competencia", inicioD)
+      .lt("competencia", fimExclusivoD)
+      .order("competencia", { ascending: true })
+      .order("conta_codigo", { ascending: true })
+      .range(from, from + PAGE - 1);
+    if (error) throw error;
+    const rows = (data ?? []) as SaldoRow[];
+    out.push(...rows);
+    if (rows.length < PAGE) break;
+    from += PAGE;
+    if (from > 500000) break;
+  }
+  return out;
+}
+
+
+
 
 interface SaldoRow {
   conta_codigo: string;

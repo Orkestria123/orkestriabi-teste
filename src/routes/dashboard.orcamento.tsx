@@ -71,6 +71,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import DREOrcada from "@/components/orcamento/dre-orcada";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/dashboard/orcamento")({

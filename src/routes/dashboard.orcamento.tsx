@@ -1214,6 +1214,8 @@ function OrcamentoAnalise() {
 
         <TabsContent value="itens" className="space-y-4">
           {/* Resumo executivo */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            <ResumoCard label="Total Orçado" valor={totais.tOrc} />
         <ResumoCard
           label="Total Realizado"
           valor={totais.tReal}

@@ -685,6 +685,25 @@ function OrcamentoAnalise() {
         </div>
       </Card>
 
+      {/* Indicador de base ativa */}
+      <div className="flex items-center gap-2 px-1">
+        <span className="text-xs text-muted-foreground">Base de comparação:</span>
+        {cenarioSelecionado ? (
+          <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/40 hover:bg-amber-500/20">
+            Cenário: {cenarioSelecionado.nome}
+          </Badge>
+        ) : (
+          <Badge variant="outline" className="text-emerald-700 dark:text-emerald-300 border-emerald-500/40">
+            Orçamento oficial{nomeAtivo ? ` — ${nomeAtivo}` : ""}
+          </Badge>
+        )}
+        {cenarioSelecionado?.descricao && (
+          <span className="text-[11px] text-muted-foreground italic">
+            {cenarioSelecionado.descricao}
+          </span>
+        )}
+      </div>
+
       {/* Resumo executivo */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         <ResumoCard label="Total Orçado" valor={totais.tOrc} />

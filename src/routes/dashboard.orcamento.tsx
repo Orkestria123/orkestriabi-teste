@@ -900,101 +900,281 @@ function ResumoCard({
 }
 
 // -------------------- Drill/Detalhe do item --------------------
+// Mostra as contas analíticas que compõem o item, com valores REALIZADOS
+// distribuídos nas MESMAS colunas de período usadas pela linha do item.
+// Só realizado por conta — o orçado é definido no nível do item.
 
 function DetalheItem({
   item,
   tenantId,
   companyId,
   visao,
-  anoRef,
-  mesRef,
+  colunas,
+  isMultiAno,
+  itemCells,
+  itemTotal,
 }: {
   item: OrcamentoItem;
   tenantId: string | null;
   companyId: string | null;
   visao: Visao;
-  anoRef: number;
-  mesRef: number;
+  colunas: Coluna[];
+  isMultiAno: boolean;
+  itemCells: Cell[];
+  itemTotal: Cell;
 }) {
-  const competenciaRef = `${anoRef}-${String(mesRef).padStart(2, "0")}`;
+  // Uma query por ano cobrindo o ano inteiro (Jan–Dez) — permite qualquer
+  // agrupador (mês/trim/sem/ano) e multi-ano sem refetch por coluna.
+  const anos = useMemo(
+    () => Array.from(new Set(colunas.map((c) => c.ano))).sort(),
+    [colunas],
+  );
 
-  const q = useQuery({
-    queryKey: ["orcamento-drill", item.id, companyId, visao, competenciaRef],
-    enabled: !!tenantId && !!companyId && item.contas.length > 0,
-    queryFn: async () =>
-      computeRealizadoPorConta({
-        tenantId: tenantId!,
-        companyId: companyId!,
+  const queries = useQueries({
+    queries: anos.map((ano) => ({
+      queryKey: [
+        "orcamento-drill-mensal",
+        item.id,
+        companyId,
         visao,
-        competencia: competenciaRef,
-        contas: item.contas,
-        tipoConta: item.tipo_conta,
-      }),
+        ano,
+        item.contas.join(","),
+        item.tipo_conta ?? "",
+      ],
+      enabled: !!tenantId && !!companyId && item.contas.length > 0,
+      queryFn: async () => {
+        const r = await computeContasDoItemMensal({
+          tenantId: tenantId!,
+          companyId: companyId!,
+          visao,
+          ano,
+          contas: item.contas,
+          tipoConta: item.tipo_conta,
+        });
+        return { ano, ...r };
+      },
+    })),
   });
 
   if (item.contas.length === 0) {
     return <div className="text-xs text-muted-foreground">Item sem contas associadas.</div>;
   }
-  if (q.isLoading) return <div className="text-xs text-muted-foreground">Carregando detalhes…</div>;
-  if (q.error)
-    return (
-      <div className="text-xs text-red-600">
-        Erro ao carregar detalhes: {(q.error as Error).message}
-      </div>
-    );
+  const loading = queries.some((q) => q.isLoading);
+  const err = queries.find((q) => q.error)?.error as Error | undefined;
+  if (loading)
+    return <div className="text-xs text-muted-foreground">Carregando detalhes por conta…</div>;
+  if (err)
+    return <div className="text-xs text-red-600">Erro ao carregar detalhes: {err.message}</div>;
 
-  const contasResolvidas = q.data ?? [];
-  const totalMes = contasResolvidas.reduce((s, c) => s + c.valorMes, 0);
-  const totalYtd = contasResolvidas.reduce((s, c) => s + c.valorYtd, 0);
+  // Mapa ano → dados
+  const porAno = new Map<number, { contas: any[]; mesesComMovimentoGlobal: Set<string> }>();
+  for (const q of queries) {
+    if (q.data) porAno.set(q.data.ano, q.data as any);
+  }
+
+  // Consolida contas únicas (por código) — descrição/classificação do primeiro ano em que apareceu
+  const contasMap = new Map<
+    string,
+    { codigo: string; classificacao: string; descricao: string; origem: string }
+  >();
+  for (const { contas } of porAno.values()) {
+    for (const c of contas) {
+      if (!contasMap.has(c.codigo)) {
+        contasMap.set(c.codigo, {
+          codigo: c.codigo,
+          classificacao: c.classificacao,
+          descricao: c.descricao,
+          origem: c.origem,
+        });
+      }
+    }
+  }
+  const contasUnicas = Array.from(contasMap.values()).sort((a, b) =>
+    a.classificacao.localeCompare(b.classificacao),
+  );
+
+  // Para cada (conta, coluna) somamos os meses da coluna do ano correspondente
+  const valorContaColuna = (codigo: string, col: Coluna): { valor: number; semDados: boolean } => {
+    const dados = porAno.get(col.ano);
+    if (!dados) return { valor: 0, semDados: true };
+    const conta = dados.contas.find((c: any) => c.codigo === codigo);
+    if (!conta) {
+      // Conta não teve movimento — mas o ano pode ter dados: reportamos 0 c/ dados
+      const algumMes = col.meses.some((m) =>
+        dados.mesesComMovimentoGlobal.has(`${col.ano}-${String(m).padStart(2, "0")}`),
+      );
+      return { valor: 0, semDados: !algumMes };
+    }
+    let soma = 0;
+    let algumMovimento = false;
+    let algumMesGlobal = false;
+    for (const m of col.meses) {
+      const key = `${col.ano}-${String(m).padStart(2, "0")}`;
+      if (dados.mesesComMovimentoGlobal.has(key)) algumMesGlobal = true;
+      const v = conta.porMes[key];
+      if (v !== undefined) {
+        soma += v;
+        algumMovimento = true;
+      }
+    }
+    if (!algumMovimento && !algumMesGlobal) return { valor: 0, semDados: true };
+    return { valor: Math.round(soma * 100) / 100, semDados: false };
+  };
+
+  const valorContaTotal = (codigo: string) => {
+    let soma = 0;
+    let semTudo = true;
+    for (const col of colunas) {
+      const { valor, semDados } = valorContaColuna(codigo, col);
+      if (!semDados) {
+        soma += valor;
+        semTudo = false;
+      }
+    }
+    return { valor: Math.round(soma * 100) / 100, semDados: semTudo };
+  };
+
+  // Coluna span: cada coluna do item ocupa 3 sub-cols (Orç/Real/Var).
+  // No drill mostramos apenas o Real, então: coluna vazia + célula real + coluna vazia.
+  const renderRealCells = (codigo: string) => (
+    <>
+      {colunas.map((col) => {
+        const { valor, semDados } = valorContaColuna(codigo, col);
+        return (
+          <Fragment key={`${codigo}-${col.key}`}>
+            <td className="px-2 py-1 border-l border-border/40" />
+            <td className="px-2 py-1 text-right tabular-nums text-xs">
+              {semDados ? (
+                <span className="text-muted-foreground">—</span>
+              ) : (
+                formatBRL(valor)
+              )}
+            </td>
+            <td className="px-2 py-1" />
+          </Fragment>
+        );
+      })}
+      {(() => {
+        const { valor, semDados } = valorContaTotal(codigo);
+        return (
+          <>
+            <td className="px-2 py-1 border-l-2 border-border bg-primary/5" />
+            <td className="px-2 py-1 text-right tabular-nums text-xs font-medium bg-primary/5">
+              {semDados ? <span className="text-muted-foreground">—</span> : formatBRL(valor)}
+            </td>
+            <td className="px-2 py-1 bg-primary/5" />
+          </>
+        );
+      })()}
+    </>
+  );
+
+  const totalPorColuna = colunas.map((col) => {
+    let soma = 0;
+    let semTudo = true;
+    for (const c of contasUnicas) {
+      const { valor, semDados } = valorContaColuna(c.codigo, col);
+      if (!semDados) {
+        soma += valor;
+        semTudo = false;
+      }
+    }
+    return { valor: Math.round(soma * 100) / 100, semDados: semTudo };
+  });
+  const totalGeral = (() => {
+    let soma = 0;
+    let semTudo = true;
+    for (const c of contasUnicas) {
+      const { valor, semDados } = valorContaTotal(c.codigo);
+      if (!semDados) {
+        soma += valor;
+        semTudo = false;
+      }
+    }
+    return { valor: Math.round(soma * 100) / 100, semDados: semTudo };
+  })();
 
   return (
     <div className="space-y-2">
-      <div className="text-xs font-medium text-muted-foreground">
-        Contas que compõem este item (drill referente a {competenciaRef}) — classificações:{" "}
+      <div className="text-[11px] text-muted-foreground">
+        Contas que compõem <b>{item.rotulo}</b> — realizado por{" "}
+        {isMultiAno ? "ano" : "período"}. Classificações-alvo:{" "}
         <span className="font-mono">{item.contas.join(", ")}</span>
       </div>
 
-      {contasResolvidas.length === 0 ? (
+      {contasUnicas.length === 0 ? (
         <div className="text-xs text-muted-foreground italic">
-          Nenhuma conta analítica encontrada com movimento no período para as classificações selecionadas.
+          Nenhuma conta analítica com movimento no período para as classificações selecionadas.
         </div>
       ) : (
-        <table className="w-full text-xs">
-          <thead className="text-muted-foreground">
-            <tr>
-              <th className="text-left py-1 font-medium">Código</th>
-              <th className="text-left py-1 font-medium">Classificação</th>
-              <th className="text-left py-1 font-medium">Descrição</th>
-              <th className="text-right py-1 font-medium">Realizado no mês</th>
-              <th className="text-right py-1 font-medium">Realizado YTD</th>
-            </tr>
-          </thead>
-          <tbody>
-            {contasResolvidas.map((c) => (
-              <tr key={c.codigo} className="border-t border-border/50">
-                <td className="py-1 font-mono">{c.codigo}</td>
-                <td className="py-1 font-mono">{c.classificacao}</td>
-                <td className="py-1">{c.descricao || "—"}</td>
-                <td className="py-1 text-right tabular-nums">
-                  {c.semDadosMes ? (
+        <div className="overflow-x-auto">
+          <table className="text-xs border-separate border-spacing-0 min-w-full">
+            <thead className="text-muted-foreground">
+              <tr>
+                <th className="text-left px-2 py-1 font-medium">Código</th>
+                <th className="text-left px-2 py-1 font-medium">Classificação</th>
+                <th className="text-left px-2 py-1 font-medium">Descrição</th>
+                {colunas.map((col) => (
+                  <th
+                    key={`h-${col.key}`}
+                    colSpan={3}
+                    className="text-center px-2 py-1 font-medium border-l border-border/40"
+                  >
+                    {col.label}
+                  </th>
+                ))}
+                <th
+                  colSpan={3}
+                  className="text-center px-2 py-1 font-medium border-l-2 border-border bg-primary/5"
+                >
+                  TOTAL
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {contasUnicas.map((c) => (
+                <tr key={c.codigo} className="border-t border-border/40">
+                  <td className="px-2 py-1 font-mono">{c.codigo}</td>
+                  <td className="px-2 py-1 font-mono">{c.classificacao}</td>
+                  <td className="px-2 py-1">{c.descricao || "—"}</td>
+                  {renderRealCells(c.codigo)}
+                </tr>
+              ))}
+              <tr className="border-t-2 border-border font-semibold bg-muted/40">
+                <td className="px-2 py-1" colSpan={3}>
+                  Total
+                </td>
+                {colunas.map((col, idx) => (
+                  <Fragment key={`tot-${col.key}`}>
+                    <td className="px-2 py-1 border-l border-border/40" />
+                    <td className="px-2 py-1 text-right tabular-nums">
+                      {totalPorColuna[idx].semDados ? (
+                        <span className="text-muted-foreground">—</span>
+                      ) : (
+                        formatBRL(totalPorColuna[idx].valor)
+                      )}
+                    </td>
+                    <td className="px-2 py-1" />
+                  </Fragment>
+                ))}
+                <td className="px-2 py-1 border-l-2 border-border bg-primary/5" />
+                <td className="px-2 py-1 text-right tabular-nums bg-primary/5">
+                  {totalGeral.semDados ? (
                     <span className="text-muted-foreground">—</span>
                   ) : (
-                    formatBRL(c.valorMes)
+                    formatBRL(totalGeral.valor)
                   )}
                 </td>
-                <td className="py-1 text-right tabular-nums">{formatBRL(c.valorYtd)}</td>
+                <td className="px-2 py-1 bg-primary/5" />
               </tr>
-            ))}
-            <tr className="border-t-2 border-border font-medium">
-              <td className="py-1" colSpan={3}>
-                Total
-              </td>
-              <td className="py-1 text-right tabular-nums">{formatBRL(totalMes)}</td>
-              <td className="py-1 text-right tabular-nums">{formatBRL(totalYtd)}</td>
-            </tr>
-          </tbody>
-        </table>
+            </tbody>
+          </table>
+          <div className="text-[10px] text-muted-foreground mt-1">
+            A soma das contas em cada coluna deve bater com o Realizado do item na mesma coluna.
+          </div>
+        </div>
       )}
     </div>
   );
 }
+

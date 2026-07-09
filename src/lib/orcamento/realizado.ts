@@ -193,15 +193,8 @@ export async function computeRealizadoPorItem(params: {
   );
 
   // Saldos do período (primeiro, para descobrir quais contas precisamos do plano)
-  const { data: saldosRaw, error: es } = await supabase
-    .from("saldos_mensais")
-    .select("conta_codigo, competencia, total_debitos, total_creditos")
-    .eq("company_id", companyId)
-    .gte("competencia", inicioD)
-    .lt("competencia", fimExclusivoD)
-    .range(0, 199999);
-  if (es) throw es;
-  const saldos = (saldosRaw ?? []) as SaldoRow[];
+  const saldos = await fetchSaldosMensais(companyId, inicioD, fimExclusivoD);
+
 
   // Plano apenas para os códigos com movimento (evita cap de 1000 do PostgREST)
   const codigosSaldos = saldos.map((s) => s.conta_codigo);

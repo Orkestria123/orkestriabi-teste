@@ -484,15 +484,8 @@ export async function computeRealizadoPorConta(params: {
   );
 
   // Saldos do ano inteiro para permitir YTD sem refetch
-  const { data: saldosRaw, error: es } = await supabase
-    .from("saldos_mensais")
-    .select("conta_codigo, competencia, total_debitos, total_creditos")
-    .eq("company_id", companyId)
-    .gte("competencia", inicioD)
-    .lt("competencia", fimExclusivoD)
-    .range(0, 199999);
-  if (es) throw es;
-  const saldos = (saldosRaw ?? []) as SaldoRow[];
+  const saldos = await fetchSaldosMensais(companyId, inicioD, fimExclusivoD);
+
 
   const codigosSaldos = saldos.map((s) => s.conta_codigo);
   const plano = await fetchPlanoPorCodigos(companyId, codigosSaldos);

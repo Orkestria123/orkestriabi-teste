@@ -1352,6 +1352,9 @@ function CellTrio({
   tolVermelho,
   bgClass = "",
   leftBorder = "border-l",
+  editable = false,
+  editValue = null,
+  onEditChange,
 }: {
   cell: Cell;
   tipo: string | null;
@@ -1360,6 +1363,9 @@ function CellTrio({
   tolVermelho: number;
   bgClass?: string;
   leftBorder?: "border-l" | "border-l-2";
+  editable?: boolean;
+  editValue?: number | null;
+  onEditChange?: (v: number) => void;
 }) {
   const varR =
     cell.realizado !== null && cell.orcado !== null ? cell.realizado - cell.orcado : null;
@@ -1378,13 +1384,23 @@ function CellTrio({
     <>
       <td
         className={cn(
-          "px-2 py-2 text-right tabular-nums text-xs",
+          "px-1 py-1 text-right tabular-nums text-xs",
           leftBorder,
           "border-border/60",
-          bgClass,
+          editable ? "bg-amber-500/5" : bgClass,
         )}
+        onClick={(e) => e.stopPropagation()}
       >
-        {cell.orcado === null ? (
+        {editable ? (
+          <input
+            type="number"
+            step="0.01"
+            value={editValue ?? 0}
+            onChange={(e) => onEditChange?.(Number(e.target.value) || 0)}
+            onFocus={(e) => e.currentTarget.select()}
+            className="w-full h-7 text-right tabular-nums text-xs bg-background border border-border rounded px-1 focus:outline-none focus:ring-1 focus:ring-primary"
+          />
+        ) : cell.orcado === null ? (
           <span className="text-muted-foreground">—</span>
         ) : (
           formatBRL(cell.orcado)

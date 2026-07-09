@@ -553,11 +553,22 @@ async function buildDRE(
   modo: ModoDemonstracao = "contabil",
   gerData?: AjustesGerenciaisData,
 ): Promise<FlatRow[]> {
-  const [mapasRaw, saldosContabeis, planoContabil] = await Promise.all([
+  const [mapasRaw, saldosContabeisRaw, planoContabil, correcoesEncerr] = await Promise.all([
     getMapa(companyId, tenantId, modoGlobal, tipo),
     getSaldos(companyId, periodos),
     getPlanoPorTipo(companyId, tenantId, modoGlobal, ["3-DRE"]),
+    getCorrecoesEncerramento(companyId, periodos),
   ]);
+  // Remove os lançamentos de encerramento do exercício dos saldos de contas
+  // do grupo 3 (Resultado). Sem isso, dezembro fica com o negativo do
+  // acumulado do ano e a soma anual dá zero. BP não é chamado aqui, então
+  // o encerramento permanece intacto para o Patrimônio Líquido.
+  const codigosResultado = new Set(planoContabil.map((p) => p.codigo));
+  const saldosContabeis = aplicarCorrecoesEncerramento(
+    saldosContabeisRaw,
+    correcoesEncerr,
+    (c) => codigosResultado.has(c),
+  );
   // Filtra prefixos que são contas de apuração (.98/.99): não têm lançamento
   // próprio, seriam ignoradas em aplicarMapaESinal e apenas geram linhas
   // fantasma zeradas que duplicam subtotais calculados (ex.: "Receita Líquida"

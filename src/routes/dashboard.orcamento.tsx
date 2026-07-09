@@ -830,37 +830,94 @@ function OrcamentoAnalise() {
     toast.success(sobrescrever ? "Cenário atualizado" : "Cenário salvo");
   };
 
+  // ---- Helpers de valores por (item, ano, mês) ----
+  // Realizado bruto (0 quando não há lançamento no mês)
+  const getRealizadoValor = (itemId: string, ano: number, m: number): number => {
+    const ym = `${ano}-${String(m).padStart(2, "0")}`;
+    for (const q of realizadoQueries) {
+      if (q.data?.ano === ano) {
+        const det = (q.data.porItem as any)[itemId];
+        if (det?.porMes) {
+          const r = (det.porMes as any[]).find((x) => x.competencia === ym);
+          if (r && !r.semDados) return Math.abs(Number(r.valor));
+        }
+        return 0;
+      }
+    }
+    return 0;
+  };
+  // Orçado oficial (do orcamento_valores da família ativa para o ano)
+  const getOficialValor = (itemId: string, ano: number, m: number): number => {
+    const orc = orcamentoPorAno.get(ano);
+    if (!orc) return 0;
+    const ym = `${ano}-${String(m).padStart(2, "0")}`;
+    const found = (valoresQ.data ?? []).find(
+      (x) =>
+        x.orcamento_id === orc.id &&
+        x.item_id === itemId &&
+        x.competencia.slice(0, 7) === ym,
+    );
+    return found ? Number(found.valor_orcado ?? 0) : 0;
+  };
+
+  // Configuração de projeção dos meses futuros
+  type Projecao =
+    | { tipo: "oficial" }
+    | { tipo: "cenario" }
+    | { tipo: "mes_base"; mesBase: number }
+    | { tipo: "media_intervalo"; ini: number; fim: number }
+    | { tipo: "media_ultimos3" };
+
   // ---- Iniciar forecast a partir do realizado ----
-  const iniciarForecast = (mesLimite: number, nome: string) => {
+  const iniciarForecast = (mesLimite: number, nome: string, projecao: Projecao) => {
     if (anoParaEditar === null) {
       toast.error("Selecione apenas um ano no filtro para gerar o forecast.");
       return;
     }
     const ano = anoParaEditar;
-    // Snapshot base (oficial ou cenário atualmente selecionado)
+    // Snapshot base (oficial ou cenário atualmente selecionado) — usado para 'cenario'
     const snapBase = buildSnapshotDoAno(ano);
-    // Mapa realizado por (item, ym)
-    const porItem = (() => {
-      for (const q of realizadoQueries) {
-        if (q.data?.ano === ano) return q.data.porItem;
+
+    // Resolve intervalo para média
+    let mediaIni = 0, mediaFim = 0;
+    if (projecao.tipo === "media_intervalo") {
+      mediaIni = Math.min(projecao.ini, projecao.fim);
+      mediaFim = Math.max(projecao.ini, projecao.fim);
+    } else if (projecao.tipo === "media_ultimos3") {
+      mediaIni = Math.max(1, mesLimite - 2);
+      mediaFim = mesLimite;
+    }
+
+    const valorFuturo = (itemId: string, m: number): number => {
+      switch (projecao.tipo) {
+        case "oficial":
+          return getOficialValor(itemId, ano, m);
+        case "cenario":
+          return snapBase[`${itemId}|${ano}-${String(m).padStart(2, "0")}`] ?? 0;
+        case "mes_base":
+          return getRealizadoValor(itemId, ano, projecao.mesBase);
+        case "media_intervalo":
+        case "media_ultimos3": {
+          let soma = 0;
+          let n = 0;
+          for (let mm = mediaIni; mm <= mediaFim; mm++) {
+            soma += getRealizadoValor(itemId, ano, mm);
+            n++;
+          }
+          return n > 0 ? soma / n : 0;
+        }
       }
-      return null;
-    })();
+    };
+
     const novoDraft: Record<string, number> = { ...snapBase };
     for (const item of itens) {
       for (let m = 1; m <= 12; m++) {
-        if (m > mesLimite) continue;
         const ym = `${ano}-${String(m).padStart(2, "0")}`;
         const key = `${item.id}|${ym}`;
-        let realVal = 0;
-        if (porItem) {
-          const det = porItem[item.id];
-          if (det) {
-            const r = det.porMes.find((x: any) => x.competencia === ym);
-            if (r && !r.semDados) realVal = Number(r.valor);
-          }
-        }
-        novoDraft[key] = Math.round(Math.abs(realVal) * 100) / 100;
+        const v = m <= mesLimite
+          ? getRealizadoValor(item.id, ano, m)
+          : valorFuturo(item.id, m);
+        novoDraft[key] = Math.round(v * 100) / 100;
       }
     }
     setDraft(novoDraft);
@@ -872,10 +929,22 @@ function OrcamentoAnalise() {
     setTotalizarPor("mes");
     setEditMode(true);
     setOpenForecast(false);
+
+    const descProj =
+      projecao.tipo === "oficial"
+        ? "orçamento oficial"
+        : projecao.tipo === "cenario"
+        ? "cenário base atual"
+        : projecao.tipo === "mes_base"
+        ? `realizado de ${NOMES_MES[projecao.mesBase - 1]}`
+        : projecao.tipo === "media_intervalo"
+        ? `média de ${NOMES_MES[mediaIni - 1]}–${NOMES_MES[mediaFim - 1]}`
+        : `média de ${NOMES_MES[mediaIni - 1]}–${NOMES_MES[mediaFim - 1]}`;
+
     toast.success(
-      `Rascunho carregado: Jan–${NOMES_MES[mesLimite - 1]} com realizado, ${
-        mesLimite < 12 ? `${NOMES_MES[mesLimite]}–Dez` : "sem meses"
-      } com orçado base`,
+      `Rascunho: Jan–${NOMES_MES[mesLimite - 1]} com realizado; ${
+        mesLimite < 12 ? `${NOMES_MES[mesLimite]}–Dez` : "nada"
+      } com ${descProj}.`,
     );
   };
 

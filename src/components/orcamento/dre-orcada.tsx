@@ -60,6 +60,7 @@ interface Props {
   baseLabel: string; // "Orçamento oficial" ou "Cenário: X"
   tolAmarelo: number;
   tolVermelho: number;
+  isDirty?: boolean; // rascunho não salvo (modo simulação ativo com edições)
 }
 
 type TratamentoLacuna = "vazio" | "zero" | "realizado";

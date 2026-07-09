@@ -520,8 +520,22 @@ export async function computeRealizadoPorConta(params: {
 
 
   const codigosSaldos = saldos.map((s) => s.conta_codigo);
-  const plano = await fetchPlanoPorCodigos(companyId, codigosSaldos);
+  const plano = await fetchPlanoPorCodigos(companyId, [...codigosSaldos, ...contas]);
   const porCodigoRow = new Map<string, PlanoRow>(plano.map((p) => [p.codigo, p]));
+
+  // Traduz entradas de `contas` (podem ser código OU classificação) para
+  // uma lista de classificações-alvo, permitindo casar descendentes de
+  // sintéticas mesmo quando o item foi cadastrado por código.
+  const alvosCls: string[] = [];
+  for (const c of contas) {
+    const row = porCodigoRow.get(c);
+    alvosCls.push(row ? row.classificacao : c);
+  }
+  const codigosExcluidos = new Set<string>();
+  for (const p of plano) {
+    if (p.is_participante) codigosExcluidos.add(p.codigo);
+    else if (isApuracao(p.classificacao, mascara)) codigosExcluidos.add(p.codigo);
+  }
 
   // Ajustes gerenciais (se aplicável)
   const rowsExtra: { row: PlanoRow; saldo: SaldoRow }[] = [];

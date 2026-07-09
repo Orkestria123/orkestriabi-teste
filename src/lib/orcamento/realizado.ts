@@ -41,7 +41,7 @@ async function fetchPlanoPorCodigos(
     const slice = uniq.slice(i, i + CHUNK);
     const { data, error } = await supabase
       .from("plano_contas")
-      .select("codigo, classificacao, descricao")
+      .select("codigo, classificacao, descricao, is_participante")
       .eq("company_id", companyId)
       .in("codigo", slice);
     if (error) throw error;

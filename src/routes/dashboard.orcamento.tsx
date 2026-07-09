@@ -1337,6 +1337,7 @@ function OrcamentoAnalise() {
           Coluna vazia ("—") em Orçado significa ano SEM orçamento cadastrado; em Realizado
           significa ano/mês SEM lançamentos carregados.
         </div>
+      </div>
 
       {/* ---------- Dialogs de edição / cenário ---------- */}
       <ReajusteDialog

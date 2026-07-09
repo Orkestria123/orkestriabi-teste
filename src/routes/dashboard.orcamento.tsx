@@ -950,7 +950,7 @@ function DetalheItem({
   });
 
   const totalColSpanEarly = 2 + colunas.length * 3 + 3;
-  const msgRow = (msg: React.ReactNode, cls = "text-muted-foreground") => (
+  const msgRow = (msg: ReactNode, cls = "text-muted-foreground") => (
     <tr className="bg-muted/10 border-t border-border/40">
       <td colSpan={totalColSpanEarly} className={`px-3 py-2 text-xs ${cls}`}>
         {msg}

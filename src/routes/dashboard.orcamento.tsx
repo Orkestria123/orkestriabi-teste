@@ -596,6 +596,30 @@ function OrcamentoAnalise() {
           </Select>
         </div>
 
+        <div className="min-w-[220px]">
+          <Label className="text-xs text-muted-foreground">Comparar com</Label>
+          <Select value={baseAtivo} onValueChange={(v) => setBaseSel(v)}>
+            <SelectTrigger className="h-9">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="oficial">
+                {nomeAtivo ? `${nomeAtivo} (oficial)` : "Orçamento oficial"}
+              </SelectItem>
+              {cenarios.length > 0 && (
+                <div className="px-2 py-1 text-[10px] uppercase text-muted-foreground">
+                  Cenários salvos
+                </div>
+              )}
+              {cenarios.map((c) => (
+                <SelectItem key={c.id} value={c.id}>
+                  {c.nome}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
         {!isMultiAno && (
           <div>
             <Label className="text-xs text-muted-foreground">Totalizar por</Label>

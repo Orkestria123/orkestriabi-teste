@@ -322,15 +322,18 @@ export default function DREOrcada({
       const CHUNK = 200;
       for (let i = 0; i < tokens.length; i += CHUNK) {
         const chunk = tokens.slice(i, i + CHUNK);
-        const inList = chunk.map((t) => JSON.stringify(t)).join(",");
-        const { data, error } = await supabase
-          .from("plano_contas")
-          .select("codigo, classificacao")
-          .eq("tenant_id", tenantId)
-          .or(`codigo.in.(${inList}),classificacao.in.(${inList})`);
-        if (error) throw error;
-        for (const r of (data ?? []) as any[]) {
+        // Duas queries separadas: `.or()` com comma dentro de `.in.()` quebra
+        // o parser do PostgREST (o vírgula é separador top-level do OR).
+        const [{ data: porCodigo, error: e1 }, { data: porCls, error: e2 }] = await Promise.all([
+          supabase.from("plano_contas").select("codigo, classificacao").eq("tenant_id", tenantId).in("codigo", chunk),
+          supabase.from("plano_contas").select("codigo, classificacao").eq("tenant_id", tenantId).in("classificacao", chunk),
+        ]);
+        if (e1) throw e1;
+        if (e2) throw e2;
+        for (const r of (porCodigo ?? []) as any[]) {
           if (chunk.includes(r.codigo)) map.set(r.codigo, r.classificacao);
+        }
+        for (const r of (porCls ?? []) as any[]) {
           if (chunk.includes(r.classificacao)) map.set(r.classificacao, r.classificacao);
         }
       }

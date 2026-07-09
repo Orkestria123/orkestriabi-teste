@@ -275,6 +275,7 @@ export async function computeRealizadoPorItem(params: {
     }
 
     for (const s of todosSaldos) {
+      if (codigosExcluidos.has(s.conta_codigo)) continue;
       const cls = codigoToClass.get(s.conta_codigo);
       if (!cls) continue;
       const bate = alvos.some((a) => descendeDe(cls, a, mascara));

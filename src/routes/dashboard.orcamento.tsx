@@ -1337,7 +1337,81 @@ function OrcamentoAnalise() {
           Coluna vazia ("—") em Orçado significa ano SEM orçamento cadastrado; em Realizado
           significa ano/mês SEM lançamentos carregados.
         </div>
-      </div>
+
+      {/* ---------- Dialogs de edição / cenário ---------- */}
+      <ReajusteDialog
+        open={openReajuste}
+        onOpenChange={setOpenReajuste}
+        itens={itens as any}
+        local={draft}
+        meses={mesesDraft}
+        onAplicar={aplicarUpdatesDraft}
+      />
+      <CopiarDialog
+        open={openCopiar}
+        onOpenChange={setOpenCopiar}
+        itens={itens as any}
+        meses={mesesDraft}
+        local={draft}
+        onAplicar={aplicarUpdatesDraft}
+      />
+
+      <SalvarCenarioDialog
+        open={openSalvar}
+        onOpenChange={setOpenSalvar}
+        nomeSugerido={nomeSugerido}
+        podeSobrescrever={!!editingCenarioId}
+        nomeCenarioAtual={cenarioSelecionado?.nome}
+        onSalvar={salvarCenario}
+      />
+
+      <ForecastDialog
+        open={openForecast}
+        onOpenChange={setOpenForecast}
+        ano={anoParaEditar ?? new Date().getFullYear()}
+        realizadoQueries={realizadoQueries}
+        onGerar={iniciarForecast}
+      />
+
+      <AlertDialog open={confirmDescartar} onOpenChange={setConfirmDescartar}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Descartar alterações?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Suas edições no rascunho serão perdidas. Esta ação não afeta o orçamento
+              oficial nem os cenários salvos.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={descartarRascunho}>Descartar</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!pendingBase} onOpenChange={(v) => !v && setPendingBase(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Trocar base com rascunho pendente?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Você tem alterações não salvas. Trocar a base de comparação descartará o
+              rascunho atual.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Voltar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                sairEdicao();
+                if (pendingBase) setBaseSel(pendingBase);
+                setPendingBase(null);
+              }}
+            >
+              Descartar e trocar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

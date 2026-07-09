@@ -127,6 +127,20 @@ function sinalPorTipo(tipo?: string | null): 1 | -1 {
   return 1;
 }
 
+/**
+ * Uma classificação é conta de apuração (encerramento) se a última parte é
+ * "98" ou "99". Alinha o motor do orçamento com o das demonstrações
+ * (build-statements.ts), que exclui essas contas para não duplicar linhas
+ * calculadas (ex.: Receita Líquida mapeada em 3.01.99).
+ */
+function isApuracao(classificacao: string, m: MascaraConfig): boolean {
+  const partes = m.separador
+    ? classificacao.split(m.separador)
+    : [classificacao];
+  const ult = partes[partes.length - 1];
+  return ult === "98" || ult === "99";
+}
+
 
 /**
  * Resolve as classificações-alvo de um item.

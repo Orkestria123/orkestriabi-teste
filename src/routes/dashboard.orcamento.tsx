@@ -1206,10 +1206,14 @@ function OrcamentoAnalise() {
         </div>
       )}
 
+      <Tabs defaultValue="itens">
+        <TabsList>
+          <TabsTrigger value="itens">Análise por Item</TabsTrigger>
+          <TabsTrigger value="dre">DRE Orçada</TabsTrigger>
+        </TabsList>
 
-      {/* Resumo executivo */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        <ResumoCard label="Total Orçado" valor={totais.tOrc} />
+        <TabsContent value="itens" className="space-y-4">
+          {/* Resumo executivo */}
         <ResumoCard
           label="Total Realizado"
           valor={totais.tReal}

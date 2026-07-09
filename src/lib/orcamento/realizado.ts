@@ -582,3 +582,142 @@ export async function computeRealizadoPorConta(params: {
     .sort((a, b) => a.classificacao.localeCompare(b.classificacao));
 }
 
+// =====================================================================
+// Drill-down mensal: realizado por conta ANALÍTICA de um item, mês a mês
+// dentro de um ano. Usado pela grade evolutiva da tela de Análise de
+// Variação para mostrar cada conta com valores nas mesmas colunas do item.
+// =====================================================================
+
+export interface ContaRealizadaMensal {
+  codigo: string;
+  classificacao: string;
+  descricao: string;
+  origem: string;
+  /** map YYYY-MM → valor com sinal do tipo já aplicado */
+  porMes: Record<string, number>;
+  /** meses YYYY-MM em que ESSA conta teve movimento (para distinguir 0 de "sem dados") */
+  mesesComMovimento: Set<string>;
+}
+
+/**
+ * Devolve, para um item, o realizado por conta analítica em cada mês do ano.
+ * Sinal do tipo do item já aplicado (receita = C-D positivo; demais = D-C).
+ */
+export async function computeContasDoItemMensal(params: {
+  tenantId: string;
+  companyId: string;
+  visao: Visao;
+  ano: number;
+  contas: string[];
+  tipoConta: string | null;
+}): Promise<{ contas: ContaRealizadaMensal[]; mesesComMovimentoGlobal: Set<string> }> {
+  const { tenantId, companyId, visao, ano, contas, tipoConta } = params;
+  const inicioD = `${ano}-01-01`;
+  const fimExclusivoD = `${ano + 1}-01-01`;
+
+  const mascara = await getMascaraConfig({ tenantId, companyId }).catch(
+    () => MASCARA_DEFAULT,
+  );
+
+  const saldos = await fetchSaldosMensais(companyId, inicioD, fimExclusivoD);
+  const codigosSaldos = saldos.map((s) => s.conta_codigo);
+  const plano = await fetchPlanoPorCodigos(companyId, codigosSaldos);
+  const porCodigoRow = new Map<string, PlanoRow>(plano.map((p) => [p.codigo, p]));
+
+  const rowsExtra: { row: PlanoRow; saldo: SaldoRow }[] = [];
+  const mesesComMovimentoGlobal = new Set<string>(
+    saldos.map((s) => s.competencia.slice(0, 7)),
+  );
+
+  if (visao === "gerencial") {
+    const ajData = await getAjustesGerenciais(tenantId, companyId);
+    for (const cg of ajData.contasGerenciais) {
+      if (!porCodigoRow.has(cg.codigo)) {
+        porCodigoRow.set(cg.codigo, {
+          codigo: cg.codigo,
+          classificacao: cg.classificacao,
+          descricao: (cg as any).descricao ?? cg.codigo,
+        });
+      }
+    }
+    for (const a of ajData.ajustes) {
+      if (a.competencia < inicioD || a.competencia >= fimExclusivoD) continue;
+      mesesComMovimentoGlobal.add(a.competencia.slice(0, 7));
+      const rD = porCodigoRow.get(a.conta_debito);
+      const rC = porCodigoRow.get(a.conta_credito);
+      if (rD)
+        rowsExtra.push({
+          row: rD,
+          saldo: {
+            conta_codigo: a.conta_debito,
+            competencia: a.competencia,
+            total_debitos: a.valor,
+            total_creditos: 0,
+          },
+        });
+      if (rC)
+        rowsExtra.push({
+          row: rC,
+          saldo: {
+            conta_codigo: a.conta_credito,
+            competencia: a.competencia,
+            total_debitos: 0,
+            total_creditos: a.valor,
+          },
+        });
+    }
+  }
+
+  const sinal = sinalPorTipo(tipoConta);
+  const acumulador = new Map<
+    string,
+    { row: PlanoRow; origem: string; porMes: Record<string, number>; mesesComMovimento: Set<string> }
+  >();
+
+  const registrar = (row: PlanoRow, saldo: SaldoRow) => {
+    const alvo = contas.find(
+      (c) =>
+        c === row.codigo ||
+        c === row.classificacao ||
+        descendeDe(row.classificacao, c, mascara),
+    );
+    if (!alvo) return;
+    const mov =
+      (Number(saldo.total_debitos ?? 0) - Number(saldo.total_creditos ?? 0)) * sinal;
+    const mm = saldo.competencia.slice(0, 7);
+    const cur =
+      acumulador.get(row.codigo) ??
+      { row, origem: alvo, porMes: {}, mesesComMovimento: new Set<string>() };
+    cur.porMes[mm] = (cur.porMes[mm] ?? 0) + mov;
+    cur.mesesComMovimento.add(mm);
+    acumulador.set(row.codigo, cur);
+  };
+
+  for (const s of saldos) {
+    const row = porCodigoRow.get(s.conta_codigo);
+    if (!row) continue;
+    registrar(row, s);
+  }
+  for (const { row, saldo } of rowsExtra) registrar(row, saldo);
+
+  const out: ContaRealizadaMensal[] = Array.from(acumulador.values())
+    .map((v) => {
+      const porMes: Record<string, number> = {};
+      for (const [k, val] of Object.entries(v.porMes)) {
+        porMes[k] = Math.round(val * 100) / 100;
+      }
+      return {
+        codigo: v.row.codigo,
+        classificacao: v.row.classificacao,
+        descricao: v.row.descricao ?? "",
+        origem: v.origem,
+        porMes,
+        mesesComMovimento: v.mesesComMovimento,
+      };
+    })
+    .sort((a, b) => a.classificacao.localeCompare(b.classificacao));
+
+  return { contas: out, mesesComMovimentoGlobal };
+}
+
+

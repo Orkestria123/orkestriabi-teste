@@ -32,7 +32,7 @@ import {
   computeContasDoItemMensal,
   type Visao,
 } from "@/lib/orcamento/realizado";
-import { formatBRL } from "@/lib/format";
+import { formatBRL, formatBRLPlain } from "@/lib/format";
 import {
   ReajusteDialog,
   CopiarDialog,
@@ -252,6 +252,7 @@ function OrcamentoAnalise() {
   const [baseSel, setBaseSel] = useState<string>("oficial"); // "oficial" ou cenario_id
   const [totalizarPor, setTotalizarPor] = useState<TotalizarPor>("mes");
   const [varDisplay, setVarDisplay] = useState<VarDisplay>("ambos");
+  const [escala, setEscala] = useState<1 | 1000>(1);
   const [expandido, setExpandido] = useState<string | null>(null);
   const [tolAmarelo, setTolAmarelo] = useState(5);
   const [tolVermelho, setTolVermelho] = useState(15);
@@ -1060,6 +1061,19 @@ function OrcamentoAnalise() {
         </div>
 
         <div>
+          <Label className="text-xs text-muted-foreground">Escala</Label>
+          <Select value={String(escala)} onValueChange={(v) => setEscala(Number(v) as 1 | 1000)}>
+            <SelectTrigger className="h-9 w-[130px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="1">R$ (unidade)</SelectItem>
+              <SelectItem value="1000">R$ mil</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div>
           <Label className="text-xs text-muted-foreground">Escopo</Label>
           <div className="h-9 flex items-center px-3 rounded-md border border-border bg-muted/30 text-sm">
             {isMultiAno
@@ -1250,26 +1264,32 @@ function OrcamentoAnalise() {
         />
       </div>
 
+      {/* Legenda de escala */}
+      <div className="text-[11px] text-muted-foreground px-1">
+        Valores em <b>R$ {escala === 1000 ? "mil" : ""}</b>
+        {escala === 1000 && " — divididos por 1.000"}. Negativos entre parênteses.
+      </div>
+
       {/* Grade evolutiva */}
       <Card className="overflow-hidden">
         <div className="overflow-x-auto">
           <table className="text-sm border-separate border-spacing-0 min-w-full">
-            <thead className="bg-muted/40 text-xs uppercase text-muted-foreground">
+            <thead className="bg-muted/40 text-[11px] uppercase text-muted-foreground">
               <tr>
                 <th
-                  className="text-left px-3 py-2 font-medium sticky left-0 bg-muted/60 z-10 border-r border-border min-w-[220px]"
+                  className="text-left px-3 py-1.5 font-medium sticky left-0 bg-muted/60 z-10 border-r border-border min-w-[200px] max-w-[240px] whitespace-nowrap"
                   rowSpan={2}
                 >
                   Item
                 </th>
-                <th className="text-left px-3 py-2 font-medium border-r border-border" rowSpan={2}>
+                <th className="text-left px-2 py-1.5 font-medium border-r border-border whitespace-nowrap" rowSpan={2}>
                   Tipo
                 </th>
                 {colunas.map((c) => (
                   <th
                     key={c.key}
                     colSpan={3}
-                    className="text-center px-2 py-1.5 font-semibold border-l border-border"
+                    className="text-center px-2 py-1 font-semibold border-l border-border whitespace-nowrap"
                   >
                     {c.label}
                     {!isMultiAno && totalizarPor !== "mes" && c.meses.length > 0 && (
@@ -1281,7 +1301,7 @@ function OrcamentoAnalise() {
                 ))}
                 <th
                   colSpan={3}
-                  className="text-center px-2 py-1.5 font-semibold border-l-2 border-border bg-primary/5"
+                  className="text-center px-2 py-1 font-semibold border-l-2 border-border bg-primary/5 whitespace-nowrap"
                 >
                   TOTAL
                 </th>
@@ -1289,18 +1309,18 @@ function OrcamentoAnalise() {
               <tr>
                 {colunas.map((c) => (
                   <Fragment key={`sub-${c.key}`}>
-                    <th className="text-right px-2 py-1 font-normal border-l border-border/60 text-[10px]">
+                    <th className="text-right px-2 py-0.5 font-normal border-l border-border/60 text-[10px] whitespace-nowrap min-w-[90px]">
                       Orç
                     </th>
-                    <th className="text-right px-2 py-1 font-normal text-[10px]">Real</th>
-                    <th className="text-right px-2 py-1 font-normal text-[10px]">Var</th>
+                    <th className="text-right px-2 py-0.5 font-normal text-[10px] whitespace-nowrap min-w-[90px]">Real</th>
+                    <th className="text-right px-2 py-0.5 font-normal text-[10px] whitespace-nowrap min-w-[90px]">Var</th>
                   </Fragment>
                 ))}
-                <th className="text-right px-2 py-1 font-normal border-l-2 border-border bg-primary/5 text-[10px]">
+                <th className="text-right px-2 py-0.5 font-normal border-l-2 border-border bg-primary/5 text-[10px] whitespace-nowrap min-w-[90px]">
                   Orç
                 </th>
-                <th className="text-right px-2 py-1 font-normal bg-primary/5 text-[10px]">Real</th>
-                <th className="text-right px-2 py-1 font-normal bg-primary/5 text-[10px]">Var</th>
+                <th className="text-right px-2 py-0.5 font-normal bg-primary/5 text-[10px] whitespace-nowrap min-w-[90px]">Real</th>
+                <th className="text-right px-2 py-0.5 font-normal bg-primary/5 text-[10px] whitespace-nowrap min-w-[90px]">Var</th>
               </tr>
             </thead>
             <tbody>
@@ -1331,17 +1351,20 @@ function OrcamentoAnalise() {
                         className="border-t border-border cursor-pointer hover:bg-muted/30"
                         onClick={() => setExpandido(aberto ? null : l.item.id)}
                       >
-                        <td className="px-3 py-2 font-medium sticky left-0 bg-background border-r border-border z-10">
-                          <div className="flex items-center gap-1">
+                        <td
+                          className="px-3 py-1 text-sm font-medium sticky left-0 bg-background border-r border-border z-10 max-w-[240px]"
+                          title={l.item.rotulo}
+                        >
+                          <div className="flex items-center gap-1 min-w-0">
                             {aberto ? (
-                              <ChevronDown className="h-3.5 w-3.5" />
+                              <ChevronDown className="h-3.5 w-3.5 shrink-0" />
                             ) : (
-                              <ChevronRight className="h-3.5 w-3.5" />
+                              <ChevronRight className="h-3.5 w-3.5 shrink-0" />
                             )}
                             <span className="truncate">{l.item.rotulo}</span>
                           </div>
                         </td>
-                        <td className="px-3 py-2 border-r border-border">
+                        <td className="px-2 py-1 border-r border-border whitespace-nowrap">
                           <Badge variant="outline" className="text-[10px]">
                             {l.item.tipo_conta ?? "—"}
                           </Badge>
@@ -1364,6 +1387,7 @@ function OrcamentoAnalise() {
                               varDisplay={varDisplay}
                               tolAmarelo={tolAmarelo}
                               tolVermelho={tolVermelho}
+                              escala={escala}
                               editable={editableCol}
                               editValue={editKey ? draft[editKey] ?? 0 : null}
                               onEditChange={
@@ -1381,6 +1405,7 @@ function OrcamentoAnalise() {
                           varDisplay={varDisplay}
                           tolAmarelo={tolAmarelo}
                           tolVermelho={tolVermelho}
+                          escala={escala}
                           bgClass="bg-primary/5"
                           leftBorder="border-l-2"
                         />
@@ -1395,6 +1420,7 @@ function OrcamentoAnalise() {
                           isMultiAno={isMultiAno}
                           itemCells={l.cells}
                           itemTotal={l.totalCell}
+                          escala={escala}
                         />
                       )}
                     </Fragment>
@@ -1560,6 +1586,7 @@ function CellTrio({
   editable = false,
   editValue = null,
   onEditChange,
+  escala = 1,
 }: {
   cell: Cell;
   tipo: string | null;
@@ -1571,6 +1598,7 @@ function CellTrio({
   editable?: boolean;
   editValue?: number | null;
   onEditChange?: (v: number) => void;
+  escala?: 1 | 1000;
 }) {
   const varR =
     cell.realizado !== null && cell.orcado !== null ? cell.realizado - cell.orcado : null;
@@ -1584,12 +1612,23 @@ function CellTrio({
       : calcStatus(cell.orcado, cell.realizado, tipo, tolAmarelo, tolVermelho);
 
   const tone = cellToneClass(status);
+  const fmt = (v: number | null | undefined) => formatBRLPlain(v, { scale: escala });
+  const pctStr =
+    varP === null
+      ? "n/a"
+      : `${varP > 0 ? "+" : ""}${varP.toFixed(1).replace(".", ",")}%`;
+  const varRStr =
+    varR === null ? "—" : `${varR > 0 ? "+" : ""}${fmt(varR)}`;
+  const varTitle =
+    varR === null
+      ? ""
+      : `Variação: ${fmt(varR)} (${pctStr})`;
 
   return (
     <>
       <td
         className={cn(
-          "px-1 py-1 text-right tabular-nums text-xs",
+          "px-2 py-1 text-right tabular-nums text-[11px] whitespace-nowrap min-w-[90px]",
           leftBorder,
           "border-border/60",
           editable ? "bg-amber-500/5" : bgClass,
@@ -1603,45 +1642,47 @@ function CellTrio({
             value={editValue ?? 0}
             onChange={(e) => onEditChange?.(Number(e.target.value) || 0)}
             onFocus={(e) => e.currentTarget.select()}
-            className="w-full h-7 text-right tabular-nums text-xs bg-background border border-border rounded px-1 focus:outline-none focus:ring-1 focus:ring-primary"
+            className="w-full h-6 text-right tabular-nums text-[11px] bg-background border border-border rounded px-1 focus:outline-none focus:ring-1 focus:ring-primary"
           />
         ) : cell.orcado === null ? (
           <span className="text-muted-foreground">—</span>
         ) : (
-          formatBRL(cell.orcado)
-        )}
-      </td>
-      <td className={cn("px-2 py-2 text-right tabular-nums text-xs", bgClass)}>
-        {cell.realizado === null ? (
-          <span className="text-muted-foreground">—</span>
-        ) : (
-          formatBRL(cell.realizado)
+          fmt(cell.orcado)
         )}
       </td>
       <td
         className={cn(
-          "px-2 py-2 text-right tabular-nums text-xs",
+          "px-2 py-1 text-right tabular-nums text-[11px] whitespace-nowrap min-w-[90px]",
+          bgClass,
+        )}
+      >
+        {cell.realizado === null ? (
+          <span className="text-muted-foreground">—</span>
+        ) : (
+          fmt(cell.realizado)
+        )}
+      </td>
+      <td
+        className={cn(
+          "px-2 py-1 text-right tabular-nums text-[11px] whitespace-nowrap min-w-[90px]",
           tone || bgClass,
         )}
+        title={varTitle}
       >
         {varR === null ? (
           <span className="text-muted-foreground">—</span>
         ) : (
-          <div className="flex flex-col items-end leading-tight">
-            {(varDisplay === "valor" || varDisplay === "ambos") && (
-              <span>{formatBRL(varR)}</span>
-            )}
-            {(varDisplay === "pct" || varDisplay === "ambos") && (
-              <span className="text-[10px] opacity-80">
-                {varP === null
-                  ? "n/a"
-                  : `${varP > 0 ? "+" : ""}${varP.toFixed(1).replace(".", ",")}%`}
+          <span className="inline-flex items-center gap-1 justify-end leading-tight">
+            {varDisplay === "valor" && <span>{varRStr}</span>}
+            {varDisplay === "pct" && <span>{pctStr}</span>}
+            {varDisplay === "ambos" && (
+              <span>
+                {varRStr}{" "}
+                <span className="text-[10px] opacity-80">({pctStr})</span>
               </span>
             )}
-            <span className="mt-0.5">
-              <StatusPill status={status} />
-            </span>
-          </div>
+            <StatusPill status={status} />
+          </span>
         )}
       </td>
     </>

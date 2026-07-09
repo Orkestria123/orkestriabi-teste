@@ -413,6 +413,7 @@ export async function computeRealizadoDetalhado(params: {
 
     if (alvos.length > 0) {
       for (const s of todosSaldos) {
+        if (codigosExcluidos.has(s.conta_codigo)) continue;
         const cls = codigoToClass.get(s.conta_codigo);
         if (!cls) continue;
         if (!alvos.some((a) => descendeDe(cls, a, mascara))) continue;

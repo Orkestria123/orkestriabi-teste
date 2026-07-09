@@ -996,6 +996,149 @@ export type Database = {
           },
         ]
       }
+      orcamento_cenario_valores: {
+        Row: {
+          cenario_id: string
+          company_id: string
+          competencia: string
+          created_at: string
+          id: string
+          item_id: string
+          tenant_id: string
+          updated_at: string
+          valor_orcado: number
+        }
+        Insert: {
+          cenario_id: string
+          company_id: string
+          competencia: string
+          created_at?: string
+          id?: string
+          item_id: string
+          tenant_id: string
+          updated_at?: string
+          valor_orcado?: number
+        }
+        Update: {
+          cenario_id?: string
+          company_id?: string
+          competencia?: string
+          created_at?: string
+          id?: string
+          item_id?: string
+          tenant_id?: string
+          updated_at?: string
+          valor_orcado?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orcamento_cenario_valores_cenario_id_fkey"
+            columns: ["cenario_id"]
+            isOneToOne: false
+            referencedRelation: "orcamento_cenarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orcamento_cenario_valores_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orcamento_cenario_valores_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "orcamento_itens"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orcamento_cenario_valores_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      orcamento_cenarios: {
+        Row: {
+          cenario_origem_id: string | null
+          company_id: string
+          created_at: string
+          criado_por: string | null
+          descricao: string | null
+          id: string
+          nome: string
+          orcamento_id: string
+          origem: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          cenario_origem_id?: string | null
+          company_id: string
+          created_at?: string
+          criado_por?: string | null
+          descricao?: string | null
+          id?: string
+          nome: string
+          orcamento_id: string
+          origem?: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          cenario_origem_id?: string | null
+          company_id?: string
+          created_at?: string
+          criado_por?: string | null
+          descricao?: string | null
+          id?: string
+          nome?: string
+          orcamento_id?: string
+          origem?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orcamento_cenarios_cenario_origem_id_fkey"
+            columns: ["cenario_origem_id"]
+            isOneToOne: false
+            referencedRelation: "orcamento_cenarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orcamento_cenarios_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orcamento_cenarios_criado_por_fkey"
+            columns: ["criado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orcamento_cenarios_orcamento_id_fkey"
+            columns: ["orcamento_id"]
+            isOneToOne: false
+            referencedRelation: "orcamentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orcamento_cenarios_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       orcamento_itens: {
         Row: {
           company_id: string

@@ -18,7 +18,37 @@ export type Visao = "contabil" | "gerencial";
 interface PlanoRow {
   codigo: string;
   classificacao: string;
+  descricao?: string | null;
 }
+
+/**
+ * Busca em `plano_contas` apenas as linhas cujos códigos aparecem em `codigos`.
+ * Necessário porque o PostgREST cabe em 1000 linhas por resposta e algumas
+ * empresas têm dezenas de milhares de contas — carregar o plano inteiro
+ * perde as contas que precisamos (bug do "realizado sempre zero" na tela
+ * de análise de variação do orçamento).
+ */
+async function fetchPlanoPorCodigos(
+  companyId: string,
+  codigos: string[],
+): Promise<PlanoRow[]> {
+  const uniq = Array.from(new Set(codigos.filter(Boolean)));
+  if (uniq.length === 0) return [];
+  const out: PlanoRow[] = [];
+  const CHUNK = 500;
+  for (let i = 0; i < uniq.length; i += CHUNK) {
+    const slice = uniq.slice(i, i + CHUNK);
+    const { data, error } = await supabase
+      .from("plano_contas")
+      .select("codigo, classificacao, descricao")
+      .eq("company_id", companyId)
+      .in("codigo", slice);
+    if (error) throw error;
+    out.push(...((data ?? []) as PlanoRow[]));
+  }
+  return out;
+}
+
 
 interface SaldoRow {
   conta_codigo: string;

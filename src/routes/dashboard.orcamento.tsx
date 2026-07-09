@@ -641,6 +641,245 @@ function OrcamentoAnalise() {
     };
   }, [grid]);
 
+  // ---- Ano do cenário atualmente selecionado (para uso nos handlers) ----
+  const anoCenarioAtivo = useMemo(
+    () =>
+      cenarioSelecionado
+        ? orcamentos.find((o) => o.id === cenarioSelecionado.orcamento_id)?.ano ?? null
+        : null,
+    [cenarioSelecionado, orcamentos],
+  );
+
+  // Meses do ano em edição no formato YYYY-MM (12 elementos), usados por Reajuste/Copiar
+  const mesesDraft = useMemo(() => {
+    if (editingAno === null) return [] as string[];
+    return Array.from({ length: 12 }, (_, i) => `${editingAno}-${String(i + 1).padStart(2, "0")}`);
+  }, [editingAno]);
+
+  // ---- Constrói snapshot da base (12 meses × N itens) para o ano informado ----
+  const buildSnapshotDoAno = (ano: number): Record<string, number> => {
+    const snap: Record<string, number> = {};
+    const orc = orcamentoPorAno.get(ano);
+    const usarCenario = cenarioSelecionado && anoCenarioAtivo === ano;
+    for (const item of itens) {
+      for (let m = 1; m <= 12; m++) {
+        const ym = `${ano}-${String(m).padStart(2, "0")}`;
+        const key = `${item.id}|${ym}`;
+        let v = 0;
+        if (usarCenario) {
+          const found = (cenarioValoresQ.data ?? []).find(
+            (x) => x.item_id === item.id && x.competencia.slice(0, 7) === ym,
+          );
+          if (found) v = Number(found.valor_orcado ?? 0);
+        } else if (orc) {
+          const found = (valoresQ.data ?? []).find(
+            (x) =>
+              x.orcamento_id === orc.id &&
+              x.item_id === item.id &&
+              x.competencia.slice(0, 7) === ym,
+          );
+          if (found) v = Number(found.valor_orcado ?? 0);
+        }
+        snap[key] = v;
+      }
+    }
+    return snap;
+  };
+
+  // ---- Ativar/desativar modo de edição ----
+  const anoParaEditar = anosSelecionados.length === 1 ? anosSelecionados[0] : null;
+
+  const iniciarEdicao = () => {
+    if (anoParaEditar === null) {
+      toast.error("Selecione apenas um ano no filtro para editar o orçamento.");
+      return;
+    }
+    if (isMultiAno) return;
+    const snap = buildSnapshotDoAno(anoParaEditar);
+    setDraft(snap);
+    setBaseSnapshot(snap);
+    setEditingAno(anoParaEditar);
+    setEditingCenarioId(cenarioSelecionado?.id ?? null);
+    setOrigemDraft(cenarioSelecionado ? "cenario" : "orcamento");
+    setNomeSugerido(
+      cenarioSelecionado
+        ? `${cenarioSelecionado.nome} (rev)`
+        : `Cenário ${new Date().toLocaleDateString("pt-BR")}`,
+    );
+    setTotalizarPor("mes"); // força granularidade mensal
+    setEditMode(true);
+  };
+
+  const sairEdicao = () => {
+    setEditMode(false);
+    setDraft({});
+    setBaseSnapshot({});
+    setEditingAno(null);
+    setEditingCenarioId(null);
+    setOrigemDraft("orcamento");
+    setNomeSugerido("");
+  };
+
+  const descartarRascunho = () => {
+    setDraft(baseSnapshot);
+    setConfirmDescartar(false);
+    toast.success("Alterações descartadas");
+  };
+
+  // Ao usuário trocar a base "Comparar com" com rascunho pendente → confirma
+  const tentarTrocarBase = (v: string) => {
+    if (isDirty) {
+      setPendingBase(v);
+      return;
+    }
+    setBaseSel(v);
+  };
+
+  const aplicarUpdatesDraft = async (
+    updates: Array<{ itemId: string; ym: string; valor: number }>,
+    msg: string,
+  ) => {
+    setDraft((prev) => {
+      const next = { ...prev };
+      for (const u of updates) {
+        next[`${u.itemId}|${u.ym}`] = u.valor;
+      }
+      return next;
+    });
+    toast.success(msg);
+  };
+
+  // ---- Salvar cenário (novo ou sobre existente) ----
+  const salvarCenario = async ({
+    nome,
+    descricao,
+    sobrescrever,
+  }: {
+    nome: string;
+    descricao: string;
+    sobrescrever: boolean;
+  }) => {
+    if (!company?.tenant_id || !companyId || editingAno === null) {
+      throw new Error("Contexto inválido");
+    }
+    const orc = orcamentoPorAno.get(editingAno);
+    if (!orc) throw new Error("Orçamento oficial do ano não encontrado");
+    const nomeTrim = nome.trim();
+    if (!nomeTrim) throw new Error("Nome do cenário é obrigatório");
+
+    const { data: userData } = await supabase.auth.getUser();
+    const uid = userData.user?.id ?? null;
+
+    let cenarioId: string;
+    if (sobrescrever && editingCenarioId) {
+      cenarioId = editingCenarioId;
+      const upd: Record<string, any> = { nome: nomeTrim, descricao: descricao || null };
+      const { error: e1 } = await supabase
+        .from("orcamento_cenarios")
+        .update(upd)
+        .eq("id", cenarioId);
+      if (e1) throw e1;
+      const { error: e2 } = await supabase
+        .from("orcamento_cenario_valores")
+        .delete()
+        .eq("cenario_id", cenarioId);
+      if (e2) throw e2;
+    } else {
+      const { data: inserted, error: eIns } = await supabase
+        .from("orcamento_cenarios")
+        .insert({
+          tenant_id: company.tenant_id,
+          company_id: companyId,
+          orcamento_id: orc.id,
+          nome: nomeTrim,
+          descricao: descricao || null,
+          origem: origemDraft,
+          cenario_origem_id: editingCenarioId,
+          criado_por: uid,
+        })
+        .select("id")
+        .single();
+      if (eIns) throw eIns;
+      cenarioId = inserted!.id as string;
+    }
+
+    // Insere os 12 × N valores do rascunho
+    const rows: any[] = [];
+    for (const item of itens) {
+      for (let m = 1; m <= 12; m++) {
+        const ym = `${editingAno}-${String(m).padStart(2, "0")}`;
+        const valor = Number(draft[`${item.id}|${ym}`] ?? 0);
+        rows.push({
+          tenant_id: company.tenant_id,
+          company_id: companyId,
+          cenario_id: cenarioId,
+          item_id: item.id,
+          competencia: `${ym}-01`,
+          valor_orcado: valor,
+        });
+      }
+    }
+    if (rows.length > 0) {
+      const { error: eV } = await supabase.from("orcamento_cenario_valores").insert(rows);
+      if (eV) throw eV;
+    }
+
+    await queryClient.invalidateQueries({ queryKey: ["orcamento-cenarios"] });
+    await queryClient.invalidateQueries({ queryKey: ["orcamento-cenario-valores"] });
+    sairEdicao();
+    setBaseSel(cenarioId);
+    toast.success(sobrescrever ? "Cenário atualizado" : "Cenário salvo");
+  };
+
+  // ---- Iniciar forecast a partir do realizado ----
+  const iniciarForecast = (mesLimite: number, nome: string) => {
+    if (anoParaEditar === null) {
+      toast.error("Selecione apenas um ano no filtro para gerar o forecast.");
+      return;
+    }
+    const ano = anoParaEditar;
+    // Snapshot base (oficial ou cenário atualmente selecionado)
+    const snapBase = buildSnapshotDoAno(ano);
+    // Mapa realizado por (item, ym)
+    const porItem = (() => {
+      for (const q of realizadoQueries) {
+        if (q.data?.ano === ano) return q.data.porItem;
+      }
+      return null;
+    })();
+    const novoDraft: Record<string, number> = { ...snapBase };
+    for (const item of itens) {
+      for (let m = 1; m <= 12; m++) {
+        if (m > mesLimite) continue;
+        const ym = `${ano}-${String(m).padStart(2, "0")}`;
+        const key = `${item.id}|${ym}`;
+        let realVal = 0;
+        if (porItem) {
+          const det = porItem[item.id];
+          if (det) {
+            const r = det.porMes.find((x: any) => x.competencia === ym);
+            if (r && !r.semDados) realVal = Number(r.valor);
+          }
+        }
+        novoDraft[key] = Math.round(Math.abs(realVal) * 100) / 100;
+      }
+    }
+    setDraft(novoDraft);
+    setBaseSnapshot(snapBase);
+    setEditingAno(ano);
+    setEditingCenarioId(null);
+    setOrigemDraft("realizado");
+    setNomeSugerido(nome);
+    setTotalizarPor("mes");
+    setEditMode(true);
+    setOpenForecast(false);
+    toast.success(
+      `Rascunho carregado: Jan–${NOMES_MES[mesLimite - 1]} com realizado, ${
+        mesLimite < 12 ? `${NOMES_MES[mesLimite]}–Dez` : "sem meses"
+      } com orçado base`,
+    );
+  };
+
   if (!companyId) {
     return (
       <Card className="p-6 text-sm text-muted-foreground">

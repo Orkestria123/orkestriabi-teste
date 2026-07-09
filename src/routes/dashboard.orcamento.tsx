@@ -747,13 +747,10 @@ function OrcamentoAnalise() {
                               tenantId={company?.tenant_id ?? null}
                               companyId={companyId}
                               visao={visao}
-                              anoRef={
-                                orcamentoPrimario?.ano ??
-                                anosSelecionados[anosSelecionados.length - 1]
-                              }
-                              mesRef={
-                                mesesSelecionados[mesesSelecionados.length - 1] ?? 12
-                              }
+                              colunas={colunas}
+                              isMultiAno={isMultiAno}
+                              itemCells={l.cells}
+                              itemTotal={l.totalCell}
                             />
                           </td>
                         </tr>

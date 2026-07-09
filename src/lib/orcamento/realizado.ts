@@ -222,6 +222,12 @@ export async function computeRealizadoPorItem(params: {
   const codigoToClass = new Map<string, string>(
     plano.map((p) => [p.codigo, p.classificacao]),
   );
+  // Códigos a excluir: participantes (clientes/fornecedores) e apuração (.98/.99)
+  const codigosExcluidos = new Set<string>();
+  for (const p of plano) {
+    if (p.is_participante) codigosExcluidos.add(p.codigo);
+    else if (isApuracao(p.classificacao, mascara)) codigosExcluidos.add(p.codigo);
+  }
 
 
   // Ajustes gerenciais (se visão gerencial) — somados ao movimento contábil

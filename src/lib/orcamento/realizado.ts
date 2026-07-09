@@ -363,6 +363,11 @@ export async function computeRealizadoDetalhado(params: {
   const codigoToClass = new Map<string, string>(
     plano.map((p) => [p.codigo, p.classificacao]),
   );
+  const codigosExcluidos = new Set<string>();
+  for (const p of plano) {
+    if (p.is_participante) codigosExcluidos.add(p.codigo);
+    else if (isApuracao(p.classificacao, mascara)) codigosExcluidos.add(p.codigo);
+  }
 
 
   // "Sem dados": nenhum lançamento contábil naquela competência para a empresa.

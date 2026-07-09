@@ -78,7 +78,7 @@ interface Props {
 // Helpers
 // ---------------------------------------------------------------------
 
-const NOMES_MES = [
+export const NOMES_MES = [
   "Jan", "Fev", "Mar", "Abr", "Mai", "Jun",
   "Jul", "Ago", "Set", "Out", "Nov", "Dez",
 ];
@@ -645,7 +645,7 @@ function PuxarHistoricoDialog({
 // Dialog: Aplicar reajuste
 // ---------------------------------------------------------------------
 
-function ReajusteDialog({
+export function ReajusteDialog({
   open,
   onOpenChange,
   itens,
@@ -956,7 +956,7 @@ function DistribuirDialog({
 // Dialog: Copiar valor para todos os meses
 // ---------------------------------------------------------------------
 
-function CopiarDialog({
+export function CopiarDialog({
   open,
   onOpenChange,
   itens,

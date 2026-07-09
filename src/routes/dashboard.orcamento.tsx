@@ -4,15 +4,24 @@
 // anos são selecionados no filtro global. Cada coluna traz Orçado, Realizado
 // e Variação com semáforo, e permite drill-down por item nas contas do plano.
 import { createFileRoute } from "@tanstack/react-router";
-import { Fragment, useMemo, useState, type ReactNode } from "react";
-import { useQueries, useQuery } from "@tanstack/react-query";
+import { Fragment, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import {
   ChevronDown,
   ChevronRight,
   CircleAlert,
   CircleCheck,
   CircleMinus,
+  Copy,
+  Percent,
+  Pencil,
+  Save,
+  Sparkles,
+  TrendingUp,
   TriangleAlert,
+  Undo2,
+  X,
 } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -24,6 +33,11 @@ import {
   type Visao,
 } from "@/lib/orcamento/realizado";
 import { formatBRL } from "@/lib/format";
+import {
+  ReajusteDialog,
+  CopiarDialog,
+  NOMES_MES,
+} from "@/components/orcamento/orcamento-planejamento-grid";
 
 
 import { Card } from "@/components/ui/card";
@@ -36,7 +50,27 @@ import {
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/dashboard/orcamento")({
@@ -219,6 +253,30 @@ function OrcamentoAnalise() {
   const [expandido, setExpandido] = useState<string | null>(null);
   const [tolAmarelo, setTolAmarelo] = useState(5);
   const [tolVermelho, setTolVermelho] = useState(15);
+
+  // -------- Modo rascunho / edição --------
+  const queryClient = useQueryClient();
+  const [editMode, setEditMode] = useState(false);
+  const [editingAno, setEditingAno] = useState<number | null>(null);
+  // Chave: `${itemId}|YYYY-MM` — sempre 12 meses de editingAno quando ativo
+  const [draft, setDraft] = useState<Record<string, number>>({});
+  // Snapshot da base (para comparar dirty e para "Descartar")
+  const [baseSnapshot, setBaseSnapshot] = useState<Record<string, number>>({});
+  // Se o rascunho partiu de um cenário existente, guardamos o id
+  const [editingCenarioId, setEditingCenarioId] = useState<string | null>(null);
+  // Origem para salvar (grava em orcamento_cenarios.origem)
+  const [origemDraft, setOrigemDraft] = useState<"orcamento" | "cenario" | "realizado">(
+    "orcamento",
+  );
+  const [nomeSugerido, setNomeSugerido] = useState<string>("");
+
+  // Dialogs
+  const [openSalvar, setOpenSalvar] = useState(false);
+  const [openReajuste, setOpenReajuste] = useState(false);
+  const [openCopiar, setOpenCopiar] = useState(false);
+  const [openForecast, setOpenForecast] = useState(false);
+  const [confirmDescartar, setConfirmDescartar] = useState(false);
+  const [pendingBase, setPendingBase] = useState<string | null>(null); // ao trocar base com dirty
 
   const anosSelecionados = useMemo(
     () => [...years].sort((a, b) => a - b),
@@ -443,8 +501,15 @@ function OrcamentoAnalise() {
       // Orçado — soma valor_orcado dos meses da coluna
       const orc = orcamentoPorAno.get(col.ano);
       let orcado: number | null = null;
+      const usaDraft = editMode && editingAno !== null && col.ano === editingAno;
       const usaCenario = anoCenario !== null && col.ano === anoCenario;
-      if (usaCenario) {
+      if (usaDraft) {
+        orcado = 0;
+        for (const m of col.meses) {
+          const key = `${item.id}|${col.ano}-${String(m).padStart(2, "0")}`;
+          orcado += Number(draft[key] ?? 0);
+        }
+      } else if (usaCenario) {
         orcado = 0;
         for (const m of col.meses) {
           const key = `${col.ano}-${String(m).padStart(2, "0")}`;
@@ -520,7 +585,33 @@ function OrcamentoAnalise() {
     orcamentoPorAno,
     cenarioSelecionado,
     orcamentos,
+    editMode,
+    editingAno,
+    draft,
   ]);
+
+  // ---- Detecção de rascunho não salvo ----
+  const isDirty = useMemo(() => {
+    if (!editMode) return false;
+    const keys = new Set([...Object.keys(draft), ...Object.keys(baseSnapshot)]);
+    for (const k of keys) {
+      const a = Number(draft[k] ?? 0);
+      const b = Number(baseSnapshot[k] ?? 0);
+      if (Math.abs(a - b) > 0.005) return true;
+    }
+    return false;
+  }, [editMode, draft, baseSnapshot]);
+
+  // Avisar ao fechar a aba com rascunho pendente
+  useEffect(() => {
+    if (!isDirty) return;
+    const h = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", h);
+    return () => window.removeEventListener("beforeunload", h);
+  }, [isDirty]);
 
 
   // ---- Totais gerais para cards ----
@@ -549,6 +640,244 @@ function OrcamentoAnalise() {
           : null,
     };
   }, [grid]);
+
+  // ---- Ano do cenário atualmente selecionado (para uso nos handlers) ----
+  const anoCenarioAtivo = useMemo(
+    () =>
+      cenarioSelecionado
+        ? orcamentos.find((o) => o.id === cenarioSelecionado.orcamento_id)?.ano ?? null
+        : null,
+    [cenarioSelecionado, orcamentos],
+  );
+
+  // Meses do ano em edição no formato YYYY-MM (12 elementos), usados por Reajuste/Copiar
+  const mesesDraft = useMemo(() => {
+    if (editingAno === null) return [] as string[];
+    return Array.from({ length: 12 }, (_, i) => `${editingAno}-${String(i + 1).padStart(2, "0")}`);
+  }, [editingAno]);
+
+  // ---- Constrói snapshot da base (12 meses × N itens) para o ano informado ----
+  const buildSnapshotDoAno = (ano: number): Record<string, number> => {
+    const snap: Record<string, number> = {};
+    const orc = orcamentoPorAno.get(ano);
+    const usarCenario = cenarioSelecionado && anoCenarioAtivo === ano;
+    for (const item of itens) {
+      for (let m = 1; m <= 12; m++) {
+        const ym = `${ano}-${String(m).padStart(2, "0")}`;
+        const key = `${item.id}|${ym}`;
+        let v = 0;
+        if (usarCenario) {
+          const found = (cenarioValoresQ.data ?? []).find(
+            (x) => x.item_id === item.id && x.competencia.slice(0, 7) === ym,
+          );
+          if (found) v = Number(found.valor_orcado ?? 0);
+        } else if (orc) {
+          const found = (valoresQ.data ?? []).find(
+            (x) =>
+              x.orcamento_id === orc.id &&
+              x.item_id === item.id &&
+              x.competencia.slice(0, 7) === ym,
+          );
+          if (found) v = Number(found.valor_orcado ?? 0);
+        }
+        snap[key] = v;
+      }
+    }
+    return snap;
+  };
+
+  // ---- Ativar/desativar modo de edição ----
+  const anoParaEditar = anosSelecionados.length === 1 ? anosSelecionados[0] : null;
+
+  const iniciarEdicao = () => {
+    if (anoParaEditar === null) {
+      toast.error("Selecione apenas um ano no filtro para editar o orçamento.");
+      return;
+    }
+    if (isMultiAno) return;
+    const snap = buildSnapshotDoAno(anoParaEditar);
+    setDraft(snap);
+    setBaseSnapshot(snap);
+    setEditingAno(anoParaEditar);
+    setEditingCenarioId(cenarioSelecionado?.id ?? null);
+    setOrigemDraft(cenarioSelecionado ? "cenario" : "orcamento");
+    setNomeSugerido(
+      cenarioSelecionado
+        ? `${cenarioSelecionado.nome} (rev)`
+        : `Cenário ${new Date().toLocaleDateString("pt-BR")}`,
+    );
+    setTotalizarPor("mes"); // força granularidade mensal
+    setEditMode(true);
+  };
+
+  const sairEdicao = () => {
+    setEditMode(false);
+    setDraft({});
+    setBaseSnapshot({});
+    setEditingAno(null);
+    setEditingCenarioId(null);
+    setOrigemDraft("orcamento");
+    setNomeSugerido("");
+  };
+
+  const descartarRascunho = () => {
+    setDraft(baseSnapshot);
+    setConfirmDescartar(false);
+    toast.success("Alterações descartadas");
+  };
+
+  // Ao usuário trocar a base "Comparar com" com rascunho pendente → confirma
+  const tentarTrocarBase = (v: string) => {
+    if (isDirty) {
+      setPendingBase(v);
+      return;
+    }
+    setBaseSel(v);
+  };
+
+  const aplicarUpdatesDraft = async (
+    updates: Array<{ itemId: string; ym: string; valor: number }>,
+    msg: string,
+  ) => {
+    setDraft((prev) => {
+      const next = { ...prev };
+      for (const u of updates) {
+        next[`${u.itemId}|${u.ym}`] = u.valor;
+      }
+      return next;
+    });
+    toast.success(msg);
+  };
+
+  // ---- Salvar cenário (novo ou sobre existente) ----
+  const salvarCenario = async ({
+    nome,
+    descricao,
+    sobrescrever,
+  }: {
+    nome: string;
+    descricao: string;
+    sobrescrever: boolean;
+  }) => {
+    if (!company?.tenant_id || !companyId || editingAno === null) {
+      throw new Error("Contexto inválido");
+    }
+    const orc = orcamentoPorAno.get(editingAno);
+    if (!orc) throw new Error("Orçamento oficial do ano não encontrado");
+    const nomeTrim = nome.trim();
+    if (!nomeTrim) throw new Error("Nome do cenário é obrigatório");
+
+    const { data: userData } = await supabase.auth.getUser();
+    const uid = userData.user?.id ?? null;
+
+    let cenarioId: string;
+    if (sobrescrever && editingCenarioId) {
+      cenarioId = editingCenarioId;
+      const { error: e1 } = await supabase
+        .from("orcamento_cenarios")
+        .update({ nome: nomeTrim, descricao: descricao || null })
+        .eq("id", cenarioId);
+      if (e1) throw e1;
+      const { error: e2 } = await supabase
+        .from("orcamento_cenario_valores")
+        .delete()
+        .eq("cenario_id", cenarioId);
+      if (e2) throw e2;
+    } else {
+      const { data: inserted, error: eIns } = await supabase
+        .from("orcamento_cenarios")
+        .insert({
+          tenant_id: company.tenant_id,
+          company_id: companyId,
+          orcamento_id: orc.id,
+          nome: nomeTrim,
+          descricao: descricao || null,
+          origem: origemDraft,
+          cenario_origem_id: editingCenarioId,
+          criado_por: uid,
+        })
+        .select("id")
+        .single();
+      if (eIns) throw eIns;
+      cenarioId = inserted!.id as string;
+    }
+
+    // Insere os 12 × N valores do rascunho
+    const rows: any[] = [];
+    for (const item of itens) {
+      for (let m = 1; m <= 12; m++) {
+        const ym = `${editingAno}-${String(m).padStart(2, "0")}`;
+        const valor = Number(draft[`${item.id}|${ym}`] ?? 0);
+        rows.push({
+          tenant_id: company.tenant_id,
+          company_id: companyId,
+          cenario_id: cenarioId,
+          item_id: item.id,
+          competencia: `${ym}-01`,
+          valor_orcado: valor,
+        });
+      }
+    }
+    if (rows.length > 0) {
+      const { error: eV } = await supabase.from("orcamento_cenario_valores").insert(rows);
+      if (eV) throw eV;
+    }
+
+    await queryClient.invalidateQueries({ queryKey: ["orcamento-cenarios"] });
+    await queryClient.invalidateQueries({ queryKey: ["orcamento-cenario-valores"] });
+    sairEdicao();
+    setBaseSel(cenarioId);
+    toast.success(sobrescrever ? "Cenário atualizado" : "Cenário salvo");
+  };
+
+  // ---- Iniciar forecast a partir do realizado ----
+  const iniciarForecast = (mesLimite: number, nome: string) => {
+    if (anoParaEditar === null) {
+      toast.error("Selecione apenas um ano no filtro para gerar o forecast.");
+      return;
+    }
+    const ano = anoParaEditar;
+    // Snapshot base (oficial ou cenário atualmente selecionado)
+    const snapBase = buildSnapshotDoAno(ano);
+    // Mapa realizado por (item, ym)
+    const porItem = (() => {
+      for (const q of realizadoQueries) {
+        if (q.data?.ano === ano) return q.data.porItem;
+      }
+      return null;
+    })();
+    const novoDraft: Record<string, number> = { ...snapBase };
+    for (const item of itens) {
+      for (let m = 1; m <= 12; m++) {
+        if (m > mesLimite) continue;
+        const ym = `${ano}-${String(m).padStart(2, "0")}`;
+        const key = `${item.id}|${ym}`;
+        let realVal = 0;
+        if (porItem) {
+          const det = porItem[item.id];
+          if (det) {
+            const r = det.porMes.find((x: any) => x.competencia === ym);
+            if (r && !r.semDados) realVal = Number(r.valor);
+          }
+        }
+        novoDraft[key] = Math.round(Math.abs(realVal) * 100) / 100;
+      }
+    }
+    setDraft(novoDraft);
+    setBaseSnapshot(snapBase);
+    setEditingAno(ano);
+    setEditingCenarioId(null);
+    setOrigemDraft("realizado");
+    setNomeSugerido(nome);
+    setTotalizarPor("mes");
+    setEditMode(true);
+    setOpenForecast(false);
+    toast.success(
+      `Rascunho carregado: Jan–${NOMES_MES[mesLimite - 1]} com realizado, ${
+        mesLimite < 12 ? `${NOMES_MES[mesLimite]}–Dez` : "sem meses"
+      } com orçado base`,
+    );
+  };
 
   if (!companyId) {
     return (
@@ -598,7 +927,11 @@ function OrcamentoAnalise() {
 
         <div className="min-w-[220px]">
           <Label className="text-xs text-muted-foreground">Comparar com</Label>
-          <Select value={baseAtivo} onValueChange={(v) => setBaseSel(v)}>
+          <Select
+            value={baseAtivo}
+            onValueChange={tentarTrocarBase}
+            disabled={editMode}
+          >
             <SelectTrigger className="h-9">
               <SelectValue />
             </SelectTrigger>
@@ -626,6 +959,7 @@ function OrcamentoAnalise() {
             <Select
               value={totalizarPor}
               onValueChange={(v) => setTotalizarPor(v as TotalizarPor)}
+              disabled={editMode}
             >
               <SelectTrigger className="h-9 w-[160px]">
                 <SelectValue />
@@ -685,10 +1019,32 @@ function OrcamentoAnalise() {
         </div>
       </Card>
 
-      {/* Indicador de base ativa */}
-      <div className="flex items-center gap-2 px-1">
+      {/* Indicador de base ativa e barra de edição */}
+      <div className="flex items-center gap-2 px-1 flex-wrap">
         <span className="text-xs text-muted-foreground">Base de comparação:</span>
-        {cenarioSelecionado ? (
+        {editMode ? (
+          <>
+            {cenarioSelecionado ? (
+              <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/40">
+                Cenário: {cenarioSelecionado.nome}
+                {isDirty && " (modificado)"}
+              </Badge>
+            ) : origemDraft === "realizado" ? (
+              <Badge className="bg-sky-500/15 text-sky-700 dark:text-sky-300 border-sky-500/40">
+                Forecast a partir do realizado (rascunho)
+              </Badge>
+            ) : (
+              <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/40">
+                Orçamento oficial (modificado — rascunho)
+              </Badge>
+            )}
+            {isDirty && (
+              <Badge variant="destructive" className="animate-pulse">
+                Rascunho não salvo
+              </Badge>
+            )}
+          </>
+        ) : cenarioSelecionado ? (
           <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/40 hover:bg-amber-500/20">
             Cenário: {cenarioSelecionado.nome}
           </Badge>
@@ -697,12 +1053,88 @@ function OrcamentoAnalise() {
             Orçamento oficial{nomeAtivo ? ` — ${nomeAtivo}` : ""}
           </Badge>
         )}
-        {cenarioSelecionado?.descricao && (
+        {cenarioSelecionado?.descricao && !editMode && (
           <span className="text-[11px] text-muted-foreground italic">
             {cenarioSelecionado.descricao}
           </span>
         )}
+
+        <div className="ml-auto flex items-center gap-2">
+          {!editMode ? (
+            <>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={iniciarEdicao}
+                disabled={isMultiAno || itens.length === 0}
+                title={
+                  isMultiAno
+                    ? "Selecione apenas um ano para simular"
+                    : "Editar valores em modo rascunho"
+                }
+              >
+                <Pencil className="h-3.5 w-3.5 mr-1" /> Simular
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setOpenForecast(true)}
+                disabled={isMultiAno || itens.length === 0}
+                title="Criar cenário usando o realizado até um mês e o orçado depois"
+              >
+                <TrendingUp className="h-3.5 w-3.5 mr-1" /> Cenário a partir do realizado
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setOpenReajuste(true)}
+              >
+                <Percent className="h-3.5 w-3.5 mr-1" /> Reajuste
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setOpenCopiar(true)}
+              >
+                <Copy className="h-3.5 w-3.5 mr-1" /> Copiar p/ todos
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => (isDirty ? setConfirmDescartar(true) : sairEdicao())}
+              >
+                <Undo2 className="h-3.5 w-3.5 mr-1" /> Descartar
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => sairEdicao()}
+                title="Sair sem salvar"
+              >
+                <X className="h-3.5 w-3.5" />
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => setOpenSalvar(true)}
+                disabled={!isDirty}
+              >
+                <Save className="h-3.5 w-3.5 mr-1" /> Salvar cenário
+              </Button>
+            </>
+          )}
+        </div>
       </div>
+
+      {editMode && totalizarPor !== "mes" && (
+        <div className="text-[11px] text-amber-600 dark:text-amber-400 px-1">
+          <Sparkles className="inline h-3 w-3 mr-1" />
+          A edição é feita mês a mês; a granularidade foi ajustada para "Mês".
+        </div>
+      )}
+
 
       {/* Resumo executivo */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -837,16 +1269,35 @@ function OrcamentoAnalise() {
                             {l.item.tipo_conta ?? "—"}
                           </Badge>
                         </td>
-                        {l.cells.map((cell, idx) => (
-                          <CellTrio
-                            key={colunas[idx].key}
-                            cell={cell}
-                            tipo={l.item.tipo_conta}
-                            varDisplay={varDisplay}
-                            tolAmarelo={tolAmarelo}
-                            tolVermelho={tolVermelho}
-                          />
-                        ))}
+                        {l.cells.map((cell, idx) => {
+                          const col = colunas[idx];
+                          const editableCol =
+                            editMode &&
+                            editingAno !== null &&
+                            col.ano === editingAno &&
+                            col.meses.length === 1;
+                          const editKey = editableCol
+                            ? `${l.item.id}|${col.ano}-${String(col.meses[0]).padStart(2, "0")}`
+                            : null;
+                          return (
+                            <CellTrio
+                              key={col.key}
+                              cell={cell}
+                              tipo={l.item.tipo_conta}
+                              varDisplay={varDisplay}
+                              tolAmarelo={tolAmarelo}
+                              tolVermelho={tolVermelho}
+                              editable={editableCol}
+                              editValue={editKey ? draft[editKey] ?? 0 : null}
+                              onEditChange={
+                                editKey
+                                  ? (v) =>
+                                      setDraft((prev) => ({ ...prev, [editKey]: v }))
+                                  : undefined
+                              }
+                            />
+                          );
+                        })}
                         <CellTrio
                           cell={l.totalCell}
                           tipo={l.item.tipo_conta}
@@ -888,6 +1339,81 @@ function OrcamentoAnalise() {
           significa ano/mês SEM lançamentos carregados.
         </div>
       </div>
+
+      {/* ---------- Dialogs de edição / cenário ---------- */}
+      <ReajusteDialog
+        open={openReajuste}
+        onOpenChange={setOpenReajuste}
+        itens={itens as any}
+        local={draft}
+        meses={mesesDraft}
+        onAplicar={aplicarUpdatesDraft}
+      />
+      <CopiarDialog
+        open={openCopiar}
+        onOpenChange={setOpenCopiar}
+        itens={itens as any}
+        meses={mesesDraft}
+        local={draft}
+        onAplicar={aplicarUpdatesDraft}
+      />
+
+      <SalvarCenarioDialog
+        open={openSalvar}
+        onOpenChange={setOpenSalvar}
+        nomeSugerido={nomeSugerido}
+        podeSobrescrever={!!editingCenarioId}
+        nomeCenarioAtual={cenarioSelecionado?.nome}
+        onSalvar={salvarCenario}
+      />
+
+      <ForecastDialog
+        open={openForecast}
+        onOpenChange={setOpenForecast}
+        ano={anoParaEditar ?? new Date().getFullYear()}
+        realizadoQueries={realizadoQueries}
+        onGerar={iniciarForecast}
+      />
+
+      <AlertDialog open={confirmDescartar} onOpenChange={setConfirmDescartar}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Descartar alterações?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Suas edições no rascunho serão perdidas. Esta ação não afeta o orçamento
+              oficial nem os cenários salvos.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={descartarRascunho}>Descartar</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!pendingBase} onOpenChange={(v) => !v && setPendingBase(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Trocar base com rascunho pendente?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Você tem alterações não salvas. Trocar a base de comparação descartará o
+              rascunho atual.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Voltar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                sairEdicao();
+                if (pendingBase) setBaseSel(pendingBase);
+                setPendingBase(null);
+              }}
+            >
+              Descartar e trocar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
@@ -902,6 +1428,9 @@ function CellTrio({
   tolVermelho,
   bgClass = "",
   leftBorder = "border-l",
+  editable = false,
+  editValue = null,
+  onEditChange,
 }: {
   cell: Cell;
   tipo: string | null;
@@ -910,6 +1439,9 @@ function CellTrio({
   tolVermelho: number;
   bgClass?: string;
   leftBorder?: "border-l" | "border-l-2";
+  editable?: boolean;
+  editValue?: number | null;
+  onEditChange?: (v: number) => void;
 }) {
   const varR =
     cell.realizado !== null && cell.orcado !== null ? cell.realizado - cell.orcado : null;
@@ -928,13 +1460,23 @@ function CellTrio({
     <>
       <td
         className={cn(
-          "px-2 py-2 text-right tabular-nums text-xs",
+          "px-1 py-1 text-right tabular-nums text-xs",
           leftBorder,
           "border-border/60",
-          bgClass,
+          editable ? "bg-amber-500/5" : bgClass,
         )}
+        onClick={(e) => e.stopPropagation()}
       >
-        {cell.orcado === null ? (
+        {editable ? (
+          <input
+            type="number"
+            step="0.01"
+            value={editValue ?? 0}
+            onChange={(e) => onEditChange?.(Number(e.target.value) || 0)}
+            onFocus={(e) => e.currentTarget.select()}
+            className="w-full h-7 text-right tabular-nums text-xs bg-background border border-border rounded px-1 focus:outline-none focus:ring-1 focus:ring-primary"
+          />
+        ) : cell.orcado === null ? (
           <span className="text-muted-foreground">—</span>
         ) : (
           formatBRL(cell.orcado)
@@ -1353,6 +1895,204 @@ function DetalheItem({
         </>
       )}
     </>
+  );
+}
+
+// -------------------- Dialog: Salvar cenário --------------------
+
+function SalvarCenarioDialog({
+  open,
+  onOpenChange,
+  nomeSugerido,
+  podeSobrescrever,
+  nomeCenarioAtual,
+  onSalvar,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  nomeSugerido: string;
+  podeSobrescrever: boolean;
+  nomeCenarioAtual?: string;
+  onSalvar: (args: {
+    nome: string;
+    descricao: string;
+    sobrescrever: boolean;
+  }) => Promise<void>;
+}) {
+  const [nome, setNome] = useState(nomeSugerido);
+  const [descricao, setDescricao] = useState("");
+  const [modo, setModo] = useState<"novo" | "sobrescrever">("novo");
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      setNome(nomeSugerido);
+      setDescricao("");
+      setModo(podeSobrescrever ? "sobrescrever" : "novo");
+    }
+  }, [open, nomeSugerido, podeSobrescrever]);
+
+  const submit = async () => {
+    if (!nome.trim()) {
+      toast.error("Informe um nome para o cenário");
+      return;
+    }
+    setBusy(true);
+    try {
+      await onSalvar({
+        nome: nome.trim(),
+        descricao: descricao.trim(),
+        sobrescrever: modo === "sobrescrever" && podeSobrescrever,
+      });
+      onOpenChange(false);
+    } catch (e: any) {
+      toast.error(e.message ?? String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Salvar cenário</DialogTitle>
+          <DialogDescription>
+            O orçamento oficial não é alterado. O cenário guarda uma cópia completa dos
+            valores.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3">
+          {podeSobrescrever && (
+            <div>
+              <Label className="text-xs">Modo</Label>
+              <Select value={modo} onValueChange={(v) => setModo(v as any)}>
+                <SelectTrigger className="h-9">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="sobrescrever">
+                    Salvar sobre "{nomeCenarioAtual}"
+                  </SelectItem>
+                  <SelectItem value="novo">Salvar como novo cenário</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+          <div>
+            <Label className="text-xs">Nome</Label>
+            <Input value={nome} onChange={(e) => setNome(e.target.value)} />
+          </div>
+          <div>
+            <Label className="text-xs">Descrição (opcional)</Label>
+            <Textarea
+              value={descricao}
+              onChange={(e) => setDescricao(e.target.value)}
+              rows={3}
+              placeholder="Contexto: reunião, hipóteses assumidas, etc."
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={busy}>
+            Cancelar
+          </Button>
+          <Button onClick={submit} disabled={busy}>
+            <Save className="h-4 w-4 mr-1" /> Salvar
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// -------------------- Dialog: Forecast a partir do realizado --------------------
+
+function ForecastDialog({
+  open,
+  onOpenChange,
+  ano,
+  realizadoQueries,
+  onGerar,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  ano: number;
+  realizadoQueries: Array<{ data?: { ano: number; porItem: Record<string, any> } | undefined }>;
+  onGerar: (mesLimite: number, nome: string) => void;
+}) {
+  // Sugere o último mês com dado
+  const sugestao = useMemo(() => {
+    const q = realizadoQueries.find((x) => x.data?.ano === ano);
+    if (!q?.data) return 1;
+    let ultimo = 1;
+    for (const itemId of Object.keys(q.data.porItem)) {
+      const det = q.data.porItem[itemId];
+      if (!det?.porMes) continue;
+      for (const r of det.porMes as any[]) {
+        if (!r.semDados) {
+          const m = Number(r.competencia.slice(5, 7));
+          if (m > ultimo) ultimo = m;
+        }
+      }
+    }
+    return ultimo;
+  }, [realizadoQueries, ano]);
+
+  const [mes, setMes] = useState<number>(sugestao);
+  const [nome, setNome] = useState<string>("");
+
+  useEffect(() => {
+    if (open) {
+      setMes(sugestao);
+      setNome(`Forecast a partir de ${NOMES_MES[Math.max(0, sugestao - 1)]}/${ano}`);
+    }
+  }, [open, sugestao, ano]);
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Cenário a partir do realizado</DialogTitle>
+          <DialogDescription>
+            Meses até o mês escolhido usam o realizado; meses posteriores usam o orçado
+            atual — você ajusta e salva.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3">
+          <div>
+            <Label className="text-xs">Usar realizado até</Label>
+            <Select value={String(mes)} onValueChange={(v) => setMes(Number(v))}>
+              <SelectTrigger className="h-9">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
+                  <SelectItem key={m} value={String(m)}>
+                    {NOMES_MES[m - 1]}/{ano}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label className="text-xs">Nome sugerido do cenário</Label>
+            <Input value={nome} onChange={(e) => setNome(e.target.value)} />
+            <p className="text-[10px] text-muted-foreground mt-1">
+              Você poderá editar o nome ao salvar.
+            </p>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={() => onOpenChange(false)}>
+            Cancelar
+          </Button>
+          <Button onClick={() => onGerar(mes, nome)}>
+            <TrendingUp className="h-4 w-4 mr-1" /> Gerar rascunho
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 

@@ -1227,42 +1227,16 @@ function OrcamentoAnalise() {
         </TabsList>
 
         <TabsContent value="itens" className="space-y-4">
-          {/* Resumo executivo */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            <ResumoCard label="Total Orçado" valor={totais.tOrc} />
-        <ResumoCard
-          label="Total Realizado"
-          valor={totais.tReal}
-          hint={totais.tReal === null ? "Sem dados no período" : undefined}
-        />
-        <ResumoCard
-          label="Variação R$"
-          valor={totais.tVar}
-          tone={
-            totais.tVar === null
-              ? "neutro"
-              : totais.tVar > 0
-                ? "alta"
-                : totais.tVar < 0
-                  ? "baixa"
-                  : "neutro"
-          }
-        />
-        <ResumoCard
-          label="Variação %"
-          valor={totais.tVarP}
-          isPct
-          tone={
-            totais.tVarP === null
-              ? "neutro"
-              : totais.tVarP > 0
-                ? "alta"
-                : totais.tVarP < 0
-                  ? "baixa"
-                  : "neutro"
-          }
-        />
-      </div>
+          {/* Evolução por natureza: Receita, Custo, Despesa + Resultado */}
+          <NaturezaCharts
+            grid={grid.map((l) => ({
+              tipo: l.item.tipo_conta,
+              cells: l.cells.map((c) => ({ orcado: c.orcado, realizado: c.realizado })),
+              totalCell: { orcado: l.totalCell.orcado, realizado: l.totalCell.realizado },
+            }))}
+            colunas={colunas.map((c) => ({ key: c.key, label: c.label }))}
+          />
+
 
       {/* Legenda de escala */}
       <div className="text-[11px] text-muted-foreground px-1">

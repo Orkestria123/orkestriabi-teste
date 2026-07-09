@@ -300,20 +300,6 @@ export async function computeRealizadoDetalhado(params: {
     () => MASCARA_DEFAULT,
   );
 
-  const { data: planoRaw, error: ep } = await supabase
-    .from("plano_contas")
-    .select("codigo, classificacao")
-    .eq("tenant_id", tenantId)
-    .eq("company_id", companyId)
-    .range(0, 199999);
-  if (ep) throw ep;
-  const plano = (planoRaw ?? []) as PlanoRow[];
-  const porCodigo = new Map(plano.map((p) => [p.codigo, p.classificacao]));
-  const porClassificacao = new Set(plano.map((p) => p.classificacao));
-  const codigoToClass = new Map<string, string>(
-    plano.map((p) => [p.codigo, p.classificacao]),
-  );
-
   const { data: saldosRaw, error: es } = await supabase
     .from("saldos_mensais")
     .select("conta_codigo, competencia, total_debitos, total_creditos")
@@ -323,6 +309,16 @@ export async function computeRealizadoDetalhado(params: {
     .range(0, 199999);
   if (es) throw es;
   const saldos = (saldosRaw ?? []) as SaldoRow[];
+
+  // Plano apenas para os códigos com movimento (evita cap de 1000 do PostgREST)
+  const codigosSaldos = saldos.map((s) => s.conta_codigo);
+  const plano = await fetchPlanoPorCodigos(companyId, codigosSaldos);
+  const porCodigo = new Map(plano.map((p) => [p.codigo, p.classificacao]));
+  const porClassificacao = new Set(plano.map((p) => p.classificacao));
+  const codigoToClass = new Map<string, string>(
+    plano.map((p) => [p.codigo, p.classificacao]),
+  );
+
 
   // "Sem dados": nenhum lançamento contábil naquela competência para a empresa.
   const mesesComMovimento = new Set(saldos.map((s) => s.competencia.slice(0, 7)));

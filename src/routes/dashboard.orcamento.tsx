@@ -585,7 +585,33 @@ function OrcamentoAnalise() {
     orcamentoPorAno,
     cenarioSelecionado,
     orcamentos,
+    editMode,
+    editingAno,
+    draft,
   ]);
+
+  // ---- Detecção de rascunho não salvo ----
+  const isDirty = useMemo(() => {
+    if (!editMode) return false;
+    const keys = new Set([...Object.keys(draft), ...Object.keys(baseSnapshot)]);
+    for (const k of keys) {
+      const a = Number(draft[k] ?? 0);
+      const b = Number(baseSnapshot[k] ?? 0);
+      if (Math.abs(a - b) > 0.005) return true;
+    }
+    return false;
+  }, [editMode, draft, baseSnapshot]);
+
+  // Avisar ao fechar a aba com rascunho pendente
+  useEffect(() => {
+    if (!isDirty) return;
+    const h = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", h);
+    return () => window.removeEventListener("beforeunload", h);
+  }, [isDirty]);
 
 
   // ---- Totais gerais para cards ----

@@ -332,9 +332,10 @@ export async function computeRealizadoDetalhado(params: {
   const saldos = await fetchSaldosMensais(companyId, inicioD, fimExclusivoD);
 
 
-  // Plano apenas para os códigos com movimento (evita cap de 1000 do PostgREST)
+  // Inclui códigos referenciados pelos itens (sintéticas sem movimento próprio)
   const codigosSaldos = saldos.map((s) => s.conta_codigo);
-  const plano = await fetchPlanoPorCodigos(companyId, codigosSaldos);
+  const codigosItens = itens.flatMap((i) => i.contas ?? []);
+  const plano = await fetchPlanoPorCodigos(companyId, [...codigosSaldos, ...codigosItens]);
   const porCodigo = new Map(plano.map((p) => [p.codigo, p.classificacao]));
   const porClassificacao = new Set(plano.map((p) => p.classificacao));
   const codigoToClass = new Map<string, string>(

@@ -4,15 +4,24 @@
 // anos são selecionados no filtro global. Cada coluna traz Orçado, Realizado
 // e Variação com semáforo, e permite drill-down por item nas contas do plano.
 import { createFileRoute } from "@tanstack/react-router";
-import { Fragment, useMemo, useState, type ReactNode } from "react";
-import { useQueries, useQuery } from "@tanstack/react-query";
+import { Fragment, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import {
   ChevronDown,
   ChevronRight,
   CircleAlert,
   CircleCheck,
   CircleMinus,
+  Copy,
+  Percent,
+  Pencil,
+  Save,
+  Sparkles,
+  TrendingUp,
   TriangleAlert,
+  Undo2,
+  X,
 } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -24,6 +33,11 @@ import {
   type Visao,
 } from "@/lib/orcamento/realizado";
 import { formatBRL } from "@/lib/format";
+import {
+  ReajusteDialog,
+  CopiarDialog,
+  NOMES_MES,
+} from "@/components/orcamento/orcamento-planejamento-grid";
 
 
 import { Card } from "@/components/ui/card";
@@ -36,7 +50,27 @@ import {
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/dashboard/orcamento")({

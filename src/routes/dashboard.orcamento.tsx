@@ -959,6 +959,7 @@ function OrcamentoAnalise() {
             <Select
               value={totalizarPor}
               onValueChange={(v) => setTotalizarPor(v as TotalizarPor)}
+              disabled={editMode}
             >
               <SelectTrigger className="h-9 w-[160px]">
                 <SelectValue />

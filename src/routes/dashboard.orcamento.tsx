@@ -213,6 +213,7 @@ function OrcamentoAnalise() {
   const { years, months } = useFilters();
 
   const [orcamentoNome, setOrcamentoNome] = useState<string | null>(null);
+  const [baseSel, setBaseSel] = useState<string>("oficial"); // "oficial" ou cenario_id
   const [totalizarPor, setTotalizarPor] = useState<TotalizarPor>("mes");
   const [varDisplay, setVarDisplay] = useState<VarDisplay>("ambos");
   const [expandido, setExpandido] = useState<string | null>(null);
@@ -318,6 +319,58 @@ function OrcamentoAnalise() {
     },
   });
 
+  // ---- Cenários salvos para os orçamentos da família ----
+  const cenariosQ = useQuery({
+    queryKey: ["orcamento-cenarios", orcamentoIds.join(",")],
+    enabled: orcamentoIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("orcamento_cenarios")
+        .select("id, nome, orcamento_id, descricao, created_at")
+        .in("orcamento_id", orcamentoIds)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as {
+        id: string;
+        nome: string;
+        orcamento_id: string;
+        descricao: string | null;
+        created_at: string;
+      }[];
+    },
+  });
+  const cenarios = cenariosQ.data ?? [];
+
+  // Base ativa efetiva: se o cenário selecionado não pertence à família atual, cai para oficial
+  const baseAtivo = useMemo(() => {
+    if (baseSel === "oficial") return "oficial";
+    return cenarios.some((c) => c.id === baseSel) ? baseSel : "oficial";
+  }, [baseSel, cenarios]);
+
+  const cenarioSelecionado = useMemo(
+    () => (baseAtivo !== "oficial" ? cenarios.find((c) => c.id === baseAtivo) ?? null : null),
+    [baseAtivo, cenarios],
+  );
+
+  // ---- Valores do cenário selecionado (substituem o orçado quando ativo) ----
+  const cenarioValoresQ = useQuery({
+    queryKey: ["orcamento-cenario-valores", baseAtivo],
+    enabled: baseAtivo !== "oficial",
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("orcamento_cenario_valores")
+        .select("cenario_id, item_id, competencia, valor_orcado")
+        .eq("cenario_id", baseAtivo);
+      if (error) throw error;
+      return (data ?? []) as {
+        cenario_id: string;
+        item_id: string;
+        competencia: string;
+        valor_orcado: number;
+      }[];
+    },
+  });
+
   // ---- Realizado: 1 query por ano selecionado (Jan–Dez) ----
   // Rotulamos os itens uma vez por ID; o mapeamento item.contas→classificações
   // é feito dentro do motor. Para multi-ano, aplicamos os itens do orçamento
@@ -363,6 +416,7 @@ function OrcamentoAnalise() {
     orcamentosQ.isLoading ||
     itensQ.isLoading ||
     valoresQ.isLoading ||
+    cenarioValoresQ.isLoading ||
     realizadoQueries.some((q) => q.isLoading);
 
   // ---- Cálculo de célula para (item, coluna) ----
@@ -374,6 +428,11 @@ function OrcamentoAnalise() {
 
   const grid: LinhaGrid[] = useMemo(() => {
     const valores = valoresQ.data ?? [];
+    const cenarioValores = cenarioValoresQ.data ?? [];
+    // Ano do cenário selecionado (se houver): substitui o orçado apenas nesse ano
+    const anoCenario = cenarioSelecionado
+      ? orcamentos.find((o) => o.id === cenarioSelecionado.orcamento_id)?.ano ?? null
+      : null;
     const realPorAno = new Map<number, Record<string, any>>();
     for (const q of realizadoQueries) {
       const d = q.data;
@@ -381,10 +440,20 @@ function OrcamentoAnalise() {
     }
 
     const computeCell = (item: OrcamentoItem, col: Coluna): Cell => {
-      // Orçado — soma valor_orcado dos meses da coluna no orçamento daquele ano
+      // Orçado — soma valor_orcado dos meses da coluna
       const orc = orcamentoPorAno.get(col.ano);
       let orcado: number | null = null;
-      if (orc) {
+      const usaCenario = anoCenario !== null && col.ano === anoCenario;
+      if (usaCenario) {
+        orcado = 0;
+        for (const m of col.meses) {
+          const key = `${col.ano}-${String(m).padStart(2, "0")}`;
+          const v = cenarioValores.find(
+            (x) => x.item_id === item.id && x.competencia.slice(0, 7) === key,
+          );
+          if (v) orcado += Number(v.valor_orcado ?? 0);
+        }
+      } else if (orc) {
         orcado = 0;
         for (const m of col.meses) {
           const key = `${col.ano}-${String(m).padStart(2, "0")}`;
@@ -430,7 +499,6 @@ function OrcamentoAnalise() {
 
     return itens.map((item) => {
       const cells = colunas.map((c) => computeCell(item, c));
-      // Total = soma horizontal
       let tOrc: number | null = null;
       let tReal: number | null = null;
       for (const c of cells) {
@@ -443,7 +511,17 @@ function OrcamentoAnalise() {
         totalCell: { orcado: tOrc, realizado: tReal, semDados: tOrc === null && tReal === null },
       };
     });
-  }, [itens, colunas, valoresQ.data, realizadoQueries, orcamentoPorAno]);
+  }, [
+    itens,
+    colunas,
+    valoresQ.data,
+    cenarioValoresQ.data,
+    realizadoQueries,
+    orcamentoPorAno,
+    cenarioSelecionado,
+    orcamentos,
+  ]);
+
 
   // ---- Totais gerais para cards ----
   const totais = useMemo(() => {
@@ -518,6 +596,30 @@ function OrcamentoAnalise() {
           </Select>
         </div>
 
+        <div className="min-w-[220px]">
+          <Label className="text-xs text-muted-foreground">Comparar com</Label>
+          <Select value={baseAtivo} onValueChange={(v) => setBaseSel(v)}>
+            <SelectTrigger className="h-9">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="oficial">
+                {nomeAtivo ? `${nomeAtivo} (oficial)` : "Orçamento oficial"}
+              </SelectItem>
+              {cenarios.length > 0 && (
+                <div className="px-2 py-1 text-[10px] uppercase text-muted-foreground">
+                  Cenários salvos
+                </div>
+              )}
+              {cenarios.map((c) => (
+                <SelectItem key={c.id} value={c.id}>
+                  {c.nome}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
         {!isMultiAno && (
           <div>
             <Label className="text-xs text-muted-foreground">Totalizar por</Label>
@@ -582,6 +684,25 @@ function OrcamentoAnalise() {
           </div>
         </div>
       </Card>
+
+      {/* Indicador de base ativa */}
+      <div className="flex items-center gap-2 px-1">
+        <span className="text-xs text-muted-foreground">Base de comparação:</span>
+        {cenarioSelecionado ? (
+          <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/40 hover:bg-amber-500/20">
+            Cenário: {cenarioSelecionado.nome}
+          </Badge>
+        ) : (
+          <Badge variant="outline" className="text-emerald-700 dark:text-emerald-300 border-emerald-500/40">
+            Orçamento oficial{nomeAtivo ? ` — ${nomeAtivo}` : ""}
+          </Badge>
+        )}
+        {cenarioSelecionado?.descricao && (
+          <span className="text-[11px] text-muted-foreground italic">
+            {cenarioSelecionado.descricao}
+          </span>
+        )}
+      </div>
 
       {/* Resumo executivo */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">

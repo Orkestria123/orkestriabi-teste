@@ -1018,10 +1018,32 @@ function OrcamentoAnalise() {
         </div>
       </Card>
 
-      {/* Indicador de base ativa */}
-      <div className="flex items-center gap-2 px-1">
+      {/* Indicador de base ativa e barra de edição */}
+      <div className="flex items-center gap-2 px-1 flex-wrap">
         <span className="text-xs text-muted-foreground">Base de comparação:</span>
-        {cenarioSelecionado ? (
+        {editMode ? (
+          <>
+            {cenarioSelecionado ? (
+              <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/40">
+                Cenário: {cenarioSelecionado.nome}
+                {isDirty && " (modificado)"}
+              </Badge>
+            ) : origemDraft === "realizado" ? (
+              <Badge className="bg-sky-500/15 text-sky-700 dark:text-sky-300 border-sky-500/40">
+                Forecast a partir do realizado (rascunho)
+              </Badge>
+            ) : (
+              <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/40">
+                Orçamento oficial (modificado — rascunho)
+              </Badge>
+            )}
+            {isDirty && (
+              <Badge variant="destructive" className="animate-pulse">
+                Rascunho não salvo
+              </Badge>
+            )}
+          </>
+        ) : cenarioSelecionado ? (
           <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/40 hover:bg-amber-500/20">
             Cenário: {cenarioSelecionado.nome}
           </Badge>
@@ -1030,12 +1052,88 @@ function OrcamentoAnalise() {
             Orçamento oficial{nomeAtivo ? ` — ${nomeAtivo}` : ""}
           </Badge>
         )}
-        {cenarioSelecionado?.descricao && (
+        {cenarioSelecionado?.descricao && !editMode && (
           <span className="text-[11px] text-muted-foreground italic">
             {cenarioSelecionado.descricao}
           </span>
         )}
+
+        <div className="ml-auto flex items-center gap-2">
+          {!editMode ? (
+            <>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={iniciarEdicao}
+                disabled={isMultiAno || itens.length === 0}
+                title={
+                  isMultiAno
+                    ? "Selecione apenas um ano para simular"
+                    : "Editar valores em modo rascunho"
+                }
+              >
+                <Pencil className="h-3.5 w-3.5 mr-1" /> Simular
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setOpenForecast(true)}
+                disabled={isMultiAno || itens.length === 0}
+                title="Criar cenário usando o realizado até um mês e o orçado depois"
+              >
+                <TrendingUp className="h-3.5 w-3.5 mr-1" /> Cenário a partir do realizado
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setOpenReajuste(true)}
+              >
+                <Percent className="h-3.5 w-3.5 mr-1" /> Reajuste
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setOpenCopiar(true)}
+              >
+                <Copy className="h-3.5 w-3.5 mr-1" /> Copiar p/ todos
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => (isDirty ? setConfirmDescartar(true) : sairEdicao())}
+              >
+                <Undo2 className="h-3.5 w-3.5 mr-1" /> Descartar
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => sairEdicao()}
+                title="Sair sem salvar"
+              >
+                <X className="h-3.5 w-3.5" />
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => setOpenSalvar(true)}
+                disabled={!isDirty}
+              >
+                <Save className="h-3.5 w-3.5 mr-1" /> Salvar cenário
+              </Button>
+            </>
+          )}
+        </div>
       </div>
+
+      {editMode && totalizarPor !== "mes" && (
+        <div className="text-[11px] text-amber-600 dark:text-amber-400 px-1">
+          <Sparkles className="inline h-3 w-3 mr-1" />
+          A edição é feita mês a mês; a granularidade foi ajustada para "Mês".
+        </div>
+      )}
+
 
       {/* Resumo executivo */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">

@@ -663,8 +663,19 @@ export async function computeContasDoItemMensal(params: {
 
   const saldos = await fetchSaldosMensais(companyId, inicioD, fimExclusivoD);
   const codigosSaldos = saldos.map((s) => s.conta_codigo);
-  const plano = await fetchPlanoPorCodigos(companyId, codigosSaldos);
+  const plano = await fetchPlanoPorCodigos(companyId, [...codigosSaldos, ...contas]);
   const porCodigoRow = new Map<string, PlanoRow>(plano.map((p) => [p.codigo, p]));
+
+  const alvosCls: string[] = [];
+  for (const c of contas) {
+    const row = porCodigoRow.get(c);
+    alvosCls.push(row ? row.classificacao : c);
+  }
+  const codigosExcluidos = new Set<string>();
+  for (const p of plano) {
+    if (p.is_participante) codigosExcluidos.add(p.codigo);
+    else if (isApuracao(p.classificacao, mascara)) codigosExcluidos.add(p.codigo);
+  }
 
   const rowsExtra: { row: PlanoRow; saldo: SaldoRow }[] = [];
   const mesesComMovimentoGlobal = new Set<string>(

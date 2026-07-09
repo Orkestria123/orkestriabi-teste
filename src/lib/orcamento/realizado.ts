@@ -18,7 +18,70 @@ export type Visao = "contabil" | "gerencial";
 interface PlanoRow {
   codigo: string;
   classificacao: string;
+  descricao?: string | null;
 }
+
+/**
+ * Busca em `plano_contas` apenas as linhas cujos códigos aparecem em `codigos`.
+ * Necessário porque o PostgREST cabe em 1000 linhas por resposta e algumas
+ * empresas têm dezenas de milhares de contas — carregar o plano inteiro
+ * perde as contas que precisamos (bug do "realizado sempre zero" na tela
+ * de análise de variação do orçamento).
+ */
+async function fetchPlanoPorCodigos(
+  companyId: string,
+  codigos: string[],
+): Promise<PlanoRow[]> {
+  const uniq = Array.from(new Set(codigos.filter(Boolean)));
+  if (uniq.length === 0) return [];
+  const out: PlanoRow[] = [];
+  const CHUNK = 500;
+  for (let i = 0; i < uniq.length; i += CHUNK) {
+    const slice = uniq.slice(i, i + CHUNK);
+    const { data, error } = await supabase
+      .from("plano_contas")
+      .select("codigo, classificacao, descricao")
+      .eq("company_id", companyId)
+      .in("codigo", slice);
+    if (error) throw error;
+    out.push(...((data ?? []) as PlanoRow[]));
+  }
+  return out;
+}
+
+/**
+ * Pagina `saldos_mensais` para contornar o cap de 1000 linhas do PostgREST.
+ */
+async function fetchSaldosMensais(
+  companyId: string,
+  inicioD: string,
+  fimExclusivoD: string,
+): Promise<SaldoRow[]> {
+  const PAGE = 1000;
+  const out: SaldoRow[] = [];
+  let from = 0;
+  while (true) {
+    const { data, error } = await supabase
+      .from("saldos_mensais")
+      .select("conta_codigo, competencia, total_debitos, total_creditos")
+      .eq("company_id", companyId)
+      .gte("competencia", inicioD)
+      .lt("competencia", fimExclusivoD)
+      .order("competencia", { ascending: true })
+      .order("conta_codigo", { ascending: true })
+      .range(from, from + PAGE - 1);
+    if (error) throw error;
+    const rows = (data ?? []) as SaldoRow[];
+    out.push(...rows);
+    if (rows.length < PAGE) break;
+    from += PAGE;
+    if (from > 500000) break;
+  }
+  return out;
+}
+
+
+
 
 interface SaldoRow {
   conta_codigo: string;
@@ -129,31 +192,19 @@ export async function computeRealizadoPorItem(params: {
     () => MASCARA_DEFAULT,
   );
 
-  // Plano estrutural + participantes (para achar analíticas descendentes)
-  const { data: planoRaw, error: ep } = await supabase
-    .from("plano_contas")
-    .select("codigo, classificacao")
-    .eq("tenant_id", tenantId)
-    .eq("company_id", companyId)
-    .range(0, 199999);
-  if (ep) throw ep;
-  const plano = (planoRaw ?? []) as PlanoRow[];
+  // Saldos do período (primeiro, para descobrir quais contas precisamos do plano)
+  const saldos = await fetchSaldosMensais(companyId, inicioD, fimExclusivoD);
+
+
+  // Plano apenas para os códigos com movimento (evita cap de 1000 do PostgREST)
+  const codigosSaldos = saldos.map((s) => s.conta_codigo);
+  const plano = await fetchPlanoPorCodigos(companyId, codigosSaldos);
   const porCodigo = new Map(plano.map((p) => [p.codigo, p.classificacao]));
   const porClassificacao = new Set(plano.map((p) => p.classificacao));
   const codigoToClass = new Map<string, string>(
     plano.map((p) => [p.codigo, p.classificacao]),
   );
 
-  // Saldos do período
-  const { data: saldosRaw, error: es } = await supabase
-    .from("saldos_mensais")
-    .select("conta_codigo, competencia, total_debitos, total_creditos")
-    .eq("company_id", companyId)
-    .gte("competencia", inicioD)
-    .lt("competencia", fimExclusivoD)
-    .range(0, 199999);
-  if (es) throw es;
-  const saldos = (saldosRaw ?? []) as SaldoRow[];
 
   // Ajustes gerenciais (se visão gerencial) — somados ao movimento contábil
   let ajustesRows: SaldoRow[] = [];
@@ -275,29 +326,18 @@ export async function computeRealizadoDetalhado(params: {
     () => MASCARA_DEFAULT,
   );
 
-  const { data: planoRaw, error: ep } = await supabase
-    .from("plano_contas")
-    .select("codigo, classificacao")
-    .eq("tenant_id", tenantId)
-    .eq("company_id", companyId)
-    .range(0, 199999);
-  if (ep) throw ep;
-  const plano = (planoRaw ?? []) as PlanoRow[];
+  const saldos = await fetchSaldosMensais(companyId, inicioD, fimExclusivoD);
+
+
+  // Plano apenas para os códigos com movimento (evita cap de 1000 do PostgREST)
+  const codigosSaldos = saldos.map((s) => s.conta_codigo);
+  const plano = await fetchPlanoPorCodigos(companyId, codigosSaldos);
   const porCodigo = new Map(plano.map((p) => [p.codigo, p.classificacao]));
   const porClassificacao = new Set(plano.map((p) => p.classificacao));
   const codigoToClass = new Map<string, string>(
     plano.map((p) => [p.codigo, p.classificacao]),
   );
 
-  const { data: saldosRaw, error: es } = await supabase
-    .from("saldos_mensais")
-    .select("conta_codigo, competencia, total_debitos, total_creditos")
-    .eq("company_id", companyId)
-    .gte("competencia", inicioD)
-    .lt("competencia", fimExclusivoD)
-    .range(0, 199999);
-  if (es) throw es;
-  const saldos = (saldosRaw ?? []) as SaldoRow[];
 
   // "Sem dados": nenhum lançamento contábil naquela competência para a empresa.
   const mesesComMovimento = new Set(saldos.map((s) => s.competencia.slice(0, 7)));
@@ -400,3 +440,145 @@ export async function computeRealizadoItem(params: {
   const ytd = d.ytd[d.ytd.length - 1];
   return { valor: mes.valor, semDados: mes.semDados, ytd: ytd.valor };
 }
+
+// =====================================================================
+// Drill-down: realizado por conta ANALÍTICA de um item
+// =====================================================================
+export interface ContaRealizada {
+  codigo: string;
+  classificacao: string;
+  descricao: string;
+  /** classificação-pai (entrada em item.contas) que resolveu para esta conta */
+  origem: string;
+  /** valor no mês solicitado */
+  valorMes: number;
+  /** valor acumulado jan → competência */
+  valorYtd: number;
+  semDadosMes: boolean;
+}
+
+/**
+ * Devolve o realizado analítica-a-analítica para o drill-down de um item:
+ * lista as contas com movimento cujas classificações descendem de alguma
+ * entrada em `contas` do item, com código, classificação, descrição e valor
+ * (no mês e YTD) — todos com o sinal do tipo do item já aplicado.
+ */
+export async function computeRealizadoPorConta(params: {
+  tenantId: string;
+  companyId: string;
+  visao: Visao;
+  competencia: string; // YYYY-MM
+  contas: string[]; // entradas do item.contas (classificações ou códigos)
+  tipoConta: string | null;
+}): Promise<ContaRealizada[]> {
+  const { tenantId, companyId, visao, competencia, contas, tipoConta } = params;
+  const ano = competencia.slice(0, 4);
+  const inicioD = `${ano}-01-01`;
+  const [yF, mF] = competencia.split("-").map(Number);
+  const proxMesY = mF === 12 ? yF + 1 : yF;
+  const proxMesM = mF === 12 ? 1 : mF + 1;
+  const fimExclusivoD = `${proxMesY}-${String(proxMesM).padStart(2, "0")}-01`;
+
+  const mascara = await getMascaraConfig({ tenantId, companyId }).catch(
+    () => MASCARA_DEFAULT,
+  );
+
+  // Saldos do ano inteiro para permitir YTD sem refetch
+  const saldos = await fetchSaldosMensais(companyId, inicioD, fimExclusivoD);
+
+
+  const codigosSaldos = saldos.map((s) => s.conta_codigo);
+  const plano = await fetchPlanoPorCodigos(companyId, codigosSaldos);
+  const porCodigoRow = new Map<string, PlanoRow>(plano.map((p) => [p.codigo, p]));
+
+  // Ajustes gerenciais (se aplicável)
+  const rowsExtra: { row: PlanoRow; saldo: SaldoRow }[] = [];
+  if (visao === "gerencial") {
+    const ajData = await getAjustesGerenciais(tenantId, companyId);
+    for (const cg of ajData.contasGerenciais) {
+      if (!porCodigoRow.has(cg.codigo)) {
+        porCodigoRow.set(cg.codigo, {
+          codigo: cg.codigo,
+          classificacao: cg.classificacao,
+          descricao: (cg as any).descricao ?? cg.codigo,
+        });
+      }
+    }
+    for (const a of ajData.ajustes) {
+      if (a.competencia < inicioD || a.competencia >= fimExclusivoD) continue;
+      const rD = porCodigoRow.get(a.conta_debito);
+      const rC = porCodigoRow.get(a.conta_credito);
+      if (rD)
+        rowsExtra.push({
+          row: rD,
+          saldo: {
+            conta_codigo: a.conta_debito,
+            competencia: a.competencia,
+            total_debitos: a.valor,
+            total_creditos: 0,
+          },
+        });
+      if (rC)
+        rowsExtra.push({
+          row: rC,
+          saldo: {
+            conta_codigo: a.conta_credito,
+            competencia: a.competencia,
+            total_debitos: 0,
+            total_creditos: a.valor,
+          },
+        });
+    }
+  }
+
+  const sinal = sinalPorTipo(tipoConta);
+  const mesRef = competencia; // YYYY-MM
+
+  // Para cada conta com movimento, verifica se pertence a alguma classificação-alvo
+  const acumulador = new Map<
+    string,
+    { row: PlanoRow; origem: string; mes: number; ytd: number; movimentoNoMes: boolean }
+  >();
+
+  const registrar = (row: PlanoRow, saldo: SaldoRow) => {
+    const alvo = contas.find(
+      (c) =>
+        c === row.codigo ||
+        c === row.classificacao ||
+        descendeDe(row.classificacao, c, mascara),
+    );
+    if (!alvo) return;
+    const mov = (Number(saldo.total_debitos ?? 0) - Number(saldo.total_creditos ?? 0)) * sinal;
+    const mm = saldo.competencia.slice(0, 7);
+    const key = row.codigo;
+    const cur =
+      acumulador.get(key) ??
+      { row, origem: alvo, mes: 0, ytd: 0, movimentoNoMes: false };
+    cur.ytd += mov;
+    if (mm === mesRef) {
+      cur.mes += mov;
+      cur.movimentoNoMes = true;
+    }
+    acumulador.set(key, cur);
+  };
+
+  for (const s of saldos) {
+    const row = porCodigoRow.get(s.conta_codigo);
+    if (!row) continue;
+    registrar(row, s);
+  }
+  for (const { row, saldo } of rowsExtra) registrar(row, saldo);
+
+  return Array.from(acumulador.values())
+    .map((v) => ({
+      codigo: v.row.codigo,
+      classificacao: v.row.classificacao,
+      descricao: v.row.descricao ?? "",
+      origem: v.origem,
+      valorMes: Math.round(v.mes * 100) / 100,
+      valorYtd: Math.round(v.ytd * 100) / 100,
+      semDadosMes: !v.movimentoNoMes,
+    }))
+    .sort((a, b) => a.classificacao.localeCompare(b.classificacao));
+}
+

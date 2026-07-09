@@ -19,9 +19,11 @@ import { useDashboardCompany } from "@/components/dashboard-context";
 import { useFilters, MONTHS } from "@/components/filter-bar";
 import {
   computeRealizadoDetalhado,
+  computeRealizadoPorConta,
   type Visao,
 } from "@/lib/orcamento/realizado";
 import { formatBRL } from "@/lib/format";
+
 
 import { Card } from "@/components/ui/card";
 import {
@@ -649,72 +651,84 @@ function DetalheItem({
 }) {
   const competenciaRef = `${anoRef}-${String(mesRef).padStart(2, "0")}`;
 
-  // Realizado por conta que compõe o item: chamamos o motor uma vez por conta,
-  // como itens de "1 conta cada", reutilizando computeRealizadoDetalhado.
   const q = useQuery({
-    queryKey: ["orcamento-drill", item.id, companyId, visao, competenciaRef, modo],
+    queryKey: ["orcamento-drill", item.id, companyId, visao, competenciaRef],
     enabled: !!tenantId && !!companyId && item.contas.length > 0,
-    queryFn: async () => {
-      const res = await computeRealizadoDetalhado({
+    queryFn: async () =>
+      computeRealizadoPorConta({
         tenantId: tenantId!,
         companyId: companyId!,
         visao,
-        inicio: `${anoRef}-01`,
-        fim: competenciaRef,
-        itens: item.contas.map((c, i) => ({
-          id: `${item.id}::${i}`,
-          contas: [c],
-          tipo_conta: item.tipo_conta,
-        })),
-      });
-      return res;
-    },
+        competencia: competenciaRef,
+        contas: item.contas,
+        tipoConta: item.tipo_conta,
+      }),
   });
 
   if (item.contas.length === 0) {
     return <div className="text-xs text-muted-foreground">Item sem contas associadas.</div>;
   }
   if (q.isLoading) return <div className="text-xs text-muted-foreground">Carregando detalhes…</div>;
+  if (q.error)
+    return (
+      <div className="text-xs text-red-600">
+        Erro ao carregar detalhes: {(q.error as Error).message}
+      </div>
+    );
 
-  const detalhes = q.data?.porItem ?? {};
+  const contasResolvidas = q.data ?? [];
+  const totalMes = contasResolvidas.reduce((s, c) => s + c.valorMes, 0);
+  const totalYtd = contasResolvidas.reduce((s, c) => s + c.valorYtd, 0);
 
   return (
-    <div className="space-y-1">
-      <div className="text-xs font-medium text-muted-foreground mb-1">
-        Contas que compõem este item ({modo === "mes" ? "no mês" : "YTD"}):
+    <div className="space-y-2">
+      <div className="text-xs font-medium text-muted-foreground">
+        Contas que compõem este item — classificações selecionadas:{" "}
+        <span className="font-mono">{item.contas.join(", ")}</span>
       </div>
-      <table className="w-full text-xs">
-        <thead className="text-muted-foreground">
-          <tr>
-            <th className="text-left py-1 font-medium">Conta</th>
-            <th className="text-right py-1 font-medium">Realizado</th>
-          </tr>
-        </thead>
-        <tbody>
-          {item.contas.map((c, i) => {
-            const d = detalhes[`${item.id}::${i}`];
-            let valor: number | null = 0;
-            if (!d) {
-              valor = null;
-            } else if (modo === "mes") {
-              const r = d.porMes.find((x) => x.competencia === competenciaRef);
-              valor = r ? (r.semDados ? null : r.valor) : null;
-            } else {
-              const y = d.ytd[d.ytd.length - 1];
-              const algum = d.porMes.some((x) => !x.semDados);
-              valor = algum ? y?.valor ?? 0 : null;
-            }
-            return (
-              <tr key={c} className="border-t border-border/50">
-                <td className="py-1 font-mono">{c}</td>
+
+      {contasResolvidas.length === 0 ? (
+        <div className="text-xs text-muted-foreground italic">
+          Nenhuma conta analítica encontrada com movimento no período para as classificações selecionadas.
+        </div>
+      ) : (
+        <table className="w-full text-xs">
+          <thead className="text-muted-foreground">
+            <tr>
+              <th className="text-left py-1 font-medium">Código</th>
+              <th className="text-left py-1 font-medium">Classificação</th>
+              <th className="text-left py-1 font-medium">Descrição</th>
+              <th className="text-right py-1 font-medium">Realizado no mês</th>
+              <th className="text-right py-1 font-medium">Realizado YTD</th>
+            </tr>
+          </thead>
+          <tbody>
+            {contasResolvidas.map((c) => (
+              <tr key={c.codigo} className="border-t border-border/50">
+                <td className="py-1 font-mono">{c.codigo}</td>
+                <td className="py-1 font-mono">{c.classificacao}</td>
+                <td className="py-1">{c.descricao || "—"}</td>
                 <td className="py-1 text-right tabular-nums">
-                  {valor === null ? "—" : formatBRL(valor)}
+                  {c.semDadosMes ? (
+                    <span className="text-muted-foreground">—</span>
+                  ) : (
+                    formatBRL(c.valorMes)
+                  )}
                 </td>
+                <td className="py-1 text-right tabular-nums">{formatBRL(c.valorYtd)}</td>
               </tr>
-            );
-          })}
-        </tbody>
-      </table>
+            ))}
+            <tr className="border-t-2 border-border font-medium">
+              <td className="py-1" colSpan={3}>
+                Total {modo === "mes" ? "no mês" : "(YTD)"}
+              </td>
+              <td className="py-1 text-right tabular-nums">{formatBRL(totalMes)}</td>
+              <td className="py-1 text-right tabular-nums">{formatBRL(totalYtd)}</td>
+            </tr>
+          </tbody>
+        </table>
+      )}
     </div>
   );
 }
+

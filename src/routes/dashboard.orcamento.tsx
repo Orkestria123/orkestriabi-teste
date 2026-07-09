@@ -2084,18 +2084,42 @@ function SalvarCenarioDialog({
 
 // -------------------- Dialog: Forecast a partir do realizado --------------------
 
+type ProjecaoTipo =
+  | "oficial"
+  | "cenario"
+  | "mes_base"
+  | "media_intervalo"
+  | "media_ultimos3";
+
+type ProjecaoCfg =
+  | { tipo: "oficial" }
+  | { tipo: "cenario" }
+  | { tipo: "mes_base"; mesBase: number }
+  | { tipo: "media_intervalo"; ini: number; fim: number }
+  | { tipo: "media_ultimos3" };
+
 function ForecastDialog({
   open,
   onOpenChange,
   ano,
   realizadoQueries,
+  itens,
+  getRealizadoValor,
+  getOficialValor,
+  getBaseValor,
+  cenarioBaseNome,
   onGerar,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   ano: number;
   realizadoQueries: Array<{ data?: { ano: number; porItem: Record<string, any> } | undefined }>;
-  onGerar: (mesLimite: number, nome: string) => void;
+  itens: Array<{ id: string }>;
+  getRealizadoValor: (itemId: string, ano: number, m: number) => number;
+  getOficialValor: (itemId: string, ano: number, m: number) => number;
+  getBaseValor: (itemId: string, ano: number, m: number) => number;
+  cenarioBaseNome: string | null;
+  onGerar: (mesLimite: number, nome: string, projecao: ProjecaoCfg) => void;
 }) {
   // Sugere o último mês com dado
   const sugestao = useMemo(() => {
@@ -2117,22 +2141,119 @@ function ForecastDialog({
 
   const [mes, setMes] = useState<number>(sugestao);
   const [nome, setNome] = useState<string>("");
+  const [projTipo, setProjTipo] = useState<ProjecaoTipo>("oficial");
+  const [mesBase, setMesBase] = useState<number>(1);
+  const [intIni, setIntIni] = useState<number>(1);
+  const [intFim, setIntFim] = useState<number>(1);
 
   useEffect(() => {
     if (open) {
       setMes(sugestao);
-      setNome(`Forecast a partir de ${NOMES_MES[Math.max(0, sugestao - 1)]}/${ano}`);
+      setNome(`Forecast — realizado até ${NOMES_MES[Math.max(0, sugestao - 1)]}/${ano}`);
+      setProjTipo("oficial");
+      setMesBase(sugestao);
+      setIntIni(Math.max(1, sugestao - 2));
+      setIntFim(sugestao);
     }
   }, [open, sugestao, ano]);
 
+  // Atualiza o nome sugerido conforme a escolha muda (mas usuário pode sobrescrever)
+  useEffect(() => {
+    if (!open) return;
+    setNome(`Forecast — realizado até ${NOMES_MES[Math.max(0, mes - 1)]}/${ano}`);
+  }, [mes, ano, open]);
+
+  const projecao: ProjecaoCfg = useMemo(() => {
+    switch (projTipo) {
+      case "oficial":
+        return { tipo: "oficial" };
+      case "cenario":
+        return { tipo: "cenario" };
+      case "mes_base":
+        return { tipo: "mes_base", mesBase };
+      case "media_intervalo":
+        return {
+          tipo: "media_intervalo",
+          ini: Math.min(intIni, intFim),
+          fim: Math.max(intIni, intFim),
+        };
+      case "media_ultimos3":
+        return { tipo: "media_ultimos3" };
+    }
+  }, [projTipo, mesBase, intIni, intFim]);
+
+  // Preview: total mensal projetado (soma de todos os itens) para 1 mês futuro
+  const preview = useMemo(() => {
+    if (!open) return null;
+    let mediaIni = 0, mediaFim = 0;
+    if (projecao.tipo === "media_intervalo") {
+      mediaIni = projecao.ini; mediaFim = projecao.fim;
+    } else if (projecao.tipo === "media_ultimos3") {
+      mediaIni = Math.max(1, mes - 2); mediaFim = mes;
+    }
+    const proxFut = mes < 12 ? mes + 1 : 12;
+    let total = 0;
+    for (const it of itens) {
+      let v = 0;
+      switch (projecao.tipo) {
+        case "oficial":
+          v = getOficialValor(it.id, ano, proxFut);
+          break;
+        case "cenario":
+          v = getBaseValor(it.id, ano, proxFut);
+          break;
+        case "mes_base":
+          v = getRealizadoValor(it.id, ano, projecao.mesBase);
+          break;
+        case "media_intervalo":
+        case "media_ultimos3": {
+          let s = 0, n = 0;
+          for (let mm = mediaIni; mm <= mediaFim; mm++) {
+            s += getRealizadoValor(it.id, ano, mm);
+            n++;
+          }
+          v = n > 0 ? s / n : 0;
+          break;
+        }
+      }
+      total += v;
+    }
+    let descricao = "";
+    switch (projecao.tipo) {
+      case "oficial":
+        descricao = "valores do orçamento oficial";
+        break;
+      case "cenario":
+        descricao = cenarioBaseNome
+          ? `valores do cenário "${cenarioBaseNome}"`
+          : "valores do orçamento base atual";
+        break;
+      case "mes_base":
+        descricao = `realizado de ${NOMES_MES[projecao.mesBase - 1]}/${ano}`;
+        break;
+      case "media_intervalo":
+        descricao = `média de ${NOMES_MES[mediaIni - 1]}–${NOMES_MES[mediaFim - 1]} do realizado`;
+        break;
+      case "media_ultimos3":
+        descricao = `média de ${NOMES_MES[mediaIni - 1]}–${NOMES_MES[mediaFim - 1]} do realizado`;
+        break;
+    }
+    return { total, descricao };
+  }, [open, projecao, mes, itens, ano, getOficialValor, getBaseValor, getRealizadoValor, cenarioBaseNome]);
+
+  const mesesArr = Array.from({ length: 12 }, (_, i) => i + 1);
+  const mesesFuturos = mes < 12
+    ? `${NOMES_MES[mes]}–${NOMES_MES[11]}`
+    : "nenhum";
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Cenário a partir do realizado</DialogTitle>
           <DialogDescription>
-            Meses até o mês escolhido usam o realizado; meses posteriores usam o orçado
-            atual — você ajusta e salva.
+            Os meses até o corte usam o realizado. Escolha como projetar os meses
+            seguintes — o rascunho abre editável para você ajustar antes de salvar.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
@@ -2143,14 +2264,113 @@ function ForecastDialog({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
+                {mesesArr.map((m) => (
                   <SelectItem key={m} value={String(m)}>
                     {NOMES_MES[m - 1]}/{ano}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
+            <p className="text-[10px] text-muted-foreground mt-1">
+              Meses futuros: {mesesFuturos}
+            </p>
           </div>
+
+          <div>
+            <Label className="text-xs">Projetar meses seguintes com</Label>
+            <Select
+              value={projTipo}
+              onValueChange={(v) => setProjTipo(v as ProjecaoTipo)}
+            >
+              <SelectTrigger className="h-9">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="oficial">Orçamento oficial</SelectItem>
+                <SelectItem value="cenario">
+                  Cenário atual{cenarioBaseNome ? ` ("${cenarioBaseNome}")` : ""}
+                </SelectItem>
+                <SelectItem value="mes_base">Um mês específico como base</SelectItem>
+                <SelectItem value="media_intervalo">
+                  Média de um intervalo de meses
+                </SelectItem>
+                <SelectItem value="media_ultimos3">
+                  Média dos últimos 3 meses realizados
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {projTipo === "mes_base" && (
+            <div>
+              <Label className="text-xs">Mês base (realizado)</Label>
+              <Select
+                value={String(mesBase)}
+                onValueChange={(v) => setMesBase(Number(v))}
+              >
+                <SelectTrigger className="h-9">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {mesesArr.filter((m) => m <= mes).map((m) => (
+                    <SelectItem key={m} value={String(m)}>
+                      {NOMES_MES[m - 1]}/{ano}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {projTipo === "media_intervalo" && (
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label className="text-xs">De</Label>
+                <Select
+                  value={String(intIni)}
+                  onValueChange={(v) => setIntIni(Number(v))}
+                >
+                  <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {mesesArr.filter((m) => m <= mes).map((m) => (
+                      <SelectItem key={m} value={String(m)}>
+                        {NOMES_MES[m - 1]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs">Até</Label>
+                <Select
+                  value={String(intFim)}
+                  onValueChange={(v) => setIntFim(Number(v))}
+                >
+                  <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {mesesArr.filter((m) => m <= mes).map((m) => (
+                      <SelectItem key={m} value={String(m)}>
+                        {NOMES_MES[m - 1]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
+
+          {preview && mes < 12 && (
+            <div className="rounded-md border bg-muted/40 p-2 text-xs">
+              <div className="text-muted-foreground">
+                Meses futuros usarão {preview.descricao}.
+              </div>
+              <div className="mt-1">
+                Total mensal projetado (soma dos itens):{" "}
+                <b>{formatBRL(preview.total)}</b>
+              </div>
+            </div>
+          )}
+
           <div>
             <Label className="text-xs">Nome sugerido do cenário</Label>
             <Input value={nome} onChange={(e) => setNome(e.target.value)} />
@@ -2163,7 +2383,7 @@ function ForecastDialog({
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
             Cancelar
           </Button>
-          <Button onClick={() => onGerar(mes, nome)}>
+          <Button onClick={() => onGerar(mes, nome, projecao)}>
             <TrendingUp className="h-4 w-4 mr-1" /> Gerar rascunho
           </Button>
         </DialogFooter>
@@ -2171,4 +2391,5 @@ function ForecastDialog({
     </Dialog>
   );
 }
+
 

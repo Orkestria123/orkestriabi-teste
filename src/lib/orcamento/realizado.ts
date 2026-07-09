@@ -19,6 +19,7 @@ interface PlanoRow {
   codigo: string;
   classificacao: string;
   descricao?: string | null;
+  is_participante?: boolean;
 }
 
 /**
@@ -40,7 +41,7 @@ async function fetchPlanoPorCodigos(
     const slice = uniq.slice(i, i + CHUNK);
     const { data, error } = await supabase
       .from("plano_contas")
-      .select("codigo, classificacao, descricao")
+      .select("codigo, classificacao, descricao, is_participante")
       .eq("company_id", companyId)
       .in("codigo", slice);
     if (error) throw error;
@@ -126,6 +127,20 @@ function sinalPorTipo(tipo?: string | null): 1 | -1 {
   return 1;
 }
 
+/**
+ * Uma classificação é conta de apuração (encerramento) se a última parte é
+ * "98" ou "99". Alinha o motor do orçamento com o das demonstrações
+ * (build-statements.ts), que exclui essas contas para não duplicar linhas
+ * calculadas (ex.: Receita Líquida mapeada em 3.01.99).
+ */
+function isApuracao(classificacao: string, m: MascaraConfig): boolean {
+  const partes = m.separador
+    ? classificacao.split(m.separador)
+    : [classificacao];
+  const ult = partes[partes.length - 1];
+  return ult === "98" || ult === "99";
+}
+
 
 /**
  * Resolve as classificações-alvo de um item.
@@ -196,14 +211,23 @@ export async function computeRealizadoPorItem(params: {
   const saldos = await fetchSaldosMensais(companyId, inicioD, fimExclusivoD);
 
 
-  // Plano apenas para os códigos com movimento (evita cap de 1000 do PostgREST)
+  // Plano: códigos com movimento + códigos referenciados pelos itens (necessário
+  // para resolver contas SINTÉTICAS, que não têm lançamento próprio mas cujos
+  // filhos analíticos sim).
   const codigosSaldos = saldos.map((s) => s.conta_codigo);
-  const plano = await fetchPlanoPorCodigos(companyId, codigosSaldos);
+  const codigosItens = itens.flatMap((i) => i.contas ?? []);
+  const plano = await fetchPlanoPorCodigos(companyId, [...codigosSaldos, ...codigosItens]);
   const porCodigo = new Map(plano.map((p) => [p.codigo, p.classificacao]));
   const porClassificacao = new Set(plano.map((p) => p.classificacao));
   const codigoToClass = new Map<string, string>(
     plano.map((p) => [p.codigo, p.classificacao]),
   );
+  // Códigos a excluir: participantes (clientes/fornecedores) e apuração (.98/.99)
+  const codigosExcluidos = new Set<string>();
+  for (const p of plano) {
+    if (p.is_participante) codigosExcluidos.add(p.codigo);
+    else if (isApuracao(p.classificacao, mascara)) codigosExcluidos.add(p.codigo);
+  }
 
 
   // Ajustes gerenciais (se visão gerencial) — somados ao movimento contábil
@@ -251,6 +275,7 @@ export async function computeRealizadoPorItem(params: {
     }
 
     for (const s of todosSaldos) {
+      if (codigosExcluidos.has(s.conta_codigo)) continue;
       const cls = codigoToClass.get(s.conta_codigo);
       if (!cls) continue;
       const bate = alvos.some((a) => descendeDe(cls, a, mascara));
@@ -329,14 +354,20 @@ export async function computeRealizadoDetalhado(params: {
   const saldos = await fetchSaldosMensais(companyId, inicioD, fimExclusivoD);
 
 
-  // Plano apenas para os códigos com movimento (evita cap de 1000 do PostgREST)
+  // Inclui códigos referenciados pelos itens (sintéticas sem movimento próprio)
   const codigosSaldos = saldos.map((s) => s.conta_codigo);
-  const plano = await fetchPlanoPorCodigos(companyId, codigosSaldos);
+  const codigosItens = itens.flatMap((i) => i.contas ?? []);
+  const plano = await fetchPlanoPorCodigos(companyId, [...codigosSaldos, ...codigosItens]);
   const porCodigo = new Map(plano.map((p) => [p.codigo, p.classificacao]));
   const porClassificacao = new Set(plano.map((p) => p.classificacao));
   const codigoToClass = new Map<string, string>(
     plano.map((p) => [p.codigo, p.classificacao]),
   );
+  const codigosExcluidos = new Set<string>();
+  for (const p of plano) {
+    if (p.is_participante) codigosExcluidos.add(p.codigo);
+    else if (isApuracao(p.classificacao, mascara)) codigosExcluidos.add(p.codigo);
+  }
 
 
   // "Sem dados": nenhum lançamento contábil naquela competência para a empresa.
@@ -382,6 +413,7 @@ export async function computeRealizadoDetalhado(params: {
 
     if (alvos.length > 0) {
       for (const s of todosSaldos) {
+        if (codigosExcluidos.has(s.conta_codigo)) continue;
         const cls = codigoToClass.get(s.conta_codigo);
         if (!cls) continue;
         if (!alvos.some((a) => descendeDe(cls, a, mascara))) continue;
@@ -488,8 +520,22 @@ export async function computeRealizadoPorConta(params: {
 
 
   const codigosSaldos = saldos.map((s) => s.conta_codigo);
-  const plano = await fetchPlanoPorCodigos(companyId, codigosSaldos);
+  const plano = await fetchPlanoPorCodigos(companyId, [...codigosSaldos, ...contas]);
   const porCodigoRow = new Map<string, PlanoRow>(plano.map((p) => [p.codigo, p]));
+
+  // Traduz entradas de `contas` (podem ser código OU classificação) para
+  // uma lista de classificações-alvo, permitindo casar descendentes de
+  // sintéticas mesmo quando o item foi cadastrado por código.
+  const alvosCls: string[] = [];
+  for (const c of contas) {
+    const row = porCodigoRow.get(c);
+    alvosCls.push(row ? row.classificacao : c);
+  }
+  const codigosExcluidos = new Set<string>();
+  for (const p of plano) {
+    if (p.is_participante) codigosExcluidos.add(p.codigo);
+    else if (isApuracao(p.classificacao, mascara)) codigosExcluidos.add(p.codigo);
+  }
 
   // Ajustes gerenciais (se aplicável)
   const rowsExtra: { row: PlanoRow; saldo: SaldoRow }[] = [];
@@ -541,12 +587,8 @@ export async function computeRealizadoPorConta(params: {
   >();
 
   const registrar = (row: PlanoRow, saldo: SaldoRow) => {
-    const alvo = contas.find(
-      (c) =>
-        c === row.codigo ||
-        c === row.classificacao ||
-        descendeDe(row.classificacao, c, mascara),
-    );
+    if (codigosExcluidos.has(row.codigo)) return;
+    const alvo = alvosCls.find((a) => descendeDe(row.classificacao, a, mascara));
     if (!alvo) return;
     const mov = (Number(saldo.total_debitos ?? 0) - Number(saldo.total_creditos ?? 0)) * sinal;
     const mm = saldo.competencia.slice(0, 7);
@@ -621,8 +663,19 @@ export async function computeContasDoItemMensal(params: {
 
   const saldos = await fetchSaldosMensais(companyId, inicioD, fimExclusivoD);
   const codigosSaldos = saldos.map((s) => s.conta_codigo);
-  const plano = await fetchPlanoPorCodigos(companyId, codigosSaldos);
+  const plano = await fetchPlanoPorCodigos(companyId, [...codigosSaldos, ...contas]);
   const porCodigoRow = new Map<string, PlanoRow>(plano.map((p) => [p.codigo, p]));
+
+  const alvosCls: string[] = [];
+  for (const c of contas) {
+    const row = porCodigoRow.get(c);
+    alvosCls.push(row ? row.classificacao : c);
+  }
+  const codigosExcluidos = new Set<string>();
+  for (const p of plano) {
+    if (p.is_participante) codigosExcluidos.add(p.codigo);
+    else if (isApuracao(p.classificacao, mascara)) codigosExcluidos.add(p.codigo);
+  }
 
   const rowsExtra: { row: PlanoRow; saldo: SaldoRow }[] = [];
   const mesesComMovimentoGlobal = new Set<string>(
@@ -675,12 +728,8 @@ export async function computeContasDoItemMensal(params: {
   >();
 
   const registrar = (row: PlanoRow, saldo: SaldoRow) => {
-    const alvo = contas.find(
-      (c) =>
-        c === row.codigo ||
-        c === row.classificacao ||
-        descendeDe(row.classificacao, c, mascara),
-    );
+    if (codigosExcluidos.has(row.codigo)) return;
+    const alvo = alvosCls.find((a) => descendeDe(row.classificacao, a, mascara));
     if (!alvo) return;
     const mov =
       (Number(saldo.total_debitos ?? 0) - Number(saldo.total_creditos ?? 0)) * sinal;

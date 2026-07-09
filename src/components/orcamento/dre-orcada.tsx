@@ -266,12 +266,15 @@ export default function DREOrcada({
 }: Props) {
   const [tratamento, setTratamento] = useState<TratamentoLacuna>("vazio");
 
-  // ------------ periodos únicos (YYYY-MM) usados pelas colunas ------------
+  // ------------ periodos únicos (YYYY-MM-01) usados pelas colunas ------------
+  // O motor da DRE (buildStatementFromDiario → getSaldos) filtra por
+  // `competencia` no formato DATE (YYYY-MM-DD). Passar "YYYY-MM" faz o
+  // `.in()` não casar e o realizado volta zerado.
   const periodos = useMemo(() => {
     const s = new Set<string>();
     for (const c of colunas) {
       for (const m of c.meses) {
-        s.add(`${c.ano}-${String(m).padStart(2, "0")}`);
+        s.add(`${c.ano}-${String(m).padStart(2, "0")}-01`);
       }
     }
     return Array.from(s).sort();
@@ -398,7 +401,7 @@ export default function DREOrcada({
       const arr = colunas.map((col) => {
         let s = 0;
         for (const m of col.meses) {
-          const ym = `${col.ano}-${String(m).padStart(2, "0")}`;
+          const ym = `${col.ano}-${String(m).padStart(2, "0")}-01`;
           s += porDescPeriodo.get(`${linha}|${ym}`) ?? 0;
         }
         return s;

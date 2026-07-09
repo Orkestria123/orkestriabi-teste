@@ -254,6 +254,30 @@ function OrcamentoAnalise() {
   const [tolAmarelo, setTolAmarelo] = useState(5);
   const [tolVermelho, setTolVermelho] = useState(15);
 
+  // -------- Modo rascunho / edição --------
+  const queryClient = useQueryClient();
+  const [editMode, setEditMode] = useState(false);
+  const [editingAno, setEditingAno] = useState<number | null>(null);
+  // Chave: `${itemId}|YYYY-MM` — sempre 12 meses de editingAno quando ativo
+  const [draft, setDraft] = useState<Record<string, number>>({});
+  // Snapshot da base (para comparar dirty e para "Descartar")
+  const [baseSnapshot, setBaseSnapshot] = useState<Record<string, number>>({});
+  // Se o rascunho partiu de um cenário existente, guardamos o id
+  const [editingCenarioId, setEditingCenarioId] = useState<string | null>(null);
+  // Origem para salvar (grava em orcamento_cenarios.origem)
+  const [origemDraft, setOrigemDraft] = useState<"orcamento" | "cenario" | "realizado">(
+    "orcamento",
+  );
+  const [nomeSugerido, setNomeSugerido] = useState<string>("");
+
+  // Dialogs
+  const [openSalvar, setOpenSalvar] = useState(false);
+  const [openReajuste, setOpenReajuste] = useState(false);
+  const [openCopiar, setOpenCopiar] = useState(false);
+  const [openForecast, setOpenForecast] = useState(false);
+  const [confirmDescartar, setConfirmDescartar] = useState(false);
+  const [pendingBase, setPendingBase] = useState<string | null>(null); // ao trocar base com dirty
+
   const anosSelecionados = useMemo(
     () => [...years].sort((a, b) => a - b),
     [years],

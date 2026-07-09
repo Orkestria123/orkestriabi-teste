@@ -302,6 +302,43 @@ export default function DREOrcada({
     queryFn: () => fetchMapaDRE(companyId, tenantId, modoGlobal),
   });
 
+  // ------------ resolve tokens de item.contas → classificação ------------
+  // O campo `contas` do item pode guardar CÓDIGO (ex: "1041", "4799") ou já
+  // a CLASSIFICAÇÃO (ex: "3.06.01.01.04"). Muitos itens apontam para contas
+  // SINTÉTICAS (ex: 1041 = 3.01.01.03), cujo prefixo precisa ser usado no
+  // matcher contra mapeamento_demonstracao. Aqui buscamos no plano_contas
+  // todos os tokens de uma vez e produzimos um resolver token→classificação.
+  const tokens = useMemo(() => {
+    const s = new Set<string>();
+    for (const it of itens) for (const c of it.contas) if (c) s.add(String(c));
+    return Array.from(s);
+  }, [itens]);
+  const resolverContasQ = useQuery({
+    queryKey: ["dre-orcada-resolver", companyId, tenantId, tokens.join(",")],
+    enabled: !!companyId && !!tenantId && tokens.length > 0,
+    queryFn: async () => {
+      const map = new Map<string, string>(); // token → classificação
+      if (tokens.length === 0) return map;
+      const CHUNK = 200;
+      for (let i = 0; i < tokens.length; i += CHUNK) {
+        const chunk = tokens.slice(i, i + CHUNK);
+        const inList = chunk.map((t) => JSON.stringify(t)).join(",");
+        const { data, error } = await supabase
+          .from("plano_contas")
+          .select("codigo, classificacao")
+          .eq("tenant_id", tenantId)
+          .or(`codigo.in.(${inList}),classificacao.in.(${inList})`);
+        if (error) throw error;
+        for (const r of (data ?? []) as any[]) {
+          if (chunk.includes(r.codigo)) map.set(r.codigo, r.classificacao);
+          if (chunk.includes(r.classificacao)) map.set(r.classificacao, r.classificacao);
+        }
+      }
+      for (const t of tokens) if (!map.has(t)) map.set(t, t);
+      return map;
+    },
+  });
+
   // ------------ realizado (motor da DRE) ------------
   const realizadoQ = useQuery({
     queryKey: [
@@ -328,15 +365,17 @@ export default function DREOrcada({
       ) as Promise<FlatRow[]>,
   });
 
-  // ------------ mapeia cada item → linha da DRE ------------
+  // ------------ mapeia cada item → linha da DRE (via classificação) ------------
   const itemLinha = useMemo(() => {
     const map: Record<string, string | null> = {};
     if (!mapaQ.data || !mascaraQ.data) return map;
+    const resolver = resolverContasQ.data;
     const matcher = buildMatcher(mapaQ.data, mascaraQ.data);
     for (const it of itens) {
       let linha: string | null = null;
       for (const c of it.contas) {
-        const m = matcher(c);
+        const cls = resolver?.get(c) ?? c;
+        const m = matcher(cls);
         if (m) {
           linha = m.linha_demonstracao;
           break;
@@ -345,7 +384,7 @@ export default function DREOrcada({
       map[it.id] = linha;
     }
     return map;
-  }, [mapaQ.data, mascaraQ.data, itens]);
+  }, [mapaQ.data, mascaraQ.data, itens, resolverContasQ.data]);
 
   // ------------ linhas ordenadas do DRE mapeado ------------
   const linhasMapeadas = useMemo(() => {

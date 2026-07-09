@@ -1034,92 +1034,42 @@ function DetalheItem({
     return { valor: Math.round(soma * 100) / 100, semDados: semTudo };
   };
 
-  // ----- Participação da conta no desvio do item, por coluna -----
-  // Fórmula (variação vs período anterior):
-  //   varConta_i    = real_conta[col_i]  - real_conta[col_{i-1}]
-  //   varItem_i     = real_item[col_i]   - real_item[col_{i-1}]
-  //   participação% = varConta_i / varItem_i * 100
-  // Só exibida quando o item tem orçado no período e há desvio real vs orçado ≠ 0
-  // (i.e. faz sentido explicar o desvio). Primeira coluna não tem referência: oculta.
-  const podeParticip = (i: number): boolean => {
-    if (i === 0) return false;
-    const cur = itemCells[i];
-    const prev = itemCells[i - 1];
-    if (!cur || !prev) return false;
-    if (cur.orcado === null || cur.realizado === null) return false;
-    if (prev.realizado === null) return false;
-    if (Math.abs(cur.realizado - cur.orcado) < 0.005) return false;
-    return true;
+  // ----- Proporção da conta dentro do realizado do item, por coluna -----
+  // Fórmula: proporcao% = realizado_conta[col] / realizado_item[col] * 100
+  // Só exibida quando o item tem realizado naquela coluna.
+  const proporcaoContaCol = (codigo: string, i: number): number | null => {
+    const itemReal = itemCells[i]?.realizado;
+    if (itemReal === null || itemReal === undefined || Math.abs(itemReal) < 0.005) return null;
+    const { valor, semDados } = valorContaColuna(codigo, colunas[i]);
+    if (semDados) return null;
+    return (valor / Math.abs(itemReal)) * 100;
   };
 
-  const varContaCol = (codigo: string, i: number): number | null => {
-    if (i === 0) return null;
-    const cur = valorContaColuna(codigo, colunas[i]);
-    const prev = valorContaColuna(codigo, colunas[i - 1]);
-    if (cur.semDados || prev.semDados) return null;
-    return Math.round((cur.valor - prev.valor) * 100) / 100;
+  const proporcaoContaTotal = (codigo: string): number | null => {
+    const itemReal = itemTotal.realizado;
+    if (itemReal === null || itemReal === undefined || Math.abs(itemReal) < 0.005) return null;
+    const { valor, semDados } = valorContaTotal(codigo);
+    if (semDados) return null;
+    return (valor / Math.abs(itemReal)) * 100;
   };
 
-  // Maior contribuidor (|varConta|) por coluna
-  const topContribPorColuna: (string | null)[] = colunas.map((_, i) => {
-    if (!podeParticip(i)) return null;
-    let bestCod: string | null = null;
-    let bestAbs = 0;
-    for (const c of contasUnicas) {
-      const v = varContaCol(c.codigo, i);
-      if (v === null) continue;
-      if (Math.abs(v) > bestAbs) {
-        bestAbs = Math.abs(v);
-        bestCod = c.codigo;
-      }
-    }
-    return bestCod;
-  });
-
-  // Coluna span: cada coluna do item ocupa 3 sub-cols (Orç/Real/Var).
-  // No drill mostramos apenas o Real, então: coluna vazia + célula real + coluna vazia.
   const renderRealCells = (codigo: string) => (
     <>
       {colunas.map((col, i) => {
         const { valor, semDados } = valorContaColuna(codigo, col);
-        const mostrarPart = podeParticip(i);
-        const varItem = mostrarPart
-          ? itemCells[i].realizado! - (itemCells[i - 1].realizado ?? 0)
-          : 0;
-        const varConta = mostrarPart ? varContaCol(codigo, i) : null;
-        const pct =
-          mostrarPart && varConta !== null && Math.abs(varItem) > 0.005
-            ? (varConta / varItem) * 100
-            : null;
-        const isTop = topContribPorColuna[i] === codigo && varConta !== null;
+        const pct = proporcaoContaCol(codigo, i);
         return (
           <Fragment key={`${codigo}-${col.key}`}>
             <td className="px-2 py-1 border-l border-border/40" />
-            <td
-              className={`px-2 py-1 text-right tabular-nums text-xs ${
-                isTop ? "font-semibold text-amber-600 dark:text-amber-400" : ""
-              }`}
-            >
+            <td className="px-2 py-1 text-right tabular-nums text-xs">
               {semDados ? (
                 <span className="text-muted-foreground">—</span>
               ) : (
                 <div className="flex flex-col items-end leading-tight">
                   <span>{formatBRL(valor)}</span>
-                  {mostrarPart && varConta !== null && (
-                    <span
-                      className={`text-[10px] ${
-                        isTop ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground"
-                      }`}
-                      title="Contribuição da conta para o desvio do item (variação vs período anterior)"
-                    >
-                      {varConta >= 0 ? "+" : ""}
-                      {formatBRL(varConta)}
-                      {pct !== null && (
-                        <>
-                          {" · "}
-                          {pct.toFixed(1).replace(".", ",")}%
-                        </>
-                      )}
+                  {pct !== null && (
+                    <span className="text-[10px] text-muted-foreground">
+                      {pct.toFixed(1).replace(".", ",")}%
                     </span>
                   )}
                 </div>
@@ -1131,11 +1081,23 @@ function DetalheItem({
       })}
       {(() => {
         const { valor, semDados } = valorContaTotal(codigo);
+        const pct = proporcaoContaTotal(codigo);
         return (
           <>
             <td className="px-2 py-1 border-l-2 border-border bg-primary/5" />
             <td className="px-2 py-1 text-right tabular-nums text-xs font-medium bg-primary/5">
-              {semDados ? <span className="text-muted-foreground">—</span> : formatBRL(valor)}
+              {semDados ? (
+                <span className="text-muted-foreground">—</span>
+              ) : (
+                <div className="flex flex-col items-end leading-tight">
+                  <span>{formatBRL(valor)}</span>
+                  {pct !== null && (
+                    <span className="text-[10px] text-muted-foreground">
+                      {pct.toFixed(1).replace(".", ",")}%
+                    </span>
+                  )}
+                </div>
+              )}
             </td>
             <td className="px-2 py-1 bg-primary/5" />
           </>

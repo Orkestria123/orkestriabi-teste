@@ -213,6 +213,7 @@ function OrcamentoAnalise() {
   const { years, months } = useFilters();
 
   const [orcamentoNome, setOrcamentoNome] = useState<string | null>(null);
+  const [baseSel, setBaseSel] = useState<string>("oficial"); // "oficial" ou cenario_id
   const [totalizarPor, setTotalizarPor] = useState<TotalizarPor>("mes");
   const [varDisplay, setVarDisplay] = useState<VarDisplay>("ambos");
   const [expandido, setExpandido] = useState<string | null>(null);

@@ -317,6 +317,7 @@ export function DashboardKpisGrid({
               activePeriods.length === 1 && lastPeriod ? periodoLabel(lastPeriod) : undefined
             }
             ebitdaNaoConfigurado={isEbitda && !ebitdaConfigurado}
+            ebitdaUsandoSugestao={isEbitda && usandoSugestao}
           />
         );
       })}

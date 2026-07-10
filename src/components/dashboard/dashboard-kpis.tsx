@@ -205,17 +205,25 @@ export function DashboardKpisGrid({
         const base = ((row.config as any)?.base_comparacao ?? "mes_anterior") as BaseComp;
         const kw = KPI_KEYWORDS[row.bloco];
         const label = KPI_LABEL[row.bloco] ?? row.bloco;
+        const isEbitda = row.bloco === "kpi_ebitda";
 
-        const atual = kw ? sumByKeyword(dre ?? [], activePeriods, kw) : null;
+        const prevMes = activePeriods.map((p) => shiftPeriod(p, -1));
+        const prevAno = activePeriods.map((p) => shiftPeriod(p, -12));
+
+        const ebit = kw ? sumByKeyword(dre ?? [], activePeriods, kw) : null;
+        const atual =
+          isEbitda && ebit != null ? ebit + sumDepAmort(activePeriods) : ebit;
 
         let anterior: number | null = null;
         let baseAusente = false;
         if (base === "mes_anterior") {
-          const prev = activePeriods.map((p) => shiftPeriod(p, -1));
-          anterior = kw ? sumByKeyword(dre ?? [], prev, kw) : null;
+          const ebitPrev = kw ? sumByKeyword(dre ?? [], prevMes, kw) : null;
+          anterior =
+            isEbitda && ebitPrev != null ? ebitPrev + sumDepAmort(prevMes) : ebitPrev;
         } else if (base === "ano_anterior") {
-          const prev = activePeriods.map((p) => shiftPeriod(p, -12));
-          anterior = kw ? sumByKeyword(dre ?? [], prev, kw) : null;
+          const ebitPrev = kw ? sumByKeyword(dre ?? [], prevAno, kw) : null;
+          anterior =
+            isEbitda && ebitPrev != null ? ebitPrev + sumDepAmort(prevAno) : ebitPrev;
         } else if (base === "orcado") {
           if (!orcadoAgg || orcadoAgg.itens.length === 0) {
             baseAusente = true;
@@ -239,6 +247,7 @@ export function DashboardKpisGrid({
             }
           }
         }
+
 
         return (
           <KpiConfigCard

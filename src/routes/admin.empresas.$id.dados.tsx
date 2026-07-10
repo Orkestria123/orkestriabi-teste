@@ -28,6 +28,7 @@ import { getMascaraConfig } from "@/lib/mascara/interpretar";
 import { IndicadoresEmpresaPanel } from "@/components/indicadores/indicadores-empresa-panel";
 import { AjustesGerenciaisPanel } from "@/components/gerencial/ajustes-gerenciais-panel";
 import { OrcamentoConfigPanel } from "@/components/orcamento/orcamento-config-panel";
+import { DashboardConfigPanel } from "@/components/dashboard/dashboard-config-panel";
 
 export const Route = createFileRoute("/admin/empresas/$id/dados")({
   component: Page,
@@ -35,7 +36,7 @@ export const Route = createFileRoute("/admin/empresas/$id/dados")({
 
 function Page() {
   const { id } = useParams({ from: "/admin/empresas/$id/dados" });
-  const [tab, setTab] = useState<"plano" | "mapeamento" | "saldo-inicial" | "diarios" | "mascara" | "indicadores" | "gerencial" | "orcamento">("plano");
+  const [tab, setTab] = useState<"plano" | "mapeamento" | "saldo-inicial" | "diarios" | "mascara" | "indicadores" | "gerencial" | "orcamento" | "dashboard">("plano");
 
   const { data: company } = useQuery({
     queryKey: ["company", id],
@@ -93,7 +94,17 @@ function Page() {
           <TabsTrigger value="indicadores">6. Indicadores</TabsTrigger>
           <TabsTrigger value="gerencial">7. Ajustes Gerenciais</TabsTrigger>
           <TabsTrigger value="orcamento">8. Orçamento</TabsTrigger>
+          <TabsTrigger value="dashboard">9. Dashboard</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="dashboard">
+          {company && (
+            <DashboardConfigPanel
+              tenantId={company.tenant_id!}
+              companyId={company.id}
+            />
+          )}
+        </TabsContent>
 
         <TabsContent value="gerencial">
           {company && (

@@ -295,6 +295,57 @@ export type Database = {
           },
         ]
       }
+      dashboard_config: {
+        Row: {
+          bloco: string
+          company_id: string
+          config: Json
+          created_at: string
+          id: string
+          ordem: number
+          tenant_id: string
+          updated_at: string
+          visivel: boolean
+        }
+        Insert: {
+          bloco: string
+          company_id: string
+          config?: Json
+          created_at?: string
+          id?: string
+          ordem?: number
+          tenant_id: string
+          updated_at?: string
+          visivel?: boolean
+        }
+        Update: {
+          bloco?: string
+          company_id?: string
+          config?: Json
+          created_at?: string
+          id?: string
+          ordem?: number
+          tenant_id?: string
+          updated_at?: string
+          visivel?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dashboard_config_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dashboard_config_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       diario_uploads: {
         Row: {
           company_id: string

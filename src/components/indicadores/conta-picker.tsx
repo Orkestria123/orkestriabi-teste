@@ -129,6 +129,9 @@ export function ContaPicker({ plano, selecionadas, onChange, buttonLabel = "Esco
                   {s && <Check className="h-3 w-3 text-primary" />}
                 </span>
                 <span className="font-mono text-muted-foreground">{p.classificacao}</span>
+                {p.codigo && p.codigo !== p.classificacao && (
+                  <span className="font-mono text-[10px] text-muted-foreground/70">[{p.codigo}]</span>
+                )}
                 <span className="truncate">{p.descricao}</span>
                 <span className="ml-auto flex items-center gap-1">
                   {apuracao && (

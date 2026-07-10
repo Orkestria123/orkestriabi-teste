@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card";
 import { formatBRLCompact, formatPct, periodoLabel } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { ArrowDownRight, ArrowUpRight, Minus } from "lucide-react";
-import { BLOCOS_CATALOGO } from "@/components/dashboard/dashboard-config-panel";
+import { BLOCOS_CATALOGO, computeDepAmortSuggestion } from "@/components/dashboard/dashboard-config-panel";
 
 // -------- catálogo local: só os KPIs --------
 type BaseComp = "mes_anterior" | "ano_anterior" | "orcado";
@@ -111,18 +111,57 @@ export function DashboardKpisGrid({
     () => ((ebitdaRow?.config as any)?.contas_depreciacao as string[] | undefined) ?? [],
     [ebitdaRow],
   );
-  const ebitdaConfigurado = contasDepConfig.length > 0;
+  const ebitdaConfirmado = ((ebitdaRow?.config as any)?.contas_depreciacao_confirmado) === true;
+
+  // Fallback: quando o contador ainda não confirmou e não escolheu nada, usa a
+  // sugestão automática (contas do grupo 3 com "deprecia/amortiza/exaust" no nome).
+  const precisaSugestao = !!ebitdaRow && !ebitdaConfirmado && contasDepConfig.length === 0;
+
+  const { data: planoResultadoKpi } = useQuery({
+    queryKey: ["dashboard-kpi-plano-resultado", companyId],
+    enabled: precisaSugestao,
+    queryFn: async () => {
+      const acc: { classificacao: string; descricao: string; is_sintetica: boolean | null }[] = [];
+      const PAGE = 1000;
+      for (let from = 0; ; from += PAGE) {
+        const { data, error } = await supabase
+          .from("plano_contas")
+          .select("classificacao, descricao, is_sintetica")
+          .eq("company_id", companyId)
+          .like("classificacao", "3%")
+          .order("classificacao")
+          .range(from, from + PAGE - 1);
+        if (error) throw error;
+        const rows = (data ?? []) as any[];
+        for (const r of rows) acc.push({ classificacao: r.classificacao, descricao: r.descricao ?? "", is_sintetica: r.is_sintetica });
+        if (rows.length < PAGE) break;
+        if (from > 20000) break;
+      }
+      return acc;
+    },
+  });
+
+  const sugestaoContas = useMemo(
+    () => (precisaSugestao ? computeDepAmortSuggestion((planoResultadoKpi ?? []) as any) : []),
+    [precisaSugestao, planoResultadoKpi],
+  );
+
+  const contasDepEfetivas = useMemo(
+    () => (contasDepConfig.length > 0 ? contasDepConfig : sugestaoContas),
+    [contasDepConfig, sugestaoContas],
+  );
+  const usandoSugestao = precisaSugestao && sugestaoContas.length > 0;
+  const ebitdaConfigurado = contasDepEfetivas.length > 0;
 
   const { data: depAmortByPeriod } = useQuery({
-    queryKey: ["dashboard-dep-amort", companyId, allPeriods, contasDepConfig],
+    queryKey: ["dashboard-dep-amort", companyId, allPeriods, contasDepEfetivas],
     enabled: ebitdaConfigurado && allPeriods.length > 0,
     queryFn: async () => {
       const map = new Map<string, number>();
       for (const p of allPeriods) map.set(p, 0);
 
       // 1) Resolve os códigos das contas analíticas descendentes das classificações escolhidas.
-      //    Usa .or() com eq/like para cada classificação (a própria + descendentes por prefixo).
-      const orExpr = contasDepConfig
+      const orExpr = contasDepEfetivas
         .map((c) => `classificacao.eq.${c},classificacao.like.${c}.*`)
         .join(",");
       const { data: contas, error: e1 } = await supabase
@@ -134,7 +173,7 @@ export function DashboardKpisGrid({
       const codigos = Array.from(
         new Set(
           (contas ?? [])
-            .filter((c: any) => c.is_participante) // apenas analíticas recebem lançamento
+            .filter((c: any) => c.is_participante)
             .map((c: any) => c.codigo as string)
             .filter(Boolean),
         ),
@@ -278,6 +317,7 @@ export function DashboardKpisGrid({
               activePeriods.length === 1 && lastPeriod ? periodoLabel(lastPeriod) : undefined
             }
             ebitdaNaoConfigurado={isEbitda && !ebitdaConfigurado}
+            ebitdaUsandoSugestao={isEbitda && usandoSugestao}
           />
         );
       })}
@@ -294,6 +334,7 @@ function KpiConfigCard({
   baseAusente,
   periodoLabelStr,
   ebitdaNaoConfigurado,
+  ebitdaUsandoSugestao,
 }: {
   blocoKey: string;
   label: string;
@@ -303,6 +344,7 @@ function KpiConfigCard({
   baseAusente: boolean;
   periodoLabelStr?: string;
   ebitdaNaoConfigurado?: boolean;
+  ebitdaUsandoSugestao?: boolean;
 }) {
   const isSigned = blocoKey === "kpi_lucro_liquido";
   const variation =
@@ -380,6 +422,14 @@ function KpiConfigCard({
           title="Configure em Admin › Empresa › Dashboard › KPI EBITDA quais contas de depreciação e amortização devem ser somadas ao EBIT."
         >
           Depreciação não configurada — EBITDA = EBIT
+        </div>
+      )}
+      {ebitdaUsandoSugestao && (
+        <div
+          className="mt-2 text-[10px] text-blue-700 dark:text-blue-400 italic"
+          title="A lista de contas de depreciação foi sugerida pelo sistema. Confirme (ou ajuste) em Admin › Empresa › Dashboard › KPI EBITDA."
+        >
+          EBITDA com contas sugeridas — revisar na configuração
         </div>
       )}
     </Card>

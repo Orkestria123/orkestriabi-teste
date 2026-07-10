@@ -10,9 +10,19 @@ import { cn } from "@/lib/utils";
 export interface ContaPlanoItem {
   classificacao: string;
   descricao: string;
+  codigo?: string | null;
   is_sintetica?: boolean | null;
   is_participante?: boolean;
   nivel?: number;
+}
+
+// Remove acentos e normaliza para busca case/accent-insensitive.
+function norm(s: string): string {
+  return (s ?? "")
+    .toString()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
 }
 
 interface Props {
@@ -21,9 +31,11 @@ interface Props {
   onChange: (next: string[]) => void;
   placeholder?: string;
   buttonLabel?: string;
+  /** Se true, permite selecionar contas analíticas (participantes). Padrão: false (apenas sintéticas). */
+  allowAnaliticas?: boolean;
 }
 
-export function ContaPicker({ plano, selecionadas, onChange, buttonLabel = "Escolher contas" }: Props) {
+export function ContaPicker({ plano, selecionadas, onChange, buttonLabel = "Escolher contas", allowAnaliticas = false }: Props) {
   const [open, setOpen] = useState(false);
   const [busca, setBusca] = useState("");
 
@@ -53,14 +65,15 @@ export function ContaPicker({ plano, selecionadas, onChange, buttonLabel = "Esco
   };
 
   const filtered = useMemo(() => {
-    const b = busca.trim().toLowerCase();
+    const b = norm(busca.trim());
     return plano
-      .filter((p) => !p.is_participante)
+      .filter((p) => (allowAnaliticas ? true : !p.is_participante))
       .filter((p) => {
         if (!b) return true;
         return (
-          p.classificacao.toLowerCase().includes(b) ||
-          p.descricao.toLowerCase().includes(b)
+          norm(p.classificacao).includes(b) ||
+          norm(p.descricao).includes(b) ||
+          (p.codigo ? norm(p.codigo).includes(b) : false)
         );
       })
       .slice(0, 2000);
@@ -82,7 +95,7 @@ export function ContaPicker({ plano, selecionadas, onChange, buttonLabel = "Esco
       <PopoverContent className="w-[460px] p-0" align="start">
         <div className="p-2 border-b border-border">
           <Input
-            placeholder="Buscar por classificação ou nome…"
+            placeholder="Buscar por código, classificação ou nome (ex: depreciação)…"
             value={busca}
             onChange={(e) => setBusca(e.target.value)}
             className="h-8 text-xs"
@@ -116,6 +129,9 @@ export function ContaPicker({ plano, selecionadas, onChange, buttonLabel = "Esco
                   {s && <Check className="h-3 w-3 text-primary" />}
                 </span>
                 <span className="font-mono text-muted-foreground">{p.classificacao}</span>
+                {p.codigo && p.codigo !== p.classificacao && (
+                  <span className="font-mono text-[10px] text-muted-foreground/70">[{p.codigo}]</span>
+                )}
                 <span className="truncate">{p.descricao}</span>
                 <span className="ml-auto flex items-center gap-1">
                   {apuracao && (

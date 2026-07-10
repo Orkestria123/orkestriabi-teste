@@ -8,6 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { Loader2, ArrowUp, ArrowDown, Info, LayoutDashboard, AlertTriangle, X } from "lucide-react";
 import { toast } from "sonner";
 import { ContaPicker, type ContaPlanoItem } from "@/components/indicadores/conta-picker";
+import { cn } from "@/lib/utils";
 
 // ------------------------------------------------------------
 // Catálogo de blocos padrão da Visão Geral (dashboard do cliente)
@@ -176,7 +177,7 @@ export function DashboardConfigPanel({
       for (let from = 0; ; from += PAGE) {
         const { data, error } = await supabase
           .from("plano_contas")
-          .select("classificacao, descricao, is_sintetica, is_participante")
+          .select("codigo, classificacao, descricao, is_sintetica, is_participante")
           .eq("company_id", companyId)
           .like("classificacao", "3%")
           .order("classificacao")
@@ -185,6 +186,7 @@ export function DashboardConfigPanel({
         const rows = (data ?? []) as any[];
         for (const r of rows) {
           acc.push({
+            codigo: r.codigo ?? null,
             classificacao: r.classificacao,
             descricao: r.descricao ?? "",
             is_sintetica: r.is_sintetica,
@@ -290,9 +292,9 @@ export function DashboardConfigPanel({
                     row={row}
                     plano={planoResultado ?? []}
                     busy={busy}
-                    onSave={(contas) =>
+                    onPatch={(patch) =>
                       atualizar(row, {
-                        config: { ...(row.config ?? {}), contas_depreciacao: contas },
+                        config: { ...(row.config ?? {}), ...patch },
                       })
                     }
                   />
@@ -336,52 +338,111 @@ export function DashboardConfigPanel({
   );
 }
 
+/**
+ * Sugere classificações de Depreciação/Amortização/Exaustão a partir do plano
+ * do grupo 3 (resultado). Regra: contas cujo nome contém "deprecia", "amortiza"
+ * ou "exaust" (sem acento). Prioriza sintéticas quando existirem; caso não haja
+ * sintética, inclui a própria analítica.
+ * Exportado para reuso na renderização dos KPIs (fallback antes da confirmação).
+ */
+export function computeDepAmortSuggestion(plano: ContaPlanoItem[]): string[] {
+  const rx = /deprecia|amortiza|exaust/;
+  const norm = (s: string) =>
+    (s ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const matches = plano.filter((p) => rx.test(norm(p.descricao)));
+  if (matches.length === 0) return [];
+  const sinteticas = matches.filter((p) => p.is_sintetica);
+  const base = sinteticas.length > 0 ? sinteticas : matches;
+  // remove duplicatas por classificação, mantém apenas classificações "raiz"
+  // dentro do próprio conjunto (se 3.02.03 e 3.02.03.001 batem, mantém a mais alta)
+  const sorted = base
+    .map((p) => p.classificacao)
+    .sort((a, b) => a.split(".").length - b.split(".").length);
+  const roots: string[] = [];
+  for (const c of sorted) {
+    if (roots.some((r) => c === r || c.startsWith(r + "."))) continue;
+    roots.push(c);
+  }
+  return roots;
+}
+
 function EbitdaConfig({
   row,
   plano,
   busy,
-  onSave,
+  onPatch,
 }: {
   row: DashboardConfigRow;
   plano: ContaPlanoItem[];
   busy: boolean;
-  onSave: (contas: string[]) => void;
+  onPatch: (patch: Record<string, any>) => void;
 }) {
-  const configuradas = ((row.config as any)?.contas_depreciacao as string[] | undefined) ?? [];
+  const cfg = (row.config as any) ?? {};
+  const configuradas = (cfg.contas_depreciacao as string[] | undefined) ?? [];
+  const confirmado = cfg.contas_depreciacao_confirmado === true;
+  const sugeridas = useMemo(() => computeDepAmortSuggestion(plano), [plano]);
+
+  // Se ainda não confirmou e não há seleção, apresenta a sugestão pré-marcada.
+  const usandoSugestao = !confirmado && configuradas.length === 0 && sugeridas.length > 0;
+  const contasExibidas = usandoSugestao ? sugeridas : configuradas;
+
   const byClass = useMemo(() => {
     const m = new Map<string, ContaPlanoItem>();
     for (const p of plano) m.set(p.classificacao, p);
     return m;
   }, [plano]);
 
+  const salvar = (contas: string[]) =>
+    onPatch({ contas_depreciacao: contas, contas_depreciacao_confirmado: true });
+
+  const removerDaLista = (c: string) => {
+    // Se o contador remove uma sugestão sem ter confirmado ainda, materializamos
+    // a lista atual (sem essa conta) como escolha explícita.
+    const base = usandoSugestao ? sugeridas : configuradas;
+    salvar(base.filter((x) => x !== c));
+  };
+
   return (
     <div className="w-full mt-2 pl-9 border-t border-border/50 pt-2">
       <div className="flex items-start gap-2 flex-wrap">
         <div className="flex-1 min-w-0">
-          <div className="text-xs font-medium mb-1 flex items-center gap-1.5">
+          <div className="text-xs font-medium mb-1 flex items-center gap-1.5 flex-wrap">
             Depreciação / Amortização
-            {configuradas.length === 0 && (
+            {usandoSugestao && (
+              <Badge variant="outline" className="text-[10px] border-blue-500/50 text-blue-700 dark:text-blue-400 gap-1">
+                <AlertTriangle className="h-3 w-3" /> Sugestão automática — confira e confirme
+              </Badge>
+            )}
+            {!confirmado && !usandoSugestao && configuradas.length === 0 && (
               <Badge variant="outline" className="text-[10px] border-amber-500/50 text-amber-700 dark:text-amber-400 gap-1">
                 <AlertTriangle className="h-3 w-3" /> Não configurado — EBITDA = EBIT
               </Badge>
             )}
           </div>
           <p className="text-[11px] text-muted-foreground mb-2">
-            O EBITDA soma de volta a depreciação e amortização ao resultado operacional. Selecione as contas
-            de depreciação/amortização da empresa. Contas mal cadastradas (ex.: uma conta "Depreciação"
-            que recebe outros lançamentos) não devem ser incluídas.
+            O EBITDA soma de volta a depreciação e amortização ao resultado operacional.
+            {usandoSugestao
+              ? " Pré-selecionamos as contas do grupo de resultado cujo nome contém \"depreciação\", \"amortização\" ou \"exaustão\". Confira se todas são realmente depreciação/amortização e se nenhuma ficou de fora — a sugestão é ponto de partida, a decisão final é sua."
+              : " Selecione as contas de depreciação/amortização da empresa. Contas mal cadastradas (ex.: uma conta \"Depreciação\" que recebe outros lançamentos) não devem ser incluídas."}
           </p>
-          <div className="flex flex-wrap gap-1.5">
-            {configuradas.map((c) => {
+          <div className="flex flex-wrap gap-1.5 mb-2">
+            {contasExibidas.map((c) => {
               const info = byClass.get(c);
               return (
-                <Badge key={c} variant="secondary" className="text-[11px] gap-1 pr-1">
+                <Badge
+                  key={c}
+                  variant={usandoSugestao ? "outline" : "secondary"}
+                  className={cn(
+                    "text-[11px] gap-1 pr-1",
+                    usandoSugestao && "border-blue-500/50 bg-blue-500/5",
+                  )}
+                >
                   <span className="font-mono">{c}</span>
                   {info?.descricao && <span className="truncate max-w-[220px]">{info.descricao}</span>}
                   <button
                     type="button"
                     disabled={busy}
-                    onClick={() => onSave(configuradas.filter((x) => x !== c))}
+                    onClick={() => removerDaLista(c)}
                     className="hover:bg-background/50 rounded p-0.5"
                   >
                     <X className="h-3 w-3" />
@@ -389,13 +450,28 @@ function EbitdaConfig({
                 </Badge>
               );
             })}
+            {contasExibidas.length === 0 && (
+              <span className="text-[11px] text-muted-foreground italic">Nenhuma conta selecionada.</span>
+            )}
           </div>
+          {usandoSugestao && (
+            <Button
+              size="sm"
+              variant="default"
+              className="h-7 text-xs"
+              disabled={busy}
+              onClick={() => salvar(sugeridas)}
+            >
+              Confirmar sugestão ({sugeridas.length} contas)
+            </Button>
+          )}
         </div>
         <ContaPicker
           plano={plano}
-          selecionadas={configuradas}
-          onChange={onSave}
-          buttonLabel="Adicionar contas"
+          selecionadas={contasExibidas}
+          onChange={salvar}
+          buttonLabel="Adicionar / remover contas"
+          allowAnaliticas
         />
       </div>
     </div>

@@ -291,9 +291,9 @@ export function DashboardConfigPanel({
                     row={row}
                     plano={planoResultado ?? []}
                     busy={busy}
-                    onSave={(contas) =>
+                    onPatch={(patch) =>
                       atualizar(row, {
-                        config: { ...(row.config ?? {}), contas_depreciacao: contas },
+                        config: { ...(row.config ?? {}), ...patch },
                       })
                     }
                   />

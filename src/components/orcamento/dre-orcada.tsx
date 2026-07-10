@@ -545,9 +545,8 @@ export default function DREOrcada({
     return out;
   }, [linhasMapeadas, orcadoLinhaCol]);
 
-  // ------------ Lucro Líquido (para os gráficos abaixo) ------------
 
-      : null;
+
 
   const carregando =
     metaQ.isLoading ||

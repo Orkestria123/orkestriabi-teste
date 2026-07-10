@@ -95,7 +95,7 @@ export function ContaPicker({ plano, selecionadas, onChange, buttonLabel = "Esco
       <PopoverContent className="w-[460px] p-0" align="start">
         <div className="p-2 border-b border-border">
           <Input
-            placeholder="Buscar por classificação ou nome…"
+            placeholder="Buscar por código, classificação ou nome (ex: depreciação)…"
             value={busca}
             onChange={(e) => setBusca(e.target.value)}
             className="h-8 text-xs"

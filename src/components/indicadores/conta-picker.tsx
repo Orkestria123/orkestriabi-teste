@@ -31,9 +31,11 @@ interface Props {
   onChange: (next: string[]) => void;
   placeholder?: string;
   buttonLabel?: string;
+  /** Se true, permite selecionar contas analíticas (participantes). Padrão: false (apenas sintéticas). */
+  allowAnaliticas?: boolean;
 }
 
-export function ContaPicker({ plano, selecionadas, onChange, buttonLabel = "Escolher contas" }: Props) {
+export function ContaPicker({ plano, selecionadas, onChange, buttonLabel = "Escolher contas", allowAnaliticas = false }: Props) {
   const [open, setOpen] = useState(false);
   const [busca, setBusca] = useState("");
 

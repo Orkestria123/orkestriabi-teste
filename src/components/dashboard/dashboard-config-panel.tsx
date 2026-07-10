@@ -335,3 +335,69 @@ export function DashboardConfigPanel({
     </div>
   );
 }
+
+function EbitdaConfig({
+  row,
+  plano,
+  busy,
+  onSave,
+}: {
+  row: DashboardConfigRow;
+  plano: ContaPlanoItem[];
+  busy: boolean;
+  onSave: (contas: string[]) => void;
+}) {
+  const configuradas = ((row.config as any)?.contas_depreciacao as string[] | undefined) ?? [];
+  const byClass = useMemo(() => {
+    const m = new Map<string, ContaPlanoItem>();
+    for (const p of plano) m.set(p.classificacao, p);
+    return m;
+  }, [plano]);
+
+  return (
+    <div className="w-full mt-2 pl-9 border-t border-border/50 pt-2">
+      <div className="flex items-start gap-2 flex-wrap">
+        <div className="flex-1 min-w-0">
+          <div className="text-xs font-medium mb-1 flex items-center gap-1.5">
+            Depreciação / Amortização
+            {configuradas.length === 0 && (
+              <Badge variant="outline" className="text-[10px] border-amber-500/50 text-amber-700 dark:text-amber-400 gap-1">
+                <AlertTriangle className="h-3 w-3" /> Não configurado — EBITDA = EBIT
+              </Badge>
+            )}
+          </div>
+          <p className="text-[11px] text-muted-foreground mb-2">
+            O EBITDA soma de volta a depreciação e amortização ao resultado operacional. Selecione as contas
+            de depreciação/amortização da empresa. Contas mal cadastradas (ex.: uma conta "Depreciação"
+            que recebe outros lançamentos) não devem ser incluídas.
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {configuradas.map((c) => {
+              const info = byClass.get(c);
+              return (
+                <Badge key={c} variant="secondary" className="text-[11px] gap-1 pr-1">
+                  <span className="font-mono">{c}</span>
+                  {info?.descricao && <span className="truncate max-w-[220px]">{info.descricao}</span>}
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => onSave(configuradas.filter((x) => x !== c))}
+                    className="hover:bg-background/50 rounded p-0.5"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </Badge>
+              );
+            })}
+          </div>
+        </div>
+        <ContaPicker
+          plano={plano}
+          selecionadas={configuradas}
+          onChange={onSave}
+          buttonLabel="Adicionar contas"
+        />
+      </div>
+    </div>
+  );
+}

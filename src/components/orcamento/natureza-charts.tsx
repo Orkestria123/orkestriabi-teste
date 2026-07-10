@@ -54,7 +54,7 @@ export function ehBom(natureza: Natureza, realizado: number, orcado: number) {
   return realizado <= orcado;
 }
 
-function agregarPorNatureza(
+export function agregarPorNatureza(
   grid: NaturezaLinha[],
   colunas: NaturezaColuna[],
   natureza: Natureza,

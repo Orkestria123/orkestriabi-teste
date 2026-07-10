@@ -285,7 +285,7 @@ function KpiConfigCard({
   baseAusente: boolean;
   periodoLabelStr?: string;
 }) {
-  const isResultadoMes = blocoKey === "kpi_resultado_mes";
+  const isSigned = blocoKey === "kpi_lucro_liquido";
   const variation =
     prev != null && prev !== 0 && value != null
       ? ((value - prev) / Math.abs(prev)) * 100
@@ -293,7 +293,7 @@ function KpiConfigCard({
 
   // Tom / cor da lateral do card
   let tone: "positive" | "negative" | "neutral" = "neutral";
-  if (isResultadoMes && value != null) {
+  if (isSigned && value != null) {
     tone = value >= 0 ? "positive" : "negative";
   } else if (variation != null) {
     tone = variation >= 0 ? "positive" : "negative";
@@ -305,9 +305,8 @@ function KpiConfigCard({
         ? "before:bg-destructive"
         : "before:bg-[var(--brand)]";
 
-  // Rótulo dinâmico para Resultado do Mês
   const resultadoSuffix =
-    isResultadoMes && value != null ? (value >= 0 ? "· Superávit" : "· Déficit") : "";
+    isSigned && value != null ? (value >= 0 ? "· Superávit" : "· Déficit") : "";
 
   return (
     <Card

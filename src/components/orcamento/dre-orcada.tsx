@@ -545,13 +545,8 @@ export default function DREOrcada({
     return out;
   }, [linhasMapeadas, orcadoLinhaCol]);
 
-  // ------------ Lucro Líquido card ------------
-  const lucroOrc = totalOrc("(=) Lucro Líquido do Exercício");
-  const lucroReal = totalReal("(=) Lucro Líquido do Exercício");
-  const lucroVar = lucroOrc !== null ? lucroReal - lucroOrc : null;
-  const lucroVarPct =
-    lucroOrc !== null && lucroOrc !== 0
-      ? ((lucroReal - lucroOrc) / Math.abs(lucroOrc)) * 100
+  // ------------ Lucro Líquido (para os gráficos abaixo) ------------
+
       : null;
 
   const carregando =

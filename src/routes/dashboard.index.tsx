@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useDashboardCompany } from "@/components/dashboard-context";
 import { useFilters } from "@/components/filter-bar";
-import { useFinancialStatement, useMyCompanies } from "@/hooks/use-financial-data";
+import { useAvailablePeriods, useFinancialStatement, useMyCompanies } from "@/hooks/use-financial-data";
 import { useAuth } from "@/hooks/use-auth";
 
 import { Card } from "@/components/ui/card";
@@ -54,11 +54,13 @@ function DashboardHome() {
     return computeIndicators(rows as any, ps);
   }, [dre, bp]);
 
+  const { data: availablePeriods } = useAvailablePeriods(companyId);
   const dataPeriods = useMemo(() => {
     const set = new Set<string>();
     (dre ?? []).forEach((r: any) => set.add(r.periodo));
+    (availablePeriods ?? []).forEach((p) => set.add(p));
     return Array.from(set).sort();
-  }, [dre]);
+  }, [dre, availablePeriods]);
   const activePeriods = useMemo(() => {
     if (periodos.length === 0) return dataPeriods;
     const filterSet = new Set(periodos);

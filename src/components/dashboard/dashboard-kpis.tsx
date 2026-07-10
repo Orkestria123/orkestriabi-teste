@@ -102,30 +102,46 @@ export function DashboardKpisGrid({
 
   const { data: dre } = useMonthlyStatement(companyId, "DRE", allPeriods);
 
-  // ---- Depreciações & amortizações do resultado (add-back para EBITDA) ----
-  const usaEbitda = useMemo(
-    () => kpiRows.some((r) => r.bloco === "kpi_ebitda"),
+  // ---- Depreciações & amortizações CONFIGURADAS pelo contador (add-back para EBITDA) ----
+  const ebitdaRow = useMemo(
+    () => kpiRows.find((r) => r.bloco === "kpi_ebitda"),
     [kpiRows],
   );
+  const contasDepConfig = useMemo(
+    () => ((ebitdaRow?.config as any)?.contas_depreciacao as string[] | undefined) ?? [],
+    [ebitdaRow],
+  );
+  const ebitdaConfigurado = contasDepConfig.length > 0;
+
   const { data: depAmortByPeriod } = useQuery({
-    queryKey: ["dashboard-dep-amort", companyId, allPeriods],
-    enabled: usaEbitda && allPeriods.length > 0,
+    queryKey: ["dashboard-dep-amort", companyId, allPeriods, contasDepConfig],
+    enabled: ebitdaConfigurado && allPeriods.length > 0,
     queryFn: async () => {
-      // 1) contas do resultado (classificacao começa em "3") cujo nome
-      //    contém DEPRECIA ou AMORTIZA — heurística; futuramente configurável.
-      const { data: contas, error: e1 } = await supabase
-        .from("plano_contas")
-        .select("codigo, descricao, classificacao")
-        .eq("company_id", companyId)
-        .like("classificacao", "3%")
-        .or("descricao.ilike.%DEPRECIA%,descricao.ilike.%AMORTIZA%");
-      if (e1) throw e1;
-      const codigos = (contas ?? []).map((c: any) => c.codigo as string).filter(Boolean);
       const map = new Map<string, number>();
       for (const p of allPeriods) map.set(p, 0);
+
+      // 1) Resolve os códigos das contas analíticas descendentes das classificações escolhidas.
+      //    Usa .or() com eq/like para cada classificação (a própria + descendentes por prefixo).
+      const orExpr = contasDepConfig
+        .map((c) => `classificacao.eq.${c},classificacao.like.${c}.*`)
+        .join(",");
+      const { data: contas, error: e1 } = await supabase
+        .from("plano_contas")
+        .select("codigo, classificacao, is_participante")
+        .eq("company_id", companyId)
+        .or(orExpr);
+      if (e1) throw e1;
+      const codigos = Array.from(
+        new Set(
+          (contas ?? [])
+            .filter((c: any) => c.is_participante) // apenas analíticas recebem lançamento
+            .map((c: any) => c.codigo as string)
+            .filter(Boolean),
+        ),
+      );
       if (codigos.length === 0) return map;
 
-      // 2) soma dos débitos-créditos por período (valor da despesa)
+      // 2) Soma dos débitos-créditos por período (valor da despesa)
       const CHUNK = 200;
       for (let i = 0; i < codigos.length; i += CHUNK) {
         const slice = codigos.slice(i, i + CHUNK);

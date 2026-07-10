@@ -8,6 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { Loader2, ArrowUp, ArrowDown, Info, LayoutDashboard, AlertTriangle, X } from "lucide-react";
 import { toast } from "sonner";
 import { ContaPicker, type ContaPlanoItem } from "@/components/indicadores/conta-picker";
+import { cn } from "@/lib/utils";
 
 // ------------------------------------------------------------
 // Catálogo de blocos padrão da Visão Geral (dashboard do cliente)

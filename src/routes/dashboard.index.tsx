@@ -3,7 +3,7 @@ import { useDashboardCompany } from "@/components/dashboard-context";
 import { useFilters } from "@/components/filter-bar";
 import { useFinancialStatement, useMyCompanies } from "@/hooks/use-financial-data";
 import { useAuth } from "@/hooks/use-auth";
-import { KpiCard } from "@/components/kpi-card";
+
 import { Card } from "@/components/ui/card";
 import {
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, AreaChart, Area, Legend, CartesianGrid,
@@ -20,6 +20,7 @@ import {
   tooltipFormatBRL, tooltipFormatBRLCompact, CHART_COLORS,
 } from "@/lib/chart-config";
 import { IndicadoresClienteGrid } from "@/components/indicadores/indicadores-cliente";
+import { DashboardKpisGrid } from "@/components/dashboard/dashboard-kpis";
 
 export const Route = createFileRoute("/dashboard/")({ component: DashboardHome });
 
@@ -66,17 +67,7 @@ function DashboardHome() {
   }, [dataPeriods, periodos]);
 
   const lastPeriod = activePeriods[activePeriods.length - 1];
-  const prevPeriod = activePeriods[activePeriods.length - 2];
 
-  const kpis = useMemo(() => {
-    const rows = dre ?? [];
-    return {
-      receitaBruta: { v: findValue(rows, ["receita bruta", "receita operacional bruta"], lastPeriod), p: findValue(rows, ["receita bruta", "receita operacional bruta"], prevPeriod) },
-      receitaLiquida: { v: findValue(rows, ["receita líquida", "receita liquida"], lastPeriod), p: findValue(rows, ["receita líquida", "receita liquida"], prevPeriod) },
-      ebitda: { v: findValue(rows, ["ebitda", "lajida"], lastPeriod), p: findValue(rows, ["ebitda", "lajida"], prevPeriod) },
-      lucroLiquido: { v: findValue(rows, ["lucro líquido", "lucro liquido", "resultado líquido"], lastPeriod), p: findValue(rows, ["lucro líquido", "lucro liquido", "resultado líquido"], prevPeriod) },
-    };
-  }, [dre, lastPeriod, prevPeriod]);
 
   const chartData = useMemo(() => {
     return activePeriods.map((p) => {
@@ -154,12 +145,7 @@ function DashboardHome() {
         <ViewSwitcher value={view} onChange={setView} />
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <KpiCard label="Receita Bruta" value={kpis.receitaBruta.v} previousValue={kpis.receitaBruta.p} tone="default" sparkline={chartData.map((d) => d.Receita)} />
-        <KpiCard label="Receita Líquida" value={kpis.receitaLiquida.v} previousValue={kpis.receitaLiquida.p} tone="default" sparkline={chartData.map((d) => d.Receita)} />
-        <KpiCard label="EBITDA" value={kpis.ebitda.v} previousValue={kpis.ebitda.p} tone="positive" sparkline={chartData.map((d) => d.Lucro)} />
-        <KpiCard label="Lucro Líquido" value={kpis.lucroLiquido.v} previousValue={kpis.lucroLiquido.p} tone={(kpis.lucroLiquido.v ?? 0) < 0 ? "negative" : "positive"} sparkline={chartData.map((d) => d.Lucro)} />
-      </div>
+      <DashboardKpisGrid companyId={companyId} activePeriods={activePeriods} />
 
       {view === "geral" && (
         <IndicadoresClienteGrid

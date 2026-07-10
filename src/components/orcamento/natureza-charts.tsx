@@ -36,7 +36,7 @@ export interface NaturezaColuna {
 
 export type Natureza = "receita" | "custo" | "despesa";
 
-interface NaturezaDef {
+export interface NaturezaDef {
   key: Natureza;
   titulo: string;
   cor: string; // cor do realizado

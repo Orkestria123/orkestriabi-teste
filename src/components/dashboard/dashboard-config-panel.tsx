@@ -285,6 +285,18 @@ export function DashboardConfigPanel({
                     onCheckedChange={(v) => atualizar(row, { visivel: v })}
                   />
                 </div>
+                {def.key === "kpi_ebitda" && (
+                  <EbitdaConfig
+                    row={row}
+                    plano={planoResultado ?? []}
+                    busy={busy}
+                    onSave={(contas) =>
+                      atualizar(row, {
+                        config: { ...(row.config ?? {}), contas_depreciacao: contas },
+                      })
+                    }
+                  />
+                )}
               </div>
             );
           })}

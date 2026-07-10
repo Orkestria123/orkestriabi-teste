@@ -63,14 +63,15 @@ export function ContaPicker({ plano, selecionadas, onChange, buttonLabel = "Esco
   };
 
   const filtered = useMemo(() => {
-    const b = busca.trim().toLowerCase();
+    const b = norm(busca.trim());
     return plano
       .filter((p) => !p.is_participante)
       .filter((p) => {
         if (!b) return true;
         return (
-          p.classificacao.toLowerCase().includes(b) ||
-          p.descricao.toLowerCase().includes(b)
+          norm(p.classificacao).includes(b) ||
+          norm(p.descricao).includes(b) ||
+          (p.codigo ? norm(p.codigo).includes(b) : false)
         );
       })
       .slice(0, 2000);

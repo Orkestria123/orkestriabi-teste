@@ -85,7 +85,7 @@ export function DashboardKpisGrid({
 
   const kpiRows = useMemo(() => {
     return (configRows ?? [])
-      .filter((r) => r.visivel && kpiCatalog.has(r.bloco))
+      .filter((r) => r.visivel && kpiCatalog.has(r.bloco) && r.bloco !== "kpi_resultado_mes")
       .sort((a, b) => a.ordem - b.ordem);
   }, [configRows, kpiCatalog]);
 

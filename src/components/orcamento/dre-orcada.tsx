@@ -31,6 +31,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { MONTHS } from "@/components/filter-bar";
+import { GraficoNatureza, buildDadosLinhaSigned, type NaturezaDef } from "@/components/orcamento/natureza-charts";
 
 // ---------- tipos ----------
 export interface DREColuna {

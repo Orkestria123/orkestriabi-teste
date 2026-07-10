@@ -10,9 +10,19 @@ import { cn } from "@/lib/utils";
 export interface ContaPlanoItem {
   classificacao: string;
   descricao: string;
+  codigo?: string | null;
   is_sintetica?: boolean | null;
   is_participante?: boolean;
   nivel?: number;
+}
+
+// Remove acentos e normaliza para busca case/accent-insensitive.
+function norm(s: string): string {
+  return (s ?? "")
+    .toString()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
 }
 
 interface Props {

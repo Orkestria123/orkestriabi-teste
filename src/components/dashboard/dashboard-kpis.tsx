@@ -102,6 +102,50 @@ export function DashboardKpisGrid({
 
   const { data: dre } = useMonthlyStatement(companyId, "DRE", allPeriods);
 
+  // ---- Depreciações & amortizações do resultado (add-back para EBITDA) ----
+  const usaEbitda = useMemo(
+    () => kpiRows.some((r) => r.bloco === "kpi_ebitda"),
+    [kpiRows],
+  );
+  const { data: depAmortByPeriod } = useQuery({
+    queryKey: ["dashboard-dep-amort", companyId, allPeriods],
+    enabled: usaEbitda && allPeriods.length > 0,
+    queryFn: async () => {
+      // 1) contas do resultado (classificacao começa em "3") cujo nome
+      //    contém DEPRECIA ou AMORTIZA — heurística; futuramente configurável.
+      const { data: contas, error: e1 } = await supabase
+        .from("plano_contas")
+        .select("codigo, descricao, classificacao")
+        .eq("company_id", companyId)
+        .like("classificacao", "3%")
+        .or("descricao.ilike.%DEPRECIA%,descricao.ilike.%AMORTIZA%");
+      if (e1) throw e1;
+      const codigos = (contas ?? []).map((c: any) => c.codigo as string).filter(Boolean);
+      const map = new Map<string, number>();
+      for (const p of allPeriods) map.set(p, 0);
+      if (codigos.length === 0) return map;
+
+      // 2) soma dos débitos-créditos por período (valor da despesa)
+      const CHUNK = 200;
+      for (let i = 0; i < codigos.length; i += CHUNK) {
+        const slice = codigos.slice(i, i + CHUNK);
+        const { data: saldos, error: e2 } = await supabase
+          .from("saldos_mensais")
+          .select("conta_codigo, competencia, total_debitos, total_creditos")
+          .eq("company_id", companyId)
+          .in("conta_codigo", slice)
+          .in("competencia", allPeriods);
+        if (e2) throw e2;
+        for (const s of saldos ?? []) {
+          const p = (s as any).competencia as string;
+          const v = (Number((s as any).total_debitos) || 0) - (Number((s as any).total_creditos) || 0);
+          map.set(p, (map.get(p) ?? 0) + v);
+        }
+      }
+      return map;
+    },
+  });
+
   // Ano de referência = último período selecionado
   const lastPeriod = activePeriods[activePeriods.length - 1] ?? null;
   const anoRef = lastPeriod ? Number(lastPeriod.slice(0, 4)) : null;
@@ -115,7 +159,6 @@ export function DashboardKpisGrid({
     queryKey: ["dashboard-orcado", companyId, anoRef],
     enabled: usaOrcado && !!anoRef,
     queryFn: async () => {
-      // Pega o(s) orçamento(s) do ano de referência
       const { data: orcs, error: e1 } = await supabase
         .from("orcamentos")
         .select("id, nome, ano")
@@ -123,7 +166,6 @@ export function DashboardKpisGrid({
         .eq("ano", anoRef!);
       if (e1) throw e1;
       if (!orcs || orcs.length === 0) return { itens: [], valores: [] };
-      // Pega o mais recentemente atualizado (heurística: 1º)
       const orc = orcs[0];
       const [{ data: itens }, { data: valores }] = await Promise.all([
         supabase
@@ -148,8 +190,17 @@ export function DashboardKpisGrid({
 
   if (!kpiRows.length) return null;
 
+  // Helper: soma dep/amort de um conjunto de períodos
+  const sumDepAmort = (periods: string[]): number => {
+    if (!depAmortByPeriod) return 0;
+    let t = 0;
+    for (const p of periods) t += depAmortByPeriod.get(p) ?? 0;
+    return t;
+  };
+
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+
       {kpiRows.map((row) => {
         const base = ((row.config as any)?.base_comparacao ?? "mes_anterior") as BaseComp;
         const kw = KPI_KEYWORDS[row.bloco];

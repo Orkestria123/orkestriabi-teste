@@ -13,16 +13,15 @@ type BaseComp = "mes_anterior" | "ano_anterior" | "orcado";
 
 const KPI_KEYWORDS: Record<string, RegExp> = {
   kpi_receita_liquida: /receita\s*l[íi]quida/i,
-  kpi_ebitda: /\bebitda\b|lajida/i,
+  // EBITDA parte do EBIT e recebe o add-back das depreciações/amortizações abaixo
+  kpi_ebitda: /resultado\s*operacional|\bebit\b/i,
   kpi_lucro_liquido: /lucro\s*l[íi]quido|resultado\s*l[íi]quido|resultado\s*do\s*exerc[íi]cio/i,
-  kpi_resultado_mes: /lucro\s*l[íi]quido|resultado\s*l[íi]quido|resultado\s*do\s*exerc[íi]cio/i,
 };
 
 const KPI_LABEL: Record<string, string> = {
   kpi_receita_liquida: "Receita Líquida",
   kpi_ebitda: "EBITDA",
   kpi_lucro_liquido: "Lucro Líquido",
-  kpi_resultado_mes: "Resultado do Mês",
 };
 
 const BASE_LABEL: Record<BaseComp, string> = {

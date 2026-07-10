@@ -5,8 +5,9 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { Loader2, ArrowUp, ArrowDown, Info, LayoutDashboard } from "lucide-react";
+import { Loader2, ArrowUp, ArrowDown, Info, LayoutDashboard, AlertTriangle, X } from "lucide-react";
 import { toast } from "sonner";
+import { ContaPicker, type ContaPlanoItem } from "@/components/indicadores/conta-picker";
 
 // ------------------------------------------------------------
 // Catálogo de blocos padrão da Visão Geral (dashboard do cliente)

@@ -17,7 +17,7 @@ import {
   getMascaraConfig,
   type MascaraConfig,
 } from "@/lib/mascara/interpretar";
-import { formatBRL, formatBRLPlain } from "@/lib/format";
+import { formatBRLPlain } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 import { Card } from "@/components/ui/card";
@@ -31,6 +31,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { MONTHS } from "@/components/filter-bar";
+import { GraficoNatureza, buildDadosLinhaSigned, type NaturezaDef } from "@/components/orcamento/natureza-charts";
 
 // ---------- tipos ----------
 export interface DREColuna {
@@ -544,14 +545,8 @@ export default function DREOrcada({
     return out;
   }, [linhasMapeadas, orcadoLinhaCol]);
 
-  // ------------ Lucro Líquido card ------------
-  const lucroOrc = totalOrc("(=) Lucro Líquido do Exercício");
-  const lucroReal = totalReal("(=) Lucro Líquido do Exercício");
-  const lucroVar = lucroOrc !== null ? lucroReal - lucroOrc : null;
-  const lucroVarPct =
-    lucroOrc !== null && lucroOrc !== 0
-      ? ((lucroReal - lucroOrc) / Math.abs(lucroOrc)) * 100
-      : null;
+
+
 
   const carregando =
     metaQ.isLoading ||
@@ -608,54 +603,40 @@ export default function DREOrcada({
         </div>
       </Card>
 
-      {/* Card do Lucro Líquido projetado */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        <Card className="p-4">
-          <div className="text-xs text-muted-foreground">Lucro Líquido Orçado</div>
-          <div className="text-2xl font-semibold">
-            {lucroOrc === null ? "—" : formatBRL(lucroOrc)}
+      {/* Gráficos de evolução — linhas-chave do resultado */}
+      {(() => {
+        const naturezaColunas = colunas.map((c) => ({ key: c.key, label: c.label }));
+        const linhasChave: { linha: string; def: NaturezaDef }[] = [
+          {
+            linha: "(=) Receita Líquida",
+            def: { key: "receita", titulo: "Receita Líquida", cor: "var(--chart-2)" },
+          },
+          {
+            linha: "(=) Resultado Operacional (EBIT)",
+            def: { key: "receita", titulo: "Resultado Operacional (EBIT)", cor: "var(--chart-1)" },
+          },
+          {
+            linha: "(=) Lucro Líquido do Exercício",
+            def: { key: "receita", titulo: "Lucro Líquido", cor: "var(--chart-3)" },
+          },
+        ];
+        return (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            {linhasChave.map(({ linha, def }) => {
+              const cells = colunas.map((_, i) => ({
+                orcado: getOrcCol(linha, i),
+                realizado: getRealCol(linha, i),
+              }));
+              const totalCell = {
+                orcado: totalOrc(linha),
+                realizado: totalReal(linha),
+              };
+              const dados = buildDadosLinhaSigned(cells, totalCell, "receita", naturezaColunas);
+              return <GraficoNatureza key={linha} def={def} dados={dados} />;
+            })}
           </div>
-          <div className="text-[10px] text-muted-foreground mt-1">
-            {lucroOrc === null ? "sem orçamento suficiente" : "com base selecionada"}
-          </div>
-        </Card>
-        <Card className="p-4">
-          <div className="text-xs text-muted-foreground">Lucro Líquido Realizado</div>
-          <div className="text-2xl font-semibold">{formatBRL(lucroReal)}</div>
-        </Card>
-        <Card className="p-4">
-          <div className="text-xs text-muted-foreground">Variação R$</div>
-          <div
-            className={cn(
-              "text-2xl font-semibold",
-              lucroVar === null
-                ? "text-muted-foreground"
-                : lucroVar >= 0
-                ? "text-emerald-600 dark:text-emerald-400"
-                : "text-red-600 dark:text-red-400",
-            )}
-          >
-            {lucroVar === null ? "—" : formatBRL(lucroVar)}
-          </div>
-        </Card>
-        <Card className="p-4">
-          <div className="text-xs text-muted-foreground">Variação %</div>
-          <div
-            className={cn(
-              "text-2xl font-semibold",
-              lucroVarPct === null
-                ? "text-muted-foreground"
-                : lucroVarPct >= 0
-                ? "text-emerald-600 dark:text-emerald-400"
-                : "text-red-600 dark:text-red-400",
-            )}
-          >
-            {lucroVarPct === null
-              ? "—"
-              : `${lucroVarPct.toFixed(1).replace(".", ",")}%`}
-          </div>
-        </Card>
-      </div>
+        );
+      })()}
 
       {/* Aviso de linhas sem orçamento */}
       {tratamento === "vazio" && linhasSemOrcamento.length > 0 && (

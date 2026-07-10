@@ -34,9 +34,9 @@ export interface NaturezaColuna {
   label: string;
 }
 
-type Natureza = "receita" | "custo" | "despesa";
+export type Natureza = "receita" | "custo" | "despesa";
 
-interface NaturezaDef {
+export interface NaturezaDef {
   key: Natureza;
   titulo: string;
   cor: string; // cor do realizado
@@ -48,13 +48,13 @@ const NATUREZAS: NaturezaDef[] = [
   { key: "despesa", titulo: "Despesa", cor: "var(--chart-5)" },
 ];
 
-function ehBom(natureza: Natureza, realizado: number, orcado: number) {
+export function ehBom(natureza: Natureza, realizado: number, orcado: number) {
   // Receita: real > orc => bom. Custo/Despesa: real < orc => bom.
   if (natureza === "receita") return realizado >= orcado;
   return realizado <= orcado;
 }
 
-function agregarPorNatureza(
+export function agregarPorNatureza(
   grid: NaturezaLinha[],
   colunas: NaturezaColuna[],
   natureza: Natureza,
@@ -146,7 +146,45 @@ function fmtPct(v: number | null) {
   return `${v > 0 ? "+" : ""}${v.toFixed(1).replace(".", ",")}%`;
 }
 
-function GraficoNatureza({
+// Constrói o `dados` esperado por <GraficoNatureza> a partir de UMA linha
+// (usado pela DRE Orçada — Receita Líquida, EBIT, Lucro Líquido).
+// Diferente de agregarPorNatureza, NÃO aplica Math.abs — preserva sinal.
+export function buildDadosLinhaSigned(
+  cells: NaturezaCell[],
+  totalCell: NaturezaCell,
+  natureza: Natureza,
+  colunas: NaturezaColuna[],
+): ReturnType<typeof agregarPorNatureza> {
+  const pontos = colunas.map((c, idx) => {
+    const cell = cells[idx];
+    const orcado = cell?.orcado ?? null;
+    const realizado = cell?.realizado ?? null;
+    let bandBase: number | null = null;
+    let bandGood = 0;
+    let bandBad = 0;
+    if (orcado !== null && realizado !== null) {
+      bandBase = Math.min(orcado, realizado);
+      const diff = Math.abs(orcado - realizado);
+      if (ehBom(natureza, realizado, orcado)) bandGood = diff;
+      else bandBad = diff;
+    }
+    return {
+      periodo: c.label,
+      orcado,
+      realizado,
+      bandBase,
+      bandGood,
+      bandBad,
+    };
+  });
+  return {
+    pontos,
+    totalOrcado: totalCell.orcado,
+    totalRealizado: totalCell.realizado,
+  };
+}
+
+export function GraficoNatureza({
   def,
   dados,
 }: {
@@ -342,117 +380,11 @@ export function NaturezaCharts({
     }));
   }, [grid, colunas]);
 
-  // Resultado = Receita − Custo − Despesa (por período e total)
-  const resultado = useMemo(() => {
-    const pontos = colunas.map((c, idx) => {
-      let orc = 0;
-      let real = 0;
-      let temOrc = false;
-      let temReal = false;
-      for (const l of grid) {
-        const t = (l.tipo ?? "").toLowerCase();
-        if (t !== "receita" && t !== "custo" && t !== "despesa") continue;
-        const sinal = t === "receita" ? 1 : -1;
-        const cell = l.cells[idx];
-        if (cell?.orcado !== null && cell?.orcado !== undefined) {
-          orc += sinal * Math.abs(cell.orcado);
-          temOrc = true;
-        }
-        if (cell?.realizado !== null && cell?.realizado !== undefined) {
-          real += sinal * Math.abs(cell.realizado);
-          temReal = true;
-        }
-      }
-      return {
-        periodo: c.label,
-        orcado: temOrc ? orc : null,
-        realizado: temReal ? real : null,
-      };
-    });
-    let totOrc = 0;
-    let totReal = 0;
-    let temOrcT = false;
-    let temRealT = false;
-    for (const l of grid) {
-      const t = (l.tipo ?? "").toLowerCase();
-      if (t !== "receita" && t !== "custo" && t !== "despesa") continue;
-      const sinal = t === "receita" ? 1 : -1;
-      if (l.totalCell.orcado !== null) {
-        totOrc += sinal * Math.abs(l.totalCell.orcado);
-        temOrcT = true;
-      }
-      if (l.totalCell.realizado !== null) {
-        totReal += sinal * Math.abs(l.totalCell.realizado);
-        temRealT = true;
-      }
-    }
-    return {
-      pontos,
-      totalOrcado: temOrcT ? totOrc : null,
-      totalRealizado: temRealT ? totReal : null,
-    };
-  }, [grid, colunas]);
-
-  const varRes =
-    resultado.totalOrcado !== null && resultado.totalRealizado !== null
-      ? resultado.totalRealizado - resultado.totalOrcado
-      : null;
-  const varResPct =
-    varRes !== null && resultado.totalOrcado !== null && resultado.totalOrcado !== 0
-      ? (varRes / Math.abs(resultado.totalOrcado)) * 100
-      : null;
-  const resStatus = statusDeVariacao("receita", varResPct); // resultado maior = melhor
-
   return (
-    <div className="space-y-3">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        {dadosPorNatureza.map(({ def, dados }) => (
-          <GraficoNatureza key={def.key} def={def} dados={dados} />
-        ))}
-      </div>
-      {/* Resultado — lucro planejado vs realizado */}
-      <Card className="p-4">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <div className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
-              Resultado (Receita − Custo − Despesa)
-            </div>
-            <div className="text-[11px] text-muted-foreground mt-0.5">
-              Lucro planejado × Lucro realizado
-            </div>
-          </div>
-          <div className="flex items-baseline gap-6 flex-wrap">
-            <div>
-              <div className="text-[10px] uppercase text-muted-foreground">Orçado</div>
-              <div className="text-lg font-semibold tabular-nums">
-                {resultado.totalOrcado === null ? "—" : formatBRL(resultado.totalOrcado)}
-              </div>
-            </div>
-            <div>
-              <div className="text-[10px] uppercase text-muted-foreground">Realizado</div>
-              <div className="text-lg font-semibold tabular-nums">
-                {resultado.totalRealizado === null
-                  ? "—"
-                  : formatBRL(resultado.totalRealizado)}
-              </div>
-            </div>
-            <div>
-              <div className="text-[10px] uppercase text-muted-foreground">Variação</div>
-              <div
-                className={cn(
-                  "text-lg font-semibold tabular-nums",
-                  corDeStatus(resStatus),
-                )}
-              >
-                {varRes === null
-                  ? "—"
-                  : `${varRes > 0 ? "+" : ""}${formatBRL(varRes)}`}{" "}
-                <span className="text-xs opacity-80">({fmtPct(varResPct)})</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </Card>
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+      {dadosPorNatureza.map(({ def, dados }) => (
+        <GraficoNatureza key={def.key} def={def} dados={dados} />
+      ))}
     </div>
   );
 }

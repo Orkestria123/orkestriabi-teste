@@ -67,7 +67,6 @@ function DashboardHome() {
   }, [dataPeriods, periodos]);
 
   const lastPeriod = activePeriods[activePeriods.length - 1];
-  const prevPeriod = activePeriods[activePeriods.length - 2];
 
 
   const chartData = useMemo(() => {

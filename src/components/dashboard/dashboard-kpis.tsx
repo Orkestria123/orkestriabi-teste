@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card";
 import { formatBRLCompact, formatPct, periodoLabel } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { ArrowDownRight, ArrowUpRight, Minus } from "lucide-react";
-import { BLOCOS_CATALOGO } from "@/components/dashboard/dashboard-config-panel";
+import { BLOCOS_CATALOGO, computeDepAmortSuggestion } from "@/components/dashboard/dashboard-config-panel";
 
 // -------- catálogo local: só os KPIs --------
 type BaseComp = "mes_anterior" | "ano_anterior" | "orcado";

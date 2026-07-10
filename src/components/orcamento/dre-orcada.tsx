@@ -17,7 +17,7 @@ import {
   getMascaraConfig,
   type MascaraConfig,
 } from "@/lib/mascara/interpretar";
-import { formatBRL, formatBRLPlain } from "@/lib/format";
+import { formatBRLPlain } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 import { Card } from "@/components/ui/card";

@@ -167,6 +167,38 @@ export function DashboardConfigPanel({
     },
   });
 
+  // Plano de contas do resultado (grupo 3) para o picker de Depreciação/Amortização do EBITDA
+  const { data: planoResultado } = useQuery({
+    queryKey: ["dashboard-config-plano-resultado", companyId],
+    queryFn: async () => {
+      const acc: ContaPlanoItem[] = [];
+      const PAGE = 1000;
+      for (let from = 0; ; from += PAGE) {
+        const { data, error } = await supabase
+          .from("plano_contas")
+          .select("classificacao, descricao, is_sintetica, is_participante")
+          .eq("company_id", companyId)
+          .like("classificacao", "3%")
+          .order("classificacao")
+          .range(from, from + PAGE - 1);
+        if (error) throw error;
+        const rows = (data ?? []) as any[];
+        for (const r of rows) {
+          acc.push({
+            classificacao: r.classificacao,
+            descricao: r.descricao ?? "",
+            is_sintetica: r.is_sintetica,
+            is_participante: r.is_participante,
+            nivel: String(r.classificacao ?? "").split(".").length,
+          });
+        }
+        if (rows.length < PAGE) break;
+        if (from > 20000) break; // salvaguarda
+      }
+      return acc;
+    },
+  });
+
   if (isLoading) {
     return (
       <div className="flex items-center gap-2 text-sm text-muted-foreground py-8 justify-center">

@@ -293,6 +293,7 @@ function KpiConfigCard({
   base,
   baseAusente,
   periodoLabelStr,
+  ebitdaNaoConfigurado,
 }: {
   blocoKey: string;
   label: string;
@@ -301,6 +302,7 @@ function KpiConfigCard({
   base: BaseComp;
   baseAusente: boolean;
   periodoLabelStr?: string;
+  ebitdaNaoConfigurado?: boolean;
 }) {
   const isSigned = blocoKey === "kpi_lucro_liquido";
   const variation =

@@ -176,7 +176,7 @@ export function DashboardConfigPanel({
       for (let from = 0; ; from += PAGE) {
         const { data, error } = await supabase
           .from("plano_contas")
-          .select("classificacao, descricao, is_sintetica, is_participante")
+          .select("codigo, classificacao, descricao, is_sintetica, is_participante")
           .eq("company_id", companyId)
           .like("classificacao", "3%")
           .order("classificacao")
@@ -185,6 +185,7 @@ export function DashboardConfigPanel({
         const rows = (data ?? []) as any[];
         for (const r of rows) {
           acc.push({
+            codigo: r.codigo ?? null,
             classificacao: r.classificacao,
             descricao: r.descricao ?? "",
             is_sintetica: r.is_sintetica,

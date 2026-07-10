@@ -146,6 +146,44 @@ function fmtPct(v: number | null) {
   return `${v > 0 ? "+" : ""}${v.toFixed(1).replace(".", ",")}%`;
 }
 
+// Constrói o `dados` esperado por <GraficoNatureza> a partir de UMA linha
+// (usado pela DRE Orçada — Receita Líquida, EBIT, Lucro Líquido).
+// Diferente de agregarPorNatureza, NÃO aplica Math.abs — preserva sinal.
+export function buildDadosLinhaSigned(
+  cells: NaturezaCell[],
+  totalCell: NaturezaCell,
+  natureza: Natureza,
+  colunas: NaturezaColuna[],
+): ReturnType<typeof agregarPorNatureza> {
+  const pontos = colunas.map((c, idx) => {
+    const cell = cells[idx];
+    const orcado = cell?.orcado ?? null;
+    const realizado = cell?.realizado ?? null;
+    let bandBase: number | null = null;
+    let bandGood = 0;
+    let bandBad = 0;
+    if (orcado !== null && realizado !== null) {
+      bandBase = Math.min(orcado, realizado);
+      const diff = Math.abs(orcado - realizado);
+      if (ehBom(natureza, realizado, orcado)) bandGood = diff;
+      else bandBad = diff;
+    }
+    return {
+      periodo: c.label,
+      orcado,
+      realizado,
+      bandBase,
+      bandGood,
+      bandBad,
+    };
+  });
+  return {
+    pontos,
+    totalOrcado: totalCell.orcado,
+    totalRealizado: totalCell.realizado,
+  };
+}
+
 export function GraficoNatureza({
   def,
   dados,

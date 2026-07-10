@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useDashboardCompany } from "@/components/dashboard-context";
 import { useFilters } from "@/components/filter-bar";
-import { useFinancialStatement, useMyCompanies } from "@/hooks/use-financial-data";
+import { useAvailablePeriods, useFinancialStatement, useMyCompanies } from "@/hooks/use-financial-data";
 import { useAuth } from "@/hooks/use-auth";
 
 import { Card } from "@/components/ui/card";

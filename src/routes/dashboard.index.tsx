@@ -54,11 +54,13 @@ function DashboardHome() {
     return computeIndicators(rows as any, ps);
   }, [dre, bp]);
 
+  const { data: availablePeriods } = useAvailablePeriods(companyId);
   const dataPeriods = useMemo(() => {
     const set = new Set<string>();
     (dre ?? []).forEach((r: any) => set.add(r.periodo));
+    (availablePeriods ?? []).forEach((p) => set.add(p));
     return Array.from(set).sort();
-  }, [dre]);
+  }, [dre, availablePeriods]);
   const activePeriods = useMemo(() => {
     if (periodos.length === 0) return dataPeriods;
     const filterSet = new Set(periodos);

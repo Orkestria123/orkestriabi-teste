@@ -28,6 +28,7 @@ import { getMascaraConfig } from "@/lib/mascara/interpretar";
 import { IndicadoresEmpresaPanel } from "@/components/indicadores/indicadores-empresa-panel";
 import { AjustesGerenciaisPanel } from "@/components/gerencial/ajustes-gerenciais-panel";
 import { OrcamentoConfigPanel } from "@/components/orcamento/orcamento-config-panel";
+import { DashboardConfigPanel } from "@/components/dashboard/dashboard-config-panel";
 
 export const Route = createFileRoute("/admin/empresas/$id/dados")({
   component: Page,

@@ -146,7 +146,7 @@ function fmtPct(v: number | null) {
   return `${v > 0 ? "+" : ""}${v.toFixed(1).replace(".", ",")}%`;
 }
 
-function GraficoNatureza({
+export function GraficoNatureza({
   def,
   dados,
 }: {

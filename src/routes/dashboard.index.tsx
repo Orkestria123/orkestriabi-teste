@@ -20,6 +20,7 @@ import {
   tooltipFormatBRL, tooltipFormatBRLCompact, CHART_COLORS,
 } from "@/lib/chart-config";
 import { IndicadoresClienteGrid } from "@/components/indicadores/indicadores-cliente";
+import { DashboardKpisGrid } from "@/components/dashboard/dashboard-kpis";
 
 export const Route = createFileRoute("/dashboard/")({ component: DashboardHome });
 
@@ -154,12 +155,7 @@ function DashboardHome() {
         <ViewSwitcher value={view} onChange={setView} />
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <KpiCard label="Receita Bruta" value={kpis.receitaBruta.v} previousValue={kpis.receitaBruta.p} tone="default" sparkline={chartData.map((d) => d.Receita)} />
-        <KpiCard label="Receita Líquida" value={kpis.receitaLiquida.v} previousValue={kpis.receitaLiquida.p} tone="default" sparkline={chartData.map((d) => d.Receita)} />
-        <KpiCard label="EBITDA" value={kpis.ebitda.v} previousValue={kpis.ebitda.p} tone="positive" sparkline={chartData.map((d) => d.Lucro)} />
-        <KpiCard label="Lucro Líquido" value={kpis.lucroLiquido.v} previousValue={kpis.lucroLiquido.p} tone={(kpis.lucroLiquido.v ?? 0) < 0 ? "negative" : "positive"} sparkline={chartData.map((d) => d.Lucro)} />
-      </div>
+      <DashboardKpisGrid companyId={companyId} activePeriods={activePeriods} />
 
       {view === "geral" && (
         <IndicadoresClienteGrid

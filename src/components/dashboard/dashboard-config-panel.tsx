@@ -5,8 +5,9 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { Loader2, ArrowUp, ArrowDown, Info, LayoutDashboard } from "lucide-react";
+import { Loader2, ArrowUp, ArrowDown, Info, LayoutDashboard, AlertTriangle, X } from "lucide-react";
 import { toast } from "sonner";
+import { ContaPicker, type ContaPlanoItem } from "@/components/indicadores/conta-picker";
 
 // ------------------------------------------------------------
 // Catálogo de blocos padrão da Visão Geral (dashboard do cliente)
@@ -166,6 +167,38 @@ export function DashboardConfigPanel({
     },
   });
 
+  // Plano de contas do resultado (grupo 3) para o picker de Depreciação/Amortização do EBITDA
+  const { data: planoResultado } = useQuery({
+    queryKey: ["dashboard-config-plano-resultado", companyId],
+    queryFn: async () => {
+      const acc: ContaPlanoItem[] = [];
+      const PAGE = 1000;
+      for (let from = 0; ; from += PAGE) {
+        const { data, error } = await supabase
+          .from("plano_contas")
+          .select("classificacao, descricao, is_sintetica, is_participante")
+          .eq("company_id", companyId)
+          .like("classificacao", "3%")
+          .order("classificacao")
+          .range(from, from + PAGE - 1);
+        if (error) throw error;
+        const rows = (data ?? []) as any[];
+        for (const r of rows) {
+          acc.push({
+            classificacao: r.classificacao,
+            descricao: r.descricao ?? "",
+            is_sintetica: r.is_sintetica,
+            is_participante: r.is_participante,
+            nivel: String(r.classificacao ?? "").split(".").length,
+          });
+        }
+        if (rows.length < PAGE) break;
+        if (from > 20000) break; // salvaguarda
+      }
+      return acc;
+    },
+  });
+
   if (isLoading) {
     return (
       <div className="flex items-center gap-2 text-sm text-muted-foreground py-8 justify-center">
@@ -252,6 +285,18 @@ export function DashboardConfigPanel({
                     onCheckedChange={(v) => atualizar(row, { visivel: v })}
                   />
                 </div>
+                {def.key === "kpi_ebitda" && (
+                  <EbitdaConfig
+                    row={row}
+                    plano={planoResultado ?? []}
+                    busy={busy}
+                    onSave={(contas) =>
+                      atualizar(row, {
+                        config: { ...(row.config ?? {}), contas_depreciacao: contas },
+                      })
+                    }
+                  />
+                )}
               </div>
             );
           })}
@@ -287,6 +332,72 @@ export function DashboardConfigPanel({
           )}
         </div>
       </Card>
+    </div>
+  );
+}
+
+function EbitdaConfig({
+  row,
+  plano,
+  busy,
+  onSave,
+}: {
+  row: DashboardConfigRow;
+  plano: ContaPlanoItem[];
+  busy: boolean;
+  onSave: (contas: string[]) => void;
+}) {
+  const configuradas = ((row.config as any)?.contas_depreciacao as string[] | undefined) ?? [];
+  const byClass = useMemo(() => {
+    const m = new Map<string, ContaPlanoItem>();
+    for (const p of plano) m.set(p.classificacao, p);
+    return m;
+  }, [plano]);
+
+  return (
+    <div className="w-full mt-2 pl-9 border-t border-border/50 pt-2">
+      <div className="flex items-start gap-2 flex-wrap">
+        <div className="flex-1 min-w-0">
+          <div className="text-xs font-medium mb-1 flex items-center gap-1.5">
+            Depreciação / Amortização
+            {configuradas.length === 0 && (
+              <Badge variant="outline" className="text-[10px] border-amber-500/50 text-amber-700 dark:text-amber-400 gap-1">
+                <AlertTriangle className="h-3 w-3" /> Não configurado — EBITDA = EBIT
+              </Badge>
+            )}
+          </div>
+          <p className="text-[11px] text-muted-foreground mb-2">
+            O EBITDA soma de volta a depreciação e amortização ao resultado operacional. Selecione as contas
+            de depreciação/amortização da empresa. Contas mal cadastradas (ex.: uma conta "Depreciação"
+            que recebe outros lançamentos) não devem ser incluídas.
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {configuradas.map((c) => {
+              const info = byClass.get(c);
+              return (
+                <Badge key={c} variant="secondary" className="text-[11px] gap-1 pr-1">
+                  <span className="font-mono">{c}</span>
+                  {info?.descricao && <span className="truncate max-w-[220px]">{info.descricao}</span>}
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => onSave(configuradas.filter((x) => x !== c))}
+                    className="hover:bg-background/50 rounded p-0.5"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </Badge>
+              );
+            })}
+          </div>
+        </div>
+        <ContaPicker
+          plano={plano}
+          selecionadas={configuradas}
+          onChange={onSave}
+          buttonLabel="Adicionar contas"
+        />
+      </div>
     </div>
   );
 }

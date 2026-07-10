@@ -67,7 +67,7 @@ export function ContaPicker({ plano, selecionadas, onChange, buttonLabel = "Esco
   const filtered = useMemo(() => {
     const b = norm(busca.trim());
     return plano
-      .filter((p) => !p.is_participante)
+      .filter((p) => (allowAnaliticas ? true : !p.is_participante))
       .filter((p) => {
         if (!b) return true;
         return (

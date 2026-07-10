@@ -3,7 +3,7 @@ import { useDashboardCompany } from "@/components/dashboard-context";
 import { useFilters } from "@/components/filter-bar";
 import { useFinancialStatement, useMyCompanies } from "@/hooks/use-financial-data";
 import { useAuth } from "@/hooks/use-auth";
-import { KpiCard } from "@/components/kpi-card";
+
 import { Card } from "@/components/ui/card";
 import {
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, AreaChart, Area, Legend, CartesianGrid,
@@ -69,15 +69,6 @@ function DashboardHome() {
   const lastPeriod = activePeriods[activePeriods.length - 1];
   const prevPeriod = activePeriods[activePeriods.length - 2];
 
-  const kpis = useMemo(() => {
-    const rows = dre ?? [];
-    return {
-      receitaBruta: { v: findValue(rows, ["receita bruta", "receita operacional bruta"], lastPeriod), p: findValue(rows, ["receita bruta", "receita operacional bruta"], prevPeriod) },
-      receitaLiquida: { v: findValue(rows, ["receita líquida", "receita liquida"], lastPeriod), p: findValue(rows, ["receita líquida", "receita liquida"], prevPeriod) },
-      ebitda: { v: findValue(rows, ["ebitda", "lajida"], lastPeriod), p: findValue(rows, ["ebitda", "lajida"], prevPeriod) },
-      lucroLiquido: { v: findValue(rows, ["lucro líquido", "lucro liquido", "resultado líquido"], lastPeriod), p: findValue(rows, ["lucro líquido", "lucro liquido", "resultado líquido"], prevPeriod) },
-    };
-  }, [dre, lastPeriod, prevPeriod]);
 
   const chartData = useMemo(() => {
     return activePeriods.map((p) => {

@@ -424,6 +424,14 @@ function KpiConfigCard({
           Depreciação não configurada — EBITDA = EBIT
         </div>
       )}
+      {ebitdaUsandoSugestao && (
+        <div
+          className="mt-2 text-[10px] text-blue-700 dark:text-blue-400 italic"
+          title="A lista de contas de depreciação foi sugerida pelo sistema. Confirme (ou ajuste) em Admin › Empresa › Dashboard › KPI EBITDA."
+        >
+          EBITDA com contas sugeridas — revisar na configuração
+        </div>
+      )}
     </Card>
   );
 }

@@ -374,6 +374,14 @@ function KpiConfigCard({
           </span>
         )}
       </div>
+      {ebitdaNaoConfigurado && (
+        <div
+          className="mt-2 text-[10px] text-amber-700 dark:text-amber-400 italic"
+          title="Configure em Admin › Empresa › Dashboard › KPI EBITDA quais contas de depreciação e amortização devem ser somadas ao EBIT."
+        >
+          Depreciação não configurada — EBITDA = EBIT
+        </div>
+      )}
     </Card>
   );
 }

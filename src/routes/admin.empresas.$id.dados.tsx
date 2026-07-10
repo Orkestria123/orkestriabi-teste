@@ -94,7 +94,17 @@ function Page() {
           <TabsTrigger value="indicadores">6. Indicadores</TabsTrigger>
           <TabsTrigger value="gerencial">7. Ajustes Gerenciais</TabsTrigger>
           <TabsTrigger value="orcamento">8. Orçamento</TabsTrigger>
+          <TabsTrigger value="dashboard">9. Dashboard</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="dashboard">
+          {company && (
+            <DashboardConfigPanel
+              tenantId={company.tenant_id!}
+              companyId={company.id}
+            />
+          )}
+        </TabsContent>
 
         <TabsContent value="gerencial">
           {company && (

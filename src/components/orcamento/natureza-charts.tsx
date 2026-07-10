@@ -48,7 +48,7 @@ const NATUREZAS: NaturezaDef[] = [
   { key: "despesa", titulo: "Despesa", cor: "var(--chart-5)" },
 ];
 
-function ehBom(natureza: Natureza, realizado: number, orcado: number) {
+export function ehBom(natureza: Natureza, realizado: number, orcado: number) {
   // Receita: real > orc => bom. Custo/Despesa: real < orc => bom.
   if (natureza === "receita") return realizado >= orcado;
   return realizado <= orcado;

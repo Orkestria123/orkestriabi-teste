@@ -13,16 +13,15 @@ type BaseComp = "mes_anterior" | "ano_anterior" | "orcado";
 
 const KPI_KEYWORDS: Record<string, RegExp> = {
   kpi_receita_liquida: /receita\s*l[íi]quida/i,
-  kpi_ebitda: /\bebitda\b|lajida/i,
+  // EBITDA parte do EBIT e recebe o add-back das depreciações/amortizações abaixo
+  kpi_ebitda: /resultado\s*operacional|\bebit\b/i,
   kpi_lucro_liquido: /lucro\s*l[íi]quido|resultado\s*l[íi]quido|resultado\s*do\s*exerc[íi]cio/i,
-  kpi_resultado_mes: /lucro\s*l[íi]quido|resultado\s*l[íi]quido|resultado\s*do\s*exerc[íi]cio/i,
 };
 
 const KPI_LABEL: Record<string, string> = {
   kpi_receita_liquida: "Receita Líquida",
   kpi_ebitda: "EBITDA",
   kpi_lucro_liquido: "Lucro Líquido",
-  kpi_resultado_mes: "Resultado do Mês",
 };
 
 const BASE_LABEL: Record<BaseComp, string> = {
@@ -86,7 +85,7 @@ export function DashboardKpisGrid({
 
   const kpiRows = useMemo(() => {
     return (configRows ?? [])
-      .filter((r) => r.visivel && kpiCatalog.has(r.bloco))
+      .filter((r) => r.visivel && kpiCatalog.has(r.bloco) && r.bloco !== "kpi_resultado_mes")
       .sort((a, b) => a.ordem - b.ordem);
   }, [configRows, kpiCatalog]);
 
@@ -103,6 +102,50 @@ export function DashboardKpisGrid({
 
   const { data: dre } = useMonthlyStatement(companyId, "DRE", allPeriods);
 
+  // ---- Depreciações & amortizações do resultado (add-back para EBITDA) ----
+  const usaEbitda = useMemo(
+    () => kpiRows.some((r) => r.bloco === "kpi_ebitda"),
+    [kpiRows],
+  );
+  const { data: depAmortByPeriod } = useQuery({
+    queryKey: ["dashboard-dep-amort", companyId, allPeriods],
+    enabled: usaEbitda && allPeriods.length > 0,
+    queryFn: async () => {
+      // 1) contas do resultado (classificacao começa em "3") cujo nome
+      //    contém DEPRECIA ou AMORTIZA — heurística; futuramente configurável.
+      const { data: contas, error: e1 } = await supabase
+        .from("plano_contas")
+        .select("codigo, descricao, classificacao")
+        .eq("company_id", companyId)
+        .like("classificacao", "3%")
+        .or("descricao.ilike.%DEPRECIA%,descricao.ilike.%AMORTIZA%");
+      if (e1) throw e1;
+      const codigos = (contas ?? []).map((c: any) => c.codigo as string).filter(Boolean);
+      const map = new Map<string, number>();
+      for (const p of allPeriods) map.set(p, 0);
+      if (codigos.length === 0) return map;
+
+      // 2) soma dos débitos-créditos por período (valor da despesa)
+      const CHUNK = 200;
+      for (let i = 0; i < codigos.length; i += CHUNK) {
+        const slice = codigos.slice(i, i + CHUNK);
+        const { data: saldos, error: e2 } = await supabase
+          .from("saldos_mensais")
+          .select("conta_codigo, competencia, total_debitos, total_creditos")
+          .eq("company_id", companyId)
+          .in("conta_codigo", slice)
+          .in("competencia", allPeriods);
+        if (e2) throw e2;
+        for (const s of saldos ?? []) {
+          const p = (s as any).competencia as string;
+          const v = (Number((s as any).total_debitos) || 0) - (Number((s as any).total_creditos) || 0);
+          map.set(p, (map.get(p) ?? 0) + v);
+        }
+      }
+      return map;
+    },
+  });
+
   // Ano de referência = último período selecionado
   const lastPeriod = activePeriods[activePeriods.length - 1] ?? null;
   const anoRef = lastPeriod ? Number(lastPeriod.slice(0, 4)) : null;
@@ -116,7 +159,6 @@ export function DashboardKpisGrid({
     queryKey: ["dashboard-orcado", companyId, anoRef],
     enabled: usaOrcado && !!anoRef,
     queryFn: async () => {
-      // Pega o(s) orçamento(s) do ano de referência
       const { data: orcs, error: e1 } = await supabase
         .from("orcamentos")
         .select("id, nome, ano")
@@ -124,7 +166,6 @@ export function DashboardKpisGrid({
         .eq("ano", anoRef!);
       if (e1) throw e1;
       if (!orcs || orcs.length === 0) return { itens: [], valores: [] };
-      // Pega o mais recentemente atualizado (heurística: 1º)
       const orc = orcs[0];
       const [{ data: itens }, { data: valores }] = await Promise.all([
         supabase
@@ -149,23 +190,40 @@ export function DashboardKpisGrid({
 
   if (!kpiRows.length) return null;
 
+  // Helper: soma dep/amort de um conjunto de períodos
+  const sumDepAmort = (periods: string[]): number => {
+    if (!depAmortByPeriod) return 0;
+    let t = 0;
+    for (const p of periods) t += depAmortByPeriod.get(p) ?? 0;
+    return t;
+  };
+
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+
       {kpiRows.map((row) => {
         const base = ((row.config as any)?.base_comparacao ?? "mes_anterior") as BaseComp;
         const kw = KPI_KEYWORDS[row.bloco];
         const label = KPI_LABEL[row.bloco] ?? row.bloco;
+        const isEbitda = row.bloco === "kpi_ebitda";
 
-        const atual = kw ? sumByKeyword(dre ?? [], activePeriods, kw) : null;
+        const prevMes = activePeriods.map((p) => shiftPeriod(p, -1));
+        const prevAno = activePeriods.map((p) => shiftPeriod(p, -12));
+
+        const ebit = kw ? sumByKeyword(dre ?? [], activePeriods, kw) : null;
+        const atual =
+          isEbitda && ebit != null ? ebit + sumDepAmort(activePeriods) : ebit;
 
         let anterior: number | null = null;
         let baseAusente = false;
         if (base === "mes_anterior") {
-          const prev = activePeriods.map((p) => shiftPeriod(p, -1));
-          anterior = kw ? sumByKeyword(dre ?? [], prev, kw) : null;
+          const ebitPrev = kw ? sumByKeyword(dre ?? [], prevMes, kw) : null;
+          anterior =
+            isEbitda && ebitPrev != null ? ebitPrev + sumDepAmort(prevMes) : ebitPrev;
         } else if (base === "ano_anterior") {
-          const prev = activePeriods.map((p) => shiftPeriod(p, -12));
-          anterior = kw ? sumByKeyword(dre ?? [], prev, kw) : null;
+          const ebitPrev = kw ? sumByKeyword(dre ?? [], prevAno, kw) : null;
+          anterior =
+            isEbitda && ebitPrev != null ? ebitPrev + sumDepAmort(prevAno) : ebitPrev;
         } else if (base === "orcado") {
           if (!orcadoAgg || orcadoAgg.itens.length === 0) {
             baseAusente = true;
@@ -189,6 +247,7 @@ export function DashboardKpisGrid({
             }
           }
         }
+
 
         return (
           <KpiConfigCard
@@ -226,7 +285,7 @@ function KpiConfigCard({
   baseAusente: boolean;
   periodoLabelStr?: string;
 }) {
-  const isResultadoMes = blocoKey === "kpi_resultado_mes";
+  const isSigned = blocoKey === "kpi_lucro_liquido";
   const variation =
     prev != null && prev !== 0 && value != null
       ? ((value - prev) / Math.abs(prev)) * 100
@@ -234,7 +293,7 @@ function KpiConfigCard({
 
   // Tom / cor da lateral do card
   let tone: "positive" | "negative" | "neutral" = "neutral";
-  if (isResultadoMes && value != null) {
+  if (isSigned && value != null) {
     tone = value >= 0 ? "positive" : "negative";
   } else if (variation != null) {
     tone = variation >= 0 ? "positive" : "negative";
@@ -246,9 +305,8 @@ function KpiConfigCard({
         ? "before:bg-destructive"
         : "before:bg-[var(--brand)]";
 
-  // Rótulo dinâmico para Resultado do Mês
   const resultadoSuffix =
-    isResultadoMes && value != null ? (value >= 0 ? "· Superávit" : "· Déficit") : "";
+    isSigned && value != null ? (value >= 0 ? "· Superávit" : "· Déficit") : "";
 
   return (
     <Card

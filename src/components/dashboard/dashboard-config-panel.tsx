@@ -22,9 +22,8 @@ interface BlocoDef {
 
 export const BLOCOS_CATALOGO: BlocoDef[] = [
   { key: "kpi_receita_liquida", label: "KPI — Receita Líquida", descricao: "Valor do período com comparação.", categoria: "kpi", suportaBaseComparacao: true },
-  { key: "kpi_ebitda", label: "KPI — EBITDA", descricao: "EBITDA do período com comparação.", categoria: "kpi", suportaBaseComparacao: true },
-  { key: "kpi_lucro_liquido", label: "KPI — Lucro Líquido", descricao: "Lucro líquido do período com comparação.", categoria: "kpi", suportaBaseComparacao: true },
-  { key: "kpi_resultado_mes", label: "KPI — Resultado do Mês", descricao: "Superávit / déficit do mês.", categoria: "kpi", suportaBaseComparacao: true },
+  { key: "kpi_ebitda", label: "KPI — EBITDA", descricao: "EBIT + Depreciação e Amortização (contas do resultado).", categoria: "kpi", suportaBaseComparacao: true },
+  { key: "kpi_lucro_liquido", label: "KPI — Lucro Líquido", descricao: "Lucro líquido do período com comparação. Cor indica superávit/déficit.", categoria: "kpi", suportaBaseComparacao: true },
   { key: "grafico_tendencia", label: "Gráfico — Tendência do Resultado", descricao: "Evolução de Receita Líquida, EBITDA e Lucro Líquido.", categoria: "grafico", suportaBaseComparacao: false },
   { key: "grafico_receita_despesa", label: "Gráfico — Receita × Despesa", descricao: "Comparativo de receitas e despesas por período.", categoria: "grafico", suportaBaseComparacao: false },
 ];

@@ -7,10 +7,12 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, Info, X, Wallet, Sparkles } from "lucide-react";
+import { Loader2, Info, X, Wallet, Sparkles, AlertTriangle, Copy } from "lucide-react";
 import { toast } from "sonner";
 import { ContaPicker, type ContaPlanoItem } from "@/components/indicadores/conta-picker";
+import { ReplicarDfcDialog } from "@/components/dfc/replicar-dfc-dialog";
 import { cn } from "@/lib/utils";
+
 import {
   DFC_LINHAS,
   BLOCO_LABEL,
@@ -38,6 +40,8 @@ interface LinhaRow {
 export function DfcConfigPanel({ tenantId, companyId }: { tenantId: string; companyId: string }) {
   const qc = useQueryClient();
   const [busy, setBusy] = useState<string | null>(null);
+  const [replicarOpen, setReplicarOpen] = useState(false);
+
 
   const { data: plano } = useQuery({
     queryKey: ["dfc-plano", companyId],
@@ -105,6 +109,8 @@ export function DfcConfigPanel({ tenantId, companyId }: { tenantId: string; comp
   }, [linhas]);
 
   const planoList = plano ?? [];
+  const planoSet = useMemo(() => new Set(planoList.map((p) => p.classificacao)), [plano]);
+
 
   const salvarConfig = async (patch: Partial<ConfigRow>) => {
     setBusy("config");
@@ -202,8 +208,29 @@ export function DfcConfigPanel({ tenantId, companyId }: { tenantId: string; comp
             <strong> quais contas alimentam cada linha</strong> e como elas entram (soma, subtrai ou
             variação de saldo). Linhas de subtotal são calculadas automaticamente.
           </p>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-7 text-xs shrink-0 gap-1"
+            onClick={() => setReplicarOpen(true)}
+          >
+            <Copy className="h-3.5 w-3.5" /> Replicar de outra empresa
+          </Button>
         </div>
       </Card>
+
+      <ReplicarDfcDialog
+        open={replicarOpen}
+        onOpenChange={setReplicarOpen}
+        tenantId={tenantId}
+        companyId={companyId}
+        planoClassificacoes={planoSet}
+        onDone={async () => {
+          await qc.invalidateQueries({ queryKey: ["dfc-linhas", companyId] });
+          await qc.invalidateQueries({ queryKey: ["dfc-config", companyId] });
+        }}
+      />
+
 
       {/* Método padrão + contas de caixa */}
       <Card className="p-4 space-y-4">
@@ -290,6 +317,12 @@ function LinhaConfig({
     () => (contas.length > 0 ? [] : sugerirContas(plano, def.sugestao, def.sugestaoPrefixos)),
     [plano, def, contas.length],
   );
+  const revisar = useMemo(() => {
+    if (contas.length === 0 || plano.length === 0) return false;
+    const set = new Set(plano.map((p) => p.classificacao));
+    return contas.some((c) => !set.has(c));
+  }, [contas, plano]);
+
 
   if (def.calculada || def.origemDRE) {
     return (
@@ -309,7 +342,13 @@ function LinhaConfig({
     <div className="py-3">
       <div className="flex items-center gap-2 flex-wrap mb-2">
         <span className="text-sm font-medium">{def.label}</span>
+        {revisar && (
+          <Badge variant="outline" className="text-[10px] border-amber-500/60 gap-1">
+            <AlertTriangle className="h-3 w-3 text-amber-600" /> Revisar contas
+          </Badge>
+        )}
         {busy && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
+
         <div className="ml-auto flex items-center gap-1">
           {OPERACAO_OPCOES.map((o) => (
             <Button

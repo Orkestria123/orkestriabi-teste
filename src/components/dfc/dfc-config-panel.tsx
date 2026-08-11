@@ -204,8 +204,29 @@ export function DfcConfigPanel({ tenantId, companyId }: { tenantId: string; comp
             <strong> quais contas alimentam cada linha</strong> e como elas entram (soma, subtrai ou
             variação de saldo). Linhas de subtotal são calculadas automaticamente.
           </p>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-7 text-xs shrink-0 gap-1"
+            onClick={() => setReplicarOpen(true)}
+          >
+            <Copy className="h-3.5 w-3.5" /> Replicar de outra empresa
+          </Button>
         </div>
       </Card>
+
+      <ReplicarDfcDialog
+        open={replicarOpen}
+        onOpenChange={setReplicarOpen}
+        tenantId={tenantId}
+        companyId={companyId}
+        planoClassificacoes={planoSet}
+        onDone={async () => {
+          await qc.invalidateQueries({ queryKey: ["dfc-linhas", companyId] });
+          await qc.invalidateQueries({ queryKey: ["dfc-config", companyId] });
+        }}
+      />
+
 
       {/* Método padrão + contas de caixa */}
       <Card className="p-4 space-y-4">

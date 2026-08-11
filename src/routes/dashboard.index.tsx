@@ -232,14 +232,15 @@ function DashboardHome() {
                   <XAxis dataKey="periodo" {...AXIS_PROPS} />
                   <YAxis {...AXIS_PROPS} tickFormatter={(v) => formatBRLCompact(v)} width={72} />
                   <ReferenceLine y={0} stroke="var(--border)" strokeWidth={1.5} />
-                  <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v: any) => [formatBRL(Number(v)), "Lucro"]} />
+                  <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v: any) => [formatBRL(Number(v)), "Lucro Líquido"]} />
                   <Area type="monotone" dataKey="LucroPos" stroke="transparent" fill="url(#gLucroPos)" {...ANIMATION} />
                   <Area type="monotone" dataKey="LucroNeg" stroke="transparent" fill="url(#gLucroNeg)" {...ANIMATION} />
                   <Line
                     type="monotone"
                     dataKey="Lucro"
-                    stroke="var(--chart-4)"
+                    stroke={(chartData[chartData.length - 1]?.Lucro ?? 0) >= 0 ? "var(--success)" : "var(--destructive)"}
                     strokeWidth={2.5}
+
                     dot={(props: any) => {
                       const { cx, cy, value, index } = props;
                       const color = (value ?? 0) >= 0 ? "var(--success)" : "var(--destructive)";

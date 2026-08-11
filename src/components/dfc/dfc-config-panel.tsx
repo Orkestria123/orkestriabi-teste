@@ -40,6 +40,8 @@ interface LinhaRow {
 export function DfcConfigPanel({ tenantId, companyId }: { tenantId: string; companyId: string }) {
   const qc = useQueryClient();
   const [busy, setBusy] = useState<string | null>(null);
+  const [replicarOpen, setReplicarOpen] = useState(false);
+
 
   const { data: plano } = useQuery({
     queryKey: ["dfc-plano", companyId],

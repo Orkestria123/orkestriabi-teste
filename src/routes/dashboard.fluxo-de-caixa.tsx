@@ -20,6 +20,7 @@ import {
   type Agrupador,
   type DfcLinhaCalc,
 } from "@/lib/dfc/calcular-indireto";
+import { calcularDfcDireto, type DfcResultadoDireto } from "@/lib/dfc/calcular-direto";
 import { BLOCO_LABEL } from "@/lib/dfc/estrutura";
 
 const AGRUPADORES: { value: Agrupador; label: string }[] = [
@@ -29,21 +30,28 @@ const AGRUPADORES: { value: Agrupador; label: string }[] = [
   { value: "ano", label: "Ano" },
 ];
 
+type Metodo = "indireto" | "direto";
+
 function DFCContent() {
   const { companyId } = useDashboardCompany();
   const { periodos } = useFilters();
   const { visao } = useVisaoGerencial();
   const [agrupador, setAgrupador] = useState<Agrupador>("mes");
   const [milhar, setMilhar] = useState(false);
+  const [metodo, setMetodo] = useState<Metodo>("indireto");
 
   const visaoDfc = visao === "gerencial" ? "gerencial" : "contabil";
 
   const { data, isLoading } = useQuery({
-    queryKey: ["dfc-indireto", companyId, periodos.join(","), agrupador, visaoDfc],
+    queryKey: ["dfc", metodo, companyId, periodos.join(","), agrupador, visaoDfc],
     enabled: !!companyId && periodos.length > 0,
     queryFn: () =>
-      calcularDfcIndireto({ companyId: companyId!, periodos, agrupador, visao: visaoDfc }),
+      metodo === "direto"
+        ? calcularDfcDireto({ companyId: companyId!, periodos, agrupador, visao: visaoDfc })
+        : calcularDfcIndireto({ companyId: companyId!, periodos, agrupador, visao: visaoDfc }),
   });
+
+  const direto = metodo === "direto" ? (data as DfcResultadoDireto | undefined) : undefined;
 
   const escala = milhar ? 1000 : 1;
   const fmt = (v: number | undefined | null) =>

@@ -109,6 +109,8 @@ export function DfcConfigPanel({ tenantId, companyId }: { tenantId: string; comp
   }, [linhas]);
 
   const planoList = plano ?? [];
+  const planoSet = useMemo(() => new Set(planoList.map((p) => p.classificacao)), [plano]);
+
 
   const salvarConfig = async (patch: Partial<ConfigRow>) => {
     setBusy("config");

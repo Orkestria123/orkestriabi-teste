@@ -311,7 +311,13 @@ function LinhaConfig({
     <div className="py-3">
       <div className="flex items-center gap-2 flex-wrap mb-2">
         <span className="text-sm font-medium">{def.label}</span>
+        {revisar && (
+          <Badge variant="outline" className="text-[10px] border-amber-500/60 gap-1">
+            <AlertTriangle className="h-3 w-3 text-amber-600" /> Revisar contas
+          </Badge>
+        )}
         {busy && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
+
         <div className="ml-auto flex items-center gap-1">
           {OPERACAO_OPCOES.map((o) => (
             <Button

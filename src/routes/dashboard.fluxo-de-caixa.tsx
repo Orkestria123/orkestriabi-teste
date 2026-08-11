@@ -61,7 +61,7 @@ function DFCContent() {
     if (!data) return [];
     const t = data.totais;
     const ini = t["fech_caixa_inicial"] ?? 0;
-    const op = t["op_ind_total"] ?? 0;
+    const op = t[metodo === "direto" ? "op_dir_total" : "op_ind_total"] ?? 0;
     const inv = t["inv_total"] ?? 0;
     const fin = t["fin_total"] ?? 0;
     const afterOp = ini + op;

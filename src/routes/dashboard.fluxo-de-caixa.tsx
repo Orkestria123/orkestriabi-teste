@@ -79,7 +79,8 @@ function DFCContent() {
   if (isLoading || !data) {
     return (
       <Card className="p-8 flex items-center gap-2 text-sm text-muted-foreground">
-        <Loader2 className="h-4 w-4 animate-spin" /> Calculando o fluxo de caixa (método indireto)…
+        <Loader2 className="h-4 w-4 animate-spin" /> Calculando o fluxo de caixa (método{" "}
+        {metodo})…
       </Card>
     );
   }
@@ -91,6 +92,7 @@ function DFCContent() {
   const val = data.validacaoTotal;
   const ok = Math.abs(val.diferenca) < 0.01;
   const semConfig = data.linhas.filter((l) => l.semContas);
+  const cruzOk = !direto || Math.abs(direto.diffOperacionalTotal) < 0.01;
 
   const blocos: DfcLinhaCalc["bloco"][] = [
     "operacional",
@@ -105,10 +107,25 @@ function DFCContent() {
         <div>
           <h2 className="text-2xl font-semibold tracking-tight">Demonstração do Fluxo de Caixa</h2>
           <p className="text-xs text-muted-foreground">
-            Método indireto (CPC 03) — visão {visaoDfc === "gerencial" ? "gerencial" : "contábil"}
+            Método {metodo === "direto" ? "direto" : "indireto"} (CPC 03) — visão{" "}
+            {visaoDfc === "gerencial" ? "gerencial" : "contábil"}
           </p>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex items-center gap-1">
+            <span className="text-[11px] text-muted-foreground mr-1">Método</span>
+            {(["indireto", "direto"] as Metodo[]).map((m) => (
+              <Button
+                key={m}
+                size="sm"
+                variant={metodo === m ? "secondary" : "ghost"}
+                className="h-7 px-2 text-[11px] capitalize"
+                onClick={() => setMetodo(m)}
+              >
+                {m}
+              </Button>
+            ))}
+          </div>
           <div className="flex items-center gap-1">
             <span className="text-[11px] text-muted-foreground mr-1">Totalizar por</span>
             {AGRUPADORES.map((a) => (

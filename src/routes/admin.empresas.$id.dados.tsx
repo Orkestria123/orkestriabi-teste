@@ -29,6 +29,8 @@ import { IndicadoresEmpresaPanel } from "@/components/indicadores/indicadores-em
 import { AjustesGerenciaisPanel } from "@/components/gerencial/ajustes-gerenciais-panel";
 import { OrcamentoConfigPanel } from "@/components/orcamento/orcamento-config-panel";
 import { DashboardConfigPanel } from "@/components/dashboard/dashboard-config-panel";
+import { DfcConfigPanel } from "@/components/dfc/dfc-config-panel";
+
 
 export const Route = createFileRoute("/admin/empresas/$id/dados")({
   component: Page,
@@ -95,7 +97,14 @@ function Page() {
           <TabsTrigger value="gerencial">7. Ajustes Gerenciais</TabsTrigger>
           <TabsTrigger value="orcamento">8. Orçamento</TabsTrigger>
           <TabsTrigger value="dashboard">9. Dashboard</TabsTrigger>
+          <TabsTrigger value="dfc">10. Fluxo de Caixa</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="dfc">
+          {company && (
+            <DfcConfigPanel tenantId={company.tenant_id!} companyId={company.id} />
+          )}
+        </TabsContent>
 
         <TabsContent value="dashboard">
           {company && (
@@ -105,6 +114,7 @@ function Page() {
             />
           )}
         </TabsContent>
+
 
         <TabsContent value="gerencial">
           {company && (

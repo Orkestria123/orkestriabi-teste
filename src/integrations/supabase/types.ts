@@ -346,6 +346,105 @@ export type Database = {
           },
         ]
       }
+      dfc_config: {
+        Row: {
+          company_id: string
+          conta_caixa: Json
+          created_at: string
+          id: string
+          metodo_padrao: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          conta_caixa?: Json
+          created_at?: string
+          id?: string
+          metodo_padrao?: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          conta_caixa?: Json
+          created_at?: string
+          id?: string
+          metodo_padrao?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dfc_config_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: true
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dfc_config_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dfc_linha_contas: {
+        Row: {
+          company_id: string
+          contas: Json
+          created_at: string
+          id: string
+          linha: string
+          metodo: string
+          operacao: string
+          ordem: number
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          contas?: Json
+          created_at?: string
+          id?: string
+          linha: string
+          metodo: string
+          operacao?: string
+          ordem?: number
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          contas?: Json
+          created_at?: string
+          id?: string
+          linha?: string
+          metodo?: string
+          operacao?: string
+          ordem?: number
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dfc_linha_contas_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dfc_linha_contas_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       diario_uploads: {
         Row: {
           company_id: string

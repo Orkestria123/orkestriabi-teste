@@ -292,6 +292,12 @@ function LinhaConfig({
     () => (contas.length > 0 ? [] : sugerirContas(plano, def.sugestao, def.sugestaoPrefixos)),
     [plano, def, contas.length],
   );
+  const revisar = useMemo(() => {
+    if (contas.length === 0 || plano.length === 0) return false;
+    const set = new Set(plano.map((p) => p.classificacao));
+    return contas.some((c) => !set.has(c));
+  }, [contas, plano]);
+
 
   if (def.calculada || def.origemDRE) {
     return (

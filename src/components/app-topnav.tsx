@@ -7,8 +7,6 @@ import {
   BarChart3,
   Receipt,
   Wallet,
-  PieChart,
-  TrendingUp,
   LineChart,
   FileSpreadsheet,
   LogOut,
@@ -43,8 +41,6 @@ const CLIENT_NAV: NavItem[] = [
   { to: "/dashboard/dre", label: "DRE", icon: Receipt },
   { to: "/dashboard/balanco", label: "Balanço", icon: BarChart3 },
   { to: "/dashboard/fluxo-de-caixa", label: "Fluxo", icon: Wallet },
-  { to: "/dashboard/dlpa", label: "DLPA", icon: TrendingUp },
-  { to: "/dashboard/dva", label: "DVA", icon: PieChart },
   { to: "/dashboard/indicadores", label: "Indicadores", icon: LineChart },
   { to: "/dashboard/orcamento", label: "Orçamento", icon: Target },
 

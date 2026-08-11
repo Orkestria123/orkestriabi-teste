@@ -7,10 +7,12 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, Info, X, Wallet, Sparkles } from "lucide-react";
+import { Loader2, Info, X, Wallet, Sparkles, AlertTriangle, Copy } from "lucide-react";
 import { toast } from "sonner";
 import { ContaPicker, type ContaPlanoItem } from "@/components/indicadores/conta-picker";
+import { ReplicarDfcDialog } from "@/components/dfc/replicar-dfc-dialog";
 import { cn } from "@/lib/utils";
+
 import {
   DFC_LINHAS,
   BLOCO_LABEL,

@@ -49,6 +49,9 @@ export function DfcConfigPanel({ tenantId, companyId }: { tenantId: string; comp
           .from("plano_contas")
           .select("codigo, classificacao, descricao, is_sintetica, is_participante")
           .eq("company_id", companyId)
+          // Só contas ESTRUTURAIS: exclui participantes (clientes/fornecedores),
+          // que são ~134k linhas e travavam o seletor.
+          .eq("is_participante", false)
           .order("classificacao")
           .range(from, from + PAGE - 1);
         if (error) throw error;

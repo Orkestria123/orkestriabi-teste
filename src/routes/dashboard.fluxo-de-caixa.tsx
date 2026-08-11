@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useDashboardCompany } from "@/components/dashboard-context";
 import { useFilters } from "@/components/filter-bar";
@@ -193,8 +193,8 @@ function DFCContent() {
                 const linhas = data.linhas.filter((l) => l.bloco === bloco);
                 if (linhas.length === 0) return null;
                 return (
-                  <>
-                    <tr key={`h-${bloco}`} className="bg-muted/20 border-b border-border/60">
+                  <Fragment key={bloco}>
+                    <tr className="bg-muted/20 border-b border-border/60">
                       <td
                         className="sticky left-0 z-10 bg-muted/20 px-3 py-1.5 font-semibold text-[10px] uppercase tracking-wide text-muted-foreground"
                         colSpan={1}
@@ -254,7 +254,7 @@ function DFCContent() {
                         </tr>
                       );
                     })}
-                  </>
+                  </Fragment>
                 );
               })}
               {/* Linha de validação por coluna */}

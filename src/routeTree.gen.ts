@@ -22,9 +22,7 @@ import { Route as DashboardNotasFiscaisRouteImport } from './routes/dashboard.no
 import { Route as DashboardIndicadoresRouteImport } from './routes/dashboard.indicadores'
 import { Route as DashboardFornecedoresRouteImport } from './routes/dashboard.fornecedores'
 import { Route as DashboardFluxoDeCaixaRouteImport } from './routes/dashboard.fluxo-de-caixa'
-import { Route as DashboardDvaRouteImport } from './routes/dashboard.dva'
 import { Route as DashboardDreRouteImport } from './routes/dashboard.dre'
-import { Route as DashboardDlpaRouteImport } from './routes/dashboard.dlpa'
 import { Route as DashboardBalancoRouteImport } from './routes/dashboard.balanco'
 import { Route as DashboardAnaliseRouteImport } from './routes/dashboard.analise'
 import { Route as AdminUsuariosRouteImport } from './routes/admin.usuarios'
@@ -100,19 +98,9 @@ const DashboardFluxoDeCaixaRoute = DashboardFluxoDeCaixaRouteImport.update({
   path: '/fluxo-de-caixa',
   getParentRoute: () => DashboardRoute,
 } as any)
-const DashboardDvaRoute = DashboardDvaRouteImport.update({
-  id: '/dva',
-  path: '/dva',
-  getParentRoute: () => DashboardRoute,
-} as any)
 const DashboardDreRoute = DashboardDreRouteImport.update({
   id: '/dre',
   path: '/dre',
-  getParentRoute: () => DashboardRoute,
-} as any)
-const DashboardDlpaRoute = DashboardDlpaRouteImport.update({
-  id: '/dlpa',
-  path: '/dlpa',
   getParentRoute: () => DashboardRoute,
 } as any)
 const DashboardBalancoRoute = DashboardBalancoRouteImport.update({
@@ -174,9 +162,7 @@ export interface FileRoutesByFullPath {
   '/admin/usuarios': typeof AdminUsuariosRoute
   '/dashboard/analise': typeof DashboardAnaliseRoute
   '/dashboard/balanco': typeof DashboardBalancoRoute
-  '/dashboard/dlpa': typeof DashboardDlpaRoute
   '/dashboard/dre': typeof DashboardDreRoute
-  '/dashboard/dva': typeof DashboardDvaRoute
   '/dashboard/fluxo-de-caixa': typeof DashboardFluxoDeCaixaRoute
   '/dashboard/fornecedores': typeof DashboardFornecedoresRoute
   '/dashboard/indicadores': typeof DashboardIndicadoresRoute
@@ -199,9 +185,7 @@ export interface FileRoutesByTo {
   '/admin/usuarios': typeof AdminUsuariosRoute
   '/dashboard/analise': typeof DashboardAnaliseRoute
   '/dashboard/balanco': typeof DashboardBalancoRoute
-  '/dashboard/dlpa': typeof DashboardDlpaRoute
   '/dashboard/dre': typeof DashboardDreRoute
-  '/dashboard/dva': typeof DashboardDvaRoute
   '/dashboard/fluxo-de-caixa': typeof DashboardFluxoDeCaixaRoute
   '/dashboard/fornecedores': typeof DashboardFornecedoresRoute
   '/dashboard/indicadores': typeof DashboardIndicadoresRoute
@@ -227,9 +211,7 @@ export interface FileRoutesById {
   '/admin/usuarios': typeof AdminUsuariosRoute
   '/dashboard/analise': typeof DashboardAnaliseRoute
   '/dashboard/balanco': typeof DashboardBalancoRoute
-  '/dashboard/dlpa': typeof DashboardDlpaRoute
   '/dashboard/dre': typeof DashboardDreRoute
-  '/dashboard/dva': typeof DashboardDvaRoute
   '/dashboard/fluxo-de-caixa': typeof DashboardFluxoDeCaixaRoute
   '/dashboard/fornecedores': typeof DashboardFornecedoresRoute
   '/dashboard/indicadores': typeof DashboardIndicadoresRoute
@@ -256,9 +238,7 @@ export interface FileRouteTypes {
     | '/admin/usuarios'
     | '/dashboard/analise'
     | '/dashboard/balanco'
-    | '/dashboard/dlpa'
     | '/dashboard/dre'
-    | '/dashboard/dva'
     | '/dashboard/fluxo-de-caixa'
     | '/dashboard/fornecedores'
     | '/dashboard/indicadores'
@@ -281,9 +261,7 @@ export interface FileRouteTypes {
     | '/admin/usuarios'
     | '/dashboard/analise'
     | '/dashboard/balanco'
-    | '/dashboard/dlpa'
     | '/dashboard/dre'
-    | '/dashboard/dva'
     | '/dashboard/fluxo-de-caixa'
     | '/dashboard/fornecedores'
     | '/dashboard/indicadores'
@@ -308,9 +286,7 @@ export interface FileRouteTypes {
     | '/admin/usuarios'
     | '/dashboard/analise'
     | '/dashboard/balanco'
-    | '/dashboard/dlpa'
     | '/dashboard/dre'
-    | '/dashboard/dva'
     | '/dashboard/fluxo-de-caixa'
     | '/dashboard/fornecedores'
     | '/dashboard/indicadores'
@@ -432,25 +408,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardFluxoDeCaixaRouteImport
       parentRoute: typeof DashboardRoute
     }
-    '/dashboard/dva': {
-      id: '/dashboard/dva'
-      path: '/dva'
-      fullPath: '/dashboard/dva'
-      preLoaderRoute: typeof DashboardDvaRouteImport
-      parentRoute: typeof DashboardRoute
-    }
     '/dashboard/dre': {
       id: '/dashboard/dre'
       path: '/dre'
       fullPath: '/dashboard/dre'
       preLoaderRoute: typeof DashboardDreRouteImport
-      parentRoute: typeof DashboardRoute
-    }
-    '/dashboard/dlpa': {
-      id: '/dashboard/dlpa'
-      path: '/dlpa'
-      fullPath: '/dashboard/dlpa'
-      preLoaderRoute: typeof DashboardDlpaRouteImport
       parentRoute: typeof DashboardRoute
     }
     '/dashboard/balanco': {
@@ -522,9 +484,7 @@ declare module '@tanstack/react-router' {
 interface DashboardRouteChildren {
   DashboardAnaliseRoute: typeof DashboardAnaliseRoute
   DashboardBalancoRoute: typeof DashboardBalancoRoute
-  DashboardDlpaRoute: typeof DashboardDlpaRoute
   DashboardDreRoute: typeof DashboardDreRoute
-  DashboardDvaRoute: typeof DashboardDvaRoute
   DashboardFluxoDeCaixaRoute: typeof DashboardFluxoDeCaixaRoute
   DashboardFornecedoresRoute: typeof DashboardFornecedoresRoute
   DashboardIndicadoresRoute: typeof DashboardIndicadoresRoute
@@ -536,9 +496,7 @@ interface DashboardRouteChildren {
 const DashboardRouteChildren: DashboardRouteChildren = {
   DashboardAnaliseRoute: DashboardAnaliseRoute,
   DashboardBalancoRoute: DashboardBalancoRoute,
-  DashboardDlpaRoute: DashboardDlpaRoute,
   DashboardDreRoute: DashboardDreRoute,
-  DashboardDvaRoute: DashboardDvaRoute,
   DashboardFluxoDeCaixaRoute: DashboardFluxoDeCaixaRoute,
   DashboardFornecedoresRoute: DashboardFornecedoresRoute,
   DashboardIndicadoresRoute: DashboardIndicadoresRoute,

@@ -194,6 +194,40 @@ function DFCContent() {
         </div>
       </Card>
 
+      {/* Conferência cruzada direto × indireto */}
+      {direto && (
+        <Card
+          className={cn(
+            "p-4 border",
+            cruzOk ? "border-emerald-500/40 bg-emerald-500/5" : "border-amber-500/50 bg-amber-500/5",
+          )}
+        >
+          <div className="flex items-start gap-3 flex-wrap">
+            {cruzOk ? (
+              <CheckCircle2 className="h-4 w-4 mt-0.5 text-emerald-600 shrink-0" />
+            ) : (
+              <AlertTriangle className="h-4 w-4 mt-0.5 text-amber-600 shrink-0" />
+            )}
+            <div className="text-xs space-y-1">
+              <div className="font-medium">
+                {cruzOk
+                  ? "Caixa operacional pelo direto confere com o método indireto."
+                  : "Caixa operacional difere entre os métodos direto e indireto — revise as contas vinculadas."}
+              </div>
+              <div className="text-muted-foreground flex gap-4 flex-wrap tabular-nums">
+                <span>Direto: {formatBRL(direto.totais["op_dir_total"] ?? 0)}</span>
+                <span>Indireto: {formatBRL(direto.opIndiretoTotal)}</span>
+                <span className={cn(!cruzOk && "text-amber-700 dark:text-amber-400 font-medium")}>
+                  Diferença: {formatBRL(direto.diffOperacionalTotal)}
+                </span>
+              </div>
+            </div>
+          </div>
+        </Card>
+      )}
+
+
+
       {/* Tabela */}
       <Card className="p-0 overflow-hidden">
         <div className="overflow-x-auto">

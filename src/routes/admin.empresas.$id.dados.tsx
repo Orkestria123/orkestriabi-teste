@@ -29,6 +29,8 @@ import { IndicadoresEmpresaPanel } from "@/components/indicadores/indicadores-em
 import { AjustesGerenciaisPanel } from "@/components/gerencial/ajustes-gerenciais-panel";
 import { OrcamentoConfigPanel } from "@/components/orcamento/orcamento-config-panel";
 import { DashboardConfigPanel } from "@/components/dashboard/dashboard-config-panel";
+import { DfcConfigPanel } from "@/components/dfc/dfc-config-panel";
+
 
 export const Route = createFileRoute("/admin/empresas/$id/dados")({
   component: Page,

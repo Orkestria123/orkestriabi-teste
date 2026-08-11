@@ -74,7 +74,7 @@ function DFCContent() {
       { name: "Financiamento", base: Math.min(afterInv, afterFin), valor: Math.abs(fin), total: fin, kind: fin >= 0 ? "pos" : "neg" },
       { name: "Caixa Final", base: 0, valor: Math.abs(afterFin), total: afterFin, kind: "total" },
     ];
-  }, [data]);
+  }, [data, metodo]);
 
   if (isLoading || !data) {
     return (

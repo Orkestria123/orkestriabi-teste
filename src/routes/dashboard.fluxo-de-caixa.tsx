@@ -20,6 +20,7 @@ import {
   type Agrupador,
   type DfcLinhaCalc,
 } from "@/lib/dfc/calcular-indireto";
+import { calcularDfcDireto, type DfcResultadoDireto } from "@/lib/dfc/calcular-direto";
 import { BLOCO_LABEL } from "@/lib/dfc/estrutura";
 
 const AGRUPADORES: { value: Agrupador; label: string }[] = [
@@ -29,21 +30,28 @@ const AGRUPADORES: { value: Agrupador; label: string }[] = [
   { value: "ano", label: "Ano" },
 ];
 
+type Metodo = "indireto" | "direto";
+
 function DFCContent() {
   const { companyId } = useDashboardCompany();
   const { periodos } = useFilters();
   const { visao } = useVisaoGerencial();
   const [agrupador, setAgrupador] = useState<Agrupador>("mes");
   const [milhar, setMilhar] = useState(false);
+  const [metodo, setMetodo] = useState<Metodo>("indireto");
 
   const visaoDfc = visao === "gerencial" ? "gerencial" : "contabil";
 
   const { data, isLoading } = useQuery({
-    queryKey: ["dfc-indireto", companyId, periodos.join(","), agrupador, visaoDfc],
+    queryKey: ["dfc", metodo, companyId, periodos.join(","), agrupador, visaoDfc],
     enabled: !!companyId && periodos.length > 0,
     queryFn: () =>
-      calcularDfcIndireto({ companyId: companyId!, periodos, agrupador, visao: visaoDfc }),
+      metodo === "direto"
+        ? calcularDfcDireto({ companyId: companyId!, periodos, agrupador, visao: visaoDfc })
+        : calcularDfcIndireto({ companyId: companyId!, periodos, agrupador, visao: visaoDfc }),
   });
+
+  const direto = metodo === "direto" ? (data as DfcResultadoDireto | undefined) : undefined;
 
   const escala = milhar ? 1000 : 1;
   const fmt = (v: number | undefined | null) =>
@@ -53,7 +61,7 @@ function DFCContent() {
     if (!data) return [];
     const t = data.totais;
     const ini = t["fech_caixa_inicial"] ?? 0;
-    const op = t["op_ind_total"] ?? 0;
+    const op = t[metodo === "direto" ? "op_dir_total" : "op_ind_total"] ?? 0;
     const inv = t["inv_total"] ?? 0;
     const fin = t["fin_total"] ?? 0;
     const afterOp = ini + op;
@@ -66,12 +74,13 @@ function DFCContent() {
       { name: "Financiamento", base: Math.min(afterInv, afterFin), valor: Math.abs(fin), total: fin, kind: fin >= 0 ? "pos" : "neg" },
       { name: "Caixa Final", base: 0, valor: Math.abs(afterFin), total: afterFin, kind: "total" },
     ];
-  }, [data]);
+  }, [data, metodo]);
 
   if (isLoading || !data) {
     return (
       <Card className="p-8 flex items-center gap-2 text-sm text-muted-foreground">
-        <Loader2 className="h-4 w-4 animate-spin" /> Calculando o fluxo de caixa (método indireto)…
+        <Loader2 className="h-4 w-4 animate-spin" /> Calculando o fluxo de caixa (método{" "}
+        {metodo})…
       </Card>
     );
   }
@@ -83,6 +92,7 @@ function DFCContent() {
   const val = data.validacaoTotal;
   const ok = Math.abs(val.diferenca) < 0.01;
   const semConfig = data.linhas.filter((l) => l.semContas);
+  const cruzOk = !direto || Math.abs(direto.diffOperacionalTotal) < 0.01;
 
   const blocos: DfcLinhaCalc["bloco"][] = [
     "operacional",
@@ -97,10 +107,25 @@ function DFCContent() {
         <div>
           <h2 className="text-2xl font-semibold tracking-tight">Demonstração do Fluxo de Caixa</h2>
           <p className="text-xs text-muted-foreground">
-            Método indireto (CPC 03) — visão {visaoDfc === "gerencial" ? "gerencial" : "contábil"}
+            Método {metodo === "direto" ? "direto" : "indireto"} (CPC 03) — visão{" "}
+            {visaoDfc === "gerencial" ? "gerencial" : "contábil"}
           </p>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex items-center gap-1">
+            <span className="text-[11px] text-muted-foreground mr-1">Método</span>
+            {(["indireto", "direto"] as Metodo[]).map((m) => (
+              <Button
+                key={m}
+                size="sm"
+                variant={metodo === m ? "secondary" : "ghost"}
+                className="h-7 px-2 text-[11px] capitalize"
+                onClick={() => setMetodo(m)}
+              >
+                {m}
+              </Button>
+            ))}
+          </div>
           <div className="flex items-center gap-1">
             <span className="text-[11px] text-muted-foreground mr-1">Totalizar por</span>
             {AGRUPADORES.map((a) => (
@@ -168,6 +193,40 @@ function DFCContent() {
           </div>
         </div>
       </Card>
+
+      {/* Conferência cruzada direto × indireto */}
+      {direto && (
+        <Card
+          className={cn(
+            "p-4 border",
+            cruzOk ? "border-emerald-500/40 bg-emerald-500/5" : "border-amber-500/50 bg-amber-500/5",
+          )}
+        >
+          <div className="flex items-start gap-3 flex-wrap">
+            {cruzOk ? (
+              <CheckCircle2 className="h-4 w-4 mt-0.5 text-emerald-600 shrink-0" />
+            ) : (
+              <AlertTriangle className="h-4 w-4 mt-0.5 text-amber-600 shrink-0" />
+            )}
+            <div className="text-xs space-y-1">
+              <div className="font-medium">
+                {cruzOk
+                  ? "Caixa operacional pelo direto confere com o método indireto."
+                  : "Caixa operacional difere entre os métodos direto e indireto — revise as contas vinculadas."}
+              </div>
+              <div className="text-muted-foreground flex gap-4 flex-wrap tabular-nums">
+                <span>Direto: {formatBRL(direto.totais["op_dir_total"] ?? 0)}</span>
+                <span>Indireto: {formatBRL(direto.opIndiretoTotal)}</span>
+                <span className={cn(!cruzOk && "text-amber-700 dark:text-amber-400 font-medium")}>
+                  Diferença: {formatBRL(direto.diffOperacionalTotal)}
+                </span>
+              </div>
+            </div>
+          </div>
+        </Card>
+      )}
+
+
 
       {/* Tabela */}
       <Card className="p-0 overflow-hidden">

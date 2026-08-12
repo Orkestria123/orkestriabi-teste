@@ -101,7 +101,6 @@ function DFCContent() {
   const val = data.validacaoTotal;
   const ok = Math.abs(val.diferenca) < 0.01;
   const semConfig = data.linhas.filter((l) => l.semContas);
-  const cruzOk = !direto || Math.abs(direto.diffOperacionalTotal) < 0.01;
 
   const blocos: DfcLinhaCalc["bloco"][] = [
     "operacional",

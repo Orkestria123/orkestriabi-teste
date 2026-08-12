@@ -79,7 +79,7 @@ function Page() {
       {modoGlobal && (
         <Card className="p-4 mb-4 border-blue-500/40 bg-blue-500/5 text-sm">
           <strong>Modo de plano de contas: Global.</strong> Esta empresa usa o plano e o mapeamento do escritório.
-          Para editar, vá em <Link to="/admin/configuracoes" className="underline">Configurações &gt; Plano Global</Link>.
+          Para editar, vá em <Link to="/admin" className="underline">Configurações &gt; Plano Global</Link>.
         </Card>
       )}
 

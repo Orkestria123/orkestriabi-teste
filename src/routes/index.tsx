@@ -25,7 +25,7 @@ function Index() {
     }
     if (role === "orkestria_admin") navigate({ to: "/orkestria-admin", replace: true });
     else if (role === "tenant_admin") navigate({ to: "/admin", replace: true });
-    else if (role === "client") navigate({ to: "/dashboard", replace: true });
+    else if (role === "client") navigate({ to: "/dashboard", search: { company: undefined }, replace: true });
     // if userId && !role, stay here and show claim/no-access UI
   }, [loading, userId, role, navigate]);
 

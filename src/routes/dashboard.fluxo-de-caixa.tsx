@@ -8,7 +8,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { AlertTriangle, CheckCircle2, Loader2, Settings2 } from "lucide-react";
+import { Loader2, Settings2 } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
   Cell, ReferenceLine, LabelList,
@@ -22,6 +22,8 @@ import {
 } from "@/lib/dfc/calcular-indireto";
 import { calcularDfcDireto, type DfcResultadoDireto } from "@/lib/dfc/calcular-direto";
 import { BLOCO_LABEL } from "@/lib/dfc/estrutura";
+import { validarDfc } from "@/lib/dfc/validacao";
+import { DfcValidacaoPanel } from "@/components/dfc/dfc-validacao-panel";
 
 const AGRUPADORES: { value: Agrupador; label: string }[] = [
   { value: "mes", label: "Mês" },
@@ -49,6 +51,13 @@ function DFCContent() {
       metodo === "direto"
         ? calcularDfcDireto({ companyId: companyId!, periodos, agrupador, visao: visaoDfc })
         : calcularDfcIndireto({ companyId: companyId!, periodos, agrupador, visao: visaoDfc }),
+  });
+
+  const { data: validacao, isLoading: loadingValidacao } = useQuery({
+    queryKey: ["dfc-validacao", companyId, periodos.join(","), agrupador, visaoDfc],
+    enabled: !!companyId && periodos.length > 0,
+    queryFn: () =>
+      validarDfc({ companyId: companyId!, periodos, agrupador, visao: visaoDfc }),
   });
 
   const direto = metodo === "direto" ? (data as DfcResultadoDireto | undefined) : undefined;
@@ -92,7 +101,6 @@ function DFCContent() {
   const val = data.validacaoTotal;
   const ok = Math.abs(val.diferenca) < 0.01;
   const semConfig = data.linhas.filter((l) => l.semContas);
-  const cruzOk = !direto || Math.abs(direto.diffOperacionalTotal) < 0.01;
 
   const blocos: DfcLinhaCalc["bloco"][] = [
     "operacional",
@@ -151,80 +159,30 @@ function DFCContent() {
         </div>
       </div>
 
-      {/* Validação de fechamento */}
-      <Card
-        className={cn(
-          "p-4 border",
-          ok ? "border-emerald-500/40 bg-emerald-500/5" : "border-amber-500/50 bg-amber-500/5",
-        )}
-      >
-        <div className="flex items-start gap-3 flex-wrap">
-          {ok ? (
-            <CheckCircle2 className="h-4 w-4 mt-0.5 text-emerald-600 shrink-0" />
-          ) : (
-            <AlertTriangle className="h-4 w-4 mt-0.5 text-amber-600 shrink-0" />
-          )}
-          <div className="text-xs space-y-1">
-            <div className="font-medium">
-              {ok
-                ? "Caixa final calculado confere com o Disponível do Balanço."
-                : "Divergência entre o caixa final calculado e o Disponível do Balanço."}
-            </div>
-            <div className="text-muted-foreground flex gap-4 flex-wrap tabular-nums">
-              <span>Calculado: {formatBRL(val.caixaFinalCalculado)}</span>
-              <span>Balanço: {formatBRL(val.caixaFinalBP)}</span>
-              <span className={cn(!ok && "text-amber-700 dark:text-amber-400 font-medium")}>
-                Diferença: {formatBRL(val.diferenca)}
-              </span>
-            </div>
-            {!ok && semConfig.length > 0 && (
-              <div className="text-muted-foreground flex items-start gap-1.5 pt-1">
-                <Settings2 className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-                <span>
-                  Linhas ainda sem contas vinculadas: {semConfig.map((l) => l.label).join(", ")}.
-                </span>
-              </div>
-            )}
-            {data.semContasCaixa && (
-              <div className="text-amber-700 dark:text-amber-400">
-                Nenhuma conta de Caixa/Disponível configurada na DFC.
-              </div>
-            )}
-          </div>
-        </div>
-      </Card>
+      {/* Painel de validação de fechamento (3 validações + cobertura) */}
+      <DfcValidacaoPanel data={validacao} isLoading={loadingValidacao} />
 
-      {/* Conferência cruzada direto × indireto */}
-      {direto && (
-        <Card
-          className={cn(
-            "p-4 border",
-            cruzOk ? "border-emerald-500/40 bg-emerald-500/5" : "border-amber-500/50 bg-amber-500/5",
-          )}
-        >
-          <div className="flex items-start gap-3 flex-wrap">
-            {cruzOk ? (
-              <CheckCircle2 className="h-4 w-4 mt-0.5 text-emerald-600 shrink-0" />
-            ) : (
-              <AlertTriangle className="h-4 w-4 mt-0.5 text-amber-600 shrink-0" />
-            )}
-            <div className="text-xs space-y-1">
-              <div className="font-medium">
-                {cruzOk
-                  ? "Caixa operacional pelo direto confere com o método indireto."
-                  : "Caixa operacional difere entre os métodos direto e indireto — revise as contas vinculadas."}
-              </div>
-              <div className="text-muted-foreground flex gap-4 flex-wrap tabular-nums">
-                <span>Direto: {formatBRL(direto.totais["op_dir_total"] ?? 0)}</span>
-                <span>Indireto: {formatBRL(direto.opIndiretoTotal)}</span>
-                <span className={cn(!cruzOk && "text-amber-700 dark:text-amber-400 font-medium")}>
-                  Diferença: {formatBRL(direto.diffOperacionalTotal)}
-                </span>
-              </div>
+      {(data.semContasCaixa || semConfig.length > 0) && (
+        <Card className="p-3 border border-amber-500/50 bg-amber-500/5">
+          <div className="flex items-start gap-2 text-[11px]">
+            <Settings2 className="h-3.5 w-3.5 mt-0.5 shrink-0 text-amber-600" />
+            <div className="space-y-0.5">
+              {data.semContasCaixa && (
+                <div className="text-amber-700 dark:text-amber-400">
+                  Nenhuma conta de Caixa/Disponível configurada na DFC.
+                </div>
+              )}
+              {semConfig.length > 0 && (
+                <div className="text-muted-foreground">
+                  Linhas ainda sem contas vinculadas: {semConfig.map((l) => l.label).join(", ")}.
+                </div>
+              )}
             </div>
           </div>
         </Card>
       )}
+
+
 
 
 

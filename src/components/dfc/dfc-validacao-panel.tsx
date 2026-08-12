@@ -21,10 +21,12 @@ import type { DfcValidacaoResultado } from "@/lib/dfc/validacao";
 interface Props {
   data?: DfcValidacaoResultado;
   isLoading?: boolean;
+  /** painel começa recolhido por padrão (selo discreto) */
+  defaultAberto?: boolean;
 }
 
-export function DfcValidacaoPanel({ data, isLoading }: Props) {
-  const [aberto, setAberto] = useState(true);
+export function DfcValidacaoPanel({ data, isLoading, defaultAberto = false }: Props) {
+  const [aberto, setAberto] = useState(defaultAberto);
   const [verContas, setVerContas] = useState(false);
 
   if (isLoading || !data) {

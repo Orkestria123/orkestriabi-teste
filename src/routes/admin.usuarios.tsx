@@ -41,17 +41,34 @@ function Page() {
   });
   const { data: users } = useQuery({
     queryKey: ["tenant-users"],
-    queryFn: async () => (await supabase.from("profiles").select("*, companies(name)")).data ?? [],
+    queryFn: async () => {
+      const [{ data: profs }, { data: roles }] = await Promise.all([
+        supabase.from("profiles").select("*, companies(name)"),
+        supabase.from("user_roles").select("user_id, role"),
+      ]);
+      const byId = new Map((roles ?? []).map((r: any) => [r.user_id, r.role]));
+      return (profs ?? []).map((p: any) => ({ ...p, role: byId.get(p.id) ?? null }));
+    },
   });
   const [open, setOpen] = useState(false);
+  const [perfil, setPerfil] = useState<"client" | "tenant_admin">("client");
   const [form, setForm] = useState({ full_name: "", email: "", password: "", company_id: "" });
   const [loading, setLoading] = useState(false);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (perfil === "client" && !form.company_id) {
+      toast.error("Selecione a empresa");
+      return;
+    }
     setLoading(true);
     try {
-      await createClientUser({ data: form });
+      if (perfil === "tenant_admin") {
+        const { company_id: _ignored, ...rest } = form;
+        await createTenantAdminUser({ data: rest });
+      } else {
+        await createClientUser({ data: form });
+      }
       toast.success("Usuário criado");
       setOpen(false);
       setForm({ full_name: "", email: "", password: "", company_id: "" });
@@ -59,6 +76,7 @@ function Page() {
     } catch (e: any) { toast.error(e.message); }
     finally { setLoading(false); }
   };
+
 
   return (
     <PortalShell

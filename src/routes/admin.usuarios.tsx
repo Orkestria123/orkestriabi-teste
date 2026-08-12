@@ -123,6 +123,7 @@ function Page() {
             <tr>
               <th className="text-left px-4 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">Nome</th>
               <th className="text-left px-4 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">E-mail</th>
+              <th className="text-left px-4 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">Perfil</th>
               <th className="text-left px-4 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">Empresa</th>
               <th className="px-4 py-3"></th>
             </tr>
@@ -132,7 +133,13 @@ function Page() {
               <tr key={u.id} className="border-t">
                 <td className="px-4 py-3 font-medium">{u.full_name}</td>
                 <td className="px-4 py-3 text-muted-foreground">{u.email}</td>
+                <td className="px-4 py-3">
+                  <span className="rounded-full bg-muted px-2 py-0.5 text-xs">
+                    {u.role === "tenant_admin" ? "Admin do escritório" : u.role === "orkestria_admin" ? "Super Admin" : u.role === "client" ? "Cliente" : "—"}
+                  </span>
+                </td>
                 <td className="px-4 py-3">{u.companies?.name ?? "—"}</td>
+
                 <td className="px-4 py-3 text-right">
                   {u.id !== userId && (
                     <Button

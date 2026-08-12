@@ -176,8 +176,16 @@ export async function validarDfc(params: {
 
   // ------------------------------------------------------------- cobertura
   const meses = Array.from(new Set(periodos)).sort();
+  const { data: comp } = await supabase
+    .from("companies")
+    .select("tenant_id")
+    .eq("id", companyId)
+    .maybeSingle();
   const mascara: MascaraConfig =
-    (await getMascaraConfig({ companyId })) ?? MASCARA_DEFAULT;
+    (await getMascaraConfig({
+      tenantId: (comp as any)?.tenant_id as string,
+      companyId,
+    })) ?? MASCARA_DEFAULT;
 
   const [cfgRes, linhasRes] = await Promise.all([
     supabase.from("dfc_config" as any).select("conta_caixa").eq("company_id", companyId).maybeSingle(),

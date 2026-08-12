@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/select";
 import { Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { createClientUser, deleteUserAccount } from "@/lib/api/orkestria.functions";
+import { createClientUser, createTenantAdminUser, deleteUserAccount } from "@/lib/api/orkestria.functions";
 import { useAuth } from "@/hooks/use-auth";
 
 export const Route = createFileRoute("/admin/usuarios")({ component: Page });

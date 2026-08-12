@@ -285,13 +285,19 @@ function DFCContent() {
                     </tr>
                     {linhas.map((l) => {
                       const forte = l.calculada;
+                      const drillable = l.contas.length > 0;
+                      const aberta = expandida === l.key;
                       return (
+                        <Fragment key={l.key}>
                         <tr
-                          key={l.key}
                           className={cn(
                             "border-b border-border/40",
                             forte && "bg-muted/30 font-semibold",
+                            drillable && "cursor-pointer hover:bg-muted/20",
                           )}
+                          onClick={
+                            drillable ? () => setExpandida(aberta ? null : l.key) : undefined
+                          }
                         >
                           <td
                             className={cn(
@@ -299,6 +305,12 @@ function DFCContent() {
                               forte ? "bg-muted/30" : "bg-background",
                             )}
                           >
+                            {drillable &&
+                              (aberta ? (
+                                <ChevronDown className="inline h-3 w-3 mr-1 text-muted-foreground" />
+                              ) : (
+                                <ChevronRight className="inline h-3 w-3 mr-1 text-muted-foreground" />
+                              ))}
                             <span>{l.label}</span>
                             {l.semContas && (
                               <Badge

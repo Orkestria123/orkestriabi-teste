@@ -84,20 +84,33 @@ function Page() {
       title="Usuários"
       actions={
         <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild><Button size="sm"><Plus className="h-4 w-4 mr-1" />Novo Cliente</Button></DialogTrigger>
+          <DialogTrigger asChild><Button size="sm"><Plus className="h-4 w-4 mr-1" />Novo Usuário</Button></DialogTrigger>
           <DialogContent>
-            <DialogHeader><DialogTitle>Novo usuário cliente</DialogTitle></DialogHeader>
+            <DialogHeader><DialogTitle>Novo usuário</DialogTitle></DialogHeader>
             <form onSubmit={submit} className="space-y-3">
+              <div>
+                <Label>Perfil</Label>
+                <Select value={perfil} onValueChange={(v) => setPerfil(v as any)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="client">Cliente (acesso ao BI de uma empresa)</SelectItem>
+                    <SelectItem value="tenant_admin">Admin do escritório</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               <div><Label>Nome</Label><Input value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} required /></div>
               <div><Label>E-mail</Label><Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required /></div>
               <div><Label>Senha temporária</Label><Input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} required minLength={8} /></div>
-              <div>
-                <Label>Empresa</Label>
-                <Select value={form.company_id} onValueChange={(v) => setForm({ ...form, company_id: v })}>
-                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                  <SelectContent>{(companies ?? []).map((c: any) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
-                </Select>
-              </div>
+              {perfil === "client" && (
+                <div>
+                  <Label>Empresa</Label>
+                  <Select value={form.company_id} onValueChange={(v) => setForm({ ...form, company_id: v })}>
+                    <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                    <SelectContent>{(companies ?? []).map((c: any) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+              )}
+
               <DialogFooter><Button type="submit" disabled={loading}>{loading ? "Criando…" : "Criar"}</Button></DialogFooter>
             </form>
           </DialogContent>

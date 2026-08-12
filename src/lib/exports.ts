@@ -14,8 +14,9 @@ export function exportStatementXLSX(
   periods: string[],
   filename: string,
   title: string,
+  periodLabels?: string[],
 ) {
-  const header = ["Descrição", ...periods.map(periodoLabel)];
+  const header = ["Descrição", ...periods.map((p, i) => periodLabels?.[i] ?? periodoLabel(p))];
   const body = rows.map((r) => [
     `${"  ".repeat(r.nivel)}${r.descricao}`,
     ...periods.map((p) => r.values[p] ?? 0),
@@ -34,6 +35,7 @@ export function exportStatementPDF(
   title: string,
   subtitle?: string,
   brand?: { primaryColor?: string; logoUrl?: string | null; tenantName?: string },
+  periodLabels?: string[],
 ) {
   const doc = new jsPDF({ orientation: periods.length > 3 ? "landscape" : "portrait", unit: "pt" });
   const pageWidth = doc.internal.pageSize.getWidth();
@@ -59,7 +61,7 @@ export function exportStatementPDF(
 
   autoTable(doc, {
     startY: 110,
-    head: [["Descrição", ...periods.map(periodoLabel)]],
+    head: [["Descrição", ...periods.map((p, i) => periodLabels?.[i] ?? periodoLabel(p))]],
     body: rows.map((r) => [
       `${"  ".repeat(r.nivel)}${r.descricao}`,
       ...periods.map((p) => fmt(r.values[p])),

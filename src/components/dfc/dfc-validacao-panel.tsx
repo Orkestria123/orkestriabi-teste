@@ -21,10 +21,12 @@ import type { DfcValidacaoResultado } from "@/lib/dfc/validacao";
 interface Props {
   data?: DfcValidacaoResultado;
   isLoading?: boolean;
+  /** painel começa recolhido por padrão (selo discreto) */
+  defaultAberto?: boolean;
 }
 
-export function DfcValidacaoPanel({ data, isLoading }: Props) {
-  const [aberto, setAberto] = useState(true);
+export function DfcValidacaoPanel({ data, isLoading, defaultAberto = false }: Props) {
+  const [aberto, setAberto] = useState(defaultAberto);
   const [verContas, setVerContas] = useState(false);
 
   if (isLoading || !data) {
@@ -56,7 +58,11 @@ export function DfcValidacaoPanel({ data, isLoading }: Props) {
           <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
         )}
         <span className="text-sm font-semibold">
-          {tudoOk ? "DFC validada" : "DFC com divergências"}
+          {tudoOk
+            ? "DFC validada ✓"
+            : `⚠ Divergência ${formatBRL(
+                falhas.reduce((a, c) => (Math.abs(c.diferenca) > Math.abs(a) ? c.diferenca : a), 0),
+              )}`}
         </span>
         <span className="text-[11px] text-muted-foreground">
           {tudoOk

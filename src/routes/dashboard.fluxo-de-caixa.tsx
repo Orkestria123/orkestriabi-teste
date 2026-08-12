@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useDashboardCompany } from "@/components/dashboard-context";
 import { useFilters } from "@/components/filter-bar";
@@ -24,6 +24,11 @@ import { calcularDfcDireto, type DfcResultadoDireto } from "@/lib/dfc/calcular-d
 import { BLOCO_LABEL } from "@/lib/dfc/estrutura";
 import { validarDfc } from "@/lib/dfc/validacao";
 import { DfcValidacaoPanel } from "@/components/dfc/dfc-validacao-panel";
+import { detalharLinhaDfc } from "@/lib/dfc/detalhe-linha";
+import { ExportMenu } from "@/components/export-menu";
+import { supabase } from "@/integrations/supabase/client";
+import { ChevronDown, ChevronRight } from "lucide-react";
+import type { StatementRow } from "@/components/statement-table";
 
 const AGRUPADORES: { value: Agrupador; label: string }[] = [
   { value: "mes", label: "Mês" },
@@ -34,6 +39,81 @@ const AGRUPADORES: { value: Agrupador; label: string }[] = [
 
 type Metodo = "indireto" | "direto";
 
+function DetalheLinha({
+  companyId,
+  periodos,
+  agrupador,
+  contas,
+  operacao,
+  colunas,
+  fmt,
+}: {
+  companyId: string;
+  periodos: string[];
+  agrupador: Agrupador;
+  contas: string[];
+  operacao: DfcLinhaCalc["operacao"];
+  colunas: { key: string; label: string }[];
+  fmt: (v: number | undefined | null) => string;
+}) {
+  const { data, isLoading } = useQuery({
+    queryKey: ["dfc-detalhe", companyId, periodos.join(","), agrupador, contas.join("|"), operacao],
+    queryFn: () => detalharLinhaDfc({ companyId, periodos, agrupador, contas, operacao }),
+  });
+
+  if (isLoading) {
+    return (
+      <tr className="bg-muted/10 border-b border-border/40">
+        <td colSpan={colunas.length + 2} className="px-6 py-2 text-[11px] text-muted-foreground">
+          <Loader2 className="inline h-3 w-3 animate-spin mr-1" /> Carregando contas…
+        </td>
+      </tr>
+    );
+  }
+  if (!data || data.length === 0) {
+    return (
+      <tr className="bg-muted/10 border-b border-border/40">
+        <td colSpan={colunas.length + 2} className="px-6 py-2 text-[11px] text-muted-foreground">
+          Sem movimento nas contas vinculadas ({contas.join(", ")}).
+        </td>
+      </tr>
+    );
+  }
+
+  return (
+    <>
+      {data.map((c) => (
+        <tr key={c.codigo} className="bg-muted/5 border-b border-border/30 text-muted-foreground">
+          <td className="sticky left-0 z-10 bg-background px-3 py-1 pl-8 whitespace-nowrap">
+            <span className="text-[10px] mr-1 opacity-70">{c.codigo}</span>
+            <span className="text-[10px] mr-1 opacity-70">{c.classificacao}</span>
+            <span>{c.descricao}</span>
+          </td>
+          {colunas.map((col) => {
+            const v = c.valores[col.key] ?? 0;
+            return (
+              <td
+                key={col.key}
+                className={cn("text-right px-3 py-1 whitespace-nowrap", v < 0 && "text-destructive")}
+              >
+                {fmt(v)}
+              </td>
+            );
+          })}
+          <td
+            className={cn(
+              "text-right px-3 py-1 whitespace-nowrap bg-muted/30",
+              c.total < 0 && "text-destructive",
+            )}
+          >
+            {fmt(c.total)}
+          </td>
+        </tr>
+      ))}
+    </>
+  );
+}
+
 function DFCContent() {
   const { companyId } = useDashboardCompany();
   const { periodos } = useFilters();
@@ -41,6 +121,25 @@ function DFCContent() {
   const [agrupador, setAgrupador] = useState<Agrupador>("mes");
   const [milhar, setMilhar] = useState(false);
   const [metodo, setMetodo] = useState<Metodo>("indireto");
+  const [metodoTocado, setMetodoTocado] = useState(false);
+  const [expandida, setExpandida] = useState<string | null>(null);
+
+  // método padrão configurado pelo contador (dfc_config.metodo_padrao)
+  const { data: cfgPadrao } = useQuery({
+    queryKey: ["dfc-config-padrao", companyId],
+    enabled: !!companyId,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("dfc_config" as any)
+        .select("metodo_padrao")
+        .eq("company_id", companyId!)
+        .maybeSingle();
+      return ((data as any)?.metodo_padrao as Metodo | undefined) ?? null;
+    },
+  });
+  useEffect(() => {
+    if (!metodoTocado && (cfgPadrao === "direto" || cfgPadrao === "indireto")) setMetodo(cfgPadrao);
+  }, [cfgPadrao, metodoTocado]);
 
   const visaoDfc = visao === "gerencial" ? "gerencial" : "contabil";
 
@@ -98,6 +197,19 @@ function DFCContent() {
     return <Card className="p-6 text-sm text-muted-foreground">Selecione um período.</Card>;
   }
 
+  if (!data.temConfig) {
+    return (
+      <Card className="p-8 space-y-2 text-center">
+        <Settings2 className="h-6 w-6 mx-auto text-muted-foreground" />
+        <h2 className="text-base font-semibold">DFC não configurada</h2>
+        <p className="text-xs text-muted-foreground max-w-md mx-auto">
+          Nenhuma conta foi vinculada às linhas do fluxo de caixa desta empresa. Configure a DFC na
+          área do tenant (Empresas → Dados → Fluxo de Caixa) para que a demonstração seja calculada.
+        </p>
+      </Card>
+    );
+  }
+
   const val = data.validacaoTotal;
   const ok = Math.abs(val.diferenca) < 0.01;
   const semConfig = data.linhas.filter((l) => l.semContas);
@@ -108,6 +220,20 @@ function DFCContent() {
     "financiamento",
     "fechamento",
   ];
+
+  const exportRows: StatementRow[] = data.linhas
+    .filter((l) => blocos.includes(l.bloco))
+    .map((l, i) => ({
+      descricao: l.label,
+      codigo_conta: null,
+      nivel: l.calculada ? 0 : 1,
+      is_subtotal: !!l.calculada,
+      values: {
+        ...Object.fromEntries(data.colunas.map((c) => [c.key, l.valores[c.key] ?? 0])),
+        __total__: data.totais[l.key] ?? 0,
+      },
+      linha_ordem: i,
+    }));
 
   return (
     <div className="space-y-5">
@@ -128,7 +254,11 @@ function DFCContent() {
                 size="sm"
                 variant={metodo === m ? "secondary" : "ghost"}
                 className="h-7 px-2 text-[11px] capitalize"
-                onClick={() => setMetodo(m)}
+                onClick={() => {
+                  setMetodoTocado(true);
+                  setMetodo(m);
+                  setExpandida(null);
+                }}
               >
                 {m}
               </Button>
@@ -156,6 +286,14 @@ function DFCContent() {
           >
             Mostrar em R$ mil
           </Button>
+          <ExportMenu
+            rows={exportRows}
+            periods={[...data.colunas.map((c) => c.key), "__total__"]}
+            periodLabels={[...data.colunas.map((c) => c.label), "Total"]}
+            filename={`dfc-${metodo}`}
+            title={`Demonstração do Fluxo de Caixa — método ${metodo}`}
+            subtitle={`Visão ${visaoDfc === "gerencial" ? "gerencial" : "contábil"}`}
+          />
         </div>
       </div>
 
@@ -222,13 +360,19 @@ function DFCContent() {
                     </tr>
                     {linhas.map((l) => {
                       const forte = l.calculada;
+                      const drillable = l.contas.length > 0;
+                      const aberta = expandida === l.key;
                       return (
+                        <Fragment key={l.key}>
                         <tr
-                          key={l.key}
                           className={cn(
                             "border-b border-border/40",
                             forte && "bg-muted/30 font-semibold",
+                            drillable && "cursor-pointer hover:bg-muted/20",
                           )}
+                          onClick={
+                            drillable ? () => setExpandida(aberta ? null : l.key) : undefined
+                          }
                         >
                           <td
                             className={cn(
@@ -236,6 +380,12 @@ function DFCContent() {
                               forte ? "bg-muted/30" : "bg-background",
                             )}
                           >
+                            {drillable &&
+                              (aberta ? (
+                                <ChevronDown className="inline h-3 w-3 mr-1 text-muted-foreground" />
+                              ) : (
+                                <ChevronRight className="inline h-3 w-3 mr-1 text-muted-foreground" />
+                              ))}
                             <span>{l.label}</span>
                             {l.semContas && (
                               <Badge
@@ -269,6 +419,18 @@ function DFCContent() {
                             {fmt(data.totais[l.key] ?? 0)}
                           </td>
                         </tr>
+                        {aberta && (
+                          <DetalheLinha
+                            companyId={companyId!}
+                            periodos={periodos}
+                            agrupador={agrupador}
+                            contas={l.contas}
+                            operacao={l.operacao}
+                            colunas={data.colunas}
+                            fmt={fmt}
+                          />
+                        )}
+                        </Fragment>
                       );
                     })}
                   </Fragment>

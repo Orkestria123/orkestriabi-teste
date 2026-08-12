@@ -344,6 +344,18 @@ function DFCContent() {
                             {fmt(data.totais[l.key] ?? 0)}
                           </td>
                         </tr>
+                        {aberta && (
+                          <DetalheLinha
+                            companyId={companyId!}
+                            periodos={periodos}
+                            agrupador={agrupador}
+                            contas={l.contas}
+                            operacao={l.operacao}
+                            colunas={data.colunas}
+                            fmt={fmt}
+                          />
+                        )}
+                        </Fragment>
                       );
                     })}
                   </Fragment>

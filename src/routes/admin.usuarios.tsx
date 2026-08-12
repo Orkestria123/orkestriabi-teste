@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/select";
 import { Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { createClientUser, deleteUserAccount } from "@/lib/api/orkestria.functions";
+import { createClientUser, createTenantAdminUser, deleteUserAccount } from "@/lib/api/orkestria.functions";
 import { useAuth } from "@/hooks/use-auth";
 
 export const Route = createFileRoute("/admin/usuarios")({ component: Page });
@@ -41,17 +41,34 @@ function Page() {
   });
   const { data: users } = useQuery({
     queryKey: ["tenant-users"],
-    queryFn: async () => (await supabase.from("profiles").select("*, companies(name)")).data ?? [],
+    queryFn: async () => {
+      const [{ data: profs }, { data: roles }] = await Promise.all([
+        supabase.from("profiles").select("*, companies(name)"),
+        supabase.from("user_roles").select("user_id, role"),
+      ]);
+      const byId = new Map((roles ?? []).map((r: any) => [r.user_id, r.role]));
+      return (profs ?? []).map((p: any) => ({ ...p, role: byId.get(p.id) ?? null }));
+    },
   });
   const [open, setOpen] = useState(false);
+  const [perfil, setPerfil] = useState<"client" | "tenant_admin">("client");
   const [form, setForm] = useState({ full_name: "", email: "", password: "", company_id: "" });
   const [loading, setLoading] = useState(false);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (perfil === "client" && !form.company_id) {
+      toast.error("Selecione a empresa");
+      return;
+    }
     setLoading(true);
     try {
-      await createClientUser({ data: form });
+      if (perfil === "tenant_admin") {
+        const { company_id: _ignored, ...rest } = form;
+        await createTenantAdminUser({ data: rest });
+      } else {
+        await createClientUser({ data: form });
+      }
       toast.success("Usuário criado");
       setOpen(false);
       setForm({ full_name: "", email: "", password: "", company_id: "" });
@@ -60,26 +77,40 @@ function Page() {
     finally { setLoading(false); }
   };
 
+
   return (
     <PortalShell
       variant="admin"
       title="Usuários"
       actions={
         <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild><Button size="sm"><Plus className="h-4 w-4 mr-1" />Novo Cliente</Button></DialogTrigger>
+          <DialogTrigger asChild><Button size="sm"><Plus className="h-4 w-4 mr-1" />Novo Usuário</Button></DialogTrigger>
           <DialogContent>
-            <DialogHeader><DialogTitle>Novo usuário cliente</DialogTitle></DialogHeader>
+            <DialogHeader><DialogTitle>Novo usuário</DialogTitle></DialogHeader>
             <form onSubmit={submit} className="space-y-3">
+              <div>
+                <Label>Perfil</Label>
+                <Select value={perfil} onValueChange={(v) => setPerfil(v as any)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="client">Cliente (acesso ao BI de uma empresa)</SelectItem>
+                    <SelectItem value="tenant_admin">Admin do escritório</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               <div><Label>Nome</Label><Input value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} required /></div>
               <div><Label>E-mail</Label><Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required /></div>
               <div><Label>Senha temporária</Label><Input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} required minLength={8} /></div>
-              <div>
-                <Label>Empresa</Label>
-                <Select value={form.company_id} onValueChange={(v) => setForm({ ...form, company_id: v })}>
-                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                  <SelectContent>{(companies ?? []).map((c: any) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
-                </Select>
-              </div>
+              {perfil === "client" && (
+                <div>
+                  <Label>Empresa</Label>
+                  <Select value={form.company_id} onValueChange={(v) => setForm({ ...form, company_id: v })}>
+                    <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                    <SelectContent>{(companies ?? []).map((c: any) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+              )}
+
               <DialogFooter><Button type="submit" disabled={loading}>{loading ? "Criando…" : "Criar"}</Button></DialogFooter>
             </form>
           </DialogContent>
@@ -92,6 +123,7 @@ function Page() {
             <tr>
               <th className="text-left px-4 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">Nome</th>
               <th className="text-left px-4 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">E-mail</th>
+              <th className="text-left px-4 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">Perfil</th>
               <th className="text-left px-4 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">Empresa</th>
               <th className="px-4 py-3"></th>
             </tr>
@@ -101,7 +133,13 @@ function Page() {
               <tr key={u.id} className="border-t">
                 <td className="px-4 py-3 font-medium">{u.full_name}</td>
                 <td className="px-4 py-3 text-muted-foreground">{u.email}</td>
+                <td className="px-4 py-3">
+                  <span className="rounded-full bg-muted px-2 py-0.5 text-xs">
+                    {u.role === "tenant_admin" ? "Admin do escritório" : u.role === "orkestria_admin" ? "Super Admin" : u.role === "client" ? "Cliente" : "—"}
+                  </span>
+                </td>
                 <td className="px-4 py-3">{u.companies?.name ?? "—"}</td>
+
                 <td className="px-4 py-3 text-right">
                   {u.id !== userId && (
                     <Button

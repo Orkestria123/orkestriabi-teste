@@ -172,6 +172,64 @@ export const createClientUser = createServerFn({ method: "POST" })
   });
 
 /**
+ * Cria um usuário administrador do escritório (tenant_admin) no mesmo tenant do chamador.
+ * Requer tenant_admin ou orkestria_admin.
+ */
+export const createTenantAdminUser = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z
+      .object({
+        email: z.string().email(),
+        full_name: z.string().min(2),
+        password: z.string().min(8),
+        tenant_id: z.string().uuid().optional(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ context, data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { data: callerProfile } = await supabaseAdmin
+      .from("profiles")
+      .select("tenant_id")
+      .eq("id", context.userId)
+      .maybeSingle();
+    const { data: callerRoles } = await supabaseAdmin
+      .from("user_roles")
+      .select("role, tenant_id")
+      .eq("user_id", context.userId);
+
+    const isOrk = callerRoles?.some((r) => r.role === "orkestria_admin") ?? false;
+    const isTenantAdmin = callerRoles?.some((r) => r.role === "tenant_admin") ?? false;
+
+    const tenantId = isOrk ? (data.tenant_id ?? callerProfile?.tenant_id) : callerProfile?.tenant_id;
+    if (!tenantId) throw new Error("Escritório não identificado");
+    if (!isOrk && !isTenantAdmin) throw new Error("Forbidden");
+
+    const { data: userResp, error: uErr } = await supabaseAdmin.auth.admin.createUser({
+      email: data.email,
+      password: data.password,
+      email_confirm: true,
+      user_metadata: { full_name: data.full_name },
+    });
+    if (uErr) throw new Error(uErr.message);
+    const newUid = userResp.user!.id;
+
+    await supabaseAdmin
+      .from("profiles")
+      .update({ tenant_id: tenantId, company_id: null, full_name: data.full_name })
+      .eq("id", newUid);
+
+    await supabaseAdmin
+      .from("user_roles")
+      .insert({ user_id: newUid, role: "tenant_admin", tenant_id: tenantId });
+
+    return { ok: true };
+  });
+
+
+/**
  * Exclui um usuário (auth + perfil + papéis em cascata).
  * Requer tenant_admin do mesmo tenant ou orkestria_admin. Não permite excluir a si mesmo.
  */

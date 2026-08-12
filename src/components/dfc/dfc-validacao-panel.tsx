@@ -58,7 +58,11 @@ export function DfcValidacaoPanel({ data, isLoading, defaultAberto = false }: Pr
           <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
         )}
         <span className="text-sm font-semibold">
-          {tudoOk ? "DFC validada" : "DFC com divergências"}
+          {tudoOk
+            ? "DFC validada ✓"
+            : `⚠ Divergência ${formatBRL(
+                falhas.reduce((a, c) => (Math.abs(c.diferenca) > Math.abs(a) ? c.diferenca : a), 0),
+              )}`}
         </span>
         <span className="text-[11px] text-muted-foreground">
           {tudoOk

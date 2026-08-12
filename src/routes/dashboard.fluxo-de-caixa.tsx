@@ -39,6 +39,81 @@ const AGRUPADORES: { value: Agrupador; label: string }[] = [
 
 type Metodo = "indireto" | "direto";
 
+function DetalheLinha({
+  companyId,
+  periodos,
+  agrupador,
+  contas,
+  operacao,
+  colunas,
+  fmt,
+}: {
+  companyId: string;
+  periodos: string[];
+  agrupador: Agrupador;
+  contas: string[];
+  operacao: DfcLinhaCalc["operacao"];
+  colunas: { key: string; label: string }[];
+  fmt: (v: number | undefined | null) => string;
+}) {
+  const { data, isLoading } = useQuery({
+    queryKey: ["dfc-detalhe", companyId, periodos.join(","), agrupador, contas.join("|"), operacao],
+    queryFn: () => detalharLinhaDfc({ companyId, periodos, agrupador, contas, operacao }),
+  });
+
+  if (isLoading) {
+    return (
+      <tr className="bg-muted/10 border-b border-border/40">
+        <td colSpan={colunas.length + 2} className="px-6 py-2 text-[11px] text-muted-foreground">
+          <Loader2 className="inline h-3 w-3 animate-spin mr-1" /> Carregando contas…
+        </td>
+      </tr>
+    );
+  }
+  if (!data || data.length === 0) {
+    return (
+      <tr className="bg-muted/10 border-b border-border/40">
+        <td colSpan={colunas.length + 2} className="px-6 py-2 text-[11px] text-muted-foreground">
+          Sem movimento nas contas vinculadas ({contas.join(", ")}).
+        </td>
+      </tr>
+    );
+  }
+
+  return (
+    <>
+      {data.map((c) => (
+        <tr key={c.codigo} className="bg-muted/5 border-b border-border/30 text-muted-foreground">
+          <td className="sticky left-0 z-10 bg-background px-3 py-1 pl-8 whitespace-nowrap">
+            <span className="text-[10px] mr-1 opacity-70">{c.codigo}</span>
+            <span className="text-[10px] mr-1 opacity-70">{c.classificacao}</span>
+            <span>{c.descricao}</span>
+          </td>
+          {colunas.map((col) => {
+            const v = c.valores[col.key] ?? 0;
+            return (
+              <td
+                key={col.key}
+                className={cn("text-right px-3 py-1 whitespace-nowrap", v < 0 && "text-destructive")}
+              >
+                {fmt(v)}
+              </td>
+            );
+          })}
+          <td
+            className={cn(
+              "text-right px-3 py-1 whitespace-nowrap bg-muted/30",
+              c.total < 0 && "text-destructive",
+            )}
+          >
+            {fmt(c.total)}
+          </td>
+        </tr>
+      ))}
+    </>
+  );
+}
+
 function DFCContent() {
   const { companyId } = useDashboardCompany();
   const { periodos } = useFilters();

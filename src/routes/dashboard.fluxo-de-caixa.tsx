@@ -22,6 +22,8 @@ import {
 } from "@/lib/dfc/calcular-indireto";
 import { calcularDfcDireto, type DfcResultadoDireto } from "@/lib/dfc/calcular-direto";
 import { BLOCO_LABEL } from "@/lib/dfc/estrutura";
+import { validarDfc } from "@/lib/dfc/validacao";
+import { DfcValidacaoPanel } from "@/components/dfc/dfc-validacao-panel";
 
 const AGRUPADORES: { value: Agrupador; label: string }[] = [
   { value: "mes", label: "Mês" },
@@ -49,6 +51,13 @@ function DFCContent() {
       metodo === "direto"
         ? calcularDfcDireto({ companyId: companyId!, periodos, agrupador, visao: visaoDfc })
         : calcularDfcIndireto({ companyId: companyId!, periodos, agrupador, visao: visaoDfc }),
+  });
+
+  const { data: validacao, isLoading: loadingValidacao } = useQuery({
+    queryKey: ["dfc-validacao", companyId, periodos.join(","), agrupador, visaoDfc],
+    enabled: !!companyId && periodos.length > 0,
+    queryFn: () =>
+      validarDfc({ companyId: companyId!, periodos, agrupador, visao: visaoDfc }),
   });
 
   const direto = metodo === "direto" ? (data as DfcResultadoDireto | undefined) : undefined;

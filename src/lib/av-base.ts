@@ -15,7 +15,7 @@
 /** O mínimo que uma linha de demonstração precisa ter para servir de base. */
 export interface LinhaAV {
   descricao: string;
-  codigo_conta: string | null;
+  codigo_conta?: string | null;
   is_subtotal: boolean;
   values: Record<string, number>;
 }

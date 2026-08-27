@@ -425,7 +425,7 @@ function EstruturaTab({ tenantId, podeEditar }: { tenantId: string; podeEditar: 
       ]);
       if (e1) throw e1;
       if (e2) throw e2;
-      const nomes = new Map((p ?? []).map((x: any) => [x.classificacao, x.descricao_referencia]));
+      const nomes = new Map<string, string>((p ?? []).map((x: any) => [String(x.classificacao), String(x.descricao_referencia ?? "")]));
       return ((v ?? []) as { classificacao: string; codigo_dfc: string; origem: string }[])
         .map((row) => ({ ...row, descricao: nomes.get(row.classificacao) ?? "" }));
     },

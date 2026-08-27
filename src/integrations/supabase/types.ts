@@ -1063,6 +1063,7 @@ export type Database = {
           company_id: string
           competencia: string
           conta_codigo: string
+          conta_nome: string | null
           created_at: string
           credito: number
           data: string
@@ -1080,6 +1081,7 @@ export type Database = {
           company_id: string
           competencia: string
           conta_codigo: string
+          conta_nome?: string | null
           created_at?: string
           credito?: number
           data: string
@@ -1097,6 +1099,7 @@ export type Database = {
           company_id?: string
           competencia?: string
           conta_codigo?: string
+          conta_nome?: string | null
           created_at?: string
           credito?: number
           data?: string
@@ -2088,6 +2091,10 @@ export type Database = {
         Args: { _itens: Json; _tenant_id: string }
         Returns: Json
       }
+      aprovar_contas_novas_lote: {
+        Args: { _itens: Json; _tenant_id: string }
+        Returns: Json
+      }
       atualizar_plano_padrao: {
         Args: { _company_id: string; _rows: Json; _tenant_id: string }
         Returns: Json
@@ -2100,6 +2107,7 @@ export type Database = {
           historico_exemplo: string
           lancamentos: number
           movimento: number
+          nome_sugerido: string
           primeira_competencia: string
           ultima_competencia: string
         }[]
@@ -2163,6 +2171,16 @@ export type Database = {
         Returns: Json
       }
       similarity_simples: { Args: { _a: string; _b: string }; Returns: number }
+      sinteticas_do_plano_padrao: {
+        Args: { _tenant_id: string }
+        Returns: {
+          classificacao: string
+          codigo: string
+          descricao: string
+          filhos: number
+          tipo: string
+        }[]
+      }
       unaccent_simples: { Args: { _s: string }; Returns: string }
     }
     Enums: {

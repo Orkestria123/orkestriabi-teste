@@ -43,17 +43,34 @@ function Page() {
   });
 
   const { data: rows = [], isLoading } = useQuery({
-    queryKey: ["mapeamento-despesa", companyId],
+    queryKey: ["plano-tipo-custo", companyId],
     enabled: !!companyId,
     queryFn: async () => {
+      const { data: emp } = await supabase
+        .from("companies")
+        .select("tenant_id")
+        .eq("id", companyId)
+        .maybeSingle();
+      if (!emp?.tenant_id) return [] as MapRow[];
+
       const { data, error } = await supabase
-        .from("mapeamento_demonstracao")
-        .select("id, company_id, classificacao_prefixo, linha_demonstracao, tipo_demonstracao, tipo_custo")
-        .eq("company_id", companyId)
-        .or("classificacao_prefixo.like.3.06%,classificacao_prefixo.like.3.15%")
-        .order("classificacao_prefixo");
+        .from("plano_contas")
+        .select("id, company_id, classificacao, descricao, tipo, tipo_custo")
+        .eq("tenant_id", emp.tenant_id)
+        .or(`company_id.is.null,company_id.eq.${companyId}`)
+        .eq("is_participante", false)
+        .or("classificacao.like.3.06%,classificacao.like.3.15%")
+        .order("classificacao")
+        .limit(2000);
       if (error) throw error;
-      return (data ?? []) as MapRow[];
+      return (data ?? []).map((r) => ({
+        id: r.id,
+        company_id: r.company_id,
+        classificacao_prefixo: r.classificacao,
+        linha_demonstracao: r.descricao,
+        tipo_demonstracao: r.tipo,
+        tipo_custo: (r.tipo_custo ?? null) as TipoCusto,
+      })) as MapRow[];
     },
   });
 
@@ -88,14 +105,14 @@ function Page() {
     try {
       // update em paralelo
       const updates = Array.from(dirty.entries()).map(([id, tipo_custo]) =>
-        supabase.from("mapeamento_demonstracao").update({ tipo_custo }).eq("id", id),
+        supabase.from("plano_contas").update({ tipo_custo }).eq("id", id),
       );
       const results = await Promise.all(updates);
       const errs = results.filter((r) => r.error);
       if (errs.length > 0) throw new Error(`${errs.length} falhas`);
       toast.success(`${dirty.size} classificações salvas.`);
       setDirty(new Map());
-      qc.invalidateQueries({ queryKey: ["mapeamento-despesa", companyId] });
+      qc.invalidateQueries({ queryKey: ["plano-tipo-custo", companyId] });
     } catch (e: any) {
       toast.error(e?.message ?? "Erro ao salvar");
     } finally {

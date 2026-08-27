@@ -158,18 +158,26 @@ function Page() {
 
   // Mapeamento tipo_custo (fixo/variavel) para Ponto de Equilíbrio
   const { data: tipoCustoMap = new Map<string, "fixo" | "variavel">() } = useQuery({
-    queryKey: ["mapeamento-tipo-custo", companyId],
+    queryKey: ["plano-tipo-custo-map", companyId],
     enabled: !!companyId && secao === "equilibrio",
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("mapeamento_demonstracao")
-        .select("classificacao_prefixo, tipo_custo")
-        .eq("company_id", companyId!)
-        .not("tipo_custo", "is", null);
-      if (error) throw error;
+      const { data: emp } = await supabase
+        .from("companies")
+        .select("tenant_id")
+        .eq("id", companyId!)
+        .maybeSingle();
       const m = new Map<string, "fixo" | "variavel">();
+      if (!emp?.tenant_id) return m;
+      const { data, error } = await supabase
+        .from("plano_contas")
+        .select("classificacao, tipo_custo")
+        .eq("tenant_id", emp.tenant_id)
+        .or(`company_id.is.null,company_id.eq.${companyId}`)
+        .not("tipo_custo", "is", null)
+        .limit(5000);
+      if (error) throw error;
       for (const r of data ?? []) {
-        if (r.tipo_custo) m.set(r.classificacao_prefixo, r.tipo_custo as any);
+        if (r.tipo_custo) m.set(r.classificacao, r.tipo_custo as "fixo" | "variavel");
       }
       return m;
     },

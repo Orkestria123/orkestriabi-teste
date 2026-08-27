@@ -37,7 +37,7 @@ const PADRAO: EscopoPlano = {
 };
 
 export async function getEscopoPlano(companyId: string): Promise<EscopoPlano> {
-  const { data, error } = await supabase.rpc("escopo_plano_empresa", {
+  const { data, error } = await (supabase as any).rpc("escopo_plano_empresa", {
     _company_id: companyId,
   });
   if (error) throw error;

@@ -79,7 +79,7 @@ export function DeParaPanel({ tenantId, companyId, readonly }: Props) {
       // Paginado: acima de 1.000 vínculos, as contas que ficavam de fora
       // voltavam a aparecer como pendentes mesmo já resolvidas.
       return await lerTudo<any>(
-        (de, ate) => supabase
+        (de, ate) => (supabase as any)
           .from("depara_contas")
           .select("conta_codigo, conta_padrao_codigo, ignorada, observacao")
           .eq("company_id", companyId)

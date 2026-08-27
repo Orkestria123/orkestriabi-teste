@@ -855,7 +855,7 @@ function OrigemPlanoCard({ company }: { company: any }) {
     try {
       const { error } = await supabase
         .from("companies")
-        .update({ plano_tipo: novo })
+        .update({ plano_tipo: novo } as any)
         .eq("id", company.id);
       if (error) throw error;
       toast.success(

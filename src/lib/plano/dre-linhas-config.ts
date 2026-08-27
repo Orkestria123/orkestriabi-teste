@@ -116,7 +116,7 @@ export async function salvarDreLinhasConfig(
   };
   const { error } = await (supabase as any)
     .from("dre_linhas_config")
-    .upsert(payload, { onConflict: "tenant_id" });
+    .upsert(payload as any, { onConflict: "tenant_id" });
   if (error) throw new Error(error.message);
   cache.set(tenantId, normalizar(cfg));
 }

@@ -2072,6 +2072,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      __apply_pending_sql: { Args: { _sql: string }; Returns: undefined }
       _semear_marcos_interno: {
         Args: { _company_id?: string; _tenant_id: string }
         Returns: Json

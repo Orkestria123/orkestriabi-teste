@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.17"
+    PostgrestVersion: "14.5"
   }
   public: {
     Tables: {
@@ -142,45 +142,6 @@ export type Database = {
           },
         ]
       }
-      backup_alocacao_removida: {
-        Row: {
-          classificacao: string | null
-          codigo: string | null
-          company_id: string | null
-          descricao: string | null
-          id: string | null
-          inverter_sinal: boolean | null
-          linha_demonstracao: string | null
-          ordem_linha: number | null
-          tenant_id: string | null
-          tipo_demonstracao: string | null
-        }
-        Insert: {
-          classificacao?: string | null
-          codigo?: string | null
-          company_id?: string | null
-          descricao?: string | null
-          id?: string | null
-          inverter_sinal?: boolean | null
-          linha_demonstracao?: string | null
-          ordem_linha?: number | null
-          tenant_id?: string | null
-          tipo_demonstracao?: string | null
-        }
-        Update: {
-          classificacao?: string | null
-          codigo?: string | null
-          company_id?: string | null
-          descricao?: string | null
-          id?: string | null
-          inverter_sinal?: boolean | null
-          linha_demonstracao?: string | null
-          ordem_linha?: number | null
-          tenant_id?: string | null
-          tipo_demonstracao?: string | null
-        }
-        Relationships: []
-      }
       chart_of_accounts: {
         Row: {
           codigo_conta: string
@@ -245,36 +206,66 @@ export type Database = {
       companies: {
         Row: {
           ativo: boolean
+          bairro: string | null
+          cep: string | null
+          complemento: string | null
+          email: string | null
+          logradouro: string | null
+          municipio: string | null
+          numero: string | null
+          responsavel: string | null
+          telefone: string | null
+          uf: string | null
           cnpj: string | null
           created_at: string
           fonte_dados: string
+          plano_tipo: string
           id: string
           name: string
-          plano_tipo: string
           razao_social: string | null
           regime_tributario: string | null
           tenant_id: string
         }
         Insert: {
           ativo?: boolean
+          bairro?: string | null
+          cep?: string | null
+          complemento?: string | null
+          email?: string | null
+          logradouro?: string | null
+          municipio?: string | null
+          numero?: string | null
+          responsavel?: string | null
+          telefone?: string | null
+          uf?: string | null
           cnpj?: string | null
           created_at?: string
           fonte_dados?: string
+          plano_tipo?: string
           id?: string
           name: string
-          plano_tipo?: string
           razao_social?: string | null
           regime_tributario?: string | null
           tenant_id: string
         }
         Update: {
           ativo?: boolean
+          bairro?: string | null
+          cep?: string | null
+          complemento?: string | null
+          email?: string | null
+          logradouro?: string | null
+          municipio?: string | null
+          numero?: string | null
+          responsavel?: string | null
+          telefone?: string | null
+          uf?: string | null
           cnpj?: string | null
           created_at?: string
           fonte_dados?: string
+          plano_tipo?: string
           id?: string
           name?: string
-          plano_tipo?: string
           razao_social?: string | null
           regime_tributario?: string | null
           tenant_id?: string
@@ -388,159 +379,8 @@ export type Database = {
           },
         ]
       }
-      depara_contas: {
-        Row: {
-          company_id: string
-          conta_codigo: string
-          conta_padrao_codigo: string | null
-          created_at: string
-          id: string
-          ignorada: boolean
-          observacao: string | null
-          tenant_id: string
-          updated_at: string
-        }
-        Insert: {
-          company_id: string
-          conta_codigo: string
-          conta_padrao_codigo?: string | null
-          created_at?: string
-          id?: string
-          ignorada?: boolean
-          observacao?: string | null
-          tenant_id: string
-          updated_at?: string
-        }
-        Update: {
-          company_id?: string
-          conta_codigo?: string
-          conta_padrao_codigo?: string | null
-          created_at?: string
-          id?: string
-          ignorada?: boolean
-          observacao?: string | null
-          tenant_id?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "depara_contas_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "companies"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "depara_contas_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      dfc_config: {
-        Row: {
-          company_id: string
-          conta_caixa: Json
-          created_at: string
-          id: string
-          metodo_padrao: string
-          tenant_id: string
-          updated_at: string
-        }
-        Insert: {
-          company_id: string
-          conta_caixa?: Json
-          created_at?: string
-          id?: string
-          metodo_padrao?: string
-          tenant_id: string
-          updated_at?: string
-        }
-        Update: {
-          company_id?: string
-          conta_caixa?: Json
-          created_at?: string
-          id?: string
-          metodo_padrao?: string
-          tenant_id?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "dfc_config_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: true
-            referencedRelation: "companies"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "dfc_config_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      dfc_linha_contas: {
-        Row: {
-          company_id: string
-          contas: Json
-          created_at: string
-          id: string
-          linha: string
-          metodo: string
-          operacao: string
-          ordem: number
-          tenant_id: string
-          updated_at: string
-        }
-        Insert: {
-          company_id: string
-          contas?: Json
-          created_at?: string
-          id?: string
-          linha: string
-          metodo: string
-          operacao?: string
-          ordem?: number
-          tenant_id: string
-          updated_at?: string
-        }
-        Update: {
-          company_id?: string
-          contas?: Json
-          created_at?: string
-          id?: string
-          linha?: string
-          metodo?: string
-          operacao?: string
-          ordem?: number
-          tenant_id?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "dfc_linha_contas_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "companies"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "dfc_linha_contas_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       diario_uploads: {
         Row: {
-          agregado: boolean
           company_id: string
           competencia_fim: string | null
           competencia_inicio: string | null
@@ -559,7 +399,6 @@ export type Database = {
           uploaded_by: string | null
         }
         Insert: {
-          agregado?: boolean
           company_id: string
           competencia_fim?: string | null
           competencia_inicio?: string | null
@@ -578,7 +417,6 @@ export type Database = {
           uploaded_by?: string | null
         }
         Update: {
-          agregado?: boolean
           company_id?: string
           competencia_fim?: string | null
           competencia_inicio?: string | null
@@ -1081,7 +919,6 @@ export type Database = {
           company_id: string
           competencia: string
           conta_codigo: string
-          conta_nome?: string | null
           created_at?: string
           credito?: number
           data: string
@@ -1133,6 +970,63 @@ export type Database = {
             columns: ["upload_id"]
             isOneToOne: false
             referencedRelation: "diario_uploads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mapeamento_demonstracao: {
+        Row: {
+          classificacao_prefixo: string
+          company_id: string | null
+          created_at: string
+          id: string
+          inverter_sinal: boolean
+          linha_demonstracao: string
+          ordem: number
+          tenant_id: string
+          tipo_custo: string | null
+          tipo_demonstracao: string
+          updated_at: string
+        }
+        Insert: {
+          classificacao_prefixo: string
+          company_id?: string | null
+          created_at?: string
+          id?: string
+          inverter_sinal?: boolean
+          linha_demonstracao: string
+          ordem?: number
+          tenant_id: string
+          tipo_custo?: string | null
+          tipo_demonstracao: string
+          updated_at?: string
+        }
+        Update: {
+          classificacao_prefixo?: string
+          company_id?: string | null
+          created_at?: string
+          id?: string
+          inverter_sinal?: boolean
+          linha_demonstracao?: string
+          ordem?: number
+          tenant_id?: string
+          tipo_custo?: string | null
+          tipo_demonstracao?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mapeamento_demonstracao_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mapeamento_demonstracao_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
         ]
@@ -1524,6 +1418,42 @@ export type Database = {
           },
         ]
       }
+      depara_contas: {
+        Row: {
+          company_id: string
+          conta_codigo: string
+          conta_padrao_codigo: string | null
+          created_at: string
+          id: string
+          ignorada: boolean
+          observacao: string | null
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          conta_codigo: string
+          conta_padrao_codigo?: string | null
+          created_at?: string
+          id?: string
+          ignorada?: boolean
+          observacao?: string | null
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          conta_codigo?: string
+          conta_padrao_codigo?: string | null
+          created_at?: string
+          id?: string
+          ignorada?: boolean
+          observacao?: string | null
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       plano_atualizacoes: {
         Row: {
           atualizadas: number
@@ -1561,110 +1491,7 @@ export type Database = {
           tenant_id?: string
           total_arquivo?: number
         }
-        Relationships: [
-          {
-            foreignKeyName: "plano_atualizacoes_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "companies"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "plano_atualizacoes_executado_por_fkey"
-            columns: ["executado_por"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "plano_atualizacoes_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      plano_contas: {
-        Row: {
-          ativo: boolean
-          classificacao: string
-          codigo: string
-          company_id: string | null
-          conta_pai_classificacao: string | null
-          created_at: string
-          descricao: string
-          dfc_atividade: string | null
-          dfc_nao_caixa: boolean
-          id: string
-          is_participante: boolean
-          is_sintetica: boolean
-          marco: string | null
-          natureza: string
-          nivel: number
-          tenant_id: string
-          tipo: string
-          tipo_custo: string | null
-          updated_at: string
-        }
-        Insert: {
-          ativo?: boolean
-          classificacao: string
-          codigo: string
-          company_id?: string | null
-          conta_pai_classificacao?: string | null
-          created_at?: string
-          descricao: string
-          dfc_atividade?: string | null
-          dfc_nao_caixa?: boolean
-          id?: string
-          is_participante?: boolean
-          is_sintetica?: boolean
-          marco?: string | null
-          natureza: string
-          nivel?: number
-          tenant_id: string
-          tipo: string
-          tipo_custo?: string | null
-          updated_at?: string
-        }
-        Update: {
-          ativo?: boolean
-          classificacao?: string
-          codigo?: string
-          company_id?: string | null
-          conta_pai_classificacao?: string | null
-          created_at?: string
-          descricao?: string
-          dfc_atividade?: string | null
-          dfc_nao_caixa?: boolean
-          id?: string
-          is_participante?: boolean
-          is_sintetica?: boolean
-          marco?: string | null
-          natureza?: string
-          nivel?: number
-          tenant_id?: string
-          tipo?: string
-          tipo_custo?: string | null
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "plano_contas_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "companies"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "plano_contas_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       plano_contas_descartadas: {
         Row: {
@@ -1691,16 +1518,94 @@ export type Database = {
           motivo?: string | null
           tenant_id?: string
         }
+        Relationships: []
+      }
+      plano_contas: {
+        Row: {
+          ativo: boolean
+          dfc_atividade: string | null
+          marco: string | null
+          dfc_nao_caixa: boolean
+          inverter_sinal: boolean
+          linha_demonstracao: string | null
+          ordem_linha: number | null
+          tipo_custo: string | null
+          tipo_demonstracao: string | null
+          classificacao: string
+          codigo: string
+          company_id: string | null
+          conta_pai_classificacao: string | null
+          created_at: string
+          descricao: string
+          id: string
+          is_participante: boolean
+          is_sintetica: boolean
+          natureza: string
+          nivel: number
+          tenant_id: string
+          tipo: string
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          dfc_atividade?: string | null
+          marco?: string | null
+          dfc_nao_caixa?: boolean
+          inverter_sinal?: boolean
+          linha_demonstracao?: string | null
+          ordem_linha?: number | null
+          tipo_custo?: string | null
+          tipo_demonstracao?: string | null
+          classificacao: string
+          codigo: string
+          company_id?: string | null
+          conta_pai_classificacao?: string | null
+          created_at?: string
+          descricao: string
+          id?: string
+          is_participante?: boolean
+          is_sintetica?: boolean
+          natureza: string
+          nivel?: number
+          tenant_id: string
+          tipo: string
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          dfc_atividade?: string | null
+          marco?: string | null
+          dfc_nao_caixa?: boolean
+          inverter_sinal?: boolean
+          linha_demonstracao?: string | null
+          ordem_linha?: number | null
+          tipo_custo?: string | null
+          tipo_demonstracao?: string | null
+          classificacao?: string
+          codigo?: string
+          company_id?: string | null
+          conta_pai_classificacao?: string | null
+          created_at?: string
+          descricao?: string
+          id?: string
+          is_participante?: boolean
+          is_sintetica?: boolean
+          natureza?: string
+          nivel?: number
+          tenant_id?: string
+          tipo?: string
+          updated_at?: string
+        }
         Relationships: [
           {
-            foreignKeyName: "plano_contas_descartadas_descartado_por_fkey"
-            columns: ["descartado_por"]
+            foreignKeyName: "plano_contas_company_id_fkey"
+            columns: ["company_id"]
             isOneToOne: false
-            referencedRelation: "profiles"
+            referencedRelation: "companies"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "plano_contas_descartadas_tenant_id_fkey"
+            foreignKeyName: "plano_contas_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -2072,61 +1977,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      __apply_pending_sql: { Args: { _sql: string }; Returns: undefined }
-      _semear_marcos_interno: {
-        Args: { _company_id?: string; _tenant_id: string }
-        Returns: Json
-      }
       agregar_saldos_mensais: {
         Args: { _upload_id: string }
         Returns: undefined
       }
-      aplicar_depara_em_lote: {
-        Args: { _company_id: string; _itens: Json }
-        Returns: Json
-      }
-      aprovar_contas_novas: {
-        Args: { _itens: Json; _tenant_id: string }
-        Returns: Json
-      }
-      aprovar_contas_novas_lote: {
-        Args: { _itens: Json; _tenant_id: string }
-        Returns: Json
-      }
-      atualizar_plano_padrao: {
-        Args: { _company_id: string; _rows: Json; _tenant_id: string }
-        Returns: Json
-      }
-      contas_novas_do_diario: {
-        Args: { _limite?: number; _tenant_id: string }
-        Returns: {
-          codigo: string
-          empresas: string
-          historico_exemplo: string
-          lancamentos: number
-          movimento: number
-          nome_sugerido: string
-          primeira_competencia: string
-          ultima_competencia: string
-        }[]
-      }
-      depara_pendencias: {
-        Args: { _company_id: string; _limite?: number }
-        Returns: {
-          classificacao: string
-          codigo: string
-          descricao: string
-          movimento: number
-          sugestao_codigo: string
-          sugestao_descricao: string
-          tipo: string
-        }[]
-      }
-      descartar_contas_novas: {
-        Args: { _codigos: string[]; _motivo?: string; _tenant_id: string }
-        Returns: Json
-      }
-      escopo_plano_empresa: { Args: { _company_id: string }; Returns: Json }
       get_my_company_id: { Args: never; Returns: string }
       get_my_role: {
         Args: never
@@ -2141,45 +1995,86 @@ export type Database = {
         Returns: boolean
       }
       indicador_snapshot: { Args: { _company_id: string }; Returns: Json }
-      is_orkestria_admin: { Args: never; Returns: boolean }
-      plano_cobertura: { Args: { _company_id: string }; Returns: Json }
-      plano_escopo: {
-        Args: { _company_id: string }
-        Returns: {
-          company_scope: string
-          separador: string
-          tenant_id: string
-        }[]
-      }
-      plano_padrao_resumo: { Args: { _tenant_id: string }; Returns: Json }
-      pode_acessar_empresa: { Args: { _company_id: string }; Returns: boolean }
       pode_gerenciar_tenant: { Args: { _tenant_id: string }; Returns: boolean }
-      promover_plano_empresa: { Args: { _company_id: string }; Returns: Json }
-      restaurar_conta_descartada: {
-        Args: { _codigo: string; _tenant_id: string }
+      aprovar_contas_novas_lote: {
+        Args: { _tenant_id: string; _itens: Json }
         Returns: Json
       }
+      sinteticas_do_plano_padrao: {
+        Args: { _tenant_id: string }
+        Returns: {
+          codigo: string
+          classificacao: string
+          descricao: string
+          tipo: string
+          filhos: number
+        }[]
+      }
+      semear_marcos: {
+        Args: { _tenant_id: string; _company_id?: string | null }
+        Returns: Json
+      }
+      escopo_plano_empresa: { Args: { _company_id: string }; Returns: Json }
+      plano_padrao_resumo: { Args: { _tenant_id: string }; Returns: Json }
+      promover_plano_empresa: { Args: { _company_id: string }; Returns: Json }
+      aprovar_contas_novas: { Args: { _tenant_id: string; _itens: Json }; Returns: Json }
+      restaurar_conta_descartada: { Args: { _tenant_id: string; _codigo: string }; Returns: Json }
+      descartar_contas_novas: {
+        Args: { _tenant_id: string; _codigos: string[]; _motivo?: string | null }
+        Returns: Json
+      }
+      contas_novas_do_diario: {
+        Args: { _tenant_id: string; _limite?: number }
+        Returns: {
+          codigo: string
+          nome_sugerido: string | null
+          movimento: number
+          lancamentos: number
+          historico_exemplo: string | null
+          empresas: string | null
+          primeira_competencia: string | null
+          ultima_competencia: string | null
+        }[]
+      }
+      pode_acessar_empresa: { Args: { _company_id: string }; Returns: boolean }
+      atualizar_plano_padrao: {
+        Args: { _tenant_id: string; _company_id: string | null; _rows: Json }
+        Returns: Json
+      }
+      plano_cobertura: { Args: { _company_id: string }; Returns: Json }
+      plano_pendencias: {
+        Args: { _company_id: string; _limite?: number }
+        Returns: {
+          codigo: string
+          classificacao: string
+          descricao: string
+          tipo: string
+          is_sintetica: boolean
+          movimento: number
+        }[]
+      }
+      depara_pendencias: {
+        Args: { _company_id: string; _limite?: number }
+        Returns: {
+          codigo: string
+          classificacao: string
+          descricao: string
+          tipo: string
+          movimento: number
+          sugestao_codigo: string | null
+          sugestao_descricao: string | null
+        }[]
+      }
+      aplicar_depara_em_lote: {
+        Args: { _company_id: string; _itens: Json }
+        Returns: Json
+      }
+      semear_dfc_padrao: { Args: { _tenant_id?: string }; Returns: Json }
+      is_orkestria_admin: { Args: never; Returns: boolean }
       reverter_upload_diario: {
         Args: { _upload_id: string }
         Returns: undefined
       }
-      semear_dfc_padrao: { Args: { _tenant_id?: string }; Returns: Json }
-      semear_marcos: {
-        Args: { _company_id?: string; _tenant_id: string }
-        Returns: Json
-      }
-      similarity_simples: { Args: { _a: string; _b: string }; Returns: number }
-      sinteticas_do_plano_padrao: {
-        Args: { _tenant_id: string }
-        Returns: {
-          classificacao: string
-          codigo: string
-          descricao: string
-          filhos: number
-          tipo: string
-        }[]
-      }
-      unaccent_simples: { Args: { _s: string }; Returns: string }
     }
     Enums: {
       app_role: "orkestria_admin" | "tenant_admin" | "client"

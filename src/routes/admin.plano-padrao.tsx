@@ -60,7 +60,7 @@ function Page() {
     queryKey: ["plano-padrao-resumo", tenantId],
     enabled: !!tenantId,
     queryFn: async () => {
-      const { data, error } = await (supabase as any).rpc("plano_padrao_resumo", { _tenant_id: tenantId! });
+      const { data, error } = await supabase.rpc("plano_padrao_resumo", { _tenant_id: tenantId! });
       if (error) throw error;
       return data as any;
     },
@@ -196,7 +196,7 @@ function AtualizacaoTab({ tenantId, podeEditar }: { tenantId: string; podeEditar
   const { data: historico } = useQuery({
     queryKey: ["plano-atualizacoes", tenantId],
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from("plano_atualizacoes")
         .select("*")
         .eq("tenant_id", tenantId)
@@ -243,7 +243,7 @@ function AtualizacaoTab({ tenantId, podeEditar }: { tenantId: string; podeEditar
           is_sintetica: r.is_sintetica,
           conta_pai_classificacao: r.conta_pai_classificacao,
         }));
-        const { data, error } = await (supabase as any).rpc("atualizar_plano_padrao", {
+        const { data, error } = await supabase.rpc("atualizar_plano_padrao", {
           _tenant_id: tenantId,
           _company_id: null as any,
           _rows: lote as any,
@@ -253,7 +253,7 @@ function AtualizacaoTab({ tenantId, podeEditar }: { tenantId: string; podeEditar
         atualizadas += (data as any).atualizadas ?? 0;
         inalteradas += (data as any).inalteradas ?? 0;
       }
-      await (supabase as any).from("plano_atualizacoes").insert({
+      await supabase.from("plano_atualizacoes").insert({
         tenant_id: tenantId, company_id: null, filename: arquivo,
         total_arquivo: parsed.rows.length, novas, atualizadas, inalteradas,
       });
@@ -932,7 +932,7 @@ function DescartadasTab({ tenantId, podeEditar }: { tenantId: string; podeEditar
   const { data } = useQuery({
     queryKey: ["contas-descartadas", tenantId],
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from("plano_contas_descartadas")
         .select("*")
         .eq("tenant_id", tenantId)
@@ -944,7 +944,7 @@ function DescartadasTab({ tenantId, podeEditar }: { tenantId: string; podeEditar
 
   const restaurar = async (codigo: string) => {
     try {
-      const { error } = await (supabase as any).rpc("restaurar_conta_descartada", {
+      const { error } = await supabase.rpc("restaurar_conta_descartada", {
         _tenant_id: tenantId, _codigo: codigo,
       });
       if (error) throw error;
@@ -1030,7 +1030,7 @@ function PromoverPlanoCard({ tenantId, podeEditar }: { tenantId: string; podeEdi
     if (!confirm(`Copiar as ${emp?.contas} conta(s) de "${emp?.name}" para o Plano Padrão? O plano da empresa não é alterado.`)) return;
     setBusy(true);
     try {
-      const { data, error } = await (supabase as any).rpc("promover_plano_empresa", { _company_id: companyId });
+      const { data, error } = await supabase.rpc("promover_plano_empresa", { _company_id: companyId });
       if (error) throw error;
       toast.success(`${(data as any).copiadas} conta(s) copiada(s) para o Plano Padrão.`);
       setCompanyId("");

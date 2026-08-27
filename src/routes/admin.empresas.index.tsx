@@ -282,7 +282,7 @@ function EditarEmpresaDialog({ empresa, onSaved }: { empresa: any; onSaved: () =
           name: form.name,
           regime_tributario: form.regime_tributario,
           ...camposOpcionais(form),
-        } as any)
+        })
         .eq("id", empresa.id);
       if (error) throw error;
       toast.success("Cadastro atualizado");
@@ -356,7 +356,7 @@ function Page() {
         regime_tributario: form.regime_tributario,
         tenant_id: profile.tenant_id,
         ...camposOpcionais(form),
-      } as any);
+      });
       if (error) throw error;
       toast.success("Empresa criada");
       setOpen(false);

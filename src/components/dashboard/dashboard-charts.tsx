@@ -183,12 +183,12 @@ export function DashboardCharts({
                   dataKey="Lucro"
                   stroke="var(--chart-4)"
                   strokeWidth={2.5}
-                  dot={((props: any) => {
+                  dot={(props: any) => {
                     const { cx, cy, value, index } = props;
                     if (cx == null || cy == null) return null;
                     const color = (value ?? 0) >= 0 ? "var(--success)" : "var(--destructive)";
                     return <circle key={index} cx={cx} cy={cy} r={4} fill={color} stroke="var(--card)" strokeWidth={2} />;
-                  }) as any}
+                  }}
                   activeDot={{ r: 6, stroke: "var(--card)", strokeWidth: 2 }}
                   {...ANIMATION}
                 />

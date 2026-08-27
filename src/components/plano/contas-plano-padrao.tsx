@@ -151,11 +151,11 @@ export function ContasPlanoPadrao({
         tipo_custo: draft.tipo_custo,
       };
       if (editor?.id) {
-        const { error } = await supabase.from("plano_contas").update(payload as any).eq("id", editor.id);
+        const { error } = await supabase.from("plano_contas").update(payload).eq("id", editor.id);
         if (error) throw error;
         toast.success("Conta atualizada.");
       } else {
-        const { error } = await supabase.from("plano_contas").insert(payload as any);
+        const { error } = await supabase.from("plano_contas").insert(payload);
         if (error) throw error;
         toast.success("Conta criada no Plano Padrão.");
       }

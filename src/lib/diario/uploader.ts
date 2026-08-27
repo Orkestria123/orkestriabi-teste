@@ -25,10 +25,20 @@ export async function salvarPlanoContas(opts: {
   const { tenantId, companyId, rows, substituir, onProgress } = opts;
 
   if (substituir) {
-    const q = supabase.from("plano_contas").delete().eq("tenant_id", tenantId);
-    const { error } = companyId == null ? await q.is("company_id", null) : await q.eq("company_id", companyId);
-    if (error) throw new Error(`Falha ao limpar plano anterior: ${error.message}`);
+    // Apagar o plano inteiro numa tacada só estourava o tempo limite do
+    // banco ("canceling statement due to statement timeout") em escritórios
+    // com centenas de milhares de contas. Agora o servidor remove em lotes.
+    for (let guard = 0; guard < 500; guard++) {
+      const { data, error } = await (supabase as any).rpc("limpar_plano_contas", {
+        _tenant_id: tenantId,
+        _company_id: companyId,
+        _limite: 5000,
+      });
+      if (error) throw new Error(`Falha ao limpar plano anterior: ${error.message}`);
+      if (!Number(data)) break;
+    }
   }
+
 
   const payload = rows.map((r) => ({
     tenant_id: tenantId,

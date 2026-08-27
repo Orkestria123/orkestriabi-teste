@@ -3090,6 +3090,10 @@ export type Database = {
         }[]
       }
       is_orkestria_admin: { Args: never; Returns: boolean }
+      limpar_plano_contas: {
+        Args: { _company_id?: string; _limite?: number; _tenant_id: string }
+        Returns: number
+      }
       periodos_da_empresa: {
         Args: { _company_id: string }
         Returns: {

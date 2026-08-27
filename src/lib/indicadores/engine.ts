@@ -93,6 +93,7 @@ export interface PlanoRowEng {
   natureza: string | null; // "C" | "D"
   is_sintetica: boolean | null;
   is_participante?: boolean;
+  tipo_custo?: "fixo" | "variavel" | null;
 }
 
 export interface SaldoRow {

@@ -167,14 +167,17 @@ export function IndicadoresEmpresaPanel({
    * gravava NULL por cima da ordem que existia. A ordem do dashboard se
    * perdia a cada clique de visibilidade.
    */
-  const gravarComOrdem = (lista: typeof noDashboard, extras: typeof noDashboard = []) => {
-    const itens = lista.map((i, n) => ({
+  const gravarComOrdem = (
+    lista: typeof noDashboard,
+    extras: Array<{ id: string; visibilidade: string }> = [],
+  ) => {
+    const itens: { indicador_id: string; visibilidade: string; ordem?: number }[] = lista.map((i, n) => ({
       indicador_id: i.id,
       visibilidade: i.visibilidade as string,
       ordem: n + 1,
     }));
     for (const e of extras) {
-      itens.push({ indicador_id: e.id, visibilidade: e.visibilidade as string, ordem: null as any });
+      itens.push({ indicador_id: e.id, visibilidade: e.visibilidade });
     }
     return itens;
   };
@@ -185,8 +188,20 @@ export function IndicadoresEmpresaPanel({
     const nova = d.dashboard
       ? [...noDashboard.filter((i) => i.id !== ind.id), alterado]
       : noDashboard.filter((i) => i.id !== ind.id);
-    const itens = gravarComOrdem(nova as any, d.dashboard ? [] : ([alterado] as any));
-    return gravar(itens, `"${ind.nome}": ${ROTULO_VIS[vis]}.`);
+    const extras = d.dashboard ? [] : [{ id: ind.id, visibilidade: vis }];
+    return gravar(gravarComOrdem(nova, extras), `"${ind.nome}": ${ROTULO_VIS[vis]}.`);
+  };
+
+  /** Um indicador só — não mexe na ordem dos outros. */
+  const tirarDoDashboard = (ind: (typeof indicadores)[number]) => {
+    const vis = visibilidadeDe({
+      dashboard: false,
+      aba: destinosDe(ind.visibilidade).aba,
+    });
+    return gravar(
+      [{ indicador_id: ind.id, visibilidade: vis }],
+      `"${ind.nome}" saiu do dashboard.`,
+    );
   };
 
   const mover = (id: string, delta: number) => {
@@ -203,8 +218,8 @@ export function IndicadoresEmpresaPanel({
     const vis = visibilidadeDe(d);
     const alterados = lista.map((i) => ({ ...i, visibilidade: vis }));
     const nova = d.dashboard ? [...noDashboard, ...alterados] : noDashboard;
-    const itens = gravarComOrdem(nova as any, d.dashboard ? [] : (alterados as any));
-    return gravar(itens, `${lista.length} indicador(es): ${ROTULO_VIS[vis]}.`);
+    const extras = d.dashboard ? [] : alterados.map((i) => ({ id: i.id, visibilidade: vis }));
+    return gravar(gravarComOrdem(nova, extras), `${lista.length} indicador(es): ${ROTULO_VIS[vis]}.`);
   };
 
   const abrir = (ind: (typeof indicadores)[number]) => {
@@ -300,7 +315,7 @@ export function IndicadoresEmpresaPanel({
                         aba Indicadores
                       </label>
                     </td>
-                    <td className="px-2 py-2 w-[200px] text-right whitespace-nowrap">
+                    <td className="px-2 py-2 w-[280px] text-right whitespace-nowrap">
                       <BotoesIndicador ind={ind} />
                       <Button size="sm" variant="ghost" className="h-7 w-7 p-0"
                         disabled={salvando || n === 0} onClick={() => mover(ind.id, -1)}
@@ -312,14 +327,11 @@ export function IndicadoresEmpresaPanel({
                         onClick={() => mover(ind.id, 1)} title="Descer">
                         <ArrowDown className="h-3.5 w-3.5" />
                       </Button>
-                      <Button size="sm" variant="ghost"
-                        className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
+                      <Button size="sm" variant="outline"
+                        className="h-7 text-xs ml-1"
                         disabled={salvando}
-                        onClick={() => mudarDestino(ind, {
-                          dashboard: false, aba: destinosDe(ind.visibilidade).aba,
-                        })}
-                        title="Tirar do dashboard">
-                        <X className="h-3.5 w-3.5" />
+                        onClick={() => tirarDoDashboard(ind)}>
+                        <X className="h-3.5 w-3.5 mr-1" /> Tirar do dashboard
                       </Button>
                     </td>
                   </tr>

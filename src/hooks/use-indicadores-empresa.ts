@@ -59,10 +59,24 @@ export async function alocarIndicadores(
   companyId: string,
   itens: { indicador_id: string; visibilidade: string; ordem?: number | null }[],
 ) {
+  // `ordem: null` no JSON faz o PostgREST recusar o lote inteiro.
+  // Tirar do dashboard mandava null; colocar mandava número — só o colocar ia.
+  const _itens = itens.map(({ indicador_id, visibilidade, ordem }) => {
+    const row: { indicador_id: string; visibilidade: string; ordem?: number } = {
+      indicador_id,
+      visibilidade,
+    };
+    if (typeof ordem === "number") row.ordem = ordem;
+    return row;
+  });
   const { data, error } = await (supabase as any).rpc("indicador_alocar", {
     _company_id: companyId,
-    _itens: itens,
+    _itens,
   });
   if (error) throw new Error(error.message);
-  return data as { gravadas: number };
+  const r = data as { gravadas: number };
+  if (!r || r.gravadas === 0) {
+    throw new Error("Nada foi gravado. Recarregue a página e tente de novo.");
+  }
+  return r;
 }

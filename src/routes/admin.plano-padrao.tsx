@@ -92,7 +92,8 @@ function Page() {
               do plano</strong>, subtotais inclusive: as contas .98/.99 do próprio plano são as
               linhas de fecho da DRE. A única coisa que se configura aqui é como cada conta
               analítica movimenta a <strong>DFC</strong>. Empresas de outros sistemas usam
-              de-para, dentro de cada empresa.
+              de-para, dentro de cada empresa. O mapa de colunas do arquivo do ERP fica em{" "}
+              <Link to="/admin/sistemas" className="underline">Sistemas e layouts</Link>.
             </p>
           </div>
         </div>
@@ -413,6 +414,23 @@ function EstruturaTab({ tenantId, podeEditar }: { tenantId: string; podeEditar: 
     staleTime: 10 * 60_000,
   });
 
+  const { data: vinculos } = useQuery({
+    queryKey: ["dfc-vinculos-mapa", tenantId],
+    queryFn: async () => {
+      const [{ data: v, error: e1 }, { data: p, error: e2 }] = await Promise.all([
+        (supabase as any).from("dfc_vinculo")
+          .select("classificacao, codigo_dfc, origem")
+          .eq("tenant_id", tenantId).is("company_id", null).order("classificacao"),
+        (supabase as any).from("dfc_padrao").select("classificacao, descricao_referencia"),
+      ]);
+      if (e1) throw e1;
+      if (e2) throw e2;
+      const nomes = new Map((p ?? []).map((x: any) => [x.classificacao, x.descricao_referencia]));
+      return ((v ?? []) as { classificacao: string; codigo_dfc: string; origem: string }[])
+        .map((row) => ({ ...row, descricao: nomes.get(row.classificacao) ?? "" }));
+    },
+  });
+
   const { data: semDfc } = useQuery({
     queryKey: ["dfc-analiticas-sem-codigo", tenantId, buscaDfc],
     queryFn: async () => {
@@ -463,7 +481,7 @@ function EstruturaTab({ tenantId, podeEditar }: { tenantId: string; podeEditar: 
 
   const invalidar = () => {
     for (const k of ["dfc-cobertura", "dfc-sinteticas-pendentes", "dfc-analiticas-sem-codigo",
-                     "plano-acumuladores", "plano-padrao-resumo"]) {
+                     "dfc-vinculos-mapa", "plano-acumuladores", "plano-padrao-resumo"]) {
       qc.invalidateQueries({ queryKey: [k, tenantId] });
       qc.invalidateQueries({ queryKey: [k] });
     }
@@ -548,6 +566,48 @@ function EstruturaTab({ tenantId, podeEditar }: { tenantId: string; podeEditar: 
           </div>
         </div>
       </Card>
+
+      {(vinculos?.length ?? 0) > 0 && (
+        <div>
+          <h3 className="text-xs font-medium mb-2 text-muted-foreground uppercase tracking-wider">
+            Mapa em vigor ({vinculos!.length} vínculos por classificação)
+          </h3>
+          <Card className="overflow-hidden">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-[11px] text-muted-foreground border-b">
+                  <th className="px-3 py-1.5 font-medium">Classificação</th>
+                  <th className="px-3 py-1.5 font-medium">Conta de referência</th>
+                  <th className="px-3 py-1.5 font-medium">Código</th>
+                  <th className="px-3 py-1.5 font-medium">Bloco</th>
+                </tr>
+              </thead>
+              <tbody>
+                {vinculos!.map((v) => {
+                  const cat = opcoesDfc.find((c) => c.codigo === v.codigo_dfc);
+                  const caixaDuvidoso = v.codigo_dfc === "C" &&
+                    !/caixa|banco|equivalen|aplicac|movimento|vinculad/i.test(v.descricao);
+                  return (
+                    <tr key={v.classificacao} className={`border-t ${caixaDuvidoso ? "bg-amber-500/10" : ""}`}>
+                      <td className="px-3 py-1.5 font-mono text-xs">{v.classificacao}</td>
+                      <td className="px-3 py-1.5">
+                        {v.descricao || "—"}
+                        {caixaDuvidoso && (
+                          <div className="text-[11px] text-amber-700">
+                            Marcada como Caixa, mas o nome não é caixa/banco — distorce a variação de caixa.
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-3 py-1.5 font-mono text-xs">{v.codigo_dfc}</td>
+                      <td className="px-3 py-1.5 text-xs text-muted-foreground">{cat?.bloco ?? "—"}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </Card>
+        </div>
+      )}
 
       {(sinteticas?.length ?? 0) > 0 && (
         <div>

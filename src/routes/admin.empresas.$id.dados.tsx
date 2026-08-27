@@ -29,7 +29,6 @@ import { IndicadoresEmpresaPanel } from "@/components/indicadores/indicadores-em
 import { AjustesGerenciaisPanel } from "@/components/gerencial/ajustes-gerenciais-panel";
 import { OrcamentoConfigPanel } from "@/components/orcamento/orcamento-config-panel";
 import { PlanilhaDfcBotoes } from "@/components/dfc/planilha-dfc-botoes";
-import { DashboardConfigPanel } from "@/components/dashboard/dashboard-config-panel";
 import { DeParaPanel } from "@/components/plano/depara-panel";
 import { ContasNovasEmpresaPanel } from "@/components/plano/contas-novas-empresa";
 import { getEscopoPlano } from "@/lib/plano/escopo";
@@ -44,7 +43,7 @@ function ajusteAplicadoRaw(c: any): boolean {
 
 function Page() {
   const { id } = useParams({ from: "/admin/empresas/$id/dados" });
-  const [tab, setTab] = useState<"plano" | "depara" | "saldo-inicial" | "diarios" | "mascara" | "indicadores" | "gerencial" | "orcamento" | "dashboard">("plano");
+  const [tab, setTab] = useState<"plano" | "depara" | "saldo-inicial" | "diarios" | "mascara" | "indicadores" | "gerencial" | "orcamento">("plano");
 
   const { data: company } = useQuery({
     queryKey: ["company", id],
@@ -111,7 +110,6 @@ function Page() {
     lista.push({ value: "indicadores", label: "Indicadores" });
     lista.push({ value: "gerencial", label: "Ajustes Gerenciais" });
     lista.push({ value: "orcamento", label: "Orçamento" });
-    lista.push({ value: "dashboard", label: "Dashboard" });
     return lista.map((a, i) => ({ ...a, label: `${i + 1}. ${a.label}` }));
   }, [abasDePlanoAqui, mostraDePara]);
 
@@ -159,7 +157,7 @@ function Page() {
 
       {/* A alocação da DFC DESTA empresa, em planilha.
           Existia só para o escritório. Exportar aqui é conferência —
-          conta a conta, com a coluna que diz de onde cada uma herdou o
+          por classificação, com a coluna que diz de onde cada uma herdou o
           código — e é o único jeito de ver, para ESTA empresa, o que a
           tela mostra agregado. Importar só aparece quando a alocação é
           mesmo desta empresa: numa empresa de Plano Padrão ela é do
@@ -171,8 +169,8 @@ function Page() {
               <div className="text-sm font-medium">Alocação da DFC</div>
               <p className="text-xs text-muted-foreground mt-0.5">
                 {usaPlanoPadrao
-                  ? "A alocação vem do Plano Padrão do escritório. A planilha sai conta a conta, com o movimento desta empresa — para conferir sem sair daqui."
-                  : "A alocação é desta empresa. A planilha sai conta a conta e volta como configuração."}
+                  ? "A alocação vem do Plano Padrão do escritório. A planilha sai por classificação (não conta a conta), com o movimento desta empresa — para conferir sem sair daqui."
+                  : "A alocação é desta empresa. A planilha sai por classificação e volta como configuração."}
               </p>
             </div>
             <PlanilhaDfcBotoes
@@ -240,15 +238,6 @@ function Page() {
           )}
         </TabsContent>
 
-        <TabsContent value="dashboard">
-          {company && (
-            <DashboardConfigPanel
-              tenantId={company.tenant_id!}
-              companyId={company.id}
-            />
-          )}
-        </TabsContent>
-
         <TabsContent value="gerencial">
           {company && (
             <AjustesGerenciaisPanel
@@ -298,7 +287,7 @@ function Page() {
 
         <TabsContent value="depara">
           {company && mostraDePara && (
-            <DeParaPanel tenantId={company.tenant_id!} companyId={company.id} />
+            <DeParaPanel tenantId={company.tenant_id!} companyId={company.id} sistemaId={company.sistema_id} />
           )}
         </TabsContent>
 
@@ -879,7 +868,7 @@ function OrigemPlanoCard({ company }: { company: any }) {
           <p className="text-xs text-muted-foreground mt-0.5">
             {atual === "padrao"
               ? "Usa o Plano Padrão do escritório — a alocação de DRE/Balanço/DFC vem pronta e é atualizada junto com o plano."
-              : "Plano de um sistema de terceiro — precisa do De-Para para as contas do Plano Padrão."}
+              : "Plano de um sistema de terceiro — precisa do De-Para para as contas do Plano Padrão. O layout das colunas do arquivo é do sistema (engrenagem → Sistemas e layouts)."}
           </p>
         </div>
         <div className="flex gap-2">

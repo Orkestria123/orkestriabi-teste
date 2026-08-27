@@ -26,12 +26,12 @@ import { Route as DashboardBalancoRouteImport } from './routes/dashboard.balanco
 import { Route as DashboardAnaliseRouteImport } from './routes/dashboard.analise'
 import { Route as AdminUsuariosRouteImport } from './routes/admin.usuarios'
 import { Route as AdminUploadRouteImport } from './routes/admin.upload'
+import { Route as AdminSistemasRouteImport } from './routes/admin.sistemas'
 import { Route as AdminPlanoPadraoRouteImport } from './routes/admin.plano-padrao'
 import { Route as AdminIndicadoresRouteImport } from './routes/admin.indicadores'
 import { Route as AdminEmpresasRouteImport } from './routes/admin.empresas'
 import { Route as AdminDiagnosticoRouteImport } from './routes/admin.diagnostico'
 import { Route as AdminComparativoRouteImport } from './routes/admin.comparativo'
-import { Route as AdminClassificacaoCustosRouteImport } from './routes/admin.classificacao-custos'
 import { Route as AdminEmpresasIndexRouteImport } from './routes/admin.empresas.index'
 import { Route as AdminEmpresasIdDadosRouteImport } from './routes/admin.empresas.$id.dados'
 
@@ -120,6 +120,11 @@ const AdminUploadRoute = AdminUploadRouteImport.update({
   path: '/admin/upload',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminSistemasRoute = AdminSistemasRouteImport.update({
+  id: '/admin/sistemas',
+  path: '/admin/sistemas',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminPlanoPadraoRoute = AdminPlanoPadraoRouteImport.update({
   id: '/admin/plano-padrao',
   path: '/admin/plano-padrao',
@@ -145,12 +150,6 @@ const AdminComparativoRoute = AdminComparativoRouteImport.update({
   path: '/admin/comparativo',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AdminClassificacaoCustosRoute =
-  AdminClassificacaoCustosRouteImport.update({
-    id: '/admin/classificacao-custos',
-    path: '/admin/classificacao-custos',
-    getParentRoute: () => rootRouteImport,
-  } as any)
 const AdminEmpresasIndexRoute = AdminEmpresasIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -166,12 +165,12 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/dashboard': typeof DashboardRouteWithChildren
-  '/admin/classificacao-custos': typeof AdminClassificacaoCustosRoute
   '/admin/comparativo': typeof AdminComparativoRoute
   '/admin/diagnostico': typeof AdminDiagnosticoRoute
   '/admin/empresas': typeof AdminEmpresasRouteWithChildren
   '/admin/indicadores': typeof AdminIndicadoresRoute
   '/admin/plano-padrao': typeof AdminPlanoPadraoRoute
+  '/admin/sistemas': typeof AdminSistemasRoute
   '/admin/upload': typeof AdminUploadRoute
   '/admin/usuarios': typeof AdminUsuariosRoute
   '/dashboard/analise': typeof DashboardAnaliseRoute
@@ -192,11 +191,11 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
-  '/admin/classificacao-custos': typeof AdminClassificacaoCustosRoute
   '/admin/comparativo': typeof AdminComparativoRoute
   '/admin/diagnostico': typeof AdminDiagnosticoRoute
   '/admin/indicadores': typeof AdminIndicadoresRoute
   '/admin/plano-padrao': typeof AdminPlanoPadraoRoute
+  '/admin/sistemas': typeof AdminSistemasRoute
   '/admin/upload': typeof AdminUploadRoute
   '/admin/usuarios': typeof AdminUsuariosRoute
   '/dashboard/analise': typeof DashboardAnaliseRoute
@@ -219,12 +218,12 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/dashboard': typeof DashboardRouteWithChildren
-  '/admin/classificacao-custos': typeof AdminClassificacaoCustosRoute
   '/admin/comparativo': typeof AdminComparativoRoute
   '/admin/diagnostico': typeof AdminDiagnosticoRoute
   '/admin/empresas': typeof AdminEmpresasRouteWithChildren
   '/admin/indicadores': typeof AdminIndicadoresRoute
   '/admin/plano-padrao': typeof AdminPlanoPadraoRoute
+  '/admin/sistemas': typeof AdminSistemasRoute
   '/admin/upload': typeof AdminUploadRoute
   '/admin/usuarios': typeof AdminUsuariosRoute
   '/dashboard/analise': typeof DashboardAnaliseRoute
@@ -248,12 +247,12 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/dashboard'
-    | '/admin/classificacao-custos'
     | '/admin/comparativo'
     | '/admin/diagnostico'
     | '/admin/empresas'
     | '/admin/indicadores'
     | '/admin/plano-padrao'
+    | '/admin/sistemas'
     | '/admin/upload'
     | '/admin/usuarios'
     | '/dashboard/analise'
@@ -274,11 +273,11 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/auth'
-    | '/admin/classificacao-custos'
     | '/admin/comparativo'
     | '/admin/diagnostico'
     | '/admin/indicadores'
     | '/admin/plano-padrao'
+    | '/admin/sistemas'
     | '/admin/upload'
     | '/admin/usuarios'
     | '/dashboard/analise'
@@ -300,12 +299,12 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/dashboard'
-    | '/admin/classificacao-custos'
     | '/admin/comparativo'
     | '/admin/diagnostico'
     | '/admin/empresas'
     | '/admin/indicadores'
     | '/admin/plano-padrao'
+    | '/admin/sistemas'
     | '/admin/upload'
     | '/admin/usuarios'
     | '/dashboard/analise'
@@ -328,12 +327,12 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthRoute: typeof AuthRoute
   DashboardRoute: typeof DashboardRouteWithChildren
-  AdminClassificacaoCustosRoute: typeof AdminClassificacaoCustosRoute
   AdminComparativoRoute: typeof AdminComparativoRoute
   AdminDiagnosticoRoute: typeof AdminDiagnosticoRoute
   AdminEmpresasRoute: typeof AdminEmpresasRouteWithChildren
   AdminIndicadoresRoute: typeof AdminIndicadoresRoute
   AdminPlanoPadraoRoute: typeof AdminPlanoPadraoRoute
+  AdminSistemasRoute: typeof AdminSistemasRoute
   AdminUploadRoute: typeof AdminUploadRoute
   AdminUsuariosRoute: typeof AdminUsuariosRoute
   OrkestriaAdminTenantsRoute: typeof OrkestriaAdminTenantsRoute
@@ -462,6 +461,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminUploadRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/sistemas': {
+      id: '/admin/sistemas'
+      path: '/admin/sistemas'
+      fullPath: '/admin/sistemas'
+      preLoaderRoute: typeof AdminSistemasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/plano-padrao': {
       id: '/admin/plano-padrao'
       path: '/admin/plano-padrao'
@@ -495,13 +501,6 @@ declare module '@tanstack/react-router' {
       path: '/admin/comparativo'
       fullPath: '/admin/comparativo'
       preLoaderRoute: typeof AdminComparativoRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/admin/classificacao-custos': {
-      id: '/admin/classificacao-custos'
-      path: '/admin/classificacao-custos'
-      fullPath: '/admin/classificacao-custos'
-      preLoaderRoute: typeof AdminClassificacaoCustosRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/empresas/': {
@@ -567,12 +566,12 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthRoute: AuthRoute,
   DashboardRoute: DashboardRouteWithChildren,
-  AdminClassificacaoCustosRoute: AdminClassificacaoCustosRoute,
   AdminComparativoRoute: AdminComparativoRoute,
   AdminDiagnosticoRoute: AdminDiagnosticoRoute,
   AdminEmpresasRoute: AdminEmpresasRouteWithChildren,
   AdminIndicadoresRoute: AdminIndicadoresRoute,
   AdminPlanoPadraoRoute: AdminPlanoPadraoRoute,
+  AdminSistemasRoute: AdminSistemasRoute,
   AdminUploadRoute: AdminUploadRoute,
   AdminUsuariosRoute: AdminUsuariosRoute,
   OrkestriaAdminTenantsRoute: OrkestriaAdminTenantsRoute,

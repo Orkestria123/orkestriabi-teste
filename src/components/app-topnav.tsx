@@ -10,6 +10,7 @@ import {
   LineChart,
   Stethoscope,
   FileSpreadsheet,
+  Cable,
   LogOut,
   Briefcase,
   Menu,
@@ -37,6 +38,7 @@ type NavItem = { to: string; label: string; icon: any };
 // principal e ficam agrupadas aqui.
 const CONFIG_ITEMS: NavItem[] = [
   { to: "/admin/plano-padrao", label: "Plano de Contas", icon: BookOpen },
+  { to: "/admin/sistemas", label: "Sistemas e layouts", icon: Cable },
   { to: "/admin/empresas", label: "Cadastro de empresas", icon: Building2 },
   { to: "/admin/indicadores", label: "Indicadores", icon: LineChart },
   { to: "/admin/diagnostico", label: "Diagnóstico", icon: Stethoscope },
@@ -48,6 +50,7 @@ const CONFIG_ITEMS: NavItem[] = [
 const CONFIG_ITEMS_BI: NavItem[] = [
   { to: "/admin/empresas", label: "Voltar para Empresas", icon: Building2 },
   { to: "/admin/plano-padrao", label: "Plano de Contas", icon: BookOpen },
+  { to: "/admin/sistemas", label: "Sistemas e layouts", icon: Cable },
   { to: "/admin/indicadores", label: "Indicadores", icon: LineChart },
 ];
 
@@ -61,7 +64,6 @@ const ADMIN_NAV: NavItem[] = [
   { to: "/admin/comparativo", label: "Comparativo", icon: BarChart3 },
   { to: "/admin/empresas", label: "Empresas", icon: Building2 },
   { to: "/admin/upload", label: "Upload", icon: Upload },
-  { to: "/admin/classificacao-custos", label: "Fixo/Variável", icon: Wallet },
   { to: "/admin/usuarios", label: "Usuários", icon: Users },
 ];
 

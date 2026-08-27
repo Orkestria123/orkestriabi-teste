@@ -46,14 +46,14 @@ export function PontoEquilibrioPanel({ resultado, labelPeriodo }: Props) {
           Nenhuma despesa classificada como Fixo ou Variável.
         </p>
         <p className="text-xs text-muted-foreground max-w-md mx-auto">
-          O Ponto de Equilíbrio precisa que o contador marque cada grupo de despesa como custo
-          fixo ou variável. Faça isso no Admin → Classificação Fixo/Variável.
+          O Ponto de Equilíbrio precisa que cada grupo de custo/despesa esteja
+          marcado como Fixo ou Variável no Plano de Contas.
         </p>
         <Link
-          to="/admin/classificacao-custos"
+          to="/admin/plano-padrao"
           className="inline-flex items-center gap-2 text-sm text-primary hover:underline"
         >
-          <Settings2 className="h-4 w-4" /> Abrir classificação
+          <Settings2 className="h-4 w-4" /> Abrir Plano de Contas
         </Link>
       </Card>
     );
@@ -67,7 +67,7 @@ export function PontoEquilibrioPanel({ resultado, labelPeriodo }: Props) {
           <div className="text-xs text-muted-foreground">
             Apenas <strong>{(cobertura_pct * 100).toFixed(0)}%</strong> das despesas estão
             classificadas. Os resultados ficam mais precisos conforme você completa a
-            classificação no Admin.
+            classificação no Plano de Contas.
           </div>
         </Card>
       )}

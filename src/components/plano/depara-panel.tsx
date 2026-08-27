@@ -27,9 +27,12 @@ import {
 } from "@/lib/contas/filtro-depara";
 import { Fragment } from "react";
 
+import { DeParaArquivoCard } from "./depara-arquivo-card";
+
 interface Props {
   tenantId: string;
   companyId: string;
+  sistemaId?: string | null;
   readonly?: boolean;
 }
 
@@ -47,7 +50,7 @@ const IGNORAR = "__IGNORAR__";
 /** Teto da fila. Alto de propósito, e a tela avisa se for atingido. */
 const LIMITE_FILA = 3000;
 
-export function DeParaPanel({ tenantId, companyId, readonly }: Props) {
+export function DeParaPanel({ tenantId, companyId, sistemaId, readonly }: Props) {
   const qc = useQueryClient();
   const [busca, setBusca] = useState("");
   const [escolhas, setEscolhas] = useState<Record<string, string>>({});
@@ -281,6 +284,7 @@ export function DeParaPanel({ tenantId, companyId, readonly }: Props) {
 
   return (
     <div className="space-y-4">
+      <DeParaArquivoCard tenantId={tenantId} companyId={companyId} sistemaId={sistemaId ?? null} />
       <RegrasEmVolume tenantId={tenantId} companyId={companyId} contasPadrao={contasPadrao ?? []} readonly={readonly} />
       <Card className={`p-4 ${pendentes === 0 ? "border-emerald-500/40 bg-emerald-500/5" : "border-amber-500/40 bg-amber-500/5"}`}>
         <div className="flex flex-wrap items-center gap-x-6 gap-y-2">

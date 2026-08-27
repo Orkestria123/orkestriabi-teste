@@ -21,13 +21,13 @@ function Page() {
           <div>
             <div className="font-medium">Plano padrão do escritório</div>
             <p className="text-muted-foreground text-xs mt-0.5 leading-relaxed">
-              Aqui se cria e edita a fórmula. Todas as empresas usam o mesmo plano —
-              o que muda por empresa é só <strong>quais indicadores entram</strong> no dashboard
-              e na aba Indicadores, em{" "}
+              Aqui se cria e edita a fórmula. Onde cada indicador aparece
+              (dashboard, aba Indicadores, ou ambos) se escolhe na empresa:
+              {" "}
               <Link to="/admin/empresas" className="underline">
                 Empresas → Dados → Indicadores
               </Link>
-              . Cards e gráficos da Visão Geral também se configuram abaixo.
+              . Cards e gráficos da Visão Geral se configuram abaixo.
             </p>
           </div>
         </div>

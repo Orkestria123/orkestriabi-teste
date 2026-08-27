@@ -2,7 +2,8 @@
 // de uma fórmula de indicador. Resolvidos usando as MESMAS convenções
 // da DRE / Balanço, garantindo consistência entre indicador e demonstração.
 
-import { descendeDe, grupoDe, nivelDe } from "@/lib/mascara/interpretar";
+import { descendeDe, grupoDe } from "@/lib/mascara/interpretar";
+import { tipoCustoEfetivo } from "@/lib/plano/tipo-custo";
 import {
   getEstruturaPadraoSync,
   compararClassificacao,
@@ -29,6 +30,9 @@ export const LINHAS_CATALOGO: LinhaCatalogo[] = [
   { key: "DEDUCOES", label: "Deduções da Receita Bruta", origem: "DRE" },
   { key: "RECEITA_LIQUIDA", label: "Receita Líquida", origem: "DRE" },
   { key: "CUSTOS", label: "Custos (CMV/CPV/CSV)", origem: "DRE" },
+  { key: "CUSTOS_FIXOS", label: "Custos Fixos", origem: "DRE", descricao: "Contas 3.x marcadas Fixo no plano (folha herda o grupo)" },
+  { key: "CUSTOS_VARIAVEIS", label: "Custos Variáveis", origem: "DRE", descricao: "Contas 3.x marcadas Variável no plano" },
+  { key: "PONTO_EQUILIBRIO", label: "Ponto de Equilíbrio", origem: "DRE", descricao: "Fixos / (1 − Variáveis / Receita Líquida)" },
   { key: "CUSTO_MERCADORIA", label: "Custo da mercadoria (EI + compras − deduções − EF)", origem: "DRE", descricao: "Só a parte com estoque: sem mão de obra, GGF e demais gastos" },
   { key: "LUCRO_BRUTO", label: "Lucro Bruto", origem: "DRE" },
   { key: "DESPESAS_OPERACIONAIS", label: "Despesas Operacionais", origem: "DRE" },
@@ -453,6 +457,32 @@ function resultadoExercicioAte(ctx: EngineContext, periodo: string): number {
   return total;
 }
 
+/** Soma positiva de custos/despesas (3.x, sem receita) com aquele tipo_custo. */
+export function valorCustosPorTipo(
+  ctx: EngineContext,
+  periodo: string,
+  tipo: "fixo" | "variavel",
+): number {
+  let total = 0;
+  const vistos = new Set<string>();
+  for (const p of ctx.plano) {
+    if (p.is_sintetica || p.is_participante) continue;
+    if (vistos.has(p.classificacao)) continue;
+    vistos.add(p.classificacao);
+    const g = grupoDe(p.classificacao, ctx.mascara);
+    if (g === "receita") continue;
+    const raiz = p.classificacao.split(/[.\-/]/)[0] ?? "";
+    if ((raiz.charAt(0) || "") !== "3") continue;
+    if (ehApuracaoClass(p.classificacao)) continue;
+    if (tipoCustoEfetivo(p.classificacao, ctx.plano) !== tipo) continue;
+    const s = saldoNoPeriodo(ctx.saldosByClass.get(p.classificacao), periodo);
+    if (!s) continue;
+    // Despesa na DRE: crédito − débito é negativo; PE usa valor absoluto.
+    total += Math.abs(Number(s.total_creditos) - Number(s.total_debitos));
+  }
+  return total;
+}
+
 export function resolverLinha(
   key: string,
   periodo: string,
@@ -476,6 +506,18 @@ export function resolverLinha(
   // Ficou um só. Sem a estrutura carregada devolve `null` — a tela mostra
   // "—" por um instante, o que é infinitamente melhor que um número
   // quase-dobrado que parece certo.
+  if (key === "CUSTOS_FIXOS") return valorCustosPorTipo(ctx, periodo, "fixo");
+  if (key === "CUSTOS_VARIAVEIS") return valorCustosPorTipo(ctx, periodo, "variavel");
+  if (key === "PONTO_EQUILIBRIO") {
+    const rec = resolverLinha("RECEITA_LIQUIDA", periodo, ctx, demoDre, estrutura);
+    const fixos = valorCustosPorTipo(ctx, periodo, "fixo");
+    const vars = valorCustosPorTipo(ctx, periodo, "variavel");
+    if (rec == null || rec <= 0) return null;
+    const mcPct = 1 - vars / rec;
+    if (mcPct <= 0) return null;
+    return fixos / mcPct;
+  }
+
   const est = estrutura ?? getEstruturaPadraoSync();
   const cat = LINHAS_CATALOGO.find((l) => l.key === key);
 

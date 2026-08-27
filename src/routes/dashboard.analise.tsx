@@ -47,7 +47,7 @@ import { PontoEquilibrioPanel } from "@/components/analise/ponto-equilibrio-pane
 import { ProjecaoPanel } from "@/components/analise/projecao-panel";
 import { SimuladorCorteDespesa } from "@/components/analise/simulador-corte-despesa";
 import { calcularCapitalGiro } from "@/lib/analise-capital-giro";
-import { calcularPontoEquilibrio, type DespesaItem } from "@/lib/analise-ponto-equilibrio";
+import { tipoCustoEfetivo } from "@/lib/plano/tipo-custo";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
@@ -157,29 +157,32 @@ function Page() {
   const { data: rdMensal } = useReceitaDespesaPorPeriodo(companyId, competenciasMensais);
 
   // Mapeamento tipo_custo (fixo/variavel) para Ponto de Equilíbrio
-  const { data: tipoCustoMap = new Map<string, "fixo" | "variavel">() } = useQuery({
-    queryKey: ["plano-tipo-custo-map", companyId],
+  const { data: tipoCustoPlano = [] } = useQuery({
+    queryKey: ["plano-tipo-custo", companyId],
     enabled: !!companyId && secao === "equilibrio",
     queryFn: async () => {
-      const { data: emp } = await supabase
+      const { data: c, error: ce } = await supabase
         .from("companies")
         .select("tenant_id")
         .eq("id", companyId!)
         .maybeSingle();
-      const m = new Map<string, "fixo" | "variavel">();
-      if (!emp?.tenant_id) return m;
+      if (ce) throw ce;
+      const tenantId = (c as { tenant_id?: string } | null)?.tenant_id;
+      if (!tenantId) return [] as { classificacao: string; tipo_custo: string | null }[];
       const { data, error } = await supabase
         .from("plano_contas")
-        .select("classificacao, tipo_custo")
-        .eq("tenant_id", emp.tenant_id)
-        .or(`company_id.is.null,company_id.eq.${companyId}`)
-        .not("tipo_custo", "is", null)
-        .limit(5000);
+        .select("classificacao, tipo_custo, company_id")
+        .eq("tenant_id", tenantId)
+        .not("tipo_custo", "is", null);
       if (error) throw error;
+      const porCls = new Map<string, { classificacao: string; tipo_custo: string | null }>();
       for (const r of data ?? []) {
-        if (r.tipo_custo) m.set(r.classificacao, r.tipo_custo as "fixo" | "variavel");
+        if (r.company_id == null) porCls.set(r.classificacao, r);
       }
-      return m;
+      for (const r of data ?? []) {
+        if (r.company_id === companyId) porCls.set(r.classificacao, r);
+      }
+      return Array.from(porCls.values());
     },
   });
 
@@ -431,18 +434,14 @@ function Page() {
               );
             }
             // Coletar folhas de despesa com tipo_custo via matching de prefixo (mais longo)
-            const prefixos = Array.from(tipoCustoMap.keys()).sort((a, b) => b.length - a.length);
             const folhas: DespesaItem[] = [];
             const walk = (n: NoArvore) => {
               if (n.filhos.length === 0 && n.classificacao) {
-                const match = prefixos.find(
-                  (p) => n.classificacao === p || n.classificacao.startsWith(p + "."),
-                );
                 folhas.push({
                   classificacao: n.classificacao,
                   descricao: n.descricao,
                   valor: Math.abs(n.valor),
-                  tipo_custo: match ? tipoCustoMap.get(match)! : null,
+                  tipo_custo: tipoCustoEfetivo(n.classificacao, tipoCustoPlano),
                 });
               } else {
                 n.filhos.forEach(walk);

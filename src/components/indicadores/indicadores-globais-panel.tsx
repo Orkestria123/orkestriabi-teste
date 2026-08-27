@@ -18,7 +18,6 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import {
   Loader2, Plus, Pencil, Trash2, Globe, AlertTriangle, Layers, Eye,
-  ArrowUp, ArrowDown, LayoutDashboard, ListChecks,
 } from "lucide-react";
 import { toast } from "sonner";
 import { IndicadorEditorDialog } from "./indicador-editor-dialog";
@@ -26,7 +25,7 @@ import { DreLinhasConfigCard } from "./dre-linhas-config";
 import { DashboardConfigPanel } from "@/components/dashboard/dashboard-config-panel";
 import type { ContaPlanoItem } from "./conta-picker";
 import { lerTudo } from "@/lib/supabase-paginado";
-import { formulaParaTexto, destinosDe, visibilidadeDe } from "@/lib/indicadores/engine";
+import { formulaParaTexto } from "@/lib/indicadores/engine";
 import { labelLinha } from "@/lib/indicadores/linhas";
 import { tituloConta } from "@/lib/format";
 import { limparCacheFormulasEbit } from "@/lib/indicadores/ebit-fonte";
@@ -151,52 +150,6 @@ export function IndicadoresGlobaisPanel({ tenantId, onEditGlobal }: Props) {
     return base.filter((g) =>
       [g.nome, g.categoria, g.descricao].some((v) => (v ?? "").toLowerCase().includes(t)));
   }, [globais, busca]);
-
-  const noDashboard = useMemo(
-    () => lista.filter((g) => destinosDe(g.visibilidade).dashboard)
-      .sort((a, b) => (a.ordem ?? 999) - (b.ordem ?? 999) || a.nome.localeCompare(b.nome)),
-    [lista],
-  );
-  const naAba = useMemo(
-    () => lista.filter((g) => destinosDe(g.visibilidade).aba && !destinosDe(g.visibilidade).dashboard)
-      .sort((a, b) => a.nome.localeCompare(b.nome)),
-    [lista],
-  );
-  const ocultos = useMemo(
-    () => lista.filter((g) => !destinosDe(g.visibilidade).dashboard && !destinosDe(g.visibilidade).aba)
-      .sort((a, b) => a.nome.localeCompare(b.nome)),
-    [lista],
-  );
-
-  const gravarVis = async (g: Global, d: { dashboard: boolean; aba: boolean }) => {
-    const vis = visibilidadeDe(d);
-    const { error } = await supabase
-      .from("indicadores_empresa" as any)
-      .update({ visibilidade: vis })
-      .eq("id", g.id);
-    if (error) { toast.error(error.message); return; }
-    invalidar();
-  };
-
-  const moverDash = async (id: string, delta: number) => {
-    const i = noDashboard.findIndex((x) => x.id === id);
-    const j = i + delta;
-    if (i < 0 || j < 0 || j >= noDashboard.length) return;
-    const nova = [...noDashboard];
-    [nova[i], nova[j]] = [nova[j], nova[i]];
-    setOcupado(true);
-    try {
-      for (let n = 0; n < nova.length; n++) {
-        const { error } = await supabase
-          .from("indicadores_empresa" as any)
-          .update({ ordem: n + 1 })
-          .eq("id", nova[n].id);
-        if (error) throw error;
-      }
-      invalidar();
-    } catch (e: any) { toast.error(e.message); }
-    finally { setOcupado(false); }
-  };
 
   const simular = async () => {
     setOcupado(true);
@@ -323,8 +276,9 @@ export function IndicadoresGlobaisPanel({ tenantId, onEditGlobal }: Props) {
             <p className="text-muted-foreground text-xs mt-0.5 leading-relaxed">
               A fórmula vale para <strong>todas as empresas</strong> — ela aponta para
               classificações do plano padrão, não para códigos de uma empresa. O que muda
-              de cliente para cliente é <strong>quais indicadores ficam visíveis</strong>,
-              e isso se escolhe dentro da empresa, em <strong>Dados → Indicadores</strong>.
+              de cliente para cliente é <strong>quais indicadores ficam visíveis</strong>
+              (dashboard, aba, ou ambos), e isso se escolhe na empresa, em
+              {" "}<strong>Dados → Indicadores</strong>.
             </p>
           </div>
         </div>
@@ -412,141 +366,41 @@ export function IndicadoresGlobaisPanel({ tenantId, onEditGlobal }: Props) {
             : "Nenhum indicador global. Crie o primeiro."}
         </Card>
       ) : (
-        <div className="space-y-5">
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <LayoutDashboard className="h-3.5 w-3.5 text-muted-foreground" />
-              <h4 className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">
-                No dashboard ({noDashboard.length})
-              </h4>
-            </div>
-            <Card className="overflow-hidden">
-              {noDashboard.length === 0 ? (
-                <p className="px-3 py-6 text-center text-sm text-muted-foreground">
-                  Nenhum indicador no dashboard. Marque abaixo ou no editor.
-                </p>
-              ) : (
-                <table className="w-full text-sm">
-                  <tbody>
-                    {noDashboard.map((g, n) => (
-                      <tr key={g.id} className="border-t first:border-t-0">
-                        <td className="pl-3 py-2 w-10 text-xs text-muted-foreground tabular-nums">{n + 1}º</td>
-                        <td className="px-2 py-2">
-                          <div className="font-medium">{g.nome}</div>
-                          <div className="text-[11px] text-muted-foreground">{g.categoria}</div>
-                        </td>
-                        <td className="px-2 py-2 w-[170px]">
-                          <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer">
-                            <input type="checkbox" checked={destinosDe(g.visibilidade).aba}
-                              onChange={(e) => gravarVis(g, { dashboard: true, aba: e.target.checked })} />
-                            também na aba Indicadores
-                          </label>
-                        </td>
-                        <td className="px-2 py-2 w-[280px] text-right whitespace-nowrap">
-                          <Button size="sm" variant="ghost" className="h-7 w-7 p-0" disabled={ocupado || n === 0}
-                            onClick={() => moverDash(g.id, -1)}><ArrowUp className="h-3.5 w-3.5" /></Button>
-                          <Button size="sm" variant="ghost" className="h-7 w-7 p-0"
-                            disabled={ocupado || n === noDashboard.length - 1}
-                            onClick={() => moverDash(g.id, 1)}><ArrowDown className="h-3.5 w-3.5" /></Button>
-                          <Button size="sm" variant="ghost" className="h-7 text-xs"
-                            onClick={() => { setEditando(g); setSomenteLeitura(true); setEditorOpen(true); }}>
-                            <Eye className="h-3.5 w-3.5 mr-1" /> Ver
-                          </Button>
-                          <Button size="sm" variant="ghost" className="h-7 text-xs"
-                            onClick={() => { setEditando(g); setSomenteLeitura(false); setEditorOpen(true); }}>
-                            <Pencil className="h-3.5 w-3.5 mr-1" /> Editar
-                          </Button>
-                          <Button size="sm" variant="ghost" className="h-7 w-7 p-0"
-                            title="Tirar do dashboard"
-                            onClick={() => gravarVis(g, { dashboard: false, aba: destinosDe(g.visibilidade).aba })}>
-                            ×
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-            </Card>
-          </div>
-
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <ListChecks className="h-3.5 w-3.5 text-muted-foreground" />
-              <h4 className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">
-                Só na aba Indicadores ({naAba.length})
-              </h4>
-            </div>
-            <Card className="overflow-hidden">
-              {naAba.length === 0 ? (
-                <p className="px-3 py-6 text-center text-sm text-muted-foreground">
-                  Nenhum indicador exclusivo da aba.
-                </p>
-              ) : (
-                <table className="w-full text-sm">
-                  <tbody>
-                    {naAba.map((g) => (
-                      <tr key={g.id} className="border-t first:border-t-0">
-                        <td className="px-3 py-2">
-                          <div className="font-medium">{g.nome}</div>
-                          <div className="text-[11px] text-muted-foreground">{g.categoria}</div>
-                        </td>
-                        <td className="px-2 py-2 w-[200px] text-right whitespace-nowrap">
-                          <Button size="sm" variant="outline" className="h-7 text-xs mr-1"
-                            onClick={() => gravarVis(g, { dashboard: true, aba: true })}>
-                            + dashboard
-                          </Button>
-                          <Button size="sm" variant="ghost" className="h-7 text-xs"
-                            onClick={() => { setEditando(g); setSomenteLeitura(false); setEditorOpen(true); }}>
-                            <Pencil className="h-3.5 w-3.5 mr-1" /> Editar
-                          </Button>
-                          <Button size="sm" variant="ghost" className="h-7 text-xs text-destructive"
-                            onClick={() => excluir(g)}><Trash2 className="h-3.5 w-3.5" /></Button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-            </Card>
-          </div>
-
-          {ocultos.length > 0 && (
-            <div>
-              <h4 className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-2">
-                Ocultos do cliente ({ocultos.length})
-              </h4>
-              <Card className="overflow-hidden">
-                <table className="w-full text-sm">
-                  <tbody>
-                    {ocultos.map((g) => (
-                      <tr key={g.id} className="border-t first:border-t-0">
-                        <td className="px-3 py-2">
-                          <div className="font-medium">{g.nome}</div>
-                          <div className="text-[11px] text-muted-foreground">{g.categoria}</div>
-                        </td>
-                        <td className="px-2 py-2 w-[260px] text-right whitespace-nowrap">
-                          <Button size="sm" variant="outline" className="h-7 text-xs mr-1"
-                            onClick={() => gravarVis(g, { dashboard: true, aba: false })}>
-                            dashboard
-                          </Button>
-                          <Button size="sm" variant="outline" className="h-7 text-xs mr-1"
-                            onClick={() => gravarVis(g, { dashboard: false, aba: true })}>
-                            aba
-                          </Button>
-                          <Button size="sm" variant="ghost" className="h-7 text-xs"
-                            onClick={() => { setEditando(g); setSomenteLeitura(false); setEditorOpen(true); }}>
-                            <Pencil className="h-3.5 w-3.5 mr-1" /> Editar
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </Card>
-            </div>
-          )}
-        </div>
+        <Card className="overflow-hidden">
+          <table className="w-full text-sm">
+            <tbody>
+              {lista.map((g) => (
+                <tr key={g.id} className="border-t first:border-t-0">
+                  <td className="px-3 py-2">
+                    <div className="font-medium">{g.nome}</div>
+                    <div className="text-[11px] text-muted-foreground">{g.categoria}</div>
+                    <div className="text-[11px] text-muted-foreground/90 font-mono truncate max-w-[520px]"
+                         title={formulaParaTexto(g.formula, labelDaConta, labelLinha) || ""}>
+                      {formulaParaTexto(g.formula, labelDaConta, labelLinha) || "—"}
+                    </div>
+                  </td>
+                  <td className="px-3 py-2 w-[80px]">
+                    <Badge variant="outline" className="text-[10px]">
+                      {MODO_LABEL[g.modo_analise] ?? g.modo_analise}
+                    </Badge>
+                  </td>
+                  <td className="px-2 py-2 w-[220px] text-right whitespace-nowrap">
+                    <Button size="sm" variant="ghost" className="h-7 text-xs"
+                      onClick={() => { setEditando(g); setSomenteLeitura(true); setEditorOpen(true); }}>
+                      <Eye className="h-3.5 w-3.5 mr-1" /> Ver
+                    </Button>
+                    <Button size="sm" variant="ghost" className="h-7 text-xs"
+                      onClick={() => { setEditando(g); setSomenteLeitura(false); setEditorOpen(true); }}>
+                      <Pencil className="h-3.5 w-3.5 mr-1" /> Editar
+                    </Button>
+                    <Button size="sm" variant="ghost" className="h-7 text-xs text-destructive"
+                      onClick={() => excluir(g)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </Card>
       )}
 
       {nLocais > 0 && (

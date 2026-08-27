@@ -1,5 +1,5 @@
 // Consulta, edição e exclusão de contas do Plano Padrão do escritório.
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,10 +9,11 @@ import { Badge } from "@/components/ui/badge";
 import {
   Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
-import { Loader2, Pencil, Eye, Trash2, AlertTriangle, Plus, Search } from "lucide-react";
+import { Loader2, Pencil, Eye, Trash2, AlertTriangle, Plus, Search, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { tituloConta } from "@/lib/format";
+import { ehContaDeCustoDespesa } from "@/lib/plano/tipo-custo";
 
 const TIPOS = [
   "1-Ativo", "2-Passivo", "3-DRE",
@@ -20,6 +21,7 @@ const TIPOS = [
 ];
 
 const FRASE_TRAVA = "EXCLUIR PLANO PADRÃO";
+const POR_PAGINA = 80;
 
 interface Conta {
   id: string;
@@ -31,11 +33,13 @@ interface Conta {
   nivel: number | null;
   is_sintetica: boolean | null;
   is_participante: boolean | null;
+  tipo_custo: "fixo" | "variavel" | null;
 }
 
 const VAZIA: Omit<Conta, "id"> = {
   codigo: "", classificacao: "", descricao: "", tipo: "1-Ativo",
   natureza: "A", nivel: 1, is_sintetica: false, is_participante: false,
+  tipo_custo: null,
 };
 
 export function ContasPlanoPadrao({
@@ -46,7 +50,13 @@ export function ContasPlanoPadrao({
 }) {
   const qc = useQueryClient();
   const [busca, setBusca] = useState("");
+  const [termo, setTermo] = useState("");
+  const [tipoFiltro, setTipoFiltro] = useState<string>("todos");
+  const [prefixo, setPrefixo] = useState("");
+  const [naturezaFiltro, setNaturezaFiltro] = useState<"todas" | "S" | "A">("todas");
+  const [custoFiltro, setCustoFiltro] = useState<"todos" | "fixo" | "variavel" | "sem">("todos");
   const [incluirPart, setIncluirPart] = useState(false);
+  const [pagina, setPagina] = useState(1);
   const [editor, setEditor] = useState<Conta | null>(null);
   const [novo, setNovo] = useState(false);
   const [leitura, setLeitura] = useState(false);
@@ -55,29 +65,47 @@ export function ContasPlanoPadrao({
   const [trava, setTrava] = useState("");
   const [apagandoTudo, setApagandoTudo] = useState(false);
 
-  const termo = busca.trim();
-  const { data: contas, isLoading, isFetching } = useQuery({
-    queryKey: ["plano-padrao-contas", tenantId, termo, incluirPart],
+  useEffect(() => {
+    const id = window.setTimeout(() => setTermo(busca.trim()), 300);
+    return () => window.clearTimeout(id);
+  }, [busca]);
+
+  useEffect(() => { setPagina(1); }, [termo, tipoFiltro, prefixo, naturezaFiltro, custoFiltro, incluirPart]);
+
+  const { data: paginaData, isLoading, isFetching } = useQuery({
+    queryKey: [
+      "plano-padrao-contas", tenantId, termo, tipoFiltro, prefixo,
+      naturezaFiltro, custoFiltro, incluirPart, pagina,
+    ],
     queryFn: async () => {
+      const de = (pagina - 1) * POR_PAGINA;
+      const ate = de + POR_PAGINA - 1;
       let q = supabase
         .from("plano_contas")
-        .select("id, codigo, classificacao, descricao, tipo, natureza, nivel, is_sintetica, is_participante")
+        .select(
+          "id, codigo, classificacao, descricao, tipo, natureza, nivel, is_sintetica, is_participante, tipo_custo",
+          { count: "exact" },
+        )
         .eq("tenant_id", tenantId)
         .is("company_id", null)
         .order("classificacao")
-        .limit(200);
+        .range(de, ate);
       if (!incluirPart) q = q.eq("is_participante", false);
-      if (termo) {
-        const t = termo.replace(/[,()%]/g, " ").trim();
-        if (t) {
-          q = q.or(
-            `codigo.ilike.%${t}%,classificacao.ilike.%${t}%,descricao.ilike.%${t}%`,
-          );
-        }
+      if (tipoFiltro !== "todos") q = q.eq("tipo", tipoFiltro);
+      if (naturezaFiltro !== "todas") q = q.eq("natureza", naturezaFiltro);
+      if (custoFiltro === "fixo" || custoFiltro === "variavel") q = q.eq("tipo_custo", custoFiltro);
+      if (custoFiltro === "sem") q = q.is("tipo_custo", null);
+      const pref = prefixo.trim().replace(/[,()%]/g, "");
+      if (pref) q = q.like("classificacao", `${pref}%`);
+      const t = termo.replace(/[,()%]/g, " ").trim();
+      if (t) {
+        q = q.or(
+          `codigo.ilike.%${t}%,classificacao.ilike.%${t}%,descricao.ilike.%${t}%`,
+        );
       }
-      const { data, error } = await q;
+      const { data, error, count } = await q;
       if (error) throw error;
-      return (data ?? []) as unknown as Conta[];
+      return { rows: (data ?? []) as unknown as Conta[], total: count ?? 0 };
     },
   });
 
@@ -89,6 +117,7 @@ export function ContasPlanoPadrao({
       codigo: c.codigo, classificacao: c.classificacao, descricao: c.descricao,
       tipo: c.tipo, natureza: c.natureza, nivel: c.nivel,
       is_sintetica: c.is_sintetica, is_participante: c.is_participante,
+      tipo_custo: c.tipo_custo ?? null,
     });
   };
 
@@ -119,6 +148,7 @@ export function ContasPlanoPadrao({
         nivel: Number(draft.nivel) || 1,
         is_sintetica: !!draft.is_sintetica,
         is_participante: !!draft.is_participante,
+        tipo_custo: draft.tipo_custo,
       };
       if (editor?.id) {
         const { error } = await supabase.from("plano_contas").update(payload as any).eq("id", editor.id);
@@ -167,14 +197,23 @@ export function ContasPlanoPadrao({
     finally { setApagandoTudo(false); }
   };
 
+  const gravarTipoCusto = async (c: Conta, tipo: "fixo" | "variavel" | "") => {
+    const { error } = await supabase
+      .from("plano_contas")
+      .update({ tipo_custo: tipo || null })
+      .eq("id", c.id);
+    if (error) { toast.error(error.message); return; }
+    qc.invalidateQueries({ queryKey: ["plano-padrao-contas", tenantId] });
+    qc.invalidateQueries({ queryKey: ["indic-engine-data"] });
+    qc.invalidateQueries({ queryKey: ["plano-tipo-custo"] });
+  };
+
   const aberto = novo || !!editor;
-  const lista = contas ?? [];
-  const hint = useMemo(
-    () => incluirPart
-      ? "Inclui clientes/fornecedores. Sem busca a lista corta em 200."
-      : "Só contas estruturais. Marque participantes para buscar clientes/fornecedores.",
-    [incluirPart],
-  );
+  const lista = paginaData?.rows ?? [];
+  const total = paginaData?.total ?? 0;
+  const totalPaginas = Math.max(1, Math.ceil(total / POR_PAGINA));
+  const de = total === 0 ? 0 : (pagina - 1) * POR_PAGINA + 1;
+  const ate = Math.min(pagina * POR_PAGINA, total);
 
   return (
     <div className="space-y-4">
@@ -184,6 +223,27 @@ export function ContasPlanoPadrao({
           <Input className="h-8 pl-7 text-xs" placeholder="Código, classificação ou nome…"
             value={busca} onChange={(e) => setBusca(e.target.value)} />
         </div>
+        <Input className="h-8 text-xs w-[140px] font-mono" placeholder="Prefixo 3.02…"
+          value={prefixo} onChange={(e) => setPrefixo(e.target.value)}
+          title="Só contas cuja classificação começa com este prefixo" />
+        <select className="h-8 rounded-md border border-input bg-background px-2 text-xs"
+          value={tipoFiltro} onChange={(e) => setTipoFiltro(e.target.value)}>
+          <option value="todos">Todos os tipos</option>
+          {TIPOS.map((t) => <option key={t} value={t}>{t}</option>)}
+        </select>
+        <select className="h-8 rounded-md border border-input bg-background px-2 text-xs"
+          value={naturezaFiltro} onChange={(e) => setNaturezaFiltro(e.target.value as "todas" | "S" | "A")}>
+          <option value="todas">S e A</option>
+          <option value="S">Só sintéticas</option>
+          <option value="A">Só analíticas</option>
+        </select>
+        <select className="h-8 rounded-md border border-input bg-background px-2 text-xs"
+          value={custoFiltro} onChange={(e) => setCustoFiltro(e.target.value as typeof custoFiltro)}>
+          <option value="todos">Fixo/Var. todos</option>
+          <option value="fixo">Só fixo</option>
+          <option value="variavel">Só variável</option>
+          <option value="sem">Sem classificação</option>
+        </select>
         <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer">
           <input type="checkbox" checked={incluirPart} onChange={(e) => setIncluirPart(e.target.checked)} />
           incluir participantes
@@ -195,57 +255,115 @@ export function ContasPlanoPadrao({
         )}
         {(isLoading || isFetching) && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
       </div>
-      <p className="text-[11px] text-muted-foreground">{hint}</p>
+      <p className="text-[11px] text-muted-foreground">
+        {total.toLocaleString("pt-BR")} conta(s)
+        {incluirPart ? " (incluindo clientes/fornecedores)" : " estruturais"}
+        {total > POR_PAGINA ? ` · página ${pagina} de ${totalPaginas}` : ""}.
+        {" "}Em contas de resultado (3.x), Fixo/Variável alimenta o Ponto de Equilíbrio.
+      </p>
 
       <Card className="overflow-hidden">
         {lista.length === 0 && !isLoading ? (
           <p className="px-3 py-8 text-center text-sm text-muted-foreground">
-            {termo ? "Nenhuma conta com esse filtro." : "Nenhuma conta estrutural no Plano Padrão."}
+            {termo || prefixo || tipoFiltro !== "todos"
+              ? "Nenhuma conta com esse filtro."
+              : "Nenhuma conta estrutural no Plano Padrão."}
           </p>
         ) : (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b text-[10px] uppercase tracking-wider text-muted-foreground">
-                <th className="text-left px-3 py-2 font-medium">Código</th>
-                <th className="text-left px-2 py-2 font-medium">Classificação</th>
-                <th className="text-left px-2 py-2 font-medium">Descrição</th>
-                <th className="text-left px-2 py-2 font-medium">Tipo</th>
-                <th className="w-[160px]" />
-              </tr>
-            </thead>
-            <tbody>
-              {lista.map((c) => (
-                <tr key={c.id} className="border-t">
-                  <td className="px-3 py-1.5 font-mono text-xs">{c.codigo}</td>
-                  <td className="px-2 py-1.5 font-mono text-xs">{c.classificacao}</td>
-                  <td className="px-2 py-1.5">
-                    {tituloConta(c.descricao)}
-                    {c.is_sintetica && <Badge variant="outline" className="ml-1.5 text-[9px]">S</Badge>}
-                    {c.is_participante && <Badge variant="outline" className="ml-1 text-[9px]">part.</Badge>}
-                  </td>
-                  <td className="px-2 py-1.5 text-xs text-muted-foreground">{c.tipo}</td>
-                  <td className="px-2 py-1.5 text-right whitespace-nowrap">
-                    <Button size="sm" variant="ghost" className="h-7 text-xs"
-                      onClick={() => abrir(c, true)}>
-                      <Eye className="h-3.5 w-3.5 mr-1" /> Ver
-                    </Button>
-                    {podeEditar && (
-                      <>
+          <>
+            <div className="max-h-[70vh] overflow-auto">
+              <table className="w-full text-sm">
+                <thead className="sticky top-0 bg-background z-10">
+                  <tr className="border-b text-[10px] uppercase tracking-wider text-muted-foreground">
+                    <th className="text-left px-3 py-2 font-medium">Código</th>
+                    <th className="text-left px-2 py-2 font-medium">Classificação</th>
+                    <th className="text-left px-2 py-2 font-medium">Descrição</th>
+                    <th className="text-left px-2 py-2 font-medium">Tipo</th>
+                    <th className="text-left px-2 py-2 font-medium">Fixo / Var.</th>
+                    <th className="w-[160px]" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {lista.map((c) => (
+                    <tr key={c.id} className="border-t">
+                      <td className="px-3 py-1.5 font-mono text-xs">{c.codigo}</td>
+                      <td className="px-2 py-1.5 font-mono text-xs">{c.classificacao}</td>
+                      <td className="px-2 py-1.5">
+                        {tituloConta(c.descricao)}
+                        {c.is_sintetica && <Badge variant="outline" className="ml-1.5 text-[9px]">S</Badge>}
+                        {c.is_participante && <Badge variant="outline" className="ml-1 text-[9px]">part.</Badge>}
+                      </td>
+                      <td className="px-2 py-1.5 text-xs text-muted-foreground">{c.tipo}</td>
+                      <td className="px-2 py-1.5">
+                        {ehContaDeCustoDespesa(c.classificacao) && !c.is_participante ? (
+                          <select
+                            className="h-7 rounded border border-input bg-background px-1 text-xs"
+                            value={c.tipo_custo ?? ""}
+                            disabled={!podeEditar}
+                            onChange={(e) => gravarTipoCusto(c, e.target.value as "fixo" | "variavel" | "")}
+                          >
+                            <option value="">—</option>
+                            <option value="fixo">Fixo</option>
+                            <option value="variavel">Variável</option>
+                          </select>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
+                      </td>
+                      <td className="px-2 py-1.5 text-right whitespace-nowrap">
                         <Button size="sm" variant="ghost" className="h-7 text-xs"
-                          onClick={() => abrir(c, false)}>
-                          <Pencil className="h-3.5 w-3.5 mr-1" /> Editar
+                          onClick={() => abrir(c, true)}>
+                          <Eye className="h-3.5 w-3.5 mr-1" /> Ver
                         </Button>
-                        <Button size="sm" variant="ghost" className="h-7 text-xs text-destructive"
-                          onClick={() => excluirConta(c)}>
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      </>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                        {podeEditar && (
+                          <>
+                            <Button size="sm" variant="ghost" className="h-7 text-xs"
+                              onClick={() => abrir(c, false)}>
+                              <Pencil className="h-3.5 w-3.5 mr-1" /> Editar
+                            </Button>
+                            <Button size="sm" variant="ghost" className="h-7 text-xs text-destructive"
+                              onClick={() => excluirConta(c)}>
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {total > POR_PAGINA && (
+              <div className="flex items-center justify-between gap-2 px-3 py-2 border-t text-xs text-muted-foreground">
+                <span>
+                  {de.toLocaleString("pt-BR")}–{ate.toLocaleString("pt-BR")} de {total.toLocaleString("pt-BR")}
+                </span>
+                <div className="flex items-center gap-1">
+                  <Button size="sm" variant="outline" className="h-7 text-xs"
+                    disabled={pagina <= 1 || isFetching}
+                    onClick={() => setPagina(1)}>
+                    Primeira
+                  </Button>
+                  <Button size="sm" variant="outline" className="h-7 w-7 p-0"
+                    disabled={pagina <= 1 || isFetching}
+                    onClick={() => setPagina((p) => Math.max(1, p - 1))}>
+                    <ChevronLeft className="h-3.5 w-3.5" />
+                  </Button>
+                  <span className="px-2 tabular-nums">{pagina} / {totalPaginas}</span>
+                  <Button size="sm" variant="outline" className="h-7 w-7 p-0"
+                    disabled={pagina >= totalPaginas || isFetching}
+                    onClick={() => setPagina((p) => Math.min(totalPaginas, p + 1))}>
+                    <ChevronRight className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button size="sm" variant="outline" className="h-7 text-xs"
+                    disabled={pagina >= totalPaginas || isFetching}
+                    onClick={() => setPagina(totalPaginas)}>
+                    Última
+                  </Button>
+                </div>
+              </div>
+            )}
+          </>
         )}
       </Card>
 
@@ -320,6 +438,21 @@ export function ContasPlanoPadrao({
               <Input type="number" value={draft.nivel ?? 1} disabled={leitura}
                 onChange={(e) => setDraft({ ...draft, nivel: Number(e.target.value) })} />
             </div>
+            {ehContaDeCustoDespesa(draft.classificacao) && (
+              <div>
+                <Label className="text-xs">Custo / despesa</Label>
+                <select className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm"
+                  value={draft.tipo_custo ?? ""} disabled={leitura}
+                  onChange={(e) => setDraft({
+                    ...draft,
+                    tipo_custo: (e.target.value || null) as "fixo" | "variavel" | null,
+                  })}>
+                  <option value="">— não classificado</option>
+                  <option value="fixo">Fixo</option>
+                  <option value="variavel">Variável</option>
+                </select>
+              </div>
+            )}
             <div className="flex flex-col justify-end gap-1 pb-1">
               <label className="flex items-center gap-1.5 text-xs cursor-pointer">
                 <input type="checkbox" checked={!!draft.is_sintetica} disabled={leitura}

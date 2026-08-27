@@ -12,13 +12,10 @@ import { FormulaBuilder } from "./formula-builder";
 import type { ContaPlanoItem } from "./conta-picker";
 import { nomeBateIndicadorEbit } from "@/lib/indicadores/ebit-fonte";
 import {
-  destinosDe,
   validarExpressao,
-  visibilidadeDe,
   type IndicadorEmpresa,
   type ModoAnalise,
   type Token,
-  type Visibilidade,
 } from "@/lib/indicadores/engine";
 
 const CATEGORIAS = ["Liquidez", "Rentabilidade", "Endividamento", "Atividade", "Personalizado"];
@@ -56,8 +53,6 @@ export function IndicadorEditorDialog({
   const [faixaBom, setFaixaBom] = useState("");
   const [faixaAtencao, setFaixaAtencao] = useState("");
   const [direcao, setDirecao] = useState<"maior_melhor" | "menor_melhor">("maior_melhor");
-  const [dash, setDash] = useState(false);
-  const [aba, setAba] = useState(true);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -74,16 +69,11 @@ export function IndicadorEditorDialog({
       setFaixaBom(indicador.faixas?.bom != null ? String(indicador.faixas.bom) : "");
       setFaixaAtencao(indicador.faixas?.atencao != null ? String(indicador.faixas.atencao) : "");
       setDirecao(indicador.faixas?.direcao ?? "maior_melhor");
-      const d = destinosDe((indicador.visibilidade ?? "indicadores") as Visibilidade);
-      setDash(d.dashboard);
-      setAba(d.aba);
     } else {
       setNome(""); setCategoria("Personalizado"); setDescricao("");
       setModo("numero"); setTokens([]);
       setFaixaOtimo(""); setFaixaBom(""); setFaixaAtencao("");
       setDirecao("maior_melhor");
-      setDash(false);
-      setAba(true);
     }
   }, [open, indicador]);
 
@@ -111,8 +101,8 @@ export function IndicadorEditorDialog({
         modo_analise: modo,
         formula: { expressao: tokens },
         faixas,
-        visibilidade: visibilidadeDe({ dashboard: dash, aba }),
       };
+      if (!indicador?.id) payload.visibilidade = "indicadores";
       if (indicador?.id) {
         // NÃO mandar `company_id` no update.
         //
@@ -209,25 +199,6 @@ export function IndicadorEditorDialog({
               {nomeBateIndicadorEbit(nome, "ebitda") ? " Pode usar EBIT (DRE) (valor do indicador Ebit)." : " Use contas e outras linhas da DRE — não a própria linha EBIT."}
             </p>
           )}
-        </div>
-
-        <div>
-          <Label className="text-xs mb-1 block">Onde aparece (padrão do escritório)</Label>
-          <div className="flex flex-wrap gap-4 text-sm">
-            <label className="flex items-center gap-1.5 cursor-pointer">
-              <input type="checkbox" checked={dash} disabled={somenteLeitura}
-                onChange={(e) => setDash(e.target.checked)} />
-              Dashboard
-            </label>
-            <label className="flex items-center gap-1.5 cursor-pointer">
-              <input type="checkbox" checked={aba} disabled={somenteLeitura}
-                onChange={(e) => setAba(e.target.checked)} />
-              Aba Indicadores
-            </label>
-          </div>
-          <p className="text-[11px] text-muted-foreground mt-1">
-            A empresa pode sobrescrever isso em Dados → Indicadores.
-          </p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">

@@ -90,6 +90,7 @@ function splitCsv(line: string): string[] {
 const ALIASES = {
   classificacao: ["classificacao", "classificação"],
   conta: ["conta", "codigo", "código", "cod conta"],
+  sub: ["sub", "subconta", "sub conta"],
   descricao: [
     "nome da conta contabil/c. custo",
     "nome da conta contabil",
@@ -101,6 +102,7 @@ const ALIASES = {
   tipo: ["tipo conta", "tipo"],
   nivel: ["nivel", "nível"],
   cta_titulo: ["cta. titulo", "cta titulo", "cta. título", "cta título", "titulo", "título"],
+  estab: ["estab.", "estab", "estabelecimento", "filial"],
   valor: ["valor", "saldo"],
 } as const;
 

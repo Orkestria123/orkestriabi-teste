@@ -71,6 +71,7 @@ export async function buildCtxForVisao(
       natureza: p.natureza,
       is_sintetica: p.is_sintetica,
       is_participante: p.is_participante,
+      tipo_custo: p.tipo_custo === "fixo" || p.tipo_custo === "variavel" ? p.tipo_custo : null,
     };
   });
 

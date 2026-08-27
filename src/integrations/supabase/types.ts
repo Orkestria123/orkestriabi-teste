@@ -1597,7 +1597,6 @@ export type Database = {
           dfc_atividade: string | null
           dfc_nao_caixa: boolean
           id: string
-          inverter_sinal: boolean
           is_participante: boolean
           is_sintetica: boolean
           marco: string | null
@@ -1619,7 +1618,6 @@ export type Database = {
           dfc_atividade?: string | null
           dfc_nao_caixa?: boolean
           id?: string
-          inverter_sinal?: boolean
           is_participante?: boolean
           is_sintetica?: boolean
           marco?: string | null
@@ -1641,7 +1639,6 @@ export type Database = {
           dfc_atividade?: string | null
           dfc_nao_caixa?: boolean
           id?: string
-          inverter_sinal?: boolean
           is_participante?: boolean
           is_sintetica?: boolean
           marco?: string | null

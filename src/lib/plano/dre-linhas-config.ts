@@ -118,5 +118,5 @@ export async function salvarDreLinhasConfig(
     .from("dre_linhas_config")
     .upsert(payload as unknown as Record<string, unknown>, { onConflict: "tenant_id" });
   if (error) throw new Error(error.message);
-  cache.set(tenantId, normalizar(cfg));
+  cache.set(tenantId, normalizar(cfg as unknown as Record<string, unknown>));
 }

@@ -195,7 +195,7 @@ function AtualizacaoTab({ tenantId, podeEditar }: { tenantId: string; podeEditar
   const { data: historico } = useQuery({
     queryKey: ["plano-atualizacoes", tenantId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("plano_atualizacoes")
         .select("*")
         .eq("tenant_id", tenantId)
@@ -872,7 +872,7 @@ function DescartadasTab({ tenantId, podeEditar }: { tenantId: string; podeEditar
   const { data } = useQuery({
     queryKey: ["contas-descartadas", tenantId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("plano_contas_descartadas")
         .select("*")
         .eq("tenant_id", tenantId)

@@ -356,7 +356,7 @@ function Page() {
         regime_tributario: form.regime_tributario,
         tenant_id: profile.tenant_id,
         ...camposOpcionais(form),
-      });
+      } as any);
       if (error) throw error;
       toast.success("Empresa criada");
       setOpen(false);

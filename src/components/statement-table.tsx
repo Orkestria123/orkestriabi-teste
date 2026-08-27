@@ -236,7 +236,7 @@ export function StatementTable({
 
   // Encontrar base para AV
   const basesAV = useMemo(() => {
-    const todas = resolverBasesAV(rows as any, { variante, avBaseCodigo });
+    const todas = resolverBasesAV(rows as any, { variante: variante as any, avBaseCodigo });
     if (!avSelecionadas || avSelecionadas.length === 0) return todas;
     return avSelecionadas.map((rotulo) => {
       const achada = todas.find((b) => b.rotulo === rotulo);

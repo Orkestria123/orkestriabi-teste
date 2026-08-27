@@ -142,6 +142,45 @@ export type Database = {
           },
         ]
       }
+      backup_alocacao_removida: {
+        Row: {
+          classificacao: string | null
+          codigo: string | null
+          company_id: string | null
+          descricao: string | null
+          id: string | null
+          inverter_sinal: boolean | null
+          linha_demonstracao: string | null
+          ordem_linha: number | null
+          tenant_id: string | null
+          tipo_demonstracao: string | null
+        }
+        Insert: {
+          classificacao?: string | null
+          codigo?: string | null
+          company_id?: string | null
+          descricao?: string | null
+          id?: string | null
+          inverter_sinal?: boolean | null
+          linha_demonstracao?: string | null
+          ordem_linha?: number | null
+          tenant_id?: string | null
+          tipo_demonstracao?: string | null
+        }
+        Update: {
+          classificacao?: string | null
+          codigo?: string | null
+          company_id?: string | null
+          descricao?: string | null
+          id?: string | null
+          inverter_sinal?: boolean | null
+          linha_demonstracao?: string | null
+          ordem_linha?: number | null
+          tenant_id?: string | null
+          tipo_demonstracao?: string | null
+        }
+        Relationships: []
+      }
       chart_of_accounts: {
         Row: {
           codigo_conta: string
@@ -1095,63 +1134,6 @@ export type Database = {
           },
         ]
       }
-      mapeamento_demonstracao: {
-        Row: {
-          classificacao_prefixo: string
-          company_id: string | null
-          created_at: string
-          id: string
-          inverter_sinal: boolean
-          linha_demonstracao: string
-          ordem: number
-          tenant_id: string
-          tipo_custo: string | null
-          tipo_demonstracao: string
-          updated_at: string
-        }
-        Insert: {
-          classificacao_prefixo: string
-          company_id?: string | null
-          created_at?: string
-          id?: string
-          inverter_sinal?: boolean
-          linha_demonstracao: string
-          ordem?: number
-          tenant_id: string
-          tipo_custo?: string | null
-          tipo_demonstracao: string
-          updated_at?: string
-        }
-        Update: {
-          classificacao_prefixo?: string
-          company_id?: string | null
-          created_at?: string
-          id?: string
-          inverter_sinal?: boolean
-          linha_demonstracao?: string
-          ordem?: number
-          tenant_id?: string
-          tipo_custo?: string | null
-          tipo_demonstracao?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "mapeamento_demonstracao_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "companies"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "mapeamento_demonstracao_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       mascara_classificacao: {
         Row: {
           company_id: string | null
@@ -1615,15 +1597,12 @@ export type Database = {
           inverter_sinal: boolean
           is_participante: boolean
           is_sintetica: boolean
-          linha_demonstracao: string | null
           marco: string | null
           natureza: string
           nivel: number
-          ordem_linha: number | null
           tenant_id: string
           tipo: string
           tipo_custo: string | null
-          tipo_demonstracao: string | null
           updated_at: string
         }
         Insert: {
@@ -1640,15 +1619,12 @@ export type Database = {
           inverter_sinal?: boolean
           is_participante?: boolean
           is_sintetica?: boolean
-          linha_demonstracao?: string | null
           marco?: string | null
           natureza: string
           nivel?: number
-          ordem_linha?: number | null
           tenant_id: string
           tipo: string
           tipo_custo?: string | null
-          tipo_demonstracao?: string | null
           updated_at?: string
         }
         Update: {
@@ -1665,15 +1641,12 @@ export type Database = {
           inverter_sinal?: boolean
           is_participante?: boolean
           is_sintetica?: boolean
-          linha_demonstracao?: string | null
           marco?: string | null
           natureza?: string
           nivel?: number
-          ordem_linha?: number | null
           tenant_id?: string
           tipo?: string
           tipo_custo?: string | null
-          tipo_demonstracao?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -2163,7 +2136,6 @@ export type Database = {
       }
       indicador_snapshot: { Args: { _company_id: string }; Returns: Json }
       is_orkestria_admin: { Args: never; Returns: boolean }
-      migrar_mapeamento_para_plano: { Args: never; Returns: Json }
       plano_cobertura: { Args: { _company_id: string }; Returns: Json }
       plano_escopo: {
         Args: { _company_id: string }
@@ -2174,17 +2146,6 @@ export type Database = {
         }[]
       }
       plano_padrao_resumo: { Args: { _tenant_id: string }; Returns: Json }
-      plano_pendencias: {
-        Args: { _company_id: string; _limite?: number }
-        Returns: {
-          classificacao: string
-          codigo: string
-          descricao: string
-          is_sintetica: boolean
-          movimento: number
-          tipo: string
-        }[]
-      }
       pode_acessar_empresa: { Args: { _company_id: string }; Returns: boolean }
       pode_gerenciar_tenant: { Args: { _tenant_id: string }; Returns: boolean }
       promover_plano_empresa: { Args: { _company_id: string }; Returns: Json }

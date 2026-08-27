@@ -64,7 +64,7 @@ export function DeParaPanel({ tenantId, companyId, readonly }: Props) {
       // Era 500 e cortava em silêncio: um plano maior que isso ficava
       // com contas fora da fila sem ninguém saber. Agora o teto é alto e
       // a tela avisa quando encosta nele.
-      const { data, error } = await supabase.rpc("depara_pendencias", {
+      const { data, error } = await (supabase as any).rpc("depara_pendencias", {
         _company_id: companyId,
         _limite: LIMITE_FILA,
       });
@@ -79,7 +79,7 @@ export function DeParaPanel({ tenantId, companyId, readonly }: Props) {
       // Paginado: acima de 1.000 vínculos, as contas que ficavam de fora
       // voltavam a aparecer como pendentes mesmo já resolvidas.
       return await lerTudo<any>(
-        (de, ate) => supabase
+        (de, ate) => (supabase as any)
           .from("depara_contas")
           .select("conta_codigo, conta_padrao_codigo, ignorada, observacao")
           .eq("company_id", companyId)
@@ -261,7 +261,7 @@ export function DeParaPanel({ tenantId, companyId, readonly }: Props) {
     }
     setSalvando(true);
     try {
-      const { data, error } = await supabase.rpc("aplicar_depara_em_lote", {
+      const { data, error } = await (supabase as any).rpc("aplicar_depara_em_lote", {
         _company_id: companyId,
         _itens: itens as any,
       });

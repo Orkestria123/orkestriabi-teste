@@ -261,6 +261,7 @@ export type Database = {
           razao_social: string | null
           regime_tributario: string | null
           responsavel: string | null
+          sistema_id: string | null
           telefone: string | null
           tenant_id: string
           uf: string | null
@@ -283,6 +284,7 @@ export type Database = {
           razao_social?: string | null
           regime_tributario?: string | null
           responsavel?: string | null
+          sistema_id?: string | null
           telefone?: string | null
           tenant_id: string
           uf?: string | null
@@ -305,11 +307,19 @@ export type Database = {
           razao_social?: string | null
           regime_tributario?: string | null
           responsavel?: string | null
+          sistema_id?: string | null
           telefone?: string | null
           tenant_id?: string
           uf?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "companies_sistema_id_fkey"
+            columns: ["sistema_id"]
+            isOneToOne: false
+            referencedRelation: "sistemas_contabeis"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "companies_tenant_id_fkey"
             columns: ["tenant_id"]
@@ -663,6 +673,58 @@ export type Database = {
           },
         ]
       }
+      dfc_vinculo: {
+        Row: {
+          atualizado_em: string
+          classificacao: string
+          codigo_dfc: string
+          company_id: string | null
+          id: string
+          origem: string
+          tenant_id: string
+        }
+        Insert: {
+          atualizado_em?: string
+          classificacao: string
+          codigo_dfc: string
+          company_id?: string | null
+          id?: string
+          origem?: string
+          tenant_id: string
+        }
+        Update: {
+          atualizado_em?: string
+          classificacao?: string
+          codigo_dfc?: string
+          company_id?: string | null
+          id?: string
+          origem?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dfc_vinculo_codigo_dfc_fkey"
+            columns: ["codigo_dfc"]
+            isOneToOne: false
+            referencedRelation: "dfc_catalogo"
+            referencedColumns: ["codigo"]
+          },
+          {
+            foreignKeyName: "dfc_vinculo_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dfc_vinculo_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       diario_uploads: {
         Row: {
           agregado: boolean
@@ -749,8 +811,10 @@ export type Database = {
         Row: {
           ebit_classificacoes: string[]
           ebit_expressao: Json
+          ebit_modo: string
           ebitda_classificacoes: string[]
           ebitda_expressao: Json
+          ebitda_modo: string
           ebitda_sobre_ebit: boolean
           tenant_id: string
           updated_at: string
@@ -758,8 +822,10 @@ export type Database = {
         Insert: {
           ebit_classificacoes?: string[]
           ebit_expressao?: Json
+          ebit_modo?: string
           ebitda_classificacoes?: string[]
           ebitda_expressao?: Json
+          ebitda_modo?: string
           ebitda_sobre_ebit?: boolean
           tenant_id: string
           updated_at?: string
@@ -767,8 +833,10 @@ export type Database = {
         Update: {
           ebit_classificacoes?: string[]
           ebit_expressao?: Json
+          ebit_modo?: string
           ebitda_classificacoes?: string[]
           ebitda_expressao?: Json
+          ebitda_modo?: string
           ebitda_sobre_ebit?: boolean
           tenant_id?: string
           updated_at?: string
@@ -2311,6 +2379,7 @@ export type Database = {
           data_referencia: string
           id: string
           is_participante: boolean
+          origem_ecd: string | null
           saldo: number
           tenant_id: string
           upload_id: string | null
@@ -2324,6 +2393,7 @@ export type Database = {
           data_referencia: string
           id?: string
           is_participante?: boolean
+          origem_ecd?: string | null
           saldo: number
           tenant_id: string
           upload_id?: string | null
@@ -2337,6 +2407,7 @@ export type Database = {
           data_referencia?: string
           id?: string
           is_participante?: boolean
+          origem_ecd?: string | null
           saldo?: number
           tenant_id?: string
           upload_id?: string | null
@@ -2348,6 +2419,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "saldos_abertura_origem_ecd_fkey"
+            columns: ["origem_ecd"]
+            isOneToOne: false
+            referencedRelation: "ecd_importacao"
             referencedColumns: ["id"]
           },
           {
@@ -2366,6 +2444,7 @@ export type Database = {
           conta_codigo: string
           id: string
           movimento: number | null
+          origem_ecd: string | null
           tenant_id: string
           total_creditos: number
           total_debitos: number
@@ -2377,6 +2456,7 @@ export type Database = {
           conta_codigo: string
           id?: string
           movimento?: number | null
+          origem_ecd?: string | null
           tenant_id: string
           total_creditos?: number
           total_debitos?: number
@@ -2388,6 +2468,7 @@ export type Database = {
           conta_codigo?: string
           id?: string
           movimento?: number | null
+          origem_ecd?: string | null
           tenant_id?: string
           total_creditos?: number
           total_debitos?: number
@@ -2402,7 +2483,49 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "saldos_mensais_origem_ecd_fkey"
+            columns: ["origem_ecd"]
+            isOneToOne: false
+            referencedRelation: "ecd_importacao"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "saldos_mensais_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sistemas_contabeis: {
+        Row: {
+          created_at: string
+          id: string
+          layout: Json
+          nome: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          layout?: Json
+          nome: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          layout?: Json
+          nome?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sistemas_contabeis_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -2549,7 +2672,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      __apply_pending_sql: { Args: { _sql: string }; Returns: undefined }
+      _garantir_sinteticas_interno: {
+        Args: { _company_id?: string; _separador?: string; _tenant_id: string }
+        Returns: Json
+      }
       _num: { Args: { _v: number }; Returns: Json }
       _op: { Args: { _v: string }; Returns: Json }
       _par: { Args: { _v: string }; Returns: Json }
@@ -2590,10 +2716,28 @@ export type Database = {
           historico_exemplo: string
           lancamentos: number
           movimento: number
-          nome_sugerido: string
           primeira_competencia: string
           ultima_competencia: string
         }[]
+      }
+      definir_dfc_classificacao: {
+        Args: {
+          _classificacao: string
+          _company_id?: string
+          _dfc_codigo: string
+          _tenant_id: string
+        }
+        Returns: Json
+      }
+      definir_dfc_sintetica: {
+        Args: {
+          _classificacao: string
+          _company_id?: string
+          _dfc_codigo: string
+          _sobrescrever?: boolean
+          _tenant_id: string
+        }
+        Returns: Json
       }
       depara_pendencias: {
         Args: { _company_id: string; _limite?: number }
@@ -2620,6 +2764,147 @@ export type Database = {
         Args: { _codigos: string[]; _motivo?: string; _tenant_id: string }
         Returns: Json
       }
+      dfc_alocar_automatico: {
+        Args: {
+          _company_id?: string
+          _sobrescrever?: boolean
+          _tenant_id: string
+        }
+        Returns: Json
+      }
+      dfc_analiticas_sem_codigo: {
+        Args: {
+          _busca?: string
+          _company_id?: string
+          _limite?: number
+          _tenant_id: string
+        }
+        Returns: {
+          classificacao: string
+          codigo: string
+          conta_pai: string
+          descricao: string
+          tipo: string
+        }[]
+      }
+      dfc_cobertura: {
+        Args: { _company_id?: string; _tenant_id: string }
+        Returns: Json
+      }
+      dfc_efetivo: {
+        Args: {
+          _company_id?: string
+          _somente_balanco?: boolean
+          _tenant_id: string
+        }
+        Returns: {
+          ambiguo: boolean
+          analiticas: number
+          bloco: string
+          classificacao: string
+          classificacao_vinculo: string
+          codigo_dfc: string
+          com_movimento: number
+          contas: number
+          descricao: string
+          descricao_dfc: string
+          origem: string
+        }[]
+      }
+      dfc_efetivo_escopo: {
+        Args: {
+          _company_mov: string
+          _escopo_plano: string
+          _somente_balanco?: boolean
+          _tenant_id: string
+        }
+        Returns: {
+          ambiguo: boolean
+          analiticas: number
+          bloco: string
+          classificacao: string
+          classificacao_vinculo: string
+          codigo_dfc: string
+          com_movimento: number
+          contas: number
+          descricao: string
+          descricao_dfc: string
+          origem: string
+        }[]
+      }
+      dfc_exportar: {
+        Args: {
+          _company_id?: string
+          _somente_balanco?: boolean
+          _tenant_id: string
+        }
+        Returns: {
+          ambiguo: boolean
+          analiticas: number
+          bloco: string
+          classificacao: string
+          classificacao_vinculo: string
+          codigo_dfc: string
+          com_movimento: number
+          contas: number
+          descricao: string
+          descricao_dfc: string
+          origem: string
+        }[]
+      }
+      dfc_exportar_contas: {
+        Args: { _company_id?: string; _limite?: number; _tenant_id: string }
+        Returns: {
+          classificacao: string
+          codigo: string
+          codigo_efetivo: string
+          codigo_na_conta: string
+          descricao: string
+          em_vigor: boolean
+        }[]
+      }
+      dfc_importar_vinculos: {
+        Args: {
+          _company_id?: string
+          _linhas: Json
+          _substituir?: boolean
+          _tenant_id: string
+        }
+        Returns: Json
+      }
+      dfc_mapa: {
+        Args: { _company_id: string }
+        Returns: {
+          classificacao: string
+          codigo_dfc: string
+          origem: string
+        }[]
+      }
+      dfc_normalizar: {
+        Args: { _company_id?: string; _tenant_id: string }
+        Returns: Json
+      }
+      dfc_resolucao: {
+        Args: { _company_id?: string; _tenant_id: string }
+        Returns: {
+          ambiguo: boolean
+          classificacao: string
+          codigo_dfc: string
+          origem: string
+        }[]
+      }
+      dfc_sinteticas_pendentes: {
+        Args: { _company_id?: string; _limite?: number; _tenant_id: string }
+        Returns: {
+          analiticas_sem_codigo: number
+          analiticas_total: number
+          classificacao: string
+          descricao: string
+          dfc_codigo: string
+          nivel: number
+          tipo: string
+        }[]
+      }
       drilldown_contas: {
         Args: {
           _classificacao: string
@@ -2631,6 +2916,22 @@ export type Database = {
           classificacao: string
           codigo: string
           descricao: string
+        }[]
+      }
+      drilldown_saldo_mensal: {
+        Args: {
+          _codigos: string[]
+          _company_id: string
+          _competencia_max: string
+          _competencia_min: string
+        }
+        Returns: {
+          competencia: string
+          conta_codigo: string
+          credito: number
+          debito: number
+          do_ecd: boolean
+          motivo: string
         }[]
       }
       ecd_alocar_automatico: {
@@ -2681,6 +2982,7 @@ export type Database = {
         Returns: Json
       }
       ecd_encerramento: { Args: { _importacao_id: string }; Returns: Json }
+      ecd_estado_diario: { Args: { _importacao_id: string }; Returns: Json }
       ecd_forma: { Args: { _importacao_id: string }; Returns: Json }
       ecd_gravar_lancamentos: {
         Args: {
@@ -2730,11 +3032,16 @@ export type Database = {
         Returns: Json
       }
       ecd_tipo_do_cod_nat: { Args: { _cod_nat: string }; Returns: string }
+      ecd_titulo: { Args: { _s: string }; Returns: string }
       ecd_vinculo_do_robo: { Args: { _observacao: string }; Returns: boolean }
       escopo_plano_empresa: { Args: { _company_id: string }; Returns: Json }
       finalizar_upload_diario: { Args: { _upload_id: string }; Returns: Json }
       garantir_contas_agregadoras: {
         Args: { _tenant_id: string }
+        Returns: Json
+      }
+      garantir_sinteticas_faltantes: {
+        Args: { _company_id?: string; _separador?: string; _tenant_id: string }
         Returns: Json
       }
       get_my_company_id: { Args: never; Returns: string }
@@ -2749,6 +3056,14 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      herdar_dfc_da_sintetica: {
+        Args: {
+          _company_id?: string
+          _tenant_id: string
+          _todos_escopos?: boolean
+        }
+        Returns: Json
       }
       indicador_alocar: {
         Args: { _company_id: string; _itens: Json }
@@ -2775,7 +3090,22 @@ export type Database = {
         }[]
       }
       is_orkestria_admin: { Args: never; Returns: boolean }
+      periodos_da_empresa: {
+        Args: { _company_id: string }
+        Returns: {
+          competencia: string
+          fonte: string
+        }[]
+      }
+      plano_agregadoras: {
+        Args: { _tenant_id: string }
+        Returns: {
+          classificacao: string
+          participantes: number
+        }[]
+      }
       plano_cobertura: { Args: { _company_id: string }; Returns: Json }
+      plano_criar_agregadoras: { Args: { _tenant_id: string }; Returns: number }
       plano_escopo: {
         Args: { _company_id: string }
         Returns: {
@@ -2784,9 +3114,20 @@ export type Database = {
           tenant_id: string
         }[]
       }
+      plano_grupos_destino: {
+        Args: { _company_id?: string; _tenant_id: string }
+        Returns: {
+          classificacao: string
+          codigo_dfc: string
+          demonstracao: string
+          descricao_dfc: string
+          galho: string
+        }[]
+      }
       plano_padrao_resumo: { Args: { _tenant_id: string }; Returns: Json }
       pode_acessar_empresa: { Args: { _company_id: string }; Returns: boolean }
       pode_gerenciar_tenant: { Args: { _tenant_id: string }; Returns: boolean }
+      pode_tenant: { Args: { _tenant_id: string }; Returns: boolean }
       promover_plano_empresa: { Args: { _company_id: string }; Returns: Json }
       restaurar_conta_descartada: {
         Args: { _codigo: string; _tenant_id: string }
@@ -2805,6 +3146,10 @@ export type Database = {
         Returns: Json
       }
       semear_dfc_padrao: { Args: { _tenant_id?: string }; Returns: Json }
+      semear_indicadores_globais: {
+        Args: { _substituir?: boolean; _tenant_id: string }
+        Returns: Json
+      }
       semear_indicadores_padrao: {
         Args: { _company_id: string; _substituir?: boolean }
         Returns: Json

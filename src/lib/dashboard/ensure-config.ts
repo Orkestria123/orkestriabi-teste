@@ -17,7 +17,7 @@ async function seedTenant(tenantId: string): Promise<boolean> {
     .eq("tenant_id", tenantId)
     .is("company_id", null);
   if (error) throw error;
-  const rows = (data ?? []) as { id: string; bloco: string; config: Record<string, unknown> | null; visivel: boolean; ordem: number }[];
+  const rows = (data ?? []) as unknown as { id: string; bloco: string; config: Record<string, unknown> | null; visivel: boolean; ordem: number }[];
   const existentes = new Set(rows.map((r) => r.bloco));
   const faltantes = BLOCOS_CATALOGO.filter((b) => !existentes.has(b.key));
   let mudou = false;
@@ -59,7 +59,7 @@ export async function ensureDashboardConfig(tenantId: string, companyId?: string
     .select("id, bloco, config")
     .eq("company_id", companyId);
   if (error) throw error;
-  const rows = (data ?? []) as { id: string; bloco: string; config: Record<string, unknown> | null }[];
+  const rows = (data ?? []) as unknown as { id: string; bloco: string; config: Record<string, unknown> | null }[];
   const existentes = new Set(rows.map((r) => r.bloco));
   const faltantes = BLOCOS_CATALOGO.filter((b) => !existentes.has(b.key));
   if (faltantes.length > 0) {

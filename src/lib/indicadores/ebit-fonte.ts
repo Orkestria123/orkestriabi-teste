@@ -102,7 +102,7 @@ async function upsertIndicadorEbit(
     ordem: alvo === "ebitda" ? 150 : 140,
     revisar_contas: false,
     faixas: null,
-  });
+  } as any);
   if (error) throw new Error(error.message);
 }
 

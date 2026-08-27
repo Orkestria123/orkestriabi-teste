@@ -64,7 +64,7 @@ export function DeParaPanel({ tenantId, companyId, readonly }: Props) {
       // Era 500 e cortava em silêncio: um plano maior que isso ficava
       // com contas fora da fila sem ninguém saber. Agora o teto é alto e
       // a tela avisa quando encosta nele.
-      const { data, error } = await supabase.rpc("depara_pendencias", {
+      const { data, error } = await (supabase as any).rpc("depara_pendencias", {
         _company_id: companyId,
         _limite: LIMITE_FILA,
       });
@@ -261,7 +261,7 @@ export function DeParaPanel({ tenantId, companyId, readonly }: Props) {
     }
     setSalvando(true);
     try {
-      const { data, error } = await supabase.rpc("aplicar_depara_em_lote", {
+      const { data, error } = await (supabase as any).rpc("aplicar_depara_em_lote", {
         _company_id: companyId,
         _itens: itens as any,
       });

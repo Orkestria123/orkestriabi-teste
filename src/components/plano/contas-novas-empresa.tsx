@@ -64,7 +64,7 @@ export function ContasNovasEmpresaPanel({
   const { data: novas, isLoading } = useQuery({
     queryKey: ["contas-novas-empresa", tenantId, companyId],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("contas_novas_do_diario", {
+      const { data, error } = await (supabase as any).rpc("contas_novas_do_diario", {
         _tenant_id: tenantId, _limite: 500,
       });
       if (error) throw error;
@@ -75,7 +75,7 @@ export function ContasNovasEmpresaPanel({
   const { data: sinteticas } = useQuery({
     queryKey: ["sinteticas-plano-padrao", tenantId],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("sinteticas_do_plano_padrao", {
+      const { data, error } = await (supabase as any).rpc("sinteticas_do_plano_padrao", {
         _tenant_id: tenantId,
       });
       if (error) throw error;
@@ -131,7 +131,7 @@ export function ContasNovasEmpresaPanel({
     if (itens.length === 0) return;
     setBusy(true);
     try {
-      const { data, error } = await supabase.rpc("aprovar_contas_novas_lote", {
+      const { data, error } = await (supabase as any).rpc("aprovar_contas_novas_lote", {
         _tenant_id: tenantId, _itens: itens as any,
       });
       if (error) throw error;
@@ -153,7 +153,7 @@ export function ContasNovasEmpresaPanel({
     if (!confirm(`Descartar ${codigos.length} conta(s)? Elas não entram no Plano Padrão.`)) return;
     setBusy(true);
     try {
-      const { error } = await supabase.rpc("descartar_contas_novas", {
+      const { error } = await (supabase as any).rpc("descartar_contas_novas", {
         _tenant_id: tenantId, _codigos: codigos, _motivo: null as any,
       });
       if (error) throw error;

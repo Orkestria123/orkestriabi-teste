@@ -8,7 +8,7 @@ import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { X, Plus, ChevronDown } from "lucide-react";
-import { ContaPicker, type ContaPlanoItem } from "./conta-picker";
+import { ContaPicker, idConta, type ContaPlanoItem } from "./conta-picker";
 import { type Token, validarExpressao } from "@/lib/indicadores/engine";
 import { LINHAS_CATALOGO, labelLinha } from "@/lib/indicadores/linhas";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -18,14 +18,30 @@ interface Props {
   plano: ContaPlanoItem[];
   tokens: Token[];
   onChange: (next: Token[]) => void;
+  allowAnaliticas?: boolean;
+  ocultarLinhas?: string[];
 }
 
 const OP_LABEL: Record<string, string> = { "+": "+", "-": "−", "*": "×", "/": "÷" };
 
-export function FormulaBuilder({ plano, tokens, onChange }: Props) {
+export function FormulaBuilder({ plano, tokens, onChange, allowAnaliticas = false, ocultarLinhas = [] }: Props) {
   const labelPorClass = useMemo(() => {
     const m = new Map<string, string>();
-    for (const p of plano) m.set(p.classificacao, p.descricao);
+    for (const p of plano) {
+      const rotulo = p.descricao;
+      m.set(idConta(p), rotulo);
+      if (p.codigo) m.set(p.codigo, rotulo);
+    }
+    return m;
+  }, [plano]);
+
+  const contaPorId = useMemo(() => {
+    const m = new Map<string, ContaPlanoItem>();
+    for (const p of plano) {
+      m.set(idConta(p), p);
+      if (p.codigo) m.set(p.codigo, p);
+      if (!m.has(p.classificacao)) m.set(p.classificacao, p);
+    }
     return m;
   }, [plano]);
 
@@ -54,6 +70,9 @@ export function FormulaBuilder({ plano, tokens, onChange }: Props) {
               token={t}
               plano={plano}
               labelPorClass={labelPorClass}
+              contaPorId={contaPorId}
+              allowAnaliticas={allowAnaliticas}
+              ocultarLinhas={ocultarLinhas}
               onChange={(nx) => patch(i, nx)}
               onRemove={() => remover(i)}
             />
@@ -72,6 +91,30 @@ export function FormulaBuilder({ plano, tokens, onChange }: Props) {
         >
           <Plus className="h-3 w-3 mr-1" /> Linha da Demonstração
         </Button>
+        {!ocultarLinhas.includes("EBIT") && (
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() =>
+            inserir({ tipo: "termo", origem: "demonstracao", linha: "EBIT" })
+          }
+          title="Mesmo valor do indicador Ebit, exibido na DRE"
+        >
+          <Plus className="h-3 w-3 mr-1" /> EBIT (DRE)
+        </Button>
+        )}
+        {!ocultarLinhas.includes("EBITDA") && (
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() =>
+            inserir({ tipo: "termo", origem: "demonstracao", linha: "EBITDA" })
+          }
+          title="Mesmo valor do indicador Ebitda, exibido na DRE"
+        >
+          <Plus className="h-3 w-3 mr-1" /> EBITDA (DRE)
+        </Button>
+        )}
         <Button
           size="sm"
           variant="outline"
@@ -128,12 +171,18 @@ function TokenChip({
   token,
   plano,
   labelPorClass,
+  contaPorId,
+  allowAnaliticas,
+  ocultarLinhas,
   onChange,
   onRemove,
 }: {
   token: Token;
   plano: ContaPlanoItem[];
   labelPorClass: Map<string, string>;
+  contaPorId: Map<string, ContaPlanoItem>;
+  allowAnaliticas: boolean;
+  ocultarLinhas: string[];
   onChange: (t: Token) => void;
   onRemove: () => void;
 }) {
@@ -188,6 +237,7 @@ function TokenChip({
           <LinhaPicker
             valor={token.linha ?? ""}
             onChange={(k) => onChange({ ...token, linha: k })}
+            ocultar={ocultarLinhas}
           />
           <button onClick={onRemove} className="text-muted-foreground hover:text-destructive ml-auto">
             <X className="h-3 w-3" />
@@ -251,6 +301,7 @@ function TokenChip({
           selecionadas={contas}
           onChange={adicionarContas}
           buttonLabel={contas.length === 0 ? "Escolher contas" : "Editar contas"}
+          allowAnaliticas={allowAnaliticas}
         />
         <button onClick={onRemove} className="text-muted-foreground hover:text-destructive ml-auto">
           <X className="h-3 w-3" />
@@ -260,8 +311,13 @@ function TokenChip({
         <span className="text-[11px] text-destructive">Selecione ao menos uma conta</span>
       ) : (
         <div className="flex flex-wrap gap-1 max-w-[520px]">
-          {contas.map((c, i) => (
-            <div key={c} className="inline-flex items-center gap-1 bg-background border border-border rounded px-1.5 py-0.5 text-[11px]">
+          {contas.map((c, i) => {
+            const info = contaPorId.get(c);
+            const nComMesmaClass = info
+              ? plano.filter((p) => p.classificacao === info.classificacao).length
+              : plano.filter((p) => p.classificacao === c).length;
+            return (
+            <div key={`${c}|${i}`} className="inline-flex items-center gap-1 bg-background border border-border rounded px-1.5 py-0.5 text-[11px]">
               <button
                 onClick={() => toggleSinal(i)}
                 className="font-mono font-bold w-4 text-center hover:bg-muted rounded"
@@ -269,13 +325,17 @@ function TokenChip({
               >
                 {sinais[i] === "-" ? "−" : "+"}
               </button>
-              <span className="font-mono text-muted-foreground">{c}</span>
-              <span className="truncate max-w-[160px]">{labelPorClass.get(c) ?? ""}</span>
+              <span className="font-mono font-medium">{info?.classificacao ?? c}</span>
+              <span className="truncate max-w-[180px]">{info?.descricao ?? labelPorClass.get(c) ?? ""}</span>
+              {info && nComMesmaClass > 1 && info.codigo && (
+                <span className="font-mono text-[10px] text-muted-foreground">{info.codigo}</span>
+              )}
               <button onClick={() => removeConta(i)} className="hover:text-destructive">
                 <X className="h-2.5 w-2.5" />
               </button>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
@@ -289,18 +349,27 @@ function TokenChip({
 function LinhaPicker({
   valor,
   onChange,
+  ocultar = [],
 }: {
   valor: string;
   onChange: (key: string) => void;
+  ocultar?: string[];
 }) {
   const [open, setOpen] = useState(false);
   const [busca, setBusca] = useState("");
   const filtradas = useMemo(() => {
-    const b = busca.trim().toLowerCase();
-    return LINHAS_CATALOGO.filter(
-      (l) => !b || l.label.toLowerCase().includes(b) || l.key.toLowerCase().includes(b),
-    );
-  }, [busca]);
+    const b = busca
+      .trim()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase();
+    return LINHAS_CATALOGO.filter((l) => {
+      if (ocultar.includes(l.key)) return false;
+      if (!b) return true;
+      const lab = l.label.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+      return lab.includes(b) || l.key.toLowerCase().includes(b);
+    });
+  }, [busca, ocultar]);
 
   const grupos = useMemo(() => {
     const dre = filtradas.filter((l) => l.origem === "DRE");
@@ -309,7 +378,7 @@ function LinhaPicker({
   }, [filtradas]);
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover modal open={open} onOpenChange={(o) => { setOpen(o); if (!o) setBusca(""); }}>
       <PopoverTrigger asChild>
         <Button size="sm" variant="outline" className="h-7 text-xs">
           <ChevronDown className="h-3 w-3 mr-1" />
@@ -323,6 +392,7 @@ function LinhaPicker({
             placeholder="Buscar linha…"
             value={busca}
             onChange={(e) => setBusca(e.target.value)}
+            onKeyDown={(e) => e.stopPropagation()}
             autoFocus
           />
           <p className="text-[10px] text-muted-foreground mt-1">

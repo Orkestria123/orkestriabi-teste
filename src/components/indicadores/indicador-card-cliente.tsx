@@ -4,7 +4,7 @@
 //                e (opcional) faixa saudável como banda de fundo.
 // Análise em linguagem clara gerada por IA (cache por indicador+série).
 
-import { useId, useMemo } from "react";
+import { useId, useMemo, useState } from "react";
 import {
   Area,
   AreaChart,
@@ -28,11 +28,12 @@ import {
   type IndicadorEmpresa,
   type ModoAnalise,
   type SeriePonto,
+  type Token,
 } from "@/lib/indicadores/engine";
 import { labelLinha } from "@/lib/indicadores/linhas";
 import { explicarIndicador } from "@/lib/api/indicador-explicacao.functions";
-import { Sparkles } from "lucide-react";
-
+import { Sparkles, ChevronDown, ChevronRight, Eye, EyeOff } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface Props {
   ind: IndicadorEmpresa;
@@ -46,6 +47,7 @@ interface Props {
   serieGerencial?: SeriePonto[];
   valorGerencial?: number | null;
   faixaGerencial?: FaixaChave;
+  termos?: { label: string; valor: number | null; origem: string }[];
 }
 
 const FAIXA_COLOR: Record<FaixaChave, string> = {
@@ -102,11 +104,16 @@ export function IndicadorCardCliente({
   serieGerencial,
   valorGerencial,
   faixaGerencial,
+  termos: termosProp,
 }: Props) {
   const uid = useId().replace(/:/g, "");
   const isComparativo = visao === "comparativo" && !!serieGerencial;
   const cor = FAIXA_COLOR[faixa];
   const corGer = FAIXA_COLOR[faixaGerencial ?? "neutro"];
+  
+  // Estados para expandir valores e trocar base de AV%
+  const [showValues, setShowValues] = useState(false);
+
   const pontos = useMemo(
     () =>
       serie.map((p, i) => ({
@@ -130,8 +137,6 @@ export function IndicadorCardCliente({
   const formulaTexto = formulaParaTexto(ind.formula, () => "", labelLinha);
 
   const explicarFn = useServerFn(explicarIndicador);
-  // Em comparativo, o texto do AI descreve a série gerencial (que é a
-  // "verdade" para o dono do negócio + o contábil é a base fiscal).
   const serieParaAnalise =
     isComparativo && serieGerencial ? serieGerencial : serie;
   const faixaParaAnalise =
@@ -175,8 +180,7 @@ export function IndicadorCardCliente({
     }
   }
 
-
-
+  const termos = termosProp ?? [];
 
   return (
     <Card
@@ -200,14 +204,16 @@ export function IndicadorCardCliente({
           </p>
           <h4 className="mt-0.5 text-sm font-semibold leading-tight truncate">{ind.nome}</h4>
         </div>
-        {faixa !== "neutro" && (
-          <Badge
-            variant="outline"
-            className={cn("shrink-0 text-[10px] font-semibold", FAIXA_BADGE[faixa])}
-          >
-            {FAIXA_LABEL[faixa]}
-          </Badge>
-        )}
+        <div className="flex items-center gap-1">
+          {faixa !== "neutro" && (
+            <Badge
+              variant="outline"
+              className={cn("shrink-0 text-[10px] font-semibold", FAIXA_BADGE[faixa])}
+            >
+              {FAIXA_LABEL[faixa]}
+            </Badge>
+          )}
+        </div>
       </div>
 
       {temSerie ? (
@@ -233,6 +239,7 @@ export function IndicadorCardCliente({
               </span>
             )}
           </div>
+          
           <ResponsiveContainer width="100%" height={140}>
             <AreaChart
               data={pontos}
@@ -277,14 +284,19 @@ export function IndicadorCardCliente({
                   padding: "8px 12px",
                 }}
                 labelStyle={{ color: "var(--muted-foreground)", fontSize: 11 }}
-                formatter={(v: any, name: any) => {
+                formatter={(_v: any, name: any, item: any) => {
+                  const row = item?.payload;
+                  const bruto =
+                    isComparativo && name === "gerencial"
+                      ? row?.gerencial
+                      : row?.valor ?? row?.contabil;
                   const label =
                     isComparativo
                       ? name === "gerencial"
                         ? `${ind.nome} — Gerencial`
                         : `${ind.nome} — Contábil`
                       : ind.nome;
-                  return [formatarValor(Number(v), ind.modo_analise), label];
+                  return [formatarValor(bruto ?? null, ind.modo_analise), label];
                 }}
                 labelFormatter={(l: any) => String(l)}
               />
@@ -377,6 +389,50 @@ export function IndicadorCardCliente({
       <p className="mt-3 truncate font-mono text-[10px] text-muted-foreground/80" title={formulaTexto}>
         {formulaTexto}
       </p>
+
+      {/* Botão para mostrar/ocultar valores */}
+      <div className="mt-2 flex items-center gap-2">
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            setShowValues(!showValues);
+          }}
+          className="text-[10px] text-muted-foreground hover:text-foreground underline flex items-center gap-1"
+        >
+          {showValues ? (
+            <>
+              <EyeOff className="h-3 w-3" /> Ocultar valores
+            </>
+          ) : (
+            <>
+              <Eye className="h-3 w-3" /> Ver valores utilizados
+            </>
+          )}
+        </button>
+      </div>
+
+      {/* Valores dos termos */}
+      {showValues && termos.length > 0 && (
+        <div className="mt-2 rounded-md border bg-muted/20 p-2 text-xs space-y-0.5">
+          <div className="font-medium text-[9px] uppercase tracking-wider text-muted-foreground">
+            Composição do cálculo
+          </div>
+          {termos.map((termo, i) => (
+            <div key={i} className="flex justify-between py-0.5 border-b border-border/30 last:border-0">
+              <span className="truncate max-w-[65%] text-[10px]">{termo.label}</span>
+              <span className="font-mono tabular-nums text-[10px]">
+                {termo.valor != null ? formatarValor(termo.valor, "reais") : "—"}
+              </span>
+            </div>
+          ))}
+          <div className="pt-0.5 mt-0.5 border-t border-border/50 flex justify-between font-medium text-[10px]">
+            <span>Resultado</span>
+            <span className="font-mono tabular-nums" style={{ color: cor }}>
+              {formatarValor(valor, ind.modo_analise)}
+            </span>
+          </div>
+        </div>
+      )}
 
       <div className="mt-2 flex items-start gap-1.5 rounded-md border border-border/60 bg-muted/30 p-2">
         <Sparkles className="mt-0.5 h-3 w-3 shrink-0 text-primary" />

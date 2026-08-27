@@ -1,4 +1,4 @@
-import { Link, useRouterState } from "@tanstack/react-router";
+import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import {
   LayoutDashboard,
   Building2,
@@ -8,19 +8,48 @@ import {
   Receipt,
   Wallet,
   LineChart,
+  Stethoscope,
   FileSpreadsheet,
   LogOut,
   Briefcase,
   Menu,
   Target,
-
+  Settings,
+  BookOpen,
 } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/theme-toggle";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 type NavItem = { to: string; label: string; icon: any };
+
+// Itens da engrenagem, ao lado do usuário. São coisas de ESTRUTURA do
+// escritório, não operação do dia a dia — por isso saem da barra
+// principal e ficam agrupadas aqui.
+const CONFIG_ITEMS: NavItem[] = [
+  { to: "/admin/plano-padrao", label: "Plano de Contas", icon: BookOpen },
+  { to: "/admin/empresas", label: "Cadastro de empresas", icon: Building2 },
+  { to: "/admin/indicadores", label: "Indicadores", icon: LineChart },
+  { to: "/admin/diagnostico", label: "Diagnóstico", icon: Stethoscope },
+];
+
+// Na visualização do BI (variant "client") a barra só tem as
+// demonstrações — não havia caminho de volta para a lista de empresas.
+// A engrenagem passa a aparecer lá também, com esse atalho.
+const CONFIG_ITEMS_BI: NavItem[] = [
+  { to: "/admin/empresas", label: "Voltar para Empresas", icon: Building2 },
+  { to: "/admin/plano-padrao", label: "Plano de Contas", icon: BookOpen },
+  { to: "/admin/indicadores", label: "Indicadores", icon: LineChart },
+];
 
 const ORK_NAV: NavItem[] = [
   { to: "/orkestria-admin", label: "Visão geral", icon: LayoutDashboard },
@@ -43,7 +72,6 @@ const CLIENT_NAV: NavItem[] = [
   { to: "/dashboard/fluxo-de-caixa", label: "Fluxo", icon: Wallet },
   { to: "/dashboard/indicadores", label: "Indicadores", icon: LineChart },
   { to: "/dashboard/orcamento", label: "Orçamento", icon: Target },
-
   { to: "/dashboard/fornecedores", label: "Fornecedores", icon: Users },
   { to: "/dashboard/notas-fiscais", label: "NF-e", icon: FileSpreadsheet },
   { to: "/dashboard/analise", label: "Análise", icon: FileSpreadsheet },
@@ -60,7 +88,12 @@ export function AppTopNav({
 }) {
   const { profile, tenant, signOut } = useAuth();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  const irPara = (to: string) => {
+    void navigate({ to: to as never });
+  };
 
   const items =
     variant === "orkestria" ? ORK_NAV : variant === "admin" ? ADMIN_NAV : CLIENT_NAV;
@@ -122,6 +155,36 @@ export function AppTopNav({
             <span className="text-xs font-medium truncate max-w-[120px]">
               {profile?.full_name ?? "Usuário"}
             </span>
+            {(
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    className="ml-1 h-7 w-7 grid place-items-center rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                    title="Configurações"
+                    aria-label="Configurações"
+                  >
+                    <Settings className="h-3.5 w-3.5" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuLabel>Configurações do escritório</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  {(variant === "client" ? CONFIG_ITEMS_BI : CONFIG_ITEMS).map((item) => {
+                    const Icon = item.icon;
+                    return (
+                      <DropdownMenuItem
+                        key={item.to}
+                        className="cursor-pointer"
+                        onSelect={() => irPara(item.to)}
+                      >
+                        <Icon className="h-4 w-4 mr-2" />
+                        {item.label}
+                      </DropdownMenuItem>
+                    );
+                  })}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
             <button
               onClick={() => signOut()}
               className="text-muted-foreground hover:text-foreground ml-1"
@@ -189,6 +252,27 @@ export function AppTopNav({
               </Link>
             );
           })}
+          {(
+            <div className="border-t mt-2 pt-2">
+              <div className="px-3 py-1 text-[10px] uppercase tracking-wider text-muted-foreground">
+                Configurações
+              </div>
+              {(variant === "client" ? CONFIG_ITEMS_BI : CONFIG_ITEMS).map((item) => {
+                const Icon = item.icon;
+                return (
+                  <Link
+                    key={item.to}
+                    to={item.to}
+                    onClick={() => setMobileOpen(false)}
+                    className="flex items-center gap-3 rounded-md px-3 py-2 text-sm text-foreground/80 hover:bg-accent"
+                  >
+                    <Icon className="h-4 w-4" />
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </div>
+          )}
           <div className="flex items-center justify-between px-3 py-2 border-t mt-2 pt-3">
             <div className="flex items-center gap-2">
               <ThemeToggle />

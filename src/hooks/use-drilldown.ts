@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { descendeDe, getMascaraConfig } from "@/lib/mascara/interpretar";
 import { useVisaoGerencial } from "@/hooks/use-visao-gerencial";
+import { lerTudo } from "@/lib/supabase-paginado";
 
 export interface DrilldownAccount {
   codigo_conta: string;
@@ -133,6 +134,24 @@ function competenciaRange(periodos: string[]): { min: string; max: string } {
   return { min: `${norm[0]}-01`, max: `${norm[norm.length - 1]}-01` };
 }
 
+/**
+ * O texto da linha agregada, por MOTIVO — e não por chute.
+ *
+ * A primeira versão escrevia sempre "ECD sem partidas no arquivo". Isso é
+ * uma conclusão, não um fato: o banco só sabe que não há lançamento
+ * gravado. Quando o ECD foi importado antes do diário existir, o arquivo
+ * pode estar cheio de partidas e a frase mandava procurar defeito no
+ * lugar errado.
+ */
+const MOTIVO_AGREGADO: Record<string, string> = {
+  ecd_diario_nao_lido:
+    "Movimento do mês — o diário deste ECD ainda não foi lido " +
+    "(painel do ECD › \"Reler o arquivo\")",
+  ecd_sem_partida_na_conta:
+    "Movimento do mês — o diário foi lido e não há partida nesta conta",
+  sem_diario: "Movimento do mês (saldo agregado, sem diário)",
+};
+
 async function fetchTenantId(companyId: string): Promise<string | null> {
   const { data } = await supabase
     .from("companies")
@@ -156,11 +175,41 @@ async function fetchInBatches<T>(
   return out;
 }
 
+/**
+ * O miolo do drill-down, fora do hook.
+ *
+ * Existe separado por uma razão que custou caro: a bateria do ajuste 37
+ * conferia a RPC `drilldown_contas` e dava tudo verde, enquanto a tela
+ * continuava vazia — porque o que a tela faz DEPOIS da RPC (buscar o
+ * lançamento pelos códigos que ela devolveu) não estava sendo exercitado
+ * por ninguém. Testar a peça errada é o mesmo que não testar.
+ *
+ * Agora a bateria chama ISTO, que é literalmente o que o navegador roda.
+ */
+export async function carregarDrilldown(
+  companyId: string,
+  classificacao: string,
+  periodos: string[],
+  opts: { incluirSaldoInicial: boolean; visao?: string; chaveDfc?: boolean },
+): Promise<LancamentosDrilldownResult> {
+  const { min, max } = competenciaRange(periodos);
+  const visao = opts.visao ?? "contabil";
+  return carregar(
+    companyId,
+    classificacao,
+    min,
+    max,
+    opts.incluirSaldoInicial,
+    visao,
+    opts.chaveDfc ?? false,
+  );
+}
+
 export function useLancamentosDrilldown(
   companyId: string | null,
   classificacao: string | null,
   periodos: string[],
-  opts: { incluirSaldoInicial: boolean },
+  opts: { incluirSaldoInicial: boolean; chaveDfc?: boolean },
   enabled: boolean,
 ) {
   const { min, max } = competenciaRange(periodos);
@@ -175,35 +224,119 @@ export function useLancamentosDrilldown(
       max,
       opts.incluirSaldoInicial,
       visao,
+      opts.chaveDfc ?? false,
     ],
     enabled: enabled && !!companyId && !!classificacao,
-    queryFn: async (): Promise<LancamentosDrilldownResult> => {
+    queryFn: () =>
+      carregar(
+        companyId!,
+        classificacao!,
+        min,
+        max,
+        opts.incluirSaldoInicial,
+        visao,
+        opts.chaveDfc ?? false,
+      ),
+  });
+}
+
+async function prefixosDfc(companyId: string, codigoDfc: string): Promise<string[]> {
+  const { data, error } = await (supabase as any).rpc("dfc_mapa", {
+    _company_id: companyId,
+  });
+  if (error) {
+    console.warn("[dfc_mapa drilldown]", error.message);
+    return [];
+  }
+  const out: string[] = [];
+  for (const r of (data ?? []) as { classificacao: string; codigo_dfc: string }[]) {
+    if (r.codigo_dfc === codigoDfc) out.push(r.classificacao);
+  }
+  return out;
+}
+
+async function carregar(
+  companyId: string,
+  classificacao: string,
+  min: string,
+  max: string,
+  incluirSaldoInicial: boolean,
+  visao: string,
+  chaveDfc = false,
+): Promise<LancamentosDrilldownResult> {
+  const opts = { incluirSaldoInicial };
       const tenantId = await fetchTenantId(companyId!);
       const mascara = tenantId
         ? await getMascaraConfig({ tenantId, companyId })
         : undefined;
       const sep = mascara?.separador || ".";
 
-      // 1) Contas analíticas descendentes (inclui a própria)
-      const { data: planoRows, error: pErr } = await supabase
-        .from("plano_contas")
-        .select("codigo, descricao, classificacao, is_sintetica")
-        .eq("company_id", companyId!)
-        .ilike("classificacao", `${classificacao}%`);
-      if (pErr) throw pErr;
+      const prefixos = chaveDfc
+        ? await prefixosDfc(companyId, classificacao)
+        : [classificacao];
 
-      const contas = (planoRows ?? []).filter(
-        (r: any) =>
-          !r.is_sintetica &&
-          (r.classificacao === classificacao ||
-            descendeDe(r.classificacao, classificacao!, mascara)),
-      );
+      const contas: {
+        codigo: string;
+        descricao: string;
+        classificacao: string;
+      }[] = [];
+      const visto = new Set<string>();
+      for (const pref of prefixos.length > 0 ? prefixos : [classificacao]) {
+        const { data: contasRpc, error: pErr } = await (supabase as any).rpc(
+          "drilldown_contas",
+          {
+            _company_id: companyId!,
+            _classificacao: pref,
+            _competencia_min: min,
+            _competencia_max: max,
+          },
+        );
+        if (pErr) throw pErr;
+        for (const r of (contasRpc ?? []) as {
+          codigo: string;
+          descricao: string;
+          classificacao: string;
+        }[]) {
+          if (visto.has(r.codigo)) continue;
+          visto.add(r.codigo);
+          contas.push(r);
+        }
+      }
+
+      // Folha da DRE/BP guarda o CÓDIGO da conta, não a classificação.
+      // O RPC só casava prefixo de classificação — a gaveta abria vazia.
+      if (contas.length === 0 && !chaveDfc && classificacao && tenantId) {
+        const porCodigo = async (escopoEmpresa: boolean) => {
+          let q = supabase
+            .from("plano_contas")
+            .select("codigo, descricao, classificacao")
+            .eq("tenant_id", tenantId)
+            .eq("ativo", true)
+            .eq("codigo", classificacao);
+          q = escopoEmpresa
+            ? q.eq("company_id", companyId)
+            : q.is("company_id", null);
+          const { data } = await q.limit(8);
+          return (data ?? []) as {
+            codigo: string;
+            descricao: string;
+            classificacao: string;
+          }[];
+        };
+        let achadas = await porCodigo(true);
+        if (achadas.length === 0) achadas = await porCodigo(false);
+        for (const r of achadas) {
+          if (visto.has(r.codigo)) continue;
+          visto.add(r.codigo);
+          contas.push(r);
+        }
+      }
 
       const contasMap: Record<string, { codigo: string; descricao: string }> = {};
       for (const r of contas) {
         contasMap[r.codigo] = { codigo: r.codigo, descricao: r.descricao };
       }
-      const codes = contas.map((r: any) => r.codigo);
+      const codes = contas.map((r) => r.codigo);
 
       // 1b) Contas gerenciais que caem sob esta classificação (visão gerencial).
       // Classif. virtual = `${classificacao_pai}${sep}${codigo}`.
@@ -216,9 +349,9 @@ export function useLancamentosDrilldown(
         if (gErr) throw gErr;
         for (const g of (gerRows ?? []) as any[]) {
           const virtual = `${g.classificacao}${sep}${g.codigo}`;
-          const match =
-            virtual === classificacao ||
-            virtual.startsWith(`${classificacao}${sep}`);
+          const match = prefixos.some(
+            (pref) => virtual === pref || virtual.startsWith(`${pref}${sep}`),
+          );
           if (match) {
             gerCodes.push(g.codigo);
             if (!contasMap[g.codigo]) {
@@ -243,19 +376,29 @@ export function useLancamentosDrilldown(
       }
 
       // 2) Lançamentos contábeis (só contas contábeis)
+      //
+      // Paginado. Sem isso o PostgREST corta em `max_rows = 1000` sem
+      // dizer nada: a gaveta de uma conta movimentada mostrava as mil
+      // primeiras linhas e um total que não batia com a demonstração —
+      // e nada na tela indicava que faltava.
       const entries = codes.length === 0
         ? []
         : await fetchInBatches(codes, async (batch) => {
-            const { data, error } = await supabase
-              .from("lancamentos_diario")
-              .select("id, data, historico, debito, credito, conta_codigo")
-              .eq("company_id", companyId!)
-              .in("conta_codigo", batch)
-              .gte("competencia", min)
-              .lte("competencia", max)
-              .order("data", { ascending: true });
-            if (error) throw error;
-            return (data ?? []).map((r: any) => ({
+            const linhas = await lerTudo<any>(
+              (de, ate) =>
+                supabase
+                  .from("lancamentos_diario")
+                  .select("id, data, historico, debito, credito, conta_codigo")
+                  .eq("company_id", companyId!)
+                  .in("conta_codigo", batch)
+                  .gte("competencia", min)
+                  .lte("competencia", max)
+                  .order("data", { ascending: true })
+                  .order("id", { ascending: true })
+                  .range(de, ate),
+              "drill-down: lançamentos",
+            );
+            return linhas.map((r: any) => ({
               id: r.id,
               data: r.data,
               historico: r.historico,
@@ -264,6 +407,46 @@ export function useLancamentosDrilldown(
               conta_codigo: r.conta_codigo,
             })) as LancamentoRow[];
           });
+
+      // 2b) O mês agregado, onde não há partida.
+      //
+      // ECD sem os registros I200/I250 — e todo ECD importado antes do
+      // ajuste 37 — tem saldo mensal e nenhum lançamento. A gaveta abria
+      // a conta certa e dizia "sem lançamentos" para uma conta que
+      // claramente moveu. Agora mostra o movimento do mês numa linha só,
+      // marcada como agregada. A função do banco só devolve
+      // conta+competência que NÃO tenham lançamento: onde existe diário,
+      // quem manda é o diário.
+      if (codes.length > 0) {
+        const { data: mensais, error: mErr } = await (supabase as any).rpc(
+          "drilldown_saldo_mensal",
+          {
+            _company_id: companyId!,
+            _codigos: codes,
+            _competencia_min: min,
+            _competencia_max: max,
+          },
+        );
+        if (mErr) {
+          // Função ausente (banco ainda sem a migração) não pode derrubar
+          // o drill-down inteiro — o diário de verdade já está na mão.
+          console.warn("[drilldown_saldo_mensal]", mErr.message);
+        } else {
+          for (const r of (mensais ?? []) as any[]) {
+            entries.push({
+              id: `sm:${r.conta_codigo}:${r.competencia}`,
+              data: r.competencia,
+              historico: MOTIVO_AGREGADO[r.motivo as string] ??
+                (r.do_ecd
+                  ? "Movimento do mês (ECD)"
+                  : "Movimento do mês (saldo agregado, sem diário)"),
+              debito: Number(r.debito) || 0,
+              credito: Number(r.credito) || 0,
+              conta_codigo: r.conta_codigo,
+            });
+          }
+        }
+      }
 
       entries.sort((a, b) => {
         if (a.data === b.data) return a.id.localeCompare(b.id);
@@ -274,13 +457,18 @@ export function useLancamentosDrilldown(
       let saldoInicial: SaldoInicialRow[] = [];
       if (opts.incluirSaldoInicial && codes.length > 0) {
         saldoInicial = await fetchInBatches(codes, async (batch) => {
-          const { data, error } = await supabase
-            .from("saldos_abertura")
-            .select("conta_codigo, data_referencia, saldo")
-            .eq("company_id", companyId!)
-            .in("conta_codigo", batch)
-            .lte("data_referencia", min);
-          if (error) throw error;
+          const data = await lerTudo<any>(
+            (de, ate) =>
+              supabase
+                .from("saldos_abertura")
+                .select("conta_codigo, data_referencia, saldo")
+                .eq("company_id", companyId!)
+                .in("conta_codigo", batch)
+                .lte("data_referencia", min)
+                .order("conta_codigo", { ascending: true })
+                .range(de, ate),
+            "drill-down: abertura",
+          );
           return (data ?? []).map((r: any) => ({
             conta_codigo: r.conta_codigo,
             data_referencia: r.data_referencia,
@@ -347,7 +535,5 @@ export function useLancamentosDrilldown(
         maxCompetencia: max,
         ajustes,
       };
-    },
-  });
 }
 

@@ -1,20 +1,21 @@
+import { useMemo } from "react";
 import { useDashboardCompany } from "@/components/dashboard-context";
-import { useFilters } from "@/components/filter-bar";
+import { useFiltersOptional } from "@/components/filter-bar";
 import { useLancamentosDrilldown } from "@/hooks/use-drilldown";
-import { formatBRLPlain } from "@/lib/format";
+import { formatBRLPlain, tituloConta } from "@/lib/format";
 import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Props {
-  codigoConta: string; // na verdade é a classificação
+  codigoConta: string; // classificação do plano, ou código da DFC
   descricao: string;
   periods: string[];
   colSpanLeft: number;
   colSpanRight: number;
-  /** Colunas extras (subtotais de ano intercalados) somadas ao colspan. */
   extraMiddleCols?: number;
-  variante?: "dre" | "bp";
+  variante?: "dre" | "bp" | "dfc";
   emMilhares?: boolean;
+  filtroConta?: string;
 }
 
 
@@ -32,15 +33,19 @@ export function InlineDrilldown({
   extraMiddleCols = 0,
   variante = "dre",
   emMilhares = false,
+  filtroConta = "",
 }: Props) {
   const { companyId } = useDashboardCompany();
-  const { periodos } = useFilters();
-  const usePeriods = periods.length > 0 ? periods : periodos;
+  const filter = useFiltersOptional();
+  const usePeriods = periods.length > 0 ? periods : (filter?.periodos ?? []);
   const { data, isLoading } = useLancamentosDrilldown(
     companyId,
     codigoConta,
     usePeriods,
-    { incluirSaldoInicial: variante === "bp" },
+    {
+      incluirSaldoInicial: variante === "bp",
+      chaveDfc: variante === "dfc",
+    },
     true,
   );
 
@@ -52,6 +57,41 @@ export function InlineDrilldown({
 
   const totalCols = colSpanLeft + periods.length + extraMiddleCols + colSpanRight;
 
+  // Filtra as entradas pelo texto do filtro
+  const entriesFiltradas = useMemo(() => {
+    if (!data?.entries || !filtroConta?.trim()) return data?.entries ?? [];
+    const termo = filtroConta.trim().toLowerCase();
+    return data.entries.filter((e) =>
+      e.conta_codigo.toLowerCase().includes(termo) ||
+      (e.historico && e.historico.toLowerCase().includes(termo))
+    );
+  }, [data?.entries, filtroConta]);
+
+  const ajustesFiltrados = useMemo(() => {
+    if (!data?.ajustes || !filtroConta?.trim()) return data?.ajustes ?? [];
+    const termo = filtroConta.trim().toLowerCase();
+    return data.ajustes.filter((a) =>
+      a.conta_codigo.toLowerCase().includes(termo) ||
+      a.descricao.toLowerCase().includes(termo)
+    );
+  }, [data?.ajustes, filtroConta]);
+
+  const totalDeb = entriesFiltradas.reduce((a, r) => a + r.debito, 0);
+  const totalCre = entriesFiltradas.reduce((a, r) => a + r.credito, 0);
+  
+  const saldoInicialTotal = data?.saldoInicial.reduce((a, r) => a + r.saldo, 0) ?? 0;
+  const ajustesDeb = ajustesFiltrados.reduce((a, r) => a + r.debito, 0);
+  const ajustesCre = ajustesFiltrados.reduce((a, r) => a + r.credito, 0);
+  const ajustesAnteriores = ajustesFiltrados.filter((a) => a.isAnterior);
+  const ajustesPeriodo = ajustesFiltrados.filter((a) => !a.isAnterior);
+  const ajustesAntTotal =
+    ajustesAnteriores.reduce((a, r) => a + r.debito - r.credito, 0);
+
+  const totalGeral =
+    totalDeb -
+    totalCre +
+    (variante === "bp" ? saldoInicialTotal : 0) +
+    (ajustesDeb - ajustesCre);
 
   return (
     <tr className="bg-muted/20">
@@ -62,7 +102,8 @@ export function InlineDrilldown({
             {data && data.contasEncontradas > 0 && (
               <span className="ml-2 text-muted-foreground/70 normal-case tracking-normal">
                 {data.contasEncontradas} conta{data.contasEncontradas > 1 ? "s" : ""} ·{" "}
-                {data.entries.length} lançamento{data.entries.length === 1 ? "" : "s"}
+                {entriesFiltradas.length} lançamento{entriesFiltradas.length === 1 ? "" : "s"}
+                {filtroConta && ` · filtrado por "${filtroConta}"`}
               </span>
             )}
           </div>
@@ -75,20 +116,24 @@ export function InlineDrilldown({
             <div className="py-3 text-xs text-muted-foreground">
               Nenhuma conta analítica encontrada no plano de contas para esta classificação.
             </div>
-          ) : data.entries.length === 0 && data.saldoInicial.length === 0 && data.ajustes.length === 0 ? (
+          ) : entriesFiltradas.length === 0 && data.saldoInicial.length === 0 && ajustesFiltrados.length === 0 ? (
             <div className="py-3 text-xs text-muted-foreground">
-              Sem lançamentos no período selecionado para as {data.contasEncontradas} conta(s) desta linha.
+              {filtroConta
+                ? `Nenhum lançamento encontrado com o filtro "${filtroConta}" para as ${data.contasEncontradas} conta(s) desta linha.`
+                : `Sem lançamentos no período selecionado para as ${data.contasEncontradas} conta(s) desta linha.`
+              }
             </div>
           ) : (
             <DrilldownTable
               data={data}
+              entriesFiltradas={entriesFiltradas}
+              ajustesFiltrados={ajustesFiltrados}
               variante={variante}
               fmt={fmt}
               fmtValor={fmtValor}
               showConta={data.contasEncontradas > 1}
             />
           )}
-
         </div>
       </td>
     </tr>
@@ -97,25 +142,29 @@ export function InlineDrilldown({
 
 function DrilldownTable({
   data,
+  entriesFiltradas,
+  ajustesFiltrados,
   variante,
   fmt,
   fmtValor,
   showConta,
 }: {
   data: NonNullable<ReturnType<typeof useLancamentosDrilldown>["data"]>;
-  variante: "dre" | "bp";
+  entriesFiltradas: any[];
+  ajustesFiltrados: any[];
+  variante: "dre" | "bp" | "dfc";
   fmt: (n: number) => string;
   fmtValor: (n: number) => string;
   showConta: boolean;
 }) {
-  const totalDeb = data.entries.reduce((a, r) => a + r.debito, 0);
-  const totalCre = data.entries.reduce((a, r) => a + r.credito, 0);
+  const totalDeb = entriesFiltradas.reduce((a, r) => a + r.debito, 0);
+  const totalCre = entriesFiltradas.reduce((a, r) => a + r.credito, 0);
   
   const saldoInicialTotal = data.saldoInicial.reduce((a, r) => a + r.saldo, 0);
-  const ajustesDeb = data.ajustes.reduce((a, r) => a + r.debito, 0);
-  const ajustesCre = data.ajustes.reduce((a, r) => a + r.credito, 0);
-  const ajustesAnteriores = data.ajustes.filter((a) => a.isAnterior);
-  const ajustesPeriodo = data.ajustes.filter((a) => !a.isAnterior);
+  const ajustesDeb = ajustesFiltrados.reduce((a, r) => a + r.debito, 0);
+  const ajustesCre = ajustesFiltrados.reduce((a, r) => a + r.credito, 0);
+  const ajustesAnteriores = ajustesFiltrados.filter((a) => a.isAnterior);
+  const ajustesPeriodo = ajustesFiltrados.filter((a) => !a.isAnterior);
   const ajustesAntTotal =
     ajustesAnteriores.reduce((a, r) => a + r.debito - r.credito, 0);
 
@@ -185,7 +234,7 @@ function DrilldownTable({
               </td>
             </tr>
           )}
-          {data.entries.map((r) => {
+          {entriesFiltradas.map((r) => {
             const valor = r.debito - r.credito;
             return (
               <tr key={r.id} className="border-b last:border-0 hover:bg-accent/40">
@@ -196,7 +245,7 @@ function DrilldownTable({
                   <td className="px-2 py-1 whitespace-nowrap font-mono text-[10px] text-muted-foreground">
                     {r.conta_codigo}
                     <span className="ml-1 font-sans text-muted-foreground/70">
-                      {data.contasMap[r.conta_codigo]?.descricao ?? ""}
+                      {tituloConta(data.contasMap[r.conta_codigo]?.descricao ?? "")}
                     </span>
                   </td>
                 )}
@@ -224,7 +273,7 @@ function DrilldownTable({
                   <td className="px-2 py-1 whitespace-nowrap font-mono text-[10px] text-muted-foreground">
                     {a.conta_codigo}
                     <span className="ml-1 font-sans text-muted-foreground/70">
-                      {data.contasMap[a.conta_codigo]?.descricao ?? ""}
+                      {tituloConta(data.contasMap[a.conta_codigo]?.descricao ?? "")}
                     </span>
                   </td>
                 )}
@@ -247,11 +296,11 @@ function DrilldownTable({
             );
           })}
         </tbody>
-        {(data.entries.length > 0 || ajustesPeriodo.length > 0) && (
+        {(entriesFiltradas.length > 0 || ajustesPeriodo.length > 0) && (
           <tfoot>
             <tr className="border-t bg-muted/30 font-semibold">
               <td className="px-2 py-1" colSpan={showConta ? 3 : 2}>
-                Total ({data.entries.length + ajustesPeriodo.length} lançamento{data.entries.length + ajustesPeriodo.length === 1 ? "" : "s"})
+                Total ({entriesFiltradas.length + ajustesPeriodo.length} lançamento{entriesFiltradas.length + ajustesPeriodo.length === 1 ? "" : "s"})
               </td>
               <td className="px-2 py-1 text-right tabular-nums">{fmtValor(totalDeb + ajustesDeb)}</td>
               <td className="px-2 py-1 text-right tabular-nums">{fmtValor(totalCre + ajustesCre)}</td>
@@ -273,4 +322,3 @@ function GerencialBadge() {
     </span>
   );
 }
-

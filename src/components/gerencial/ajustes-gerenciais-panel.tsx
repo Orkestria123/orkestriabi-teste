@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { Loader2, Plus, Pencil, Trash2, Sparkles } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
+import { escoparPlano, getEscopoConsulta } from "@/lib/plano/consulta";
 import { useAuth } from "@/hooks/use-auth";
 import { formatBRL } from "@/lib/format";
 
@@ -45,10 +46,10 @@ import { cn } from "@/lib/utils";
 // ---------------------------------------------------------------------
 
 type ContaOpt = {
-  codigo: string;               // código exibido/gravado no ajuste
+  codigo: string;
   descricao: string;
-  classificacao: string;        // posição na hierarquia (ex.: "2.01")
-  origem: "plano" | "gerencial";
+  classificacao: string;
+  origem: "plano" | "gerencial" | "participante";
 };
 
 interface AjusteRow {
@@ -86,6 +87,38 @@ function labelMes(ym: string): string {
   return `${nomes[Number(m) - 1] ?? m}/${y.slice(2)}`;
 }
 
+function papelParticipante(classificacao: string): "cliente" | "fornecedor" {
+  return classificacao.trim().startsWith("2") ? "fornecedor" : "cliente";
+}
+
+/** Digitação em centavos → "20.000.000,00" */
+function formatarValorDigitado(raw: string): string {
+  const d = raw.replace(/\D/g, "").slice(0, 15);
+  if (!d) return "";
+  return (Number(d) / 100).toLocaleString("pt-BR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
+function parseValorBR(s: string): number {
+  const t = s.replace(/[R$\s]/g, "").trim();
+  if (!t) return NaN;
+  if (t.includes(",")) return Number(t.replace(/\./g, "").replace(",", "."));
+  return Number(t.replace(/\./g, ""));
+}
+
+function termoBuscaSeguro(q: string): string {
+  return q.replace(/[%_,()]/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function invalidarDemonstracoes(qc: ReturnType<typeof useQueryClient>, companyId: string) {
+  qc.invalidateQueries({ queryKey: ["ajustes-gerenciais", companyId] });
+  qc.invalidateQueries({ queryKey: ["monthly-stmt"] });
+  qc.invalidateQueries({ queryKey: ["indic-engine-data"] });
+  qc.invalidateQueries({ queryKey: ["indic-demo-dre"] });
+}
+
 // ---------------------------------------------------------------------
 // Painel raiz
 // ---------------------------------------------------------------------
@@ -105,15 +138,17 @@ export function AjustesGerenciaisPanel({ tenantId, companyId }: Props) {
   const { data: contas, isLoading: loadingContas } = useQuery({
     queryKey: ["gerencial-contas", tenantId, companyId],
     queryFn: async (): Promise<ContaOpt[]> => {
+      // escopo do plano resolvido em um lugar só (Plano Padrão x próprio)
+      const escopo = await getEscopoConsulta(companyId);
       const [planoR, gerR] = await Promise.all([
-        supabase
-          .from("plano_contas")
-          .select("codigo, descricao, classificacao")
-          .eq("tenant_id", tenantId)
-          .eq("company_id", companyId)
-          .eq("is_participante", false)
-          .order("classificacao", { ascending: true })
-          .range(0, 9999),
+        escoparPlano(
+          supabase.from("plano_contas").select("codigo, descricao, classificacao, is_participante"),
+          companyId,
+          escopo,
+        )
+            .eq("is_participante", false)
+            .order("classificacao", { ascending: true })
+            .range(0, 9999),
         supabase
           .from("contas_gerenciais")
           .select("codigo, descricao, classificacao")
@@ -165,9 +200,44 @@ export function AjustesGerenciaisPanel({ tenantId, companyId }: Props) {
     },
   });
 
-  const contaLabel = (codigo: string): { descricao: string; origem: "plano" | "gerencial" | "?" } => {
-    const c = contas?.find((x) => x.codigo === codigo);
-    if (!c) return { descricao: "(conta removida)", origem: "?" };
+  const { data: labelsExtra } = useQuery({
+    queryKey: [
+      "gerencial-conta-refs",
+      companyId,
+      (ajustes ?? []).map((a) => `${a.conta_debito}|${a.conta_credito}`).join(","),
+    ],
+    enabled: (ajustes?.length ?? 0) > 0,
+    queryFn: async (): Promise<ContaOpt[]> => {
+      const conhecidos = new Set((contas ?? []).map((c) => c.codigo));
+      const codes = Array.from(
+        new Set((ajustes ?? []).flatMap((a) => [a.conta_debito, a.conta_credito])),
+      ).filter((c) => !conhecidos.has(c));
+      if (codes.length === 0) return [];
+      const escopo = await getEscopoConsulta(companyId);
+      const { data, error } = await escoparPlano(
+        supabase.from("plano_contas").select("codigo, descricao, classificacao, is_participante"),
+        companyId,
+        escopo,
+      ).in("codigo", codes);
+      if (error) throw error;
+      return (data ?? []).map((r: any) => ({
+        codigo: r.codigo,
+        descricao: r.descricao,
+        classificacao: r.classificacao,
+        origem: r.is_participante ? ("participante" as const) : ("plano" as const),
+      }));
+    },
+  });
+
+  const contaPorCodigo = useMemo(() => {
+    const m = new Map<string, ContaOpt>();
+    for (const c of [...(contas ?? []), ...(labelsExtra ?? [])]) m.set(c.codigo, c);
+    return m;
+  }, [contas, labelsExtra]);
+
+  const contaLabel = (codigo: string): { descricao: string; origem: ContaOpt["origem"] | "?" } => {
+    const c = contaPorCodigo.get(codigo);
+    if (!c) return { descricao: codigo, origem: "?" };
     return { descricao: c.descricao, origem: c.origem };
   };
 
@@ -176,7 +246,7 @@ export function AjustesGerenciaisPanel({ tenantId, companyId }: Props) {
     const { error } = await supabase.from("ajustes_gerenciais").delete().eq("id", id);
     if (error) return toast.error(error.message);
     toast.success("Ajuste excluído");
-    qc.invalidateQueries({ queryKey: ["ajustes-gerenciais", companyId] });
+    invalidarDemonstracoes(qc, companyId);
   };
 
   return (
@@ -224,6 +294,8 @@ export function AjustesGerenciaisPanel({ tenantId, companyId }: Props) {
             {ajustes!.map((a) => {
               const d = contaLabel(a.conta_debito);
               const c = contaLabel(a.conta_credito);
+              const clsD = contaPorCodigo.get(a.conta_debito)?.classificacao ?? "";
+              const clsC = contaPorCodigo.get(a.conta_credito)?.classificacao ?? "";
               return (
                 <div key={a.id} className="p-3 grid grid-cols-12 gap-3 items-center text-sm hover:bg-accent/30">
                   <div className="col-span-12 md:col-span-4">
@@ -241,6 +313,7 @@ export function AjustesGerenciaisPanel({ tenantId, companyId }: Props) {
                       <span className="font-mono">{a.conta_debito}</span>
                       <span className="truncate">{d.descricao}</span>
                       {d.origem === "gerencial" && <GerencialBadge />}
+                      {d.origem === "participante" && <ParticipanteBadge classificacao={clsD} />}
                     </div>
                   </div>
                   <div className="col-span-6 md:col-span-3 text-xs">
@@ -249,6 +322,7 @@ export function AjustesGerenciaisPanel({ tenantId, companyId }: Props) {
                       <span className="font-mono">{a.conta_credito}</span>
                       <span className="truncate">{c.descricao}</span>
                       {c.origem === "gerencial" && <GerencialBadge />}
+                      {c.origem === "participante" && <ParticipanteBadge classificacao={clsC} />}
                     </div>
                   </div>
                   <div className="col-span-8 md:col-span-1 text-right font-medium">
@@ -295,7 +369,7 @@ export function AjustesGerenciaisPanel({ tenantId, companyId }: Props) {
         editando={editando}
         onNovaConta={() => setOpenConta(true)}
         onSaved={() => {
-          qc.invalidateQueries({ queryKey: ["ajustes-gerenciais", companyId] });
+          invalidarDemonstracoes(qc, companyId);
         }}
       />
 
@@ -320,6 +394,15 @@ function GerencialBadge() {
   );
 }
 
+function ParticipanteBadge({ classificacao }: { classificacao: string }) {
+  const papel = papelParticipante(classificacao);
+  return (
+    <Badge variant="outline" className="text-[9px] border-sky-500/40 text-sky-700 dark:text-sky-300">
+      {papel === "fornecedor" ? "Fornecedor" : "Cliente"}
+    </Badge>
+  );
+}
+
 // ---------------------------------------------------------------------
 // Seletor de conta (plano estrutural + contas gerenciais)
 // ---------------------------------------------------------------------
@@ -330,30 +413,92 @@ function ContaSelect({
   onChange,
   placeholder,
   onNovaConta,
+  companyId,
 }: {
   contas: ContaOpt[];
   value: string;
   onChange: (codigo: string) => void;
   placeholder: string;
   onNovaConta?: () => void;
+  companyId: string;
 }) {
   const [open, setOpen] = useState(false);
   const [busca, setBusca] = useState("");
+  const termo = termoBuscaSeguro(busca);
 
-  const selecionada = contas.find((c) => c.codigo === value);
+  const { data: participantes } = useQuery({
+    queryKey: ["gerencial-conta-part", companyId, termo],
+    enabled: open && termo.length >= 2,
+    queryFn: async (): Promise<ContaOpt[]> => {
+      const escopo = await getEscopoConsulta(companyId);
+      const like = `%${termo}%`;
+      const { data, error } = await escoparPlano(
+        supabase.from("plano_contas").select("codigo, descricao, classificacao, is_participante"),
+        companyId,
+        escopo,
+      )
+        .eq("is_participante", true)
+        .or(`codigo.ilike."${like}",descricao.ilike."${like}",classificacao.ilike."${like}"`)
+        .order("classificacao", { ascending: true })
+        .limit(80);
+      if (error) throw error;
+      return (data ?? []).map((r: any) => ({
+        codigo: r.codigo,
+        descricao: r.descricao,
+        classificacao: r.classificacao,
+        origem: "participante" as const,
+      }));
+    },
+  });
+
+  const { data: selecionadaExtra } = useQuery({
+    queryKey: ["gerencial-conta-uma", companyId, value],
+    enabled: !!value && !contas.some((c) => c.codigo === value),
+    queryFn: async (): Promise<ContaOpt | null> => {
+      const escopo = await getEscopoConsulta(companyId);
+      const { data, error } = await escoparPlano(
+        supabase.from("plano_contas").select("codigo, descricao, classificacao, is_participante"),
+        companyId,
+        escopo,
+      )
+        .eq("codigo", value)
+        .maybeSingle();
+      if (error) throw error;
+      if (!data) return null;
+      return {
+        codigo: data.codigo,
+        descricao: data.descricao,
+        classificacao: data.classificacao,
+        origem: data.is_participante ? "participante" : "plano",
+      };
+    },
+  });
+
+  const pool = useMemo(() => {
+    const m = new Map<string, ContaOpt>();
+    for (const c of contas) m.set(c.codigo, c);
+    for (const c of participantes ?? []) m.set(c.codigo, c);
+    if (selecionadaExtra) m.set(selecionadaExtra.codigo, selecionadaExtra);
+    return Array.from(m.values());
+  }, [contas, participantes, selecionadaExtra]);
+
+  const selecionada = pool.find((c) => c.codigo === value);
   const filtered = useMemo(() => {
     const b = busca.trim().toLowerCase();
-    return contas
-      .filter((c) => {
-        if (!b) return true;
-        return (
-          c.codigo.toLowerCase().includes(b) ||
-          c.descricao.toLowerCase().includes(b) ||
-          c.classificacao.toLowerCase().includes(b)
-        );
-      })
-      .slice(0, 500);
-  }, [contas, busca]);
+    const base = pool.filter((c) => {
+      if (c.origem === "participante" && termo.length < 2 && c.codigo !== value) return false;
+      if (!b) return c.origem !== "participante" || c.codigo === value;
+      return (
+        c.codigo.toLowerCase().includes(b) ||
+        c.descricao.toLowerCase().includes(b) ||
+        c.classificacao.toLowerCase().includes(b)
+      );
+    });
+    const ger = base.filter((c) => c.origem === "gerencial");
+    const plano = base.filter((c) => c.origem === "plano");
+    const part = base.filter((c) => c.origem === "participante");
+    return [...ger, ...plano.slice(0, 400), ...part].slice(0, 500);
+  }, [pool, busca, termo, value]);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -368,6 +513,9 @@ function ContaSelect({
               <span className="font-mono text-xs">{selecionada.codigo}</span>
               <span className="truncate">{selecionada.descricao}</span>
               {selecionada.origem === "gerencial" && <GerencialBadge />}
+              {selecionada.origem === "participante" && (
+                <ParticipanteBadge classificacao={selecionada.classificacao} />
+              )}
             </span>
           ) : (
             placeholder
@@ -377,7 +525,7 @@ function ContaSelect({
       <PopoverContent className="w-[520px] p-0" align="start">
         <div className="p-2 border-b border-border flex gap-2">
           <Input
-            placeholder="Buscar por código, nome ou classificação…"
+            placeholder="Buscar estrutural, cliente ou fornecedor…"
             value={busca}
             onChange={(e) => setBusca(e.target.value)}
             className="h-8 text-xs"
@@ -399,7 +547,11 @@ function ContaSelect({
         </div>
         <div className="max-h-[320px] overflow-y-auto pointer-events-auto">
           {filtered.length === 0 && (
-            <div className="p-3 text-xs text-muted-foreground text-center">Nenhuma conta.</div>
+            <div className="p-3 text-xs text-muted-foreground text-center">
+              {termo.length < 2
+                ? "Digite pelo menos 2 caracteres para buscar clientes e fornecedores."
+                : "Nenhuma conta."}
+            </div>
           )}
           {filtered.map((c) => (
             <button
@@ -418,6 +570,7 @@ function ContaSelect({
               <span className="truncate flex-1">{c.descricao}</span>
               <span className="font-mono text-[10px] text-muted-foreground">{c.classificacao}</span>
               {c.origem === "gerencial" && <GerencialBadge />}
+              {c.origem === "participante" && <ParticipanteBadge classificacao={c.classificacao} />}
             </button>
           ))}
         </div>
@@ -472,7 +625,7 @@ function AjusteDialog({
       setJustificativa(editando.justificativa ?? "");
       setContaDebito(editando.conta_debito);
       setContaCredito(editando.conta_credito);
-      setValor(String(editando.valor));
+      setValor(formatarValorDigitado(String(Math.round(editando.valor * 100))));
     } else {
       setCompetencia(competenciaPadrao);
       setDescricao("");
@@ -483,7 +636,7 @@ function AjusteDialog({
     }
   }, [open, editando, competenciaPadrao]);
 
-  const valorNum = Number(String(valor).replace(",", "."));
+  const valorNum = parseValorBR(valor);
   const contasIguais = contaDebito && contaCredito && contaDebito === contaCredito;
   const valorInvalido = !Number.isFinite(valorNum) || valorNum <= 0;
   const podeSalvar =
@@ -549,15 +702,16 @@ function AjusteDialog({
             </div>
             <div>
               <Label className="text-xs">Valor (R$) *</Label>
-              <Input
-                type="number"
-                step="0.01"
-                min="0"
-                value={valor}
-                onChange={(e) => setValor(e.target.value)}
-                className="h-9"
-                placeholder="0,00"
-              />
+              <div className="relative">
+                <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">R$</span>
+                <Input
+                  inputMode="numeric"
+                  value={valor}
+                  onChange={(e) => setValor(formatarValorDigitado(e.target.value))}
+                  className="h-9 pl-8"
+                  placeholder="0,00"
+                />
+              </div>
               {valor && valorInvalido && (
                 <p className="text-[10px] text-destructive mt-0.5">Informe um valor maior que zero.</p>
               )}
@@ -595,6 +749,7 @@ function AjusteDialog({
                 onChange={setContaDebito}
                 placeholder={loadingContas ? "Carregando…" : "Escolher conta"}
                 onNovaConta={onNovaConta}
+                companyId={companyId}
               />
             </div>
             <div>
@@ -605,6 +760,7 @@ function AjusteDialog({
                 onChange={setContaCredito}
                 placeholder={loadingContas ? "Carregando…" : "Escolher conta"}
                 onNovaConta={onNovaConta}
+                companyId={companyId}
               />
             </div>
           </div>
@@ -677,11 +833,11 @@ function ContaGerencialDialog({
     queryKey: ["plano-estruturais", tenantId, companyId],
     enabled: open,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("plano_contas")
-        .select("classificacao, descricao, nivel")
-        .eq("tenant_id", tenantId)
-        .eq("company_id", companyId)
+      const { data, error } = await escoparPlano(
+        supabase.from("plano_contas").select("classificacao, descricao, nivel"),
+        companyId,
+        await getEscopoConsulta(companyId),
+      )
         .eq("is_participante", false)
         .lte("nivel", 4)
         .order("classificacao", { ascending: true })

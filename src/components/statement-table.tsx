@@ -1,563 +1,663 @@
-import { useMemo, useState, Fragment } from "react";
-import { ChevronRight, ChevronDown } from "lucide-react";
-import { formatBRLPlain, formatPct, periodoLabel } from "@/lib/format";
-import { cn } from "@/lib/utils";
-import { InlineDrilldown } from "@/components/inline-drilldown";
+// src/components/statement-table.tsx
+import { useState, useMemo, useEffect, Fragment } from 'react';
+import { ChevronDown, ChevronRight, ChevronUp, Search } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { useFiltersOptional } from '@/components/filter-bar';
+import { InlineDrilldown } from './inline-drilldown';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { resolverBasesAV, percentualAV } from '@/lib/av-base';
 
 export interface StatementRow {
+  linha_ordem: number;
   descricao: string;
-  codigo_conta: string | null;
+  codigo_conta?: string | null;
   nivel: number;
   is_subtotal: boolean;
-  values: Record<string, number>; // period -> value (contábil ou visão única)
-  /** Presente apenas no modo comparativo — valores da visão gerencial. */
+  values: Record<string, number>;
   valuesGer?: Record<string, number>;
-  linha_ordem: number;
 }
 
-interface Props {
+interface StatementTableProps {
   rows: StatementRow[];
-  periods: string[];
+  periods?: string[];
   showAV?: boolean;
   showAH?: boolean;
   showTotal?: boolean;
   basePeriod?: string;
   avBaseCodigo?: string;
-  /** Nível máximo expandido por padrão (padrão: tudo expandido). */
+  avSelecionadas?: string[];
   initialExpandLevel?: number;
-  /** Contexto do drill-down: "bp" inclui saldo inicial. */
-  variante?: "dre" | "bp";
+  variante?: 'dre' | 'bp' | 'dfc';
+  /** Profundidade da visualização Padrão. BP usa 2 se omitido; Ativo pode passar 3. */
+  padraoMaxNivel?: number;
+  onDrilldownClick?: (codigoConta: string, descricao: string) => void;
+  emMilhares?: boolean;
+}
+
+// Utilitários
+function formatarMoeda(valor: number, emMilhares: boolean = false): string {
+  if (valor === 0 || !isFinite(valor)) return '—';
+  const divisor = emMilhares ? 1000 : 1;
+  const val = Math.abs(valor) / divisor;
+  const formatted = new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+    minimumFractionDigits: emMilhares ? 1 : 2,
+    maximumFractionDigits: emMilhares ? 1 : 2,
+  }).format(val);
+  return valor < 0 ? `(${formatted})` : formatted;
+}
+
+function formatarPercentual(valor: number): string {
+  if (valor == null || !isFinite(valor)) return '—';
+  return `${valor.toFixed(1).replace('.', ',')}%`;
+}
+
+function formatarPeriodo(periodo: string): string {
+  if (!periodo) return '';
+  const parts = periodo.split('-');
+  if (parts.length < 2) return periodo;
+  const [ano, mes] = parts;
+  const meses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+  return `${meses[parseInt(mes) - 1]}/${ano.slice(2)}`;
+}
+
+function capitalize(str: string): string {
+  if (!str) return '';
+  return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+}
+
+function tituloConta(descricao: string): string {
+  if (!descricao) return '';
+  // Remove prefixos comuns
+  let titulo = descricao
+    .replace(/^\(=\)\s*/, '')
+    .replace(/^\(-\)\s*/, '')
+    .replace(/^\(\+\)\s*/, '')
+    .replace(/^=\s*/, '');
+  
+  // Capitaliza cada palavra
+  return titulo.split(' ').map(capitalize).join(' ');
+}
+
+function calcularAH(
+  row: StatementRow,
+  periodo: string,
+  periods: string[],
+  basePeriod: string,
+  tipo: 'anterior' | 'base',
+): number | null {
+  const valorAtual = row.values[periodo] ?? 0;
+  let valorBase: number;
+  if (tipo === 'anterior') {
+    const idx = periods.indexOf(periodo);
+    if (idx <= 0) return null;
+    valorBase = row.values[periods[idx - 1]] ?? 0;
+  } else {
+    if (periodo === basePeriod) return null;
+    valorBase = row.values[basePeriod] ?? 0;
+  }
+  if (valorBase === 0 || Math.abs(valorBase) < 0.001) return null;
+  return ((valorAtual - valorBase) / Math.abs(valorBase)) * 100;
+}
+
+function rowId(row: StatementRow) {
+  return `${row.linha_ordem}::${row.codigo_conta ?? row.descricao}`;
+}
+
+function directChildren(rows: StatementRow[], index: number): number[] {
+  const nivel = rows[index].nivel;
+  const children: number[] = [];
+  let childNivel: number | null = null;
+  for (let i = index + 1; i < rows.length; i++) {
+    if (rows[i].nivel <= nivel) break;
+    if (childNivel === null) childNivel = rows[i].nivel;
+    if (rows[i].nivel === childNivel) children.push(i);
+  }
+  return children;
+}
+
+function parentIndex(rows: StatementRow[], index: number): number {
+  const nivel = rows[index].nivel;
+  for (let i = index - 1; i >= 0; i--) {
+    if (rows[i].nivel < nivel) return i;
+  }
+  return -1;
+}
+
+function isRowVisible(rows: StatementRow[], index: number, expanded: Set<string>): boolean {
+  let i = parentIndex(rows, index);
+  while (i >= 0) {
+    if (!expanded.has(rowId(rows[i]))) return false;
+    i = parentIndex(rows, i);
+  }
+  return true;
+}
+
+function expandPadrao(
+  rows: StatementRow[],
+  variante: "dre" | "bp" | "dfc" = "dre",
+  padraoMaxNivel?: number,
+): Set<string> {
+  const set = new Set<string>();
+  // DRE/DFC: grupos da demonstração (nível 0) abertos.
+  // BP: lado + grupos + primeiro nível de contas (2). Ativo pode ir a 3.
+  const maxNivel = padraoMaxNivel ?? (variante === "bp" ? 2 : 0);
+  rows.forEach((row, index) => {
+    if (directChildren(rows, index).length === 0) return;
+    if (row.nivel <= maxNivel) set.add(rowId(row));
+  });
+  return set;
+}
+
+function expandAteNivel(rows: StatementRow[], nivelMax: number): Set<string> {
+  const set = new Set<string>();
+  rows.forEach((row, index) => {
+    if (directChildren(rows, index).length === 0) return;
+    if (row.nivel <= nivelMax) set.add(rowId(row));
+  });
+  return set;
+}
+
+/** Abre só os pais que já estão visíveis e ainda fechados — uma camada, mesmo se o nível pular (0→2→4). */
+function expandirCamada(rows: StatementRow[], expanded: Set<string>): Set<string> {
+  const next = new Set(expanded);
+  rows.forEach((row, index) => {
+    if (directChildren(rows, index).length === 0) return;
+    const id = rowId(row);
+    if (next.has(id)) return;
+    if (!isRowVisible(rows, index, expanded)) return;
+    next.add(id);
+  });
+  return next;
+}
+
+function nivelAbertoMax(rows: StatementRow[], expanded: Set<string>): number {
+  let m = -1;
+  rows.forEach((row, index) => {
+    if (directChildren(rows, index).length === 0) return;
+    if (expanded.has(rowId(row))) m = Math.max(m, row.nivel);
+  });
+  return m;
+}
+function sameSet(a: Set<string>, b: Set<string>): boolean {
+  if (a.size !== b.size) return false;
+  for (const x of a) if (!b.has(x)) return false;
+  return true;
 }
 
 export function StatementTable({
   rows,
-  periods,
+  periods: periodsProp,
   showAV = false,
   showAH = false,
-  showTotal = false,
   basePeriod,
   avBaseCodigo,
-  initialExpandLevel,
-  variante = "dre",
-}: Props) {
-  const avBase = useMemo(() => {
-    if (!avBaseCodigo) return null;
-    const r = rows.find(
-      (x) =>
-        x.codigo_conta === avBaseCodigo ||
-        x.descricao.toLowerCase().includes(avBaseCodigo.toLowerCase()),
-    );
-    return r ?? null;
-  }, [rows, avBaseCodigo]);
+  avSelecionadas,
+  initialExpandLevel = 1,
+  variante = 'dre',
+  padraoMaxNivel,
+  onDrilldownClick,
+  emMilhares = false,
+}: StatementTableProps) {
+  // Períodos vêm da prop (DRE/BP) ou, se omitidos, do FilterProvider do dashboard.
+  const filterContext = useFiltersOptional();
+  const periods =
+    periodsProp && periodsProp.length > 0
+      ? periodsProp
+      : (filterContext?.periodos ?? []);
 
-  // Compute children ranges based on nivel
-  const childrenMap = useMemo(() => {
-    const map = new Map<number, number[]>(); // parent idx -> all descendant indices
-    for (let i = 0; i < rows.length; i++) {
-      const lvl = rows[i].nivel ?? 0;
-      const desc: number[] = [];
-      for (let j = i + 1; j < rows.length; j++) {
-        if ((rows[j].nivel ?? 0) > lvl) desc.push(j);
-        else break;
-      }
-      if (desc.length > 0) map.set(i, desc);
-    }
-    return map;
-  }, [rows]);
-
-  const [collapsed, setCollapsed] = useState<Set<number>>(() => {
-    if (initialExpandLevel == null) return new Set();
-    const s = new Set<number>();
-    for (let i = 0; i < rows.length; i++) {
-      if ((rows[i].nivel ?? 0) >= initialExpandLevel) s.add(i);
-    }
-    return s;
-  });
-
-  const hidden = useMemo(() => {
-    const h = new Set<number>();
-    collapsed.forEach((idx) => {
-      const d = childrenMap.get(idx);
-      if (d) d.forEach((c) => h.add(c));
-    });
-    return h;
-  }, [collapsed, childrenMap]);
-
-  const toggle = (idx: number) =>
-    setCollapsed((prev) => {
-      const next = new Set(prev);
-      if (next.has(idx)) next.delete(idx);
-      else next.add(idx);
-      return next;
-    });
-
-  const allParents = useMemo(
-    () => Array.from(childrenMap.keys()),
-    [childrenMap],
+  const estruturaKey = rows.map((r) => rowId(r)).join("|");
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(() =>
+    expandPadrao(rows, variante, padraoMaxNivel),
   );
-  const allCollapsed = allParents.length > 0 && allParents.every((p) => collapsed.has(p));
-
-  const expandAll = () => setCollapsed(new Set());
-  const collapseAll = () => setCollapsed(new Set(allParents));
-
-  const [expanded, setExpanded] = useState<Set<number>>(new Set());
-  const toggleExpand = (idx: number) =>
-    setExpanded((prev) => {
-      const next = new Set(prev);
-      if (next.has(idx)) next.delete(idx);
-      else next.add(idx);
-      return next;
-    });
-
-  const [emMilhares, setEmMilhares] = useState(false);
-  const scale = emMilhares ? 1000 : 1;
-  const digits = emMilhares ? 1 : 2;
-  const fmt = (n: number) => formatBRLPlain(n, { digits, scale });
-  const unidadeLabel = emMilhares ? "Valores em R$ mil" : "Valores em R$";
-
-  // Anos distintos entre os períodos selecionados.
-  const anosSelecionados = useMemo(() => {
-    const s = new Set<number>();
-    for (const p of periods) s.add(new Date(p).getUTCFullYear());
-    return Array.from(s).sort((a, b) => a - b);
-  }, [periods]);
-  const isMultiYear = anosSelecionados.length > 1;
-
-  type BucketOpt = "mes" | "trimestre" | "semestre" | "ano" | "selecao";
-  const [bucketOpt, setBucketOpt] = useState<BucketOpt>(() =>
-    isMultiYear ? "ano" : "selecao",
-  );
-
-  // Chave/label do bucket a partir de um período.
-  function bucketOf(period: string): { key: string; label: string } {
-    const d = new Date(period);
-    const y = d.getUTCFullYear();
-    const m = d.getUTCMonth(); // 0-11
-    const anoSuf = isMultiYear ? ` ${y}` : "";
-    switch (bucketOpt) {
-      case "mes":
-        return { key: `${y}-${m}`, label: "" };
-      case "trimestre": {
-        const q = Math.floor(m / 3) + 1;
-        return { key: `${y}-q${q}`, label: `${q}º Tri${anoSuf}` };
-      }
-      case "semestre": {
-        const s = m < 6 ? 1 : 2;
-        return { key: `${y}-s${s}`, label: `${s}º Sem${anoSuf}` };
-      }
-      case "ano":
-        return { key: `${y}`, label: `Total ${y}` };
-      case "selecao":
-        return { key: "all", label: "Total" };
-    }
-  }
-
-  // Agrupa períodos por bucket em ordem cronológica.
-  const bucketGroups = useMemo(() => {
-    if (!showTotal || bucketOpt === "mes") return [] as { key: string; label: string; periods: string[] }[];
-    const out: { key: string; label: string; periods: string[] }[] = [];
-    for (const p of periods) {
-      const { key, label } = bucketOf(p);
-      const last = out[out.length - 1];
-      if (last && last.key === key) last.periods.push(p);
-      else out.push({ key, label, periods: [p] });
-    }
-    return out;
+  useEffect(() => {
+    setExpandedRows(expandPadrao(rows, variante, padraoMaxNivel));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [periods, bucketOpt, showTotal, isMultiYear]);
+  }, [estruturaKey, variante, padraoMaxNivel]);
 
-  // Detecta modo comparativo: pelo menos uma linha traz valuesGer.
-  const isComparativo = useMemo(() => rows.some((r) => r.valuesGer), [rows]);
+  const [drilldownExpanded, setDrilldownExpanded] = useState<Set<number>>(new Set());
 
-  // Colunas efetivas: períodos + subtotais intercalados.
-  type Col =
-    | { kind: "p"; period: string; firstOfBucket: boolean }
-    | { kind: "sub"; label: string; periods: string[] };
-  const columns = useMemo<Col[]>(() => {
-    const cols: Col[] = [];
-    // Modo comparativo: sem buckets/subtotais para manter a tabela legível.
-    if (isComparativo || bucketGroups.length === 0) {
-      for (const p of periods) cols.push({ kind: "p", period: p, firstOfBucket: false });
-      return cols;
-    }
-    for (const g of bucketGroups) {
-      g.periods.forEach((p, i) => {
-        cols.push({ kind: "p", period: p, firstOfBucket: i === 0 && bucketGroups.length > 1 });
-      });
-      cols.push({ kind: "sub", label: g.label, periods: g.periods });
-    }
-    return cols;
-  }, [periods, bucketGroups, isComparativo]);
+  // Estado para busca na tabela
+  const [busca, setBusca] = useState('');
 
-  const subtotalValue = (row: StatementRow, groupPeriods: string[]) => {
-    if (variante === "bp") {
-      const last = groupPeriods[groupPeriods.length - 1];
-      return row.values[last] ?? 0;
-    }
-    return groupPeriods.reduce((a, p) => a + (row.values[p] ?? 0), 0);
+  // Estado para tipo de AH%
+  const [ahTipo, setAhTipo] = useState<'anterior' | 'base'>('anterior');
+
+  // Estado para exibição em milhares
+  const [mostrarMilhares, setMostrarMilhares] = useState(emMilhares);
+
+  // Encontrar base para AV
+  const basesAV = useMemo(() => {
+    const todas = resolverBasesAV(rows, { variante, avBaseCodigo });
+    if (!avSelecionadas || avSelecionadas.length === 0) return todas;
+    return avSelecionadas.map((rotulo) => {
+      const achada = todas.find((b) => b.rotulo === rotulo);
+      return achada ?? { rotulo, titulo: rotulo, row: null };
+    });
+  }, [rows, variante, avBaseCodigo, avSelecionadas]);
+
+  const extrasPorPeriodo = (showAV ? basesAV.length : 0) + (showAH ? 1 : 0);
+
+  // Filtrar linhas por busca
+  const rowsFiltradas = useMemo(() => {
+    if (!busca.trim()) return rows;
+    const termo = busca
+      .trim()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase();
+    return rows.filter((row) => {
+      const desc = (row.descricao ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+      const cod = (row.codigo_conta ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+      return desc.includes(termo) || cod.includes(termo);
+    });
+  }, [rows, busca]);
+
+  const getChildren = (index: number): number[] => directChildren(rows, index);
+
+  const isExpanded = (index: number): boolean => expandedRows.has(rowId(rows[index]));
+
+  const isDrilldownExpanded = (index: number): boolean => {
+    return drilldownExpanded.has(index);
   };
 
-  // Banda superior com o ano só faz sentido no agrupamento "ano" multi-ano.
-  const yearBand = !isComparativo && bucketOpt === "ano" && isMultiYear ? bucketGroups : null;
+  const toggleExpand = (index: number) => {
+    const id = rowId(rows[index]);
+    setExpandedRows((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
 
-  // Resumo do impacto dos ajustes gerenciais por período (só no comparativo).
-  // Mostramos a diferença da ÚLTIMA linha de subtotal — que é a linha "final"
-  // da demonstração (Lucro Líquido na DRE, Total do Passivo+PL no BP etc.).
-  // Se a última for zero (ex.: BP fecha), procuramos rows "chave" com maior
-  // impacto absoluto ("Resultado do Exercício" no PL etc.).
-  const impactoResumo = useMemo(() => {
-    if (!isComparativo) return null;
-    // Escolhe uma linha "resumo": preferimos as que casam com palavras-chave.
-    const kw = /lucro\s+l[ií]quido|resultado do exerc[ií]cio|resultado l[ií]quido/i;
-    let target: StatementRow | undefined = rows.find((r) => kw.test(r.descricao));
-    if (!target) {
-      // fallback: última linha subtotal
-      const subs = rows.filter((r) => r.is_subtotal);
-      target = subs[subs.length - 1] ?? rows[rows.length - 1];
-    }
-    if (!target) return null;
-    return {
-      label: target.descricao,
-      diffs: periods.map((p) => ({
-        p,
-        diff: (target!.valuesGer?.[p] ?? target!.values[p] ?? 0) - (target!.values[p] ?? 0),
-      })),
-    };
-  }, [isComparativo, rows, periods]);
+  const toggleDrilldown = (index: number) => {
+    setDrilldownExpanded(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(index)) {
+        newSet.delete(index);
+      } else {
+        newSet.add(index);
+      }
+      return newSet;
+    });
+  };
 
+  const idsComFilhos = useMemo(() => {
+    const ids: string[] = [];
+    rows.forEach((row, i) => {
+      if (directChildren(rows, i).length > 0) ids.push(rowId(row));
+    });
+    return ids;
+  }, [rows]);
 
+  const padrao = useMemo(
+    () => expandPadrao(rows, variante, padraoMaxNivel),
+    [rows, variante, padraoMaxNivel],
+  );
+  const ehPadrao = sameSet(expandedRows, padrao);
+  const tudoExpandido =
+    idsComFilhos.length > 0 && idsComFilhos.every((id) => expandedRows.has(id));
+  const recolhido = expandedRows.size === 0;
+  // Se o padrão coincide com "tudo expandido", só o Padrão fica destacado —
+  // senão os dois botões pintam juntos e parecem um só.
+  const modoExpand: "padrao" | "tudo" | "recolher" | "livre" = recolhido
+    ? "recolher"
+    : ehPadrao
+      ? "padrao"
+      : tudoExpandido
+        ? "tudo"
+        : "livre";
 
+  const aplicarPadrao = () => setExpandedRows(expandPadrao(rows, variante, padraoMaxNivel));
+  const recolherTudo = () => setExpandedRows(new Set());
+  const expandirTudo = () => setExpandedRows(new Set(idsComFilhos));
+  const abertoMax = nivelAbertoMax(rows, expandedRows);
+  const camadaMaisFundo = expandirCamada(rows, expandedRows);
+  const podeExpandirCamada = !sameSet(camadaMaisFundo, expandedRows);
+  const expandirUmNivel = () => setExpandedRows(expandirCamada(rows, expandedRows));
+  const recolherUmNivel = () => setExpandedRows(expandAteNivel(rows, abertoMax - 1));
 
+  // Se não houver períodos
+  if (periods.length === 0) {
+    return (
+      <div className="rounded-lg border bg-card p-10 text-center text-sm text-muted-foreground">
+        Nenhum período selecionado. Selecione anos e meses no filtro.
+      </div>
+    );
+  }
+
+  // Se não houver linhas
   if (rows.length === 0) {
     return (
       <div className="rounded-lg border bg-card p-10 text-center text-sm text-muted-foreground">
-        Nenhum dado encontrado para os filtros selecionados.
-        <br />
-        Faça upload de um arquivo SPED para começar.
+        {busca.trim() 
+          ? `Nenhuma conta encontrada para o filtro "${busca}".` 
+          : 'Nenhum dado encontrado para os filtros selecionados.'}
       </div>
     );
   }
 
-  return (
-    <div className="rounded-lg border bg-card overflow-hidden">
-      {impactoResumo && (
-        <div className="px-3 py-2 border-b bg-primary/5 text-xs flex flex-wrap items-center gap-x-4 gap-y-1">
-          <span className="font-medium text-foreground">
-            Impacto dos ajustes gerenciais em {impactoResumo.label}:
-          </span>
-          {impactoResumo.diffs.map(({ p, diff }) => (
-            <span key={p} className="text-muted-foreground">
-              {periodoLabel(p)}:{" "}
-              <span
-                className={cn(
-                  "font-semibold tabular-nums",
-                  diff > 0 && "text-success",
-                  diff < 0 && "text-destructive",
-                  diff === 0 && "text-muted-foreground",
-                )}
-              >
-                {diff === 0 ? "—" : (diff > 0 ? "+" : "") + fmt(diff)}
-              </span>
-            </span>
-          ))}
-        </div>
-      )}
-      <div className="flex items-center justify-between gap-2 px-3 py-2 border-b bg-muted/20 text-xs">
-        <span className="text-muted-foreground">{unidadeLabel}</span>
-        <div className="flex items-center gap-2">
-          {showTotal && !isComparativo && periods.length > 0 && (
-            <label className="flex items-center gap-1.5 text-muted-foreground">
-              <span>Totalizar por:</span>
-              <select
-                value={bucketOpt}
-                onChange={(e) => setBucketOpt(e.target.value as BucketOpt)}
-                className="h-7 px-2 rounded-md border border-border bg-background hover:bg-accent transition-colors text-foreground"
-              >
-                <option value="mes">Mês</option>
-                <option value="trimestre">Trimestre</option>
-                <option value="semestre">Semestre</option>
-                <option value="ano">Ano</option>
-                <option value="selecao">Seleção inteira</option>
-              </select>
-            </label>
-          )}
-          <button
-            onClick={() => setEmMilhares((v) => !v)}
-            className="px-2 h-7 rounded-md border border-border hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
-          >
-            {emMilhares ? "Mostrar valor cheio" : "Mostrar em R$ mil"}
-          </button>
-          {allParents.length > 0 && (
-            <button
-              onClick={allCollapsed ? expandAll : collapseAll}
-              className="px-2 h-7 rounded-md border border-border hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
-            >
-              {allCollapsed ? "Expandir todos" : "Recolher todos"}
-            </button>
-          )}
-        </div>
+  // Renderizar uma linha
+  const renderRow = (row: StatementRow, index: number) => {
+    const children = getChildren(index);
+    const hasChild = children.length > 0;
+    const expanded = isExpanded(index);
+    const nivel = row.nivel;
+    const isSubtotal = row.is_subtotal;
+    const codigoDrill = row.codigo_conta;
+    const hasDrilldown = !!codigoDrill;
+    const drilldownExp = isDrilldownExpanded(index);
 
-      </div>
-      <div className="overflow-x-auto">
-        <table className="w-full text-xs border-separate border-spacing-0">
-          <thead>
-            {yearBand && (
-              <tr className="border-b bg-muted/20">
-                <th className="sticky left-0 z-10 bg-muted/20 border-b" />
-                {yearBand.map((g) => (
+    return (
+      <Fragment key={rowId(row)}>
+        <tr
+          className={cn(
+            "border-b border-border/60 last:border-0 hover:bg-muted/40 transition-colors",
+            isSubtotal && "font-semibold",
+          )}
+        >
+          <td
+            className="px-2 py-1.5 sticky left-0 z-10 bg-background text-sm min-w-[220px] max-w-[280px]"
+            style={{ paddingLeft: `${8 + nivel * 12}px` }}
+          >
+            <div className="flex items-center gap-1 min-w-0">
+              {hasChild || hasDrilldown ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (hasChild) toggleExpand(index);
+                    else toggleDrilldown(index);
+                  }}
+                  className="shrink-0 grid place-items-center h-4 w-4 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+                  aria-label={
+                    hasChild
+                      ? (expanded ? "Recolher" : "Expandir")
+                      : (drilldownExp ? "Fechar lançamentos" : "Ver lançamentos")
+                  }
+                >
+                  {(hasChild ? expanded : drilldownExp) ? (
+                    <ChevronDown className="h-3 w-3" />
+                  ) : (
+                    <ChevronRight className="h-3 w-3" />
+                  )}
+                </button>
+              ) : (
+                <span className="inline-block w-4 shrink-0" />
+              )}
+
+              {hasDrilldown ? (
+                <button
+                  type="button"
+                  onClick={() => toggleDrilldown(index)}
+                  className={cn(
+                    "text-left min-w-0 truncate hover:text-foreground transition-colors",
+                    drilldownExp && "text-foreground",
+                  )}
+                  title={`Ver lançamentos: ${row.descricao}`}
+                >
+                  <span className="truncate">{tituloConta(row.descricao)}</span>
+                </button>
+              ) : (
+                <span className="truncate" title={row.descricao}>
+                  {tituloConta(row.descricao)}
+                </span>
+              )}
+            </div>
+          </td>
+
+          {/* Cada período: valor + AV% (RB/RL) + AH% daquela coluna */}
+          {periods.map((periodo) => {
+            const valor = row.values[periodo] ?? 0;
+            const valorGer = row.valuesGer?.[periodo] ?? valor;
+            const isGerencial = row.valuesGer && row.valuesGer[periodo] !== undefined;
+
+            return (
+              <Fragment key={periodo}>
+                <td className="px-2 py-1 text-right tabular-nums whitespace-nowrap text-xs min-w-[90px]">
+                  {isGerencial && Math.abs(valorGer - valor) > 0.01 ? (
+                    <div className="flex flex-col items-end">
+                      <span className="text-muted-foreground line-through text-[10px]">
+                        {formatarMoeda(valor, mostrarMilhares)}
+                      </span>
+                      <span className="font-semibold">
+                        {formatarMoeda(valorGer, mostrarMilhares)}
+                      </span>
+                    </div>
+                  ) : (
+                    <span>{formatarMoeda(valor, mostrarMilhares)}</span>
+                  )}
+                </td>
+                {showAV && basesAV.map((base) => {
+                  const pct = percentualAV(row, base.row, periodo);
+                  return (
+                    <td
+                      key={`${periodo}-${base.rotulo}`}
+                      className="px-2 py-1 text-right tabular-nums whitespace-nowrap text-[11px] text-muted-foreground min-w-[62px]"
+                    >
+                      {pct !== null && isFinite(pct) ? formatarPercentual(pct) : '—'}
+                    </td>
+                  );
+                })}
+                {showAH && (
+                  <td className="px-2 py-1 text-right tabular-nums whitespace-nowrap text-[11px] min-w-[62px]">
+                    {(() => {
+                      const pct = calcularAH(
+                        row,
+                        periodo,
+                        periods,
+                        basePeriod || periods[0] || '',
+                        ahTipo,
+                      );
+                      if (pct === null) return '—';
+                      return (
+                        <span className={cn(
+                          pct > 0 && 'text-success',
+                          pct < 0 && 'text-destructive',
+                        )}>
+                          {formatarPercentual(pct)}
+                        </span>
+                      );
+                    })()}
+                  </td>
+                )}
+              </Fragment>
+            );
+          })}
+        </tr>
+
+        {/* Drill-down */}
+        {drilldownExp && hasDrilldown && (
+          <InlineDrilldown
+            codigoConta={codigoDrill!}
+            descricao={tituloConta(row.descricao)}
+            periods={periods}
+            colSpanLeft={1}
+            colSpanRight={0}
+            extraMiddleCols={periods.length * extrasPorPeriodo}
+            variante={variante === "bp" ? "bp" : variante === "dfc" ? "dfc" : "dre"}
+            emMilhares={mostrarMilhares}
+          />
+        )}
+      </Fragment>
+    );
+  };
+
+  // Renderizar cabeçalho
+  const renderHeader = () => {
+    const colsPorPeriodo = 1 + extrasPorPeriodo;
+    const comSub = extrasPorPeriodo > 0;
+    return (
+      <thead>
+        <tr className="border-b bg-muted/30">
+          <th
+            rowSpan={comSub ? 2 : 1}
+            className="text-left font-medium text-[10px] uppercase tracking-wider text-muted-foreground px-2 py-2 sticky left-0 z-10 bg-background min-w-[220px] max-w-[280px]"
+          >
+            Descrição
+          </th>
+          {periods.map((periodo) => (
+            <th
+              key={periodo}
+              colSpan={colsPorPeriodo}
+              className="text-right font-medium text-[10px] text-muted-foreground px-2 py-2 whitespace-nowrap min-w-[90px]"
+            >
+              {formatarPeriodo(periodo)}
+            </th>
+          ))}
+        </tr>
+        {comSub && (
+          <tr className="border-b bg-muted/20">
+            {periods.map((periodo) => (
+              <Fragment key={`sub-${periodo}`}>
+                <th className="text-right font-medium text-[9px] text-muted-foreground px-2 py-1 whitespace-nowrap">
+                  R$
+                </th>
+                {showAV && basesAV.map((base) => (
                   <th
-                    key={g.key}
-                    colSpan={g.periods.length + 1}
-                    className="text-center font-semibold text-[11px] text-foreground px-2 py-1.5 border-l border-b"
+                    key={`avh-${periodo}-${base.rotulo}`}
+                    className="text-right font-medium text-[9px] text-muted-foreground px-1 py-1 whitespace-nowrap"
+                    title={`Análise vertical sobre ${base.titulo}`}
                   >
-                    {g.key}
+                    {base.rotulo}
                   </th>
                 ))}
-                {showAV && <th className="border-b" />}
-                {showAH && basePeriod && <th className="border-b" />}
-              </tr>
-            )}
-            <tr className="border-b bg-muted/30">
-              <th
-                rowSpan={isComparativo ? 2 : 1}
-                className="text-left font-medium text-[10px] uppercase tracking-wider text-muted-foreground px-2 py-2 sticky left-0 z-10 bg-muted/30 min-w-[220px] max-w-[280px] border-b"
-              >
-                Descrição
-              </th>
-              {columns.map((c, i) =>
-                c.kind === "p" ? (
-                  <th
-                    key={`p-${c.period}`}
-                    colSpan={isComparativo ? 3 : 1}
-                    className={cn(
-                      "text-center font-medium text-[10px] uppercase tracking-wider text-muted-foreground px-2 py-2 tabular-nums whitespace-nowrap border-b",
-                      isComparativo ? "min-w-[330px] border-l" : "min-w-[110px] text-right",
-                      !isComparativo && c.firstOfBucket && "border-l",
+                {showAH && (
+                  <th className="text-right font-medium text-[9px] text-muted-foreground px-1 py-1 whitespace-nowrap">
+                    {periodo === periods[0] ? (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="sm" className="h-5 px-1 text-[9px]">
+                            AH%
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => setAhTipo('anterior')}>
+                            Período anterior
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => setAhTipo('base')}>
+                            Base: {basePeriod ? formatarPeriodo(basePeriod) : 'Primeiro'}
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    ) : (
+                      "AH%"
                     )}
-                  >
-                    {periodoLabel(c.period)}
                   </th>
-                ) : (
-                  <th
-                    key={`sub-${i}`}
-                    className="text-right font-semibold text-[10px] uppercase tracking-wider text-foreground px-2 py-2 tabular-nums whitespace-nowrap min-w-[110px] border-b border-l bg-muted/40"
-                  >
-                    {c.label}
-                  </th>
-                ),
-              )}
-              {showAV && !isComparativo && (
-                <th className="text-right font-medium text-[10px] uppercase tracking-wider text-muted-foreground px-2 py-2 whitespace-nowrap min-w-[70px] border-b">
-                  AV%
-                </th>
-              )}
-              {showAH && basePeriod && !isComparativo && (
-                <th className="text-right font-medium text-[10px] uppercase tracking-wider text-muted-foreground px-2 py-2 whitespace-nowrap min-w-[70px] border-b">
-                  AH%
-                </th>
-              )}
-            </tr>
-            {isComparativo && (
-              <tr className="border-b bg-muted/20">
-                {columns.map((c) =>
-                  c.kind === "p" ? (
-                    <Fragment key={`ph-${c.period}`}>
-                      <th className="text-right font-medium text-[10px] text-muted-foreground px-2 py-1 whitespace-nowrap min-w-[110px] border-b border-l">
-                        Contábil
-                      </th>
-                      <th className="text-right font-medium text-[10px] text-muted-foreground px-2 py-1 whitespace-nowrap min-w-[110px] border-b">
-                        Gerencial
-                      </th>
-                      <th className="text-right font-medium text-[10px] text-muted-foreground px-2 py-1 whitespace-nowrap min-w-[110px] border-b">
-                        Diferença
-                      </th>
-                    </Fragment>
-                  ) : null,
                 )}
-              </tr>
-            )}
-          </thead>
+              </Fragment>
+            ))}
+          </tr>
+        )}
+      </thead>
+    );
+  };
 
+  return (
+    <div className="rounded-lg border overflow-hidden">
+      {/* Barra de ferramentas */}
+      <div className="flex items-center justify-between gap-2 px-3 py-2 border-b bg-muted/20 text-xs">
+        <div className="flex items-center gap-4">
+          <div className="relative">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+            <Input
+              className="h-7 pl-7 text-xs w-48"
+              placeholder="Filtrar por conta..."
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+            />
+          </div>
+          <span className="text-muted-foreground">
+            {rowsFiltradas.length} de {rows.length} linhas
+          </span>
+          {idsComFilhos.length > 0 && !busca.trim() && (
+            <div className="flex items-center gap-1.5">
+              <div className="flex items-center">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 w-7 p-0 rounded-md"
+                  onClick={recolherUmNivel}
+                  disabled={abertoMax < 0}
+                  title="Recolher um nível em todas as contas"
+                >
+                  <ChevronUp className="h-3.5 w-3.5" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 w-7 p-0 rounded-md ml-1"
+                  onClick={expandirUmNivel}
+                  disabled={!podeExpandirCamada}
+                  title="Expandir um nível em todas as contas"
+                >
+                  <ChevronDown className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+              <Button
+                variant={modoExpand === "padrao" ? "default" : "outline"}
+                size="sm"
+                className="h-7 text-xs rounded-md"
+                onClick={aplicarPadrao}
+                title="Abre os grupos da demonstração, sem o detalhe analítico completo"
+              >
+                Padrão
+              </Button>
+              <Button
+                variant={modoExpand === "tudo" ? "default" : "outline"}
+                size="sm"
+                className="h-7 text-xs rounded-md"
+                onClick={expandirTudo}
+              >
+                Expandir tudo
+              </Button>
+              <Button
+                variant={modoExpand === "recolher" ? "default" : "outline"}
+                size="sm"
+                className="h-7 text-xs rounded-md"
+                onClick={recolherTudo}
+              >
+                Recolher
+              </Button>
+            </div>
+          )}
+        </div>
+        
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 text-xs"
+            onClick={() => setMostrarMilhares(!mostrarMilhares)}
+          >
+            {mostrarMilhares ? 'R$' : 'R$ mil'}
+          </Button>
+        </div>
+      </div>
+
+      {/* Tabela */}
+      <div className="overflow-x-auto bg-transparent">
+        <table className="w-full text-xs border-collapse">
+          {renderHeader()}
           <tbody>
-            {rows.map((row, idx) => {
-              if (hidden.has(idx)) return null;
-              const lastPeriod = periods[periods.length - 1];
-              const lastValue = row.values[lastPeriod] ?? 0;
-              const av =
-                avBase && avBase.values[lastPeriod]
-                  ? (lastValue / avBase.values[lastPeriod]) * 100
-                  : null;
-              const baseValue = basePeriod ? row.values[basePeriod] : null;
-              const ah =
-                baseValue != null && baseValue !== 0
-                  ? ((lastValue - baseValue) / Math.abs(baseValue)) * 100
-                  : null;
-              const hasChildren = childrenMap.has(idx);
-              const isCollapsed = collapsed.has(idx);
-              const isExpanded = expanded.has(idx);
-              const canDrill = !!row.codigo_conta;
-              const extraMiddle = isComparativo ? periods.length * 2 : bucketGroups.length;
-              const rightCols = isComparativo ? 0 : (showAV ? 1 : 0) + (showAH && basePeriod ? 1 : 0);
-
-              // No modo comparativo, destaca linhas cuja diferença ≠ 0 em algum período.
-              const hasDiff =
-                isComparativo &&
-                periods.some((p) => {
-                  const c = row.values[p] ?? 0;
-                  const g = row.valuesGer?.[p] ?? c;
-                  return g - c !== 0;
-                });
-
-              return (
-                <Fragment key={idx}>
-                  <tr
-                    className={cn(
-                      "border-b last:border-0 hover:bg-accent/40 transition-colors",
-                      row.is_subtotal && "bg-muted/40 font-semibold",
-                      isExpanded && "bg-accent/30",
-                      hasDiff && "bg-amber-500/5",
-                    )}
-                  >
-                    <td
-                      className={cn(
-                        "px-2 py-1 sticky left-0 z-10 bg-card text-sm min-w-[220px] max-w-[280px]",
-                        row.is_subtotal && "bg-muted/40",
-                        isExpanded && "bg-accent/30",
-                      )}
-                      style={{ paddingLeft: `${8 + row.nivel * 12}px` }}
-                    >
-                      <div className="flex items-center gap-1 min-w-0">
-                        {hasChildren ? (
-                          <button
-                            onClick={() => toggle(idx)}
-                            className="shrink-0 grid place-items-center h-4 w-4 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
-                            aria-label={isCollapsed ? "Expandir" : "Recolher"}
-                          >
-                            <ChevronRight
-                              className={cn(
-                                "h-3 w-3 transition-transform",
-                                !isCollapsed && "rotate-90",
-                              )}
-                            />
-                          </button>
-                        ) : (
-                          <span className="inline-block w-4 shrink-0" />
-                        )}
-                        {canDrill ? (
-                          <button
-                            type="button"
-                            onClick={() => toggleExpand(idx)}
-                            className={cn(
-                              "text-left hover:text-primary transition-colors inline-flex items-center gap-1 group min-w-0 truncate",
-                              row.nivel >= 3 && !row.is_subtotal && "text-muted-foreground",
-                            )}
-                            title={row.descricao}
-                          >
-                            <ChevronDown
-                              className={cn(
-                                "h-3 w-3 shrink-0 text-muted-foreground/60 group-hover:text-primary transition-transform",
-                                isExpanded && "rotate-180 text-primary",
-                              )}
-                            />
-                            <span className="truncate">{row.descricao}</span>
-                          </button>
-                        ) : (
-                          <span
-                            title={row.descricao}
-                            className={cn(
-                              "truncate",
-                              row.nivel >= 3 && !row.is_subtotal && "text-muted-foreground",
-                            )}
-                          >
-                            {row.descricao}
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                    {columns.map((c, i) => {
-                      if (c.kind === "sub") {
-                        return (
-                          <td
-                            key={`sub-${i}`}
-                            className={cn(
-                              "px-2 py-1 text-right tabular-nums whitespace-nowrap text-xs font-semibold border-l min-w-[110px] bg-muted/40",
-                            )}
-                          >
-                            {fmt(subtotalValue(row, c.periods))}
-                          </td>
-                        );
-                      }
-                      if (isComparativo) {
-                        const vc = row.values[c.period] ?? 0;
-                        const vg = row.valuesGer?.[c.period] ?? vc;
-                        const diff = vg - vc;
-                        return (
-                          <Fragment key={`p-${c.period}`}>
-                            <td className="px-2 py-1 text-right tabular-nums whitespace-nowrap text-xs min-w-[110px] border-l">
-                              {fmt(vc)}
-                            </td>
-                            <td className="px-2 py-1 text-right tabular-nums whitespace-nowrap text-xs min-w-[110px]">
-                              {fmt(vg)}
-                            </td>
-                            <td
-                              className={cn(
-                                "px-2 py-1 text-right tabular-nums whitespace-nowrap text-xs font-semibold min-w-[110px]",
-                                diff > 0 && "text-success",
-                                diff < 0 && "text-destructive",
-                              )}
-                            >
-                              {diff === 0
-                                ? <span className="text-muted-foreground/60">—</span>
-                                : (diff > 0 ? "+" : "") + fmt(diff)}
-                            </td>
-                          </Fragment>
-                        );
-                      }
-                      return (
-                        <td
-                          key={`p-${c.period}`}
-                          className={cn(
-                            "px-2 py-1 text-right tabular-nums whitespace-nowrap text-xs min-w-[110px]",
-                            c.firstOfBucket && "border-l",
-                          )}
-                        >
-                          {fmt(row.values[c.period] ?? 0)}
-                        </td>
-                      );
-                    })}
-
-                    {showAV && !isComparativo && (
-                      <td className="px-2 py-1 text-right tabular-nums whitespace-nowrap text-xs text-muted-foreground min-w-[70px]">
-                        {av != null ? formatPct(av) : "—"}
-                      </td>
-                    )}
-                    {showAH && basePeriod && !isComparativo && (
-                      <td
-                        className={cn(
-                          "px-2 py-1 text-right tabular-nums whitespace-nowrap text-xs min-w-[70px]",
-                          ah != null && ah > 0 && "text-success",
-                          ah != null && ah < 0 && "text-destructive",
-                        )}
-                      >
-                        {ah != null ? formatPct(ah) : "—"}
-                      </td>
-                    )}
-                  </tr>
-                  {isExpanded && canDrill && (
-                    <InlineDrilldown
-                      codigoConta={row.codigo_conta!}
-                      descricao={row.descricao}
-                      periods={periods}
-                      colSpanLeft={1}
-                      colSpanRight={rightCols}
-                      extraMiddleCols={extraMiddle}
-                      variante={variante}
-                      emMilhares={emMilhares}
-                    />
-                  )}
-                </Fragment>
-              );
-            })}
+            {busca.trim()
+              ? rowsFiltradas.map((row) => {
+                  const index = rows.indexOf(row);
+                  return index >= 0 ? renderRow(row, index) : null;
+                })
+              : rows.map((row, index) =>
+                  isRowVisible(rows, index, expandedRows)
+                    ? renderRow(row, index)
+                    : null,
+                )}
           </tbody>
         </table>
       </div>
@@ -565,4 +665,4 @@ export function StatementTable({
   );
 }
 
-
+export default StatementTable;

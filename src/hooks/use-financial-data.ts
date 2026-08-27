@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { buildStatementFromDiario } from "@/lib/diario/build-statements";
 import { useVisaoGerencial } from "@/hooks/use-visao-gerencial";
+import { getModoGlobal } from "@/lib/plano/escopo";
 
 export interface Company {
   id: string;
@@ -21,15 +22,15 @@ async function getCompanyMeta(companyId: string) {
     .eq("id", companyId)
     .maybeSingle();
   if (!c) return null;
-  const { data: t } = await supabase
-    .from("tenants")
-    .select("plano_contas_modo")
-    .eq("id", (c as any).tenant_id)
-    .maybeSingle();
+  // AJUSTE 02 — o escopo do plano agora é resolvido por empresa
+  // (companies.plano_tipo), não mais só por tenants.plano_contas_modo.
+  // `modoGlobal` continua significando "ler o plano com company_id IS NULL",
+  // que agora é o Plano Padrão do escritório.
+  const { modoGlobal } = await getModoGlobal(companyId);
   return {
     tenantId: (c as any).tenant_id as string,
     fonteDados: ((c as any).fonte_dados as "sped" | "diario") ?? "sped",
-    modoGlobal: ((t as any)?.plano_contas_modo ?? "empresa") === "global",
+    modoGlobal,
   };
 }
 
@@ -83,26 +84,24 @@ export function useAvailablePeriods(companyId: string | null) {
     queryKey: ["available-periods", companyId],
     enabled: !!companyId,
     queryFn: async () => {
-      const meta = await getCompanyMeta(companyId!);
-      const set = new Set<string>();
-      if (meta?.fonteDados === "diario") {
-        const { data, error } = await supabase
-          .from("saldos_mensais")
-          .select("competencia")
-          .eq("company_id", companyId!);
-        if (error) throw error;
-        (data ?? []).forEach((r: any) => set.add(r.competencia));
-      } else {
-        const [balRes, stmtRes] = await Promise.all([
-          supabase.from("account_balances").select("periodo").eq("company_id", companyId!),
-          supabase.from("financial_statements").select("periodo").eq("company_id", companyId!),
-        ]);
-        if (balRes.error) throw balRes.error;
-        if (stmtRes.error) throw stmtRes.error;
-        (balRes.data ?? []).forEach((r: any) => set.add(r.periodo));
-        (stmtRes.data ?? []).forEach((r: any) => set.add(r.periodo));
-      }
-      return Array.from(set).sort();
+      // Era uma leitura de `saldos_mensais` linha a linha, SEM paginação:
+      // uma linha por conta × mês. Com `max_rows = 1000` no servidor, uma
+      // empresa de 800 contas e 12 meses (9.600 linhas) recebia as 1.000
+      // primeiras do heap — e as linhas gravadas por um ECD, que entram
+      // DEPOIS das do diário, ficavam fora do corte.
+      //
+      // Era esse o "apliquei o ECD e não aparece no BI": o dado estava
+      // gravado; o seletor de período é que nunca oferecia aqueles meses.
+      //
+      // Contar mês distinto é trabalho do banco — devolve uma linha por
+      // mês, não uma por conta. E sem o ramo por `fonte_dados`: período é
+      // onde HÁ dado, e uma empresa pode ter diário e ECD ao mesmo tempo.
+      const { data, error } = await (supabase as any)
+        .rpc("periodos_da_empresa", { _company_id: companyId });
+      if (error) throw error;
+      return ((data ?? []) as any[])
+        .map((r) => String(r.competencia))
+        .sort();
     },
   });
 }

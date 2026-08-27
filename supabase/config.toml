@@ -1,1 +1,74 @@
 project_id = "uaebzngcblnxxbkygxft"
+
+# ============================================================
+# PORTAS FORA DA FAIXA QUE O WINDOWS RESERVA
+# ============================================================
+#
+# O Windows reserva blocos de portas para o Hyper-V/WinNAT dentro da
+# faixa dinâmica (que começa em 49152). Nesta máquina, o
+# `netsh interface ipv4 show excludedportrange protocol=tcp` mostrou:
+#
+#     54213 - 54312
+#     54314 - 54413      ← 54322, 54323 e 54324 estão AQUI DENTRO
+#
+# Por isso o `supabase start` falhava com "bind: uma tentativa de acesso
+# a um soquete de uma maneira proibida pelas permissões de acesso": o
+# Docker não consegue publicar uma porta que o sistema já reservou. E,
+# antes de falhar de vez, ele subia os contêineres SEM publicar porta
+# nenhuma — o que dava a impressão de banco quebrado, com os dados
+# intactos o tempo todo.
+#
+# 15421-15424 ficam bem abaixo de 49152, fora de qualquer faixa dinâmica
+# e de todas as exclusões listadas. Não dependem de privilégio de
+# administrador nem sobrevivem por sorte: simplesmente não disputam.
+#
+# Ao mudar aqui, o `.env` acompanha (SUPABASE_URL e VITE_SUPABASE_URL).
+
+[api]
+enabled = true
+port = 15421
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 15422
+shadow_port = 15420
+# A versão do Postgres que os seus dados usam
+# (public.ecr.aws/supabase/postgres:17.6.1.159). Fixada para que uma
+# atualização da CLI não tente subir o volume com outro major.
+major_version = 17
+
+[studio]
+enabled = true
+port = 15423
+api_url = "http://127.0.0.1:15421"
+
+[inbucket]
+enabled = true
+port = 15424
+
+[auth]
+enabled = true
+site_url = "http://127.0.0.1:8080"
+additional_redirect_urls = ["http://127.0.0.1:8080", "http://localhost:8080"]
+jwt_expiry = 3600
+enable_refresh_token_rotation = true
+refresh_token_reuse_interval = 10
+enable_signup = true
+
+[auth.email]
+enable_signup = true
+double_confirm_changes = false
+# Local: confirmar e-mail atrapalharia o login de teste.
+enable_confirmations = false
+
+[storage]
+enabled = true
+file_size_limit = "50MiB"
+
+[realtime]
+enabled = true
+
+[analytics]
+enabled = false

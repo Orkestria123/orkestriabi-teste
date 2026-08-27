@@ -19,6 +19,12 @@ export interface ContaContabil {
   tipo_conta: "A" | "S";
   natureza: "D" | "C" | "P";
   parent_codigo: string | null;
+  /** I051 — código no plano de contas REFERENCIAL (RFB). */
+  cod_referencial?: string | null;
+  /** I052 — código de AGLUTINAÇÃO, o que o próprio ECD usa para montar
+   *  as demonstrações do bloco J. Costuma ser o código estrutural do
+   *  plano da empresa, e é o melhor candidato a "classificação". */
+  cod_aglutinacao?: string | null;
 }
 
 export interface SaldoConta {
@@ -28,6 +34,28 @@ export interface SaldoConta {
   debitos: number;
   creditos: number;
   saldo_final: number;
+}
+
+/**
+ * Uma partida do diário do ECD (I250, sob o I200 que a agrupa).
+ *
+ * O ECD traz o LANÇAMENTO, não só o saldo. Sem ler isto:
+ *
+ *  · o drill-down da DRE e da DFC não abre em período vindo de ECD — a
+ *    consulta procura o movimento em `lancamentos_diario`, e o ECD só
+ *    escrevia saldo mensal;
+ *  · o encerramento do exercício é indetectável no detalhe: do saldo
+ *    sozinho é impossível separá-lo do movimento genuíno de dezembro
+ *    (as duas incógnitas satisfazem a mesma equação). Com o histórico da
+ *    partida, é uma linha de texto.
+ */
+export interface LancamentoEcd {
+  numero: string;
+  data: string;
+  codigo_conta: string;
+  debito: number;
+  credito: number;
+  historico: string;
 }
 
 export interface LinhaDemonstracao {
@@ -57,6 +85,7 @@ export interface SpedParseResult {
   };
   planoContas: ContaContabil[];
   saldos: SaldoConta[];
+  lancamentos: LancamentoEcd[];
   demonstracoes: LinhaDemonstracao[];
   warnings: string[];
   validacoes: ValidationResult[];
@@ -112,10 +141,65 @@ function aplicarSinal(
   return signed;
 }
 
+/**
+ * O ÚLTIMO campo preenchido de um registro — e por que isto existe.
+ *
+ * O I051 e o I052 mudaram de largura entre versões do leiaute do ECD. O
+ * campo que interessa (COD_CTA_REF no I051, COD_AGL no I052) é sempre o
+ * ÚLTIMO; os que variam entram ANTES dele:
+ *
+ *     |I051|COD_ENT_REF|COD_CCUS|COD_CTA_REF|      (leiaute com centro de custo)
+ *     |I051|COD_ENT_REF|COD_CTA_REF|               (leiaute sem)
+ *
+ * Ler por posição fixa — `fields[4]` — funciona num e devolve string
+ * vazia no outro, EM SILÊNCIO. Foi exatamente o que aconteceu com o
+ * arquivo do Georg:
+ *
+ *     |I051||1.01.01.01.01|
+ *      ^     ^
+ *      |     fields[3]: o código estrutural, aqui
+ *      fields[4]: vazio — era o que eu lia
+ *
+ * O resultado foi pior do que um erro: 412 contas entraram sem código
+ * referencial, o banco mostrou `cod_referencial` nulo em tudo, e eu
+ * conclui do MEU PRÓPRIO SILÊNCIO que o arquivo não trazia I051.
+ *
+ * Lendo o último campo, os dois leiautes funcionam — e um COD_CTA_REF
+ * legitimamente vazio continua vazio, sem pegar o centro de custo por
+ * engano (ele fica antes, e o último campo é a string vazia).
+ */
+function ultimoCampo(rawLine: string, fields: string[]): string {
+  // Uma linha SPED termina em "|", então o split produz um "" no fim que
+  // não é campo nenhum. Arquivo sem o "|" final também existe: aí o
+  // último elemento É o campo.
+  const fim = rawLine.trimEnd().endsWith("|") ? fields.length - 1 : fields.length;
+  if (fim <= 2) return "";
+
+  const ultimo = (fields[fim - 1] || "").trim();
+  if (ultimo) return ultimo;
+
+  // O último campo veio vazio. Duas explicações, e elas se distinguem:
+  //
+  //   · o registro realmente não tem o código (COD_CTA_REF em branco,
+  //     centro de custo preenchido) → devolver vazio é o certo;
+  //   · o emissor escreveu um "|" a mais no fim.
+  //
+  // Só recuo quando o que encontro TEM CARA DE CÓDIGO DE PLANO — dígitos
+  // separados por ponto. Um centro de custo ("CC001", "001") não passa,
+  // e é por isso que a volta atrás não inventa vínculo.
+  for (let i = fim - 2; i >= 2; i--) {
+    const v = (fields[i] || "").trim();
+    if (!v) continue;
+    return /^\d+(\.\d+)+$/.test(v) ? v : "";
+  }
+  return "";
+}
+
 export function parseSpedContabil(content: string): SpedParseResult {
   const warnings: string[] = [];
   const planoContas: ContaContabil[] = [];
   const saldos: SaldoConta[] = [];
+  const lancamentos: LancamentoEcd[] = [];
   const demonstracoes: LinhaDemonstracao[] = [];
 
   let cnpj = "";
@@ -123,6 +207,11 @@ export function parseSpedContabil(content: string): SpedParseResult {
   let periodoInicio = "";
   let periodoFim = "";
 
+  // A conta I050 aberta no momento — I051/I052 penduram nela.
+  let ultimaConta: ContaContabil | null = null;
+  // O lançamento I200 aberto — as partidas I250 pendem dele.
+  let lctoNumero = "";
+  let lctoData = "";
   let currentDtIni = "";
   let currentDtFin = "";
 
@@ -165,6 +254,70 @@ export function parseSpedContabil(content: string): SpedParseResult {
             tipo_conta: tipo,
             natureza,
             parent_codigo: parent,
+            cod_referencial: null,
+            cod_aglutinacao: null,
+          });
+          // I051/I052 vêm DEPOIS do I050 e pertencem a ele.
+          ultimaConta = planoContas[planoContas.length - 1];
+        }
+        break;
+      }
+
+      case "I051": {
+        // |I051|COD_ENT_REF|COD_CCUS|COD_CTA_REF|   ← leiaute com centro de custo
+        // |I051|COD_ENT_REF|COD_CTA_REF|            ← leiaute sem
+        //
+        // O código da conta no plano REFERENCIAL. É sempre o ÚLTIMO
+        // campo; ler por posição fixa perde um dos dois leiautes calado.
+        const ref = ultimoCampo(rawLine, fields);
+        if (ultimaConta && ref && !ultimaConta.cod_referencial) {
+          ultimaConta.cod_referencial = ref;
+        }
+        break;
+      }
+
+      case "I052": {
+        // |I052|COD_CCUS|COD_AGL|
+        // O código de AGLUTINAÇÃO: é por ele que o próprio ECD monta as
+        // demonstrações do bloco J. Quando existe, é o código estrutural
+        // do plano da empresa — exatamente o que falta na tela quando o
+        // I050 traz só o reduzido.
+        //
+        // Mesma armadilha do I051: COD_AGL é o último campo, e o centro
+        // de custo antes dele pode estar ou não presente.
+        const agl = ultimoCampo(rawLine, fields);
+        if (ultimaConta && agl && !ultimaConta.cod_aglutinacao) {
+          ultimaConta.cod_aglutinacao = agl;
+        }
+        break;
+      }
+
+      case "I200": {
+        // |I200|NUM_LCTO|DT_LCTO|VL_LCTO|IND_LCTO|DT_LCTO_EXT|
+        lctoNumero = (fields[2] || "").trim();
+        lctoData = parseSpedDate(fields[3]);
+        break;
+      }
+
+      case "I250": {
+        // |I250|COD_CTA|COD_CCUS|VL_DC|IND_DC|NUM_ARQ|COD_PART|COD_HIST|HIST_COMPL|
+        //
+        // `IND_DC` decide o lado; o valor vem sempre positivo. Guardar
+        // como duas colunas (débito/crédito) em vez de um valor com sinal
+        // é o que o resto do sistema usa — e é o que permite conferir
+        // partida dobrada.
+        const cta = (fields[2] || "").trim();
+        const valor = parseNumber(fields[4]);
+        const dc = (fields[5] || "").trim().toUpperCase();
+        const hist = (fields[9] || "").trim();
+        if (cta && lctoData) {
+          lancamentos.push({
+            numero: lctoNumero,
+            data: lctoData,
+            codigo_conta: cta,
+            debito: dc === "D" ? valor : 0,
+            credito: dc === "C" ? valor : 0,
+            historico: hist,
           });
         }
         break;
@@ -413,6 +566,7 @@ export function parseSpedContabil(content: string): SpedParseResult {
     empresa: { cnpj, razaoSocial, periodoInicio, periodoFim },
     planoContas,
     saldos,
+    lancamentos,
     demonstracoes,
     warnings,
     validacoes,

@@ -10,11 +10,15 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { FormulaBuilder } from "./formula-builder";
 import type { ContaPlanoItem } from "./conta-picker";
+import { nomeBateIndicadorEbit } from "@/lib/indicadores/ebit-fonte";
 import {
+  destinosDe,
   validarExpressao,
+  visibilidadeDe,
   type IndicadorEmpresa,
   type ModoAnalise,
   type Token,
+  type Visibilidade,
 } from "@/lib/indicadores/engine";
 
 const CATEGORIAS = ["Liquidez", "Rentabilidade", "Endividamento", "Atividade", "Personalizado"];
@@ -31,14 +35,17 @@ interface Props {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   tenantId: string;
-  companyId: string;
+  /** `null` = está criando/editando a DEFINIÇÃO GLOBAL do escritório. */
+  companyId: string | null;
   plano: ContaPlanoItem[];
   indicador?: IndicadorEmpresa | null;
   onSaved: () => void;
+  somenteLeitura?: boolean;
 }
 
 export function IndicadorEditorDialog({
   open, onOpenChange, tenantId, companyId, plano, indicador, onSaved,
+  somenteLeitura = false,
 }: Props) {
   const [nome, setNome] = useState("");
   const [categoria, setCategoria] = useState("Personalizado");
@@ -49,6 +56,8 @@ export function IndicadorEditorDialog({
   const [faixaBom, setFaixaBom] = useState("");
   const [faixaAtencao, setFaixaAtencao] = useState("");
   const [direcao, setDirecao] = useState<"maior_melhor" | "menor_melhor">("maior_melhor");
+  const [dash, setDash] = useState(false);
+  const [aba, setAba] = useState(true);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -58,16 +67,23 @@ export function IndicadorEditorDialog({
       setCategoria(indicador.categoria || "Personalizado");
       setDescricao(indicador.descricao ?? "");
       setModo(indicador.modo_analise);
-      setTokens(indicador.formula?.expressao ?? []);
+      const expr = indicador.formula?.expressao
+        ?? (Array.isArray(indicador.formula) ? indicador.formula : []);
+      setTokens(expr);
       setFaixaOtimo(indicador.faixas?.otimo != null ? String(indicador.faixas.otimo) : "");
       setFaixaBom(indicador.faixas?.bom != null ? String(indicador.faixas.bom) : "");
       setFaixaAtencao(indicador.faixas?.atencao != null ? String(indicador.faixas.atencao) : "");
       setDirecao(indicador.faixas?.direcao ?? "maior_melhor");
+      const d = destinosDe((indicador.visibilidade ?? "indicadores") as Visibilidade);
+      setDash(d.dashboard);
+      setAba(d.aba);
     } else {
       setNome(""); setCategoria("Personalizado"); setDescricao("");
       setModo("numero"); setTokens([]);
       setFaixaOtimo(""); setFaixaBom(""); setFaixaAtencao("");
       setDirecao("maior_melhor");
+      setDash(false);
+      setAba(true);
     }
   }, [open, indicador]);
 
@@ -87,18 +103,33 @@ export function IndicadorEditorDialog({
             direcao,
           }
         : null;
-      const payload = {
+      const payload: Record<string, unknown> = {
         tenant_id: tenantId,
-        company_id: companyId,
         nome: nome.trim(),
         categoria,
         descricao: descricao.trim() || null,
         modo_analise: modo,
         formula: { expressao: tokens },
         faixas,
-        revisar_contas: false,
+        visibilidade: visibilidadeDe({ dashboard: dash, aba }),
       };
       if (indicador?.id) {
+        // NÃO mandar `company_id` no update.
+        //
+        // Antes ele vinha de `(indicador as any).company_id ?? null` — e
+        // a lista que abre este diálogo vem da RPC
+        // `indicadores_da_empresa`, que não devolve essa coluna. O valor
+        // era `undefined ?? null` = NULL: editar uma cópia LOCAL a
+        // transformava em definição global, silenciosamente, para todas
+        // as empresas. Na segunda empresa com o mesmo nome, erro cru de
+        // chave única.
+        //
+        // Omitir a coluna é o certo: o escopo de um indicador que já
+        // existe não é assunto de uma edição de fórmula.
+        //
+        // `revisar_contas` também sai do update: ele era mandado como
+        // `false` e apagava o alerta "Revisar contas" que a duplicação
+        // tinha acabado de marcar.
         const { error } = await supabase
           .from("indicadores_empresa" as any)
           .update(payload)
@@ -107,7 +138,8 @@ export function IndicadorEditorDialog({
       } else {
         const { error } = await supabase
           .from("indicadores_empresa" as any)
-          .insert({ ...payload, is_padrao: false });
+          .insert({ ...payload, company_id: companyId ?? null,
+                    revisar_contas: false, is_padrao: false });
         if (error) throw error;
       }
       toast.success("Indicador salvo");
@@ -124,19 +156,24 @@ export function IndicadorEditorDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{indicador ? "Editar Indicador" : "Criar Indicador"}</DialogTitle>
+          <DialogTitle>
+            {somenteLeitura
+              ? `Visualizar: ${indicador?.nome ?? "Indicador"}`
+              : indicador ? "Editar Indicador" : "Criar Indicador"}
+          </DialogTitle>
         </DialogHeader>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <div className="md:col-span-2">
             <Label className="text-xs">Nome</Label>
-            <Input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Ex.: Margem Operacional" />
+            <Input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Ex.: Margem Operacional" disabled={somenteLeitura} />
           </div>
           <div>
             <Label className="text-xs">Categoria</Label>
             <select
               value={categoria}
               onChange={(e) => setCategoria(e.target.value)}
+              disabled={somenteLeitura}
               className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm"
             >
               {CATEGORIAS.map((c) => <option key={c} value={c}>{c}</option>)}
@@ -146,12 +183,51 @@ export function IndicadorEditorDialog({
 
         <div>
           <Label className="text-xs">Descrição (opcional)</Label>
-          <Textarea value={descricao} onChange={(e) => setDescricao(e.target.value)} rows={2} placeholder="Explicação em linguagem simples" />
+          <Textarea value={descricao} onChange={(e) => setDescricao(e.target.value)} rows={2} placeholder="Explicação em linguagem simples" disabled={somenteLeitura} />
         </div>
 
         <div>
           <Label className="text-xs mb-1 block">Fórmula</Label>
-          <FormulaBuilder plano={plano} tokens={tokens} onChange={setTokens} />
+          <div className={somenteLeitura ? "pointer-events-none opacity-90" : undefined}>
+            <FormulaBuilder
+              plano={plano}
+              tokens={tokens}
+              onChange={setTokens}
+              ocultarLinhas={
+                nomeBateIndicadorEbit(nome, "ebit")
+                  ? ["EBIT", "EBITDA"]
+                  : nomeBateIndicadorEbit(nome, "ebitda")
+                    ? ["EBITDA"]
+                    : []
+              }
+            />
+          </div>
+          {(nomeBateIndicadorEbit(nome, "ebit") || nomeBateIndicadorEbit(nome, "ebitda")) && (
+            <p className="text-[11px] text-muted-foreground mt-1">
+              Esta fórmula alimenta a linha correspondente da DRE, os KPIs e o termo
+              {nomeBateIndicadorEbit(nome, "ebitda") ? " EBITDA (DRE)" : " EBIT (DRE)"} nas outras fórmulas.
+              {nomeBateIndicadorEbit(nome, "ebitda") ? " Pode usar EBIT (DRE) (valor do indicador Ebit)." : " Use contas e outras linhas da DRE — não a própria linha EBIT."}
+            </p>
+          )}
+        </div>
+
+        <div>
+          <Label className="text-xs mb-1 block">Onde aparece (padrão do escritório)</Label>
+          <div className="flex flex-wrap gap-4 text-sm">
+            <label className="flex items-center gap-1.5 cursor-pointer">
+              <input type="checkbox" checked={dash} disabled={somenteLeitura}
+                onChange={(e) => setDash(e.target.checked)} />
+              Dashboard
+            </label>
+            <label className="flex items-center gap-1.5 cursor-pointer">
+              <input type="checkbox" checked={aba} disabled={somenteLeitura}
+                onChange={(e) => setAba(e.target.checked)} />
+              Aba Indicadores
+            </label>
+          </div>
+          <p className="text-[11px] text-muted-foreground mt-1">
+            A empresa pode sobrescrever isso em Dados → Indicadores.
+          </p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -160,6 +236,7 @@ export function IndicadorEditorDialog({
             <select
               value={modo}
               onChange={(e) => setModo(e.target.value as ModoAnalise)}
+              disabled={somenteLeitura}
               className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm"
             >
               {MODOS.map((m) => (
@@ -175,6 +252,7 @@ export function IndicadorEditorDialog({
             <select
               value={direcao}
               onChange={(e) => setDirecao(e.target.value as any)}
+              disabled={somenteLeitura}
               className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm"
             >
               <option value="maior_melhor">Maior é melhor</option>
@@ -190,25 +268,29 @@ export function IndicadorEditorDialog({
           <div className="grid grid-cols-3 gap-2">
             <div>
               <Label className="text-[10px] text-emerald-600">Ótimo</Label>
-              <Input value={faixaOtimo} onChange={(e) => setFaixaOtimo(e.target.value)} placeholder="ex.: 1.5" />
+              <Input value={faixaOtimo} onChange={(e) => setFaixaOtimo(e.target.value)} placeholder="ex.: 1.5" disabled={somenteLeitura} />
             </div>
             <div>
               <Label className="text-[10px] text-blue-600">Bom</Label>
-              <Input value={faixaBom} onChange={(e) => setFaixaBom(e.target.value)} placeholder="ex.: 1.0" />
+              <Input value={faixaBom} onChange={(e) => setFaixaBom(e.target.value)} placeholder="ex.: 1.0" disabled={somenteLeitura} />
             </div>
             <div>
               <Label className="text-[10px] text-amber-600">Atenção</Label>
-              <Input value={faixaAtencao} onChange={(e) => setFaixaAtencao(e.target.value)} placeholder="ex.: 0.7" />
+              <Input value={faixaAtencao} onChange={(e) => setFaixaAtencao(e.target.value)} placeholder="ex.: 0.7" disabled={somenteLeitura} />
             </div>
           </div>
         </div>
 
         <DialogFooter>
-          <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={saving}>Cancelar</Button>
-          <Button onClick={salvar} disabled={saving}>
-            {saving ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
-            Salvar
+          <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={saving}>
+            {somenteLeitura ? "Fechar" : "Cancelar"}
           </Button>
+          {!somenteLeitura && (
+            <Button onClick={salvar} disabled={saving}>
+              {saving ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
+              Salvar
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

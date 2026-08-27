@@ -13,6 +13,7 @@
 //  - O somatório se acumula em TODOS os níveis pais da classificação.
 
 import { supabase } from "@/integrations/supabase/client";
+import { getMapaDeLinhas } from "@/lib/plano/mapa-linhas";
 
 const DEFAULT_RECEITA_PREFIX = ["3.01", "3.10"];
 const DEFAULT_DESPESA_PREFIX = ["3.06", "3.15"];
@@ -136,17 +137,9 @@ export async function montarReceitaDespesaDetalhado(
       .range(from, to),
   );
 
-  // Mapeamento DRE (empresa + global)
-  const mapeamento = await fetchAllPaginated<MapeamentoRow>((from, to) => {
-    let q = supabase
-      .from("mapeamento_demonstracao")
-      .select("classificacao_prefixo,linha_demonstracao,inverter_sinal")
-      .eq("tipo_demonstracao", "DRE")
-      .range(from, to);
-    if (tenantId) q = q.or(`company_id.eq.${companyId},company_id.is.null`);
-    else q = q.eq("company_id", companyId);
-    return q;
-  });
+  // Mapeamento DRE — agora derivado dos MARCOS do plano
+  // (mapeamento_demonstracao foi removida no ajuste 03).
+  const mapeamento = await getMapaDeLinhas(companyId, tenantId ?? "", !!tenantId, "DRE");
 
   // Lista de prefixos mapeados, com lado e sinal.
   const prefixosMapeados: PrefixoMapeado[] = mapeamento.map((m) => ({

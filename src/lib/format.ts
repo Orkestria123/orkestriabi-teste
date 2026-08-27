@@ -58,3 +58,61 @@ export function periodoLabel(date: string | Date): string {
   const d = typeof date === "string" ? new Date(date) : date;
   return `${MES_ABBR[d.getUTCMonth()]}/${String(d.getUTCFullYear()).slice(2)}`;
 }
+
+// ---------------------------------------------------------------------------
+// Nome de conta em Caixa de Título
+//
+// O plano vem do sistema contábil TODO EM MAIÚSCULA ("DESPESAS COM
+// ADMINISTRAÇÃO DE IMOVEIS"), que é como o contábil imprime mas fica
+// pesado numa tela de BI. Aqui vira "Despesas com Administração de
+// Imóveis", com três cuidados:
+//
+//   - siglas continuam em caixa alta (ICMS, IRPJ, FGTS, BNDES…);
+//   - preposições ficam minúsculas, menos no começo;
+//   - marcadores contábeis "(-)", "(+)", "(=)" são preservados.
+//
+// Rótulo que já vem escrito certo passa sem alteração: "(=) Lucro Bruto"
+// continua "(=) Lucro Bruto".
+// ---------------------------------------------------------------------------
+
+const SIGLAS = new Set([
+  "ICMS", "IPI", "PIS", "COFINS", "IRPJ", "CSLL", "INSS", "FGTS", "IRRF", "IRF",
+  "ISS", "ISSQN", "IOF", "IPTU", "IPVA", "ITBI", "CPMF", "CIDE", "CIAP", "DIFAL",
+  "SIMPLES", "MEI", "EPP", "ME", "SA", "S.A", "S.A.", "LTDA", "EIRELI", "CNPJ",
+  "CPF", "BNDES", "FINAME", "JCP", "PAT", "RAT", "SAT", "GPS", "DARF", "DAS",
+  "DRE", "DFC", "DVA", "DLPA", "BP", "PL", "CDB", "LCI", "LCA", "TR", "TJLP",
+  "SELIC", "CDI", "IGPM", "IPCA", "INPC", "RET", "SCI", "EPI", "PPRA", "PCMSO",
+  "CIPA", "FAP", "RH", "TI", "PDV", "ADM", "CMV", "CPV", "EBIT", "EBITDA",
+]);
+
+const MINUSCULAS = new Set([
+  "de", "da", "do", "das", "dos", "e", "em", "no", "na", "nos", "nas",
+  "a", "o", "as", "os", "ao", "aos", "à", "às", "para", "por", "com",
+  "sem", "sob", "sobre", "ou", "the",
+]);
+
+/** "DESPESAS COM VALE TRANSPORTE" -> "Despesas com Vale Transporte" */
+export function tituloConta(texto: string | null | undefined): string {
+  if (!texto) return "";
+  const original = String(texto);
+  // Normaliza sempre, inclusive o que já vem em caixa mista: o objetivo é
+  // uma formatação só em todo o BI. Rótulo já correto sai igual —
+  // "(=) Lucro Bruto" continua "(=) Lucro Bruto".
+  let primeiraPalavra = true;
+  return original.replace(/[\wÀ-ÿ]+(?:[.'’-][\wÀ-ÿ]+)*/g, (palavra) => {
+    const nu = palavra.toUpperCase();
+    if (SIGLAS.has(nu)) {
+      primeiraPalavra = false;
+      return nu;
+    }
+    // número, ou código tipo "13o" / "1o" — deixa como está
+    if (/^\d/.test(palavra)) {
+      primeiraPalavra = false;
+      return palavra;
+    }
+    const baixa = palavra.toLowerCase();
+    if (!primeiraPalavra && MINUSCULAS.has(baixa)) return baixa;
+    primeiraPalavra = false;
+    return baixa.charAt(0).toUpperCase() + baixa.slice(1);
+  });
+}

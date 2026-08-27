@@ -101,9 +101,12 @@ function Page() {
 
     setProgress(`Inserindo ${result.planoContas.length} contas…`);
     for (let i = 0; i < result.planoContas.length; i += 500) {
-      const chunk = result.planoContas.slice(i, i + 500).map((c) => ({
-        ...c, sped_file_id: spedFile.id, company_id: companyId, tenant_id: tenantId,
-      }));
+      // `chart_of_accounts` é do pipeline antigo e não tem as colunas do
+      // I051/I052 — tira antes de mandar, senão o insert é recusado.
+      const chunk = result.planoContas.slice(i, i + 500).map((c) => {
+        const { cod_referencial: _r, cod_aglutinacao: _a, ...conta } = c;
+        return { ...conta, sped_file_id: spedFile.id, company_id: companyId, tenant_id: tenantId };
+      });
       const { error } = await supabase.from("chart_of_accounts").insert(chunk);
       if (error) throw error;
     }

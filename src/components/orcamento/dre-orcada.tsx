@@ -32,6 +32,8 @@ import {
 } from "@/components/ui/select";
 import { MONTHS } from "@/components/filter-bar";
 import { GraficoNatureza, buildDadosLinhaSigned, type NaturezaDef } from "@/components/orcamento/natureza-charts";
+import { getModoGlobal } from "@/lib/plano/escopo";
+import { getMapaDeLinhas } from "@/lib/plano/mapa-linhas";
 
 // ---------- tipos ----------
 export interface DREColuna {
@@ -150,14 +152,11 @@ function invert(x: number | null): number | null {
 }
 
 // ---------- helpers ----------
-async function getCompanyMeta(companyId: string, tenantId: string) {
-  const { data: t } = await supabase
-    .from("tenants")
-    .select("plano_contas_modo")
-    .eq("id", tenantId)
-    .maybeSingle();
+async function getCompanyMeta(companyId: string, _tenantId: string) {
+  // AJUSTE 02 — o escopo do plano deixou de vir de tenants.plano_contas_modo
+  // e passou a ser resolvido por empresa (companies.plano_tipo).
   return {
-    modoGlobal: ((t as any)?.plano_contas_modo ?? "empresa") === "global",
+    modoGlobal: (await getModoGlobal(companyId)).modoGlobal,
   };
 }
 
@@ -166,15 +165,7 @@ async function fetchMapaDRE(
   tenantId: string,
   modoGlobal: boolean,
 ) {
-  const q = supabase
-    .from("mapeamento_demonstracao")
-    .select("classificacao_prefixo, linha_demonstracao, ordem, inverter_sinal")
-    .eq("tenant_id", tenantId)
-    .eq("tipo_demonstracao", "DRE");
-  const { data, error } = modoGlobal
-    ? await q.is("company_id", null)
-    : await q.eq("company_id", companyId);
-  if (error) throw error;
+const data = await getMapaDeLinhas(companyId, tenantId, modoGlobal, "DRE");
   return (data ?? []) as {
     classificacao_prefixo: string;
     linha_demonstracao: string;

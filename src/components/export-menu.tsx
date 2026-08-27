@@ -13,11 +13,9 @@ interface Props {
   filename: string;
   title: string;
   subtitle?: string;
-  /** rótulos customizados por coluna (ex.: DFC agrupada por trimestre) */
-  periodLabels?: string[];
 }
 
-export function ExportMenu({ rows, periods, filename, title, subtitle, periodLabels }: Props) {
+export function ExportMenu({ rows, periods, filename, title, subtitle }: Props) {
   const { tenant } = useAuth();
   return (
     <DropdownMenu>
@@ -27,7 +25,7 @@ export function ExportMenu({ rows, periods, filename, title, subtitle, periodLab
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        <DropdownMenuItem onClick={() => exportStatementXLSX(rows, periods, filename, title, periodLabels)}>
+        <DropdownMenuItem onClick={() => exportStatementXLSX(rows, periods, filename, title)}>
           <FileSpreadsheet className="h-4 w-4 mr-2" /> Excel (.xlsx)
         </DropdownMenuItem>
         <DropdownMenuItem
@@ -36,7 +34,7 @@ export function ExportMenu({ rows, periods, filename, title, subtitle, periodLab
               primaryColor: tenant?.primary_color,
               logoUrl: tenant?.logo_url,
               tenantName: tenant?.name,
-            }, periodLabels)
+            })
           }
         >
           <FileText className="h-4 w-4 mr-2" /> PDF

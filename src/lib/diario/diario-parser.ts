@@ -8,6 +8,7 @@ import * as XLSX from "xlsx";
 
 export interface DiarioRow {
   conta_codigo: string;
+  conta_nome: string | null;
   subconta_codigo: string | null;
   data: string; // ISO YYYY-MM-DD
   competencia: string; // YYYY-MM-01
@@ -44,6 +45,14 @@ function normalizeHeader(h: string): string {
 
 const ALIASES = {
   conta: ["conta", "cod conta", "codigo conta"],
+  // AJUSTE 04 — o diário costuma trazer o NOME da conta numa coluna
+  // própria, e o parser vinha descartando. É esse nome que pré-preenche
+  // o cadastro de contas novas (clientes/fornecedores) no Plano Padrão.
+  conta_nome: [
+    "nome conta", "nome da conta", "descricao conta", "descricao da conta",
+    "conta descricao", "desc conta", "nome", "descricao", "titulo conta",
+    "razao social", "participante", "cliente fornecedor",
+  ],
   subconta: ["subconta", "sub conta"],
   data: ["data", "dt lancamento", "data lancamento"],
   historico: ["historico", "complemento"],
@@ -154,6 +163,7 @@ export async function parseDiarioXLSX(file: File): Promise<DiarioParseResult> {
     contas.add(conta);
     rows.push({
       conta_codigo: conta,
+      conta_nome: idx.conta_nome != null ? (String(r[idx.conta_nome] ?? "").trim() || null) : null,
       subconta_codigo: idx.subconta != null ? (String(r[idx.subconta] ?? "").trim() || null) : null,
       data: dataISO,
       competencia,

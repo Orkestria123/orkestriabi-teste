@@ -96,6 +96,7 @@ export async function salvarDiarioUpload(opts: {
       company_id: companyId,
       upload_id: uploadId,
       conta_codigo: r.conta_codigo,
+      conta_nome: r.conta_nome,
       subconta_codigo: r.subconta_codigo,
       data: r.data,
       competencia: r.competencia,
@@ -108,20 +109,34 @@ export async function salvarDiarioUpload(opts: {
     }));
     await chunkedInsert("lancamentos_diario", payload, (n) => onProgress?.(n, payload.length));
 
-    // 4) agrega saldos mensais
-    const { error: aggErr } = await supabase.rpc("agregar_saldos_mensais", { _upload_id: uploadId });
-    if (aggErr) throw new Error(`Falha na agregação: ${aggErr.message}`);
+    // 4) fechamento ATÔMICO: contar, agregar e marcar 'done' numa
+    //    transação só, no servidor.
+    //
+    //    Antes eram duas chamadas separadas do navegador (agregar,
+    //    depois marcar done). Se a aba fechasse entre as duas, os
+    //    saldos ficavam agregados e o upload preso em 'processing' —
+    //    ou pior, marcado 'done' com lançamentos faltando, porque
+    //    ninguém conferia se todas as linhas tinham entrado.
+    //
+    //    `finalizar_upload_diario` compara o que foi gravado com o
+    //    total esperado e se recusa a fechar carga incompleta.
+    const { data: fim, error: fimErr } = await (supabase as any).rpc(
+      "finalizar_upload_diario",
+      { _upload_id: uploadId },
+    );
+    if (fimErr) throw new Error(`Falha ao finalizar: ${fimErr.message}`);
+    if (fim && fim.ok === false) {
+      throw new Error(
+        `Carga incompleta: ${fim.gravados} de ${fim.esperados} lançamentos foram gravados. ` +
+          `Exclua este upload e envie o arquivo novamente.`,
+      );
+    }
 
-    // 5) finaliza
-    await supabase
-      .from("diario_uploads")
-      .update({
-        status: "done",
-        contas_desconhecidas: contasDesconhecidas,
-      })
-      .eq("id", uploadId);
-
-    return { uploadId, contasDesconhecidas, total: payload.length };
+    return {
+      uploadId,
+      contasDesconhecidas: fim?.contas_desconhecidas ?? contasDesconhecidas,
+      total: payload.length,
+    };
   } catch (e: any) {
     await supabase
       .from("diario_uploads")
@@ -129,6 +144,39 @@ export async function salvarDiarioUpload(opts: {
       .eq("id", uploadId);
     throw e;
   }
+}
+
+/**
+ * Uploads que ficaram pela metade: 'processing' de uma carga que morreu,
+ * ou 'error'. Devolve quanto entrou de fato, para dar para decidir entre
+ * refazer e excluir.
+ */
+export async function uploadsIncompletos(companyId: string) {
+  const { data, error } = await (supabase as any).rpc("uploads_incompletos", {
+    _company_id: companyId,
+  });
+  if (error) throw new Error(error.message);
+  return (data ?? []) as {
+    id: string;
+    filename: string;
+    status: string;
+    criado_em: string;
+    lancamentos_gravados: number;
+    lancamentos_esperados: number | null;
+  }[];
+}
+
+/**
+ * Retoma um upload que ficou em 'processing' — tenta fechar de novo.
+ * Se a carga estiver incompleta, ele marca 'error' com a contagem, e
+ * aí o caminho é excluir e reenviar.
+ */
+export async function retomarUpload(uploadId: string) {
+  const { data, error } = await (supabase as any).rpc("finalizar_upload_diario", {
+    _upload_id: uploadId,
+  });
+  if (error) throw new Error(error.message);
+  return data as { ok: boolean; gravados: number; esperados?: number };
 }
 
 export async function removerUpload(uploadId: string) {

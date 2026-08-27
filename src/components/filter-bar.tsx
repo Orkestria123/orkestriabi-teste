@@ -71,6 +71,11 @@ export function useFilters() {
   return c;
 }
 
+/** Mesmo contexto, sem lançar — para componentes que recebem `periods` por prop. */
+export function useFiltersOptional() {
+  return useContext(Ctx);
+}
+
 export function FilterBar() {
   const { years, months, setYears, setMonths, availableYears } = useFilters();
   const toggle = <T,>(arr: T[], v: T) =>

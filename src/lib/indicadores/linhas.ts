@@ -4,6 +4,11 @@
 
 import { descendeDe, grupoDe, nivelDe } from "@/lib/mascara/interpretar";
 import {
+  getEstruturaPadraoSync,
+  compararClassificacao,
+  type PapelEstrutura,
+} from "@/lib/plano/estrutura";
+import {
   valorConta,
   valorContaAnalitica,
   type EngineContext,
@@ -24,12 +29,14 @@ export const LINHAS_CATALOGO: LinhaCatalogo[] = [
   { key: "DEDUCOES", label: "Deduções da Receita Bruta", origem: "DRE" },
   { key: "RECEITA_LIQUIDA", label: "Receita Líquida", origem: "DRE" },
   { key: "CUSTOS", label: "Custos (CMV/CPV/CSV)", origem: "DRE" },
+  { key: "CUSTO_MERCADORIA", label: "Custo da mercadoria (EI + compras − deduções − EF)", origem: "DRE", descricao: "Só a parte com estoque: sem mão de obra, GGF e demais gastos" },
   { key: "LUCRO_BRUTO", label: "Lucro Bruto", origem: "DRE" },
   { key: "DESPESAS_OPERACIONAIS", label: "Despesas Operacionais", origem: "DRE" },
   { key: "DESPESAS_ADMINISTRATIVAS", label: "Despesas Administrativas", origem: "DRE" },
   { key: "DESPESAS_COMERCIAIS", label: "Despesas Comerciais", origem: "DRE" },
-  { key: "EBIT", label: "Resultado Operacional (EBIT)", origem: "DRE" },
-  { key: "EBITDA", label: "EBITDA", origem: "DRE" },
+  { key: "RESULTADO_OPERACIONAL", label: "Resultado Operacional", origem: "DRE", descricao: "Subtotal da DRE até o operacional (conta .99 / corrido). Não é o KPI EBIT." },
+  { key: "EBIT", label: "EBIT (DRE)", origem: "DRE", descricao: "Valor do indicador Ebit" },
+  { key: "EBITDA", label: "EBITDA (DRE)", origem: "DRE", descricao: "Valor do indicador Ebitda" },
   { key: "RECEITAS_FINANCEIRAS", label: "Receitas Financeiras", origem: "DRE" },
   { key: "DESPESAS_FINANCEIRAS", label: "Despesas Financeiras", origem: "DRE" },
   { key: "RESULTADO_ANTES_IR", label: "Resultado antes do IR/CSLL", origem: "DRE" },
@@ -39,6 +46,7 @@ export const LINHAS_CATALOGO: LinhaCatalogo[] = [
   { key: "ATIVO_TOTAL", label: "Ativo Total", origem: "BP" },
   { key: "ATIVO_CIRCULANTE", label: "Ativo Circulante", origem: "BP" },
   { key: "ATIVO_NAO_CIRCULANTE", label: "Ativo Não Circulante", origem: "BP" },
+  { key: "REALIZAVEL_LP", label: "Realizável a Longo Prazo", origem: "BP" },
   { key: "DISPONIVEL", label: "Disponível / Caixa e Equivalentes", origem: "BP" },
   { key: "CONTAS_A_RECEBER", label: "Contas a Receber (Clientes)", origem: "BP" },
   { key: "ESTOQUES", label: "Estoques", origem: "BP" },
@@ -64,234 +72,453 @@ export type DemoDre = Map<string, number>;
 
 export const keyDre = (desc: string, periodo: string) => `${desc}|${periodo}`;
 
-function dreVal(demo: DemoDre | undefined, desc: string, periodo: string): number {
-  if (!demo) return 0;
-  return demo.get(keyDre(desc, periodo)) ?? 0;
+const ROTULOS_EBIT = [
+  "(=) EBIT",
+  "(=) Resultado Operacional (EBIT)",
+  "(=) Resultado Operacional",
+];
+const ROTULOS_EBITDA = ["(=) EBITDA"];
+const ROTULOS_LL = [
+  "(=) Lucro do Exercício",
+  "(=) Prejuízo do Exercício",
+  "(=) Lucro Líquido do Exercício",
+  "Lucro Líquido",
+];
+
+function normTxt(s: string): string {
+  return s
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/^\(=\)\s*|^ \(-\)\s*|^\(\+\)\s*/g, "")
+    .replace(/[^a-z0-9]+/g, "");
 }
 
-function dreHas(demo: DemoDre | undefined, desc: string, periodo: string): boolean {
-  if (!demo) return false;
-  return demo.has(keyDre(desc, periodo));
+function periodosCandidatos(periodo: string): string[] {
+  const ym = periodo.slice(0, 7);
+  const dia = /^\d{4}-\d{2}$/.test(ym) ? `${ym}-01` : periodo.slice(0, 10);
+  return Array.from(new Set([periodo, dia, `${ym}-01`, periodo.slice(0, 10)]));
 }
 
-// ------------------------------------------------------------
-// Helpers para BP (via engine sobre saldos_mensais).
-// ------------------------------------------------------------
-
-function findPrefixByDesc(
-  ctx: EngineContext,
-  regex: RegExp,
-  grupos: string[],
-): string[] {
-  const candidatos = ctx.plano.filter((p) => {
-    if (p.is_participante) return false;
-    const g = grupoDe(p.classificacao, ctx.mascara);
-    if (!grupos.includes(g)) return false;
-    return regex.test(p.descricao);
-  });
-  // Preferir os mais próximos da raiz (menos segmentos).
-  candidatos.sort(
-    (a, b) => nivelDe(a.classificacao, ctx.mascara) - nivelDe(b.classificacao, ctx.mascara),
-  );
-  // Deduplica descendentes: se já incluí "1.01.02", descarta "1.01.02.03".
-  const out: string[] = [];
-  for (const c of candidatos) {
-    const cls = c.classificacao;
-    if (out.some((base) => descendeDe(cls, base, ctx.mascara))) continue;
-    out.push(cls);
+function aliasesDaLinha(key: string, est: PapelEstrutura[] | null | undefined): string[] {
+  const aliases = new Set<string>();
+  const cat = LINHAS_CATALOGO.find((l) => l.key === key);
+  if (cat) {
+    aliases.add(cat.label);
+    aliases.add(`(=) ${cat.label}`);
+    aliases.add(`(-) ${cat.label}`);
+    aliases.add(`(+) ${cat.label}`);
   }
-  return out;
+  for (const e of est ?? []) {
+    if (e.papel !== key || !e.rotulo) continue;
+    aliases.add(e.rotulo);
+  }
+  if (key === "EBIT") ROTULOS_EBIT.forEach((a) => aliases.add(a));
+  if (key === "EBITDA") ROTULOS_EBITDA.forEach((a) => aliases.add(a));
+  if (key === "LUCRO_LIQUIDO") ROTULOS_LL.forEach((a) => aliases.add(a));
+  return Array.from(aliases);
 }
 
-function sumPrefixes(ctx: EngineContext, periodo: string, prefixos: string[]): number {
-  let total = 0;
-  for (const pref of prefixos) total += valorConta(pref, periodo, ctx);
-  return total;
+function putDemo(
+  map: DemoDre,
+  k: string,
+  v: number,
+  prefer: boolean,
+) {
+  if (!map.has(k)) {
+    map.set(k, v);
+    return;
+  }
+  const prev = map.get(k)!;
+  const prevZ = Math.abs(prev) < 0.005;
+  const vZ = Math.abs(v) < 0.005;
+  if (prevZ && !vZ) {
+    map.set(k, v);
+    return;
+  }
+  if (!prevZ && vZ) return;
+  if (prefer) map.set(k, v);
 }
 
-function sumByGrupo(ctx: EngineContext, periodo: string, grupos: string[]): number {
-  let total = 0;
-  for (const p of ctx.plano) {
-    if (p.is_sintetica) continue;
-    if (p.is_participante) {
-      // participantes: contam para clientes/fornecedores (ativo circulante / passivo circulante)
-      // apenas se dentro do grupo pedido.
+/** Indexa as linhas da DRE para o resolvedor de indicadores. */
+export function indexarDemoDre(
+  rows: {
+    descricao: string;
+    periodo: string;
+    valor: number;
+    codigo_conta?: string | null;
+    is_subtotal?: boolean;
+  }[],
+  estrutura?: PapelEstrutura[] | null,
+): DemoDre {
+  const map: DemoDre = new Map();
+  const est = estrutura ?? [];
+
+  for (const r of rows) {
+    const per = (r.periodo ?? "").slice(0, 10) || r.periodo;
+    const ym = per.slice(0, 7);
+    const v = Number(r.valor);
+    const val = Number.isFinite(v) ? v : 0;
+    const prefer = !!r.is_subtotal;
+    putDemo(map, keyDre(r.descricao, per), val, prefer);
+    putDemo(map, keyDre(r.descricao, ym), val, prefer);
+    putDemo(map, keyDre(normTxt(r.descricao), ym), val, prefer);
+    if (r.codigo_conta) {
+      putDemo(map, `CLS:${r.codigo_conta}|${ym}`, val, prefer);
     }
-    const g = grupoDe(p.classificacao, ctx.mascara);
-    if (!grupos.includes(g)) continue;
-    total += valorContaAnalitica(p.classificacao, periodo, ctx);
+
+    const nd = normTxt(r.descricao);
+    for (const e of est) {
+      if (e.demonstracao !== "DRE" || !e.papel) continue;
+      const matchCls = !!(r.codigo_conta && r.codigo_conta === e.classificacao);
+      const matchRotulo = !!(e.rotulo && normTxt(e.rotulo) === nd);
+      // Conta .98/.99 não tem lançamento: o valor 0 dela não pode virar o PAPEL.
+      if (matchCls && !r.is_subtotal && Math.abs(val) < 0.005) continue;
+      if (matchCls || matchRotulo) {
+        putDemo(map, `PAPEL:${e.papel}|${ym}`, val, !!r.is_subtotal || matchRotulo);
+        putDemo(map, `PAPEL:${e.papel}|${per}`, val, !!r.is_subtotal || matchRotulo);
+      }
+    }
+    for (const cat of LINHAS_CATALOGO) {
+      if (cat.origem !== "DRE") continue;
+      const nlab = normTxt(cat.label);
+      if (nlab.length < 4) continue;
+      if (nd === nlab || nd.includes(nlab) || (nd.length >= 6 && nlab.includes(nd))) {
+        if (prefer || nd === nlab) {
+          putDemo(map, `PAPEL:${cat.key}|${ym}`, val, prefer || nd === nlab);
+        }
+      }
+    }
   }
-  return total;
+  return map;
 }
 
-function sumPrefixesFromRoot(
-  ctx: EngineContext,
+function valorDemoDre(
+  demo: DemoDre | undefined,
   periodo: string,
-  raizes: string[],
-): number {
-  // Soma todas as analíticas cuja classificação descende de alguma das raízes.
+  rotulos: string[],
+  papel?: string,
+): number | null {
+  if (!demo || demo.size === 0) return null;
+  const pers = periodosCandidatos(periodo);
+  const ym = periodo.slice(0, 7);
+  const candidatos: number[] = [];
+
+  const push = (v: number | undefined) => {
+    if (v == null || !Number.isFinite(v)) return;
+    candidatos.push(v);
+  };
+
+  if (papel) {
+    for (const per of [`PAPEL:${papel}|${ym}`, ...pers.map((p) => `PAPEL:${papel}|${p}`)]) {
+      if (demo.has(per)) push(demo.get(per));
+    }
+  }
+
+  for (const d of rotulos) {
+    for (const per of pers) {
+      const k = keyDre(d, per);
+      if (demo.has(k)) push(demo.get(k));
+    }
+    const kn = keyDre(normTxt(d), ym);
+    if (demo.has(kn)) push(demo.get(kn));
+  }
+
+  const needles = rotulos.map(normTxt).filter((n) => n.length >= 4);
+  if (needles.length > 0) {
+    for (const [k, v] of demo) {
+      if (k.startsWith("PAPEL:") || k.startsWith("CLS:")) continue;
+      const sep = k.lastIndexOf("|");
+      if (sep < 0) continue;
+      const desc = k.slice(0, sep);
+      const per = k.slice(sep + 1);
+      if (!pers.some((p) => per.startsWith(p.slice(0, 7)))) continue;
+      const nd = normTxt(desc);
+      // Igualdade estrita. "ebit" ⊂ "ebitda" fazia o EBITDA do indicador
+      // puxar a linha de EBIT (ou o contrário) — a DRE estava certa e o
+      // card não. Substring só em rótulos longos (Lucro Bruto, etc.).
+      if (!needles.some((n) => nd === n || (n.length >= 8 && nd.includes(n)))) continue;
+      push(v);
+    }
+  }
+
+  if (candidatos.length === 0) return null;
+  const naoZero = candidatos.filter((v) => Math.abs(v) > 0.005);
+  if (naoZero.length === 0) return candidatos[0];
+  return naoZero.reduce((a, b) => (Math.abs(b) > Math.abs(a) ? b : a));
+}
+
+/** Valor de um papel (RECEITA_BRUTA, LUCRO_LIQUIDO, EBIT, …) na DRE já indexada. */
+export function valorEbitEbitdaDaDre(
+  demo: DemoDre | undefined,
+  qual: "EBIT" | "EBITDA",
+  periodo: string,
+): number | null {
+  const rotulo = qual === "EBITDA" ? "(=) EBITDA" : "(=) EBIT";
+  return valorDemoDre(demo, periodo, [rotulo], undefined);
+}
+
+export function valorPapelDemo(
+  demo: DemoDre | undefined,
+  papel: string,
+  periodo: string,
+  estrutura?: PapelEstrutura[] | null,
+): number | null {
+  if (papel === "EBIT" || papel === "EBITDA") {
+    return valorEbitEbitdaDaDre(demo, papel, periodo);
+  }
+  return valorDemoDre(demo, periodo, aliasesDaLinha(papel, estrutura), papel);
+}
+
+/** Custos da DRE (CPV + CMV + CSP + imobiliário), convenção da demonstração. */
+export function valorCustosDemo(
+  demo: DemoDre | undefined,
+  periodo: string,
+  estrutura?: PapelEstrutura[] | null,
+): number | null {
+  let t = 0;
+  let hit = false;
+  for (const papel of ["CPV", "CMV", "CSP", "CUSTO_IMOBILIARIO"]) {
+    const v = valorPapelDemo(demo, papel, periodo, estrutura);
+    if (v == null) continue;
+    t += v;
+    hit = true;
+  }
+  return hit ? t : null;
+}
+
+// ------------------------------------------------------------
+// Resolução por PAPEL (a partir do `estrutura_padrao`)
+//
+// Por que isto existe: o resolvedor antigo procurava as linhas da DRE
+// pelo RÓTULO exibido — `dreVal(demoDre, "(=) Lucro Bruto", periodo)`.
+// Como a DRE passou a ser desenhada com os nomes do plano do escritório
+// ("LUCRO/PREJUIZO BRUTO"), NENHUMA dessas buscas casava e todo
+// indicador que dependia da DRE devolvia null. Era essa a causa de os
+// indicadores não funcionarem.
+//
+// Agora a busca é por papel → classificação, com as MESMAS três regras
+// que o motor da DRE usa (detalhe, bloco, corrido). Rótulo é
+// apresentação; papel é contrato.
+// ------------------------------------------------------------
+
+/** Movimento do período na convenção da DRE: receita +, custo/despesa −. */
+function saldoNoPeriodo(
+  saldos: Map<string, { total_debitos: number; total_creditos: number }> | undefined,
+  periodo: string,
+) {
+  if (!saldos) return null;
+  for (const p of periodosCandidatos(periodo)) {
+    const s = saldos.get(p);
+    if (s) return s;
+  }
+  const ym = periodo.slice(0, 7);
+  for (const [k, s] of saldos) {
+    if (k.startsWith(ym)) return s;
+  }
+  return null;
+}
+
+function valorDreClass(classificacao: string, periodo: string, ctx: EngineContext): number {
   let total = 0;
+  const vistos = new Set<string>();
   for (const p of ctx.plano) {
     if (p.is_sintetica) continue;
-    if (!raizes.some((r) => descendeDe(p.classificacao, r, ctx.mascara))) continue;
-    total += valorContaAnalitica(p.classificacao, periodo, ctx);
+    if (vistos.has(p.classificacao)) continue;
+    vistos.add(p.classificacao);
+    if (
+      p.classificacao !== classificacao &&
+      !descendeDe(p.classificacao, classificacao, ctx.mascara)
+    )
+      continue;
+    const s = saldoNoPeriodo(ctx.saldosByClass.get(p.classificacao), periodo);
+    if (!s) continue;
+    total += Number(s.total_creditos) - Number(s.total_debitos);
   }
   return total;
 }
 
-// Resultado acumulado do exercício até o período (Σ movimento contas grupo 3,
-// do início do ano até a competência, na natureza credora → lucro positivo).
+/** Soma de tudo que vem ANTES de `limite` no grupo de resultado. */
+function valorDreAcumulado(
+  limite: string,
+  periodo: string,
+  ctx: EngineContext,
+  ehApuracao: (c: string) => boolean,
+): number {
+  const raiz = limite.split(/[.\-/]/)[0];
+  let total = 0;
+  const vistos = new Set<string>();
+  for (const p of ctx.plano) {
+    if (p.is_sintetica) continue;
+    if (vistos.has(p.classificacao)) continue;
+    vistos.add(p.classificacao);
+    if (p.classificacao.split(/[.\-/]/)[0] !== raiz) continue;
+    if (ehApuracao(p.classificacao)) continue;
+    if (compararClassificacao(p.classificacao, limite) >= 0) continue;
+    const s = saldoNoPeriodo(ctx.saldosByClass.get(p.classificacao), periodo);
+    if (!s) continue;
+    total += Number(s.total_creditos) - Number(s.total_debitos);
+  }
+  return total;
+}
+
+const ehApuracaoClass = (c: string) =>
+  c.split(/[.\-/]/).slice(1).some((seg) => seg === "98" || seg === "99");
+
+function resolverPorPapel(
+  est: PapelEstrutura[],
+  key: string,
+  periodo: string,
+  ctx: EngineContext,
+): number | null {
+  const entradas = est.filter((e) => e.papel === key);
+  if (entradas.length === 0) return null;
+
+  let total = 0;
+  for (const e of entradas) {
+    if (e.demonstracao === "DRE") {
+      let tipo = e.tipo_linha;
+      // .98/.99 não têm saldo; se a estrutura marcou como detalhe, fecha o bloco pai.
+      if (tipo === "detalhe" && ehApuracaoClass(e.classificacao)) tipo = "bloco";
+      if (tipo === "corrido") {
+        total += valorDreAcumulado(e.classificacao, periodo, ctx, ehApuracaoClass);
+      } else if (tipo === "bloco") {
+        const partes = e.classificacao.split(".");
+        const pai = partes.length > 1 ? partes.slice(0, -1).join(".") : e.classificacao;
+        total += valorDreClass(pai, periodo, ctx);
+      } else {
+        total += valorDreClass(e.classificacao, periodo, ctx);
+      }
+    } else {
+      // Balanço: `valorConta` já acumula abertura + movimento e trata o
+      // sinal pelo grupo (ativo devedor, passivo/PL credor).
+      total += valorConta(e.classificacao, periodo, ctx);
+    }
+  }
+  return total;
+}
+
+/** Papéis que são combinação de outros. */
+function resolverDerivado(
+  est: PapelEstrutura[],
+  key: string,
+  periodo: string,
+  ctx: EngineContext,
+): number | null {
+  const v = (k: string) => resolverPorPapel(est, k, periodo, ctx) ?? 0;
+  switch (key) {
+    case "CUSTOS":
+      // todos os blocos de custo do plano
+      return v("CPV") + v("CMV") + v("CUSTO_IMOBILIARIO") + v("CSP");
+    case "CUSTO_MERCADORIA":
+      // EI + compras + deduções de compras + EF — sem MOD, GGF, depreciação.
+      return v("ESTOQUE_INICIAL") + v("COMPRAS") + v("DEDUCOES_COMPRAS") + v("ESTOQUE_FINAL");
+    case "IRPJ_CSLL":
+      return v("PROVISAO_IRPJ") + v("PROVISAO_CSLL");
+    case "EBITDA": {
+      const ebit = resolverPorPapel(est, "EBIT", periodo, ctx);
+      if (ebit === null) return null;
+      // depreciação é despesa (crédito - débito < 0); somar de volta = subtrair
+      return ebit - v("DEPRECIACAO_AMORTIZACAO");
+    }
+    case "PASSIVO_TOTAL_E_PL":
+      return null; // tem regra própria abaixo (inclui o resultado do exercício)
+    default:
+      return null;
+  }
+}
+
+/** Resultado acumulado do exercício até o período (Σ movimento contas grupo 3,
+ * do início do ano até a competência, na natureza credora → lucro positivo). */
 function resultadoExercicioAte(ctx: EngineContext, periodo: string): number {
   const inicio = `${periodo.slice(0, 4)}-01`;
   let total = 0;
+  const vistos = new Set<string>();
   for (const p of ctx.plano) {
     if (p.is_sintetica) continue;
+    if (vistos.has(p.classificacao)) continue;
+    vistos.add(p.classificacao);
     const g = grupoDe(p.classificacao, ctx.mascara);
     if (g !== "receita" && g !== "despesa" && g !== "resultado") continue;
+    if (ehApuracaoClass(p.classificacao)) continue; // .98/.99 não têm lançamento
     const saldos = ctx.saldosByClass.get(p.classificacao);
     if (!saldos) continue;
-    const naturezaRaw = (p.natureza ?? "").toUpperCase();
-    const natureza: "C" | "D" =
-      naturezaRaw === "C" || naturezaRaw === "D"
-        ? (naturezaRaw as "C" | "D")
-        : g === "despesa"
-        ? "D"
-        : "C";
+    // Convenção da DRE, igual à do motor de demonstrações: crédito − débito,
+    // então lucro é positivo.
     for (const [comp, s] of saldos) {
       if (comp < inicio || comp > periodo) continue;
-      total += natureza === "C"
-        ? Number(s.total_creditos) - Number(s.total_debitos)
-        : Number(s.total_debitos) - Number(s.total_creditos);
+      total += Number(s.total_creditos) - Number(s.total_debitos);
     }
   }
   return total;
 }
 
-// ------------------------------------------------------------
-// Resolver
-// ------------------------------------------------------------
-
-/**
- * Devolve o valor da linha catalogada para o período.
- * Para linhas DRE, usa preferencialmente o mesmo motor que monta a DRE
- * (via `demoDre`); se ausente, retorna null.
- * Para linhas BP, computa direto sobre `ctx` (abertura + Σ movimento).
- */
 export function resolverLinha(
   key: string,
   periodo: string,
   ctx: EngineContext,
   demoDre: DemoDre | undefined,
+  estrutura?: PapelEstrutura[],
 ): number | null {
-  switch (key) {
-    // ---------------- DRE ----------------
-    case "RECEITA_BRUTA":
-      return dreHas(demoDre, "Receita Bruta", periodo) ? dreVal(demoDre, "Receita Bruta", periodo) : null;
-    case "DEDUCOES":
-      return dreVal(demoDre, "(-) Deduções da Receita Bruta", periodo);
-    case "RECEITA_LIQUIDA":
-      return dreHas(demoDre, "(=) Receita Líquida", periodo)
-        ? dreVal(demoDre, "(=) Receita Líquida", periodo)
-        : null;
-    case "CUSTOS": {
-      if (!demoDre) return null;
-      let s = 0;
-      for (const [k, v] of demoDre) {
-        const [desc, p] = k.split("|");
-        if (p !== periodo) continue;
-        if (/^\(-\)\s*Custos?\b/i.test(desc)) s += v;
-      }
-      return s;
-    }
-    case "LUCRO_BRUTO":
-      return dreHas(demoDre, "(=) Lucro Bruto", periodo)
-        ? dreVal(demoDre, "(=) Lucro Bruto", periodo)
-        : null;
-    case "DESPESAS_OPERACIONAIS": {
-      if (!demoDre) return null;
-      let s = 0;
-      for (const [k, v] of demoDre) {
-        const [desc, p] = k.split("|");
-        if (p !== periodo) continue;
-        if (/^\(-\)\s*Despesas\b/i.test(desc) && !/Financeiras/i.test(desc)) s += v;
-      }
-      return s;
-    }
-    case "DESPESAS_ADMINISTRATIVAS":
-      return dreHas(demoDre, "(-) Despesas Administrativas", periodo)
-        ? dreVal(demoDre, "(-) Despesas Administrativas", periodo)
-        : null;
-    case "DESPESAS_COMERCIAIS":
-      return dreHas(demoDre, "(-) Despesas Comerciais", periodo)
-        ? dreVal(demoDre, "(-) Despesas Comerciais", periodo)
-        : null;
-    case "RECEITAS_FINANCEIRAS":
-      return dreVal(demoDre, "(+) Receitas Financeiras", periodo);
-    case "DESPESAS_FINANCEIRAS":
-      return dreVal(demoDre, "(-) Despesas Financeiras", periodo);
-    case "EBIT":
-      return dreHas(demoDre, "(=) Resultado Operacional (EBIT)", periodo)
-        ? dreVal(demoDre, "(=) Resultado Operacional (EBIT)", periodo)
-        : null;
-    case "EBITDA": {
-      if (!demoDre) return null;
-      const ebit = dreVal(demoDre, "(=) Resultado Operacional (EBIT)", periodo);
-      let dep = 0;
-      for (const [k, v] of demoDre) {
-        const [desc, p] = k.split("|");
-        if (p !== periodo) continue;
-        if (/deprec|amortiz|exaust/i.test(desc)) dep += v;
-      }
-      return ebit + dep;
-    }
-    case "RESULTADO_ANTES_IR":
-      return dreHas(demoDre, "(=) Resultado Antes do IR/CSLL", periodo)
-        ? dreVal(demoDre, "(=) Resultado Antes do IR/CSLL", periodo)
-        : null;
-    case "IRPJ_CSLL":
-      return dreVal(demoDre, "(-) IRPJ", periodo) + dreVal(demoDre, "(-) CSLL", periodo);
-    case "LUCRO_LIQUIDO":
-      return dreHas(demoDre, "(=) Lucro Líquido do Exercício", periodo)
-        ? dreVal(demoDre, "(=) Lucro Líquido do Exercício", periodo)
-        : null;
+  // CAMINHO ÚNICO. Antes havia dois: o papel do `estrutura_padrao` e um
+  // caminho "legado" que somava por grupo da máscara. Quando o
+  // `estrutura_padrao` ainda não tinha carregado (ele é assíncrono e o
+  // resolvedor é síncrono), o mesmo indicador caía no legado e devolvia
+  // OUTRO número — no plano do escritório, Ativo Total vinha 1,9× maior.
+  //
+  // O motivo do erro do legado: ele iterava as contas do plano somando
+  // por CLASSIFICAÇÃO, e 28 classificações do plano têm mais de uma
+  // conta (o próprio export repete: 1.03.03.02.01 é "VEICULOS INDUSTRIA"
+  // E "VEICULOS SERVICOS"; 1.03.01.03.01 tem 7 contas). Cada repetição
+  // somava o mesmo saldo de novo.
+  //
+  // Dois caminhos de cálculo para a mesma pergunta é o defeito de fundo.
+  // Ficou um só. Sem a estrutura carregada devolve `null` — a tela mostra
+  // "—" por um instante, o que é infinitamente melhor que um número
+  // quase-dobrado que parece certo.
+  const est = estrutura ?? getEstruturaPadraoSync();
+  const cat = LINHAS_CATALOGO.find((l) => l.key === key);
 
-    // ---------------- BP ----------------
-    case "ATIVO_TOTAL":
-      return sumByGrupo(ctx, periodo, ["ativo"]);
-    case "ATIVO_CIRCULANTE":
-      return sumPrefixesFromRoot(ctx, periodo, ["1.01"]);
-    case "ATIVO_NAO_CIRCULANTE":
-      return sumPrefixesFromRoot(ctx, periodo, ["1.02", "1.03"]);
-    case "DISPONIVEL":
-      return sumPrefixesFromRoot(ctx, periodo, ["1.01.01"]);
-    case "IMOBILIZADO":
-      return sumPrefixesFromRoot(ctx, periodo, ["1.03"]);
-    case "CONTAS_A_RECEBER": {
-      const pref = findPrefixByDesc(ctx, /clientes|receber|duplic/i, ["ativo"]);
-      if (pref.length === 0) return sumPrefixesFromRoot(ctx, periodo, ["1.01.02"]);
-      return sumPrefixes(ctx, periodo, pref);
-    }
-    case "ESTOQUES": {
-      const pref = findPrefixByDesc(ctx, /estoq/i, ["ativo"]);
-      return sumPrefixes(ctx, periodo, pref);
-    }
-    case "PASSIVO_TOTAL_E_PL":
-      return sumByGrupo(ctx, periodo, ["passivo", "pl"]) + resultadoExercicioAte(ctx, periodo);
-    case "PASSIVO_CIRCULANTE":
-      return sumPrefixesFromRoot(ctx, periodo, ["2.01"]);
-    case "PASSIVO_NAO_CIRCULANTE":
-      return sumPrefixesFromRoot(ctx, periodo, ["2.02"]);
-    case "PATRIMONIO_LIQUIDO":
-      return sumPrefixesFromRoot(ctx, periodo, ["2.03", "2.04", "2.05"]) + resultadoExercicioAte(ctx, periodo);
-    case "FORNECEDORES": {
-      const pref = findPrefixByDesc(ctx, /fornec/i, ["passivo", "pl"]);
-      return sumPrefixes(ctx, periodo, pref);
-    }
-    case "EMPRESTIMOS": {
-      const pref = findPrefixByDesc(ctx, /emprest|financiament/i, ["passivo", "pl"]);
-      return sumPrefixes(ctx, periodo, pref);
-    }
-    default:
-      return null;
+  // DRE: prefere o valor já montado na demonstração. Zero na conta .99
+  // não conta — cai no cálculo por papel (bloco/corrido), igual à DRE.
+  // EBIT / EBITDA: o valor é o dos indicadores Ebit / Ebitda, gravado
+  // na DRE. Sem essa linha, devolve null — não recalcula pela estrutura
+  // (isso era outro número e quebrava o termo "EBITDA (DRE)").
+  if (key === "EBIT" || key === "EBITDA") {
+    return valorEbitEbitdaDaDre(demoDre, key, periodo);
   }
+  if (key === "RESULTADO_OPERACIONAL") {
+    const daDre = valorDemoDre(
+      demoDre,
+      periodo,
+      [
+        "(=) Resultado Operacional",
+        "(=) Resultado Operacional (EBIT)",
+        "Resultado Operacional",
+      ],
+      "EBIT",
+    );
+    if (daDre != null && Math.abs(daDre) > 0.005) return daDre;
+    if (!est || est.length === 0) return daDre;
+    return resolverPorPapel(est, "EBIT", periodo, ctx);
+  }
+
+  if (cat?.origem === "DRE") {
+    const daDre = valorDemoDre(demoDre, periodo, aliasesDaLinha(key, est), key);
+    if (daDre != null && Math.abs(daDre) > 0.005) return daDre;
+  }
+
+  if (!est || est.length === 0) return null;
+
+  const derivado = resolverDerivado(est, key, periodo, ctx);
+  if (derivado !== null) return derivado;
+  if (key === "PATRIMONIO_LIQUIDO") {
+    const pl = resolverPorPapel(est, key, periodo, ctx);
+    if (pl !== null) return pl + resultadoExercicioAte(ctx, periodo);
+  }
+  if (key === "PASSIVO_TOTAL_E_PL") {
+    const t = resolverPorPapel(est, key, periodo, ctx);
+    if (t !== null) return t + resultadoExercicioAte(ctx, periodo);
+  }
+  return resolverPorPapel(est, key, periodo, ctx);
 }

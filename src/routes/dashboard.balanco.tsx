@@ -53,7 +53,15 @@ function Page() {
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <Button size="sm" variant={showAV ? "default" : "outline"} onClick={() => setShowAV((v) => !v)}>AV%</Button>
-          <Button size="sm" variant={showAH ? "default" : "outline"} onClick={() => setShowAH((v) => !v)}>AH%</Button>
+          <Button
+            size="sm"
+            variant={showAH ? "default" : "outline"}
+            disabled={periodos.length < 2}
+            title={periodos.length < 2
+              ? "A análise horizontal compara períodos — selecione pelo menos dois meses no filtro."
+              : "Variação por coluna (período anterior ou base fixa, selecionável na tabela)"}
+            onClick={() => setShowAH((v) => !v)}
+          >AH%</Button>
           <ExportMenu
             rows={allRows}
             periods={periodos}
@@ -66,11 +74,11 @@ function Page() {
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
         <div>
           <h3 className="font-medium mb-2 text-sm uppercase tracking-wider text-muted-foreground">Ativo</h3>
-          <StatementTable rows={ativoRows} periods={periodos} showAV={showAV} showAH={showAH} avBaseCodigo="Total do Ativo" initialExpandLevel={3} variante="bp" />
+          <StatementTable rows={ativoRows} periods={periodos} showAV={showAV} showAH={showAH} basePeriod={periodos[0]} avBaseCodigo="Total do Ativo" variante="bp" padraoMaxNivel={3} />
         </div>
         <div>
           <h3 className="font-medium mb-2 text-sm uppercase tracking-wider text-muted-foreground">Passivo + PL</h3>
-          <StatementTable rows={passivoRows} periods={periodos} showAV={showAV} showAH={showAH} avBaseCodigo="Total do Passivo" initialExpandLevel={3} variante="bp" />
+          <StatementTable rows={passivoRows} periods={periodos} showAV={showAV} showAH={showAH} basePeriod={periodos[0]} avBaseCodigo="Total do Passivo" variante="bp" padraoMaxNivel={3} />
         </div>
       </div>
     </div>

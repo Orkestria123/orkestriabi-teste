@@ -45,7 +45,19 @@ export function makeStatementPage(tipo: string, title: string, avBase?: string, 
     const { companyId, company } = useDashboardCompany();
     const { periodos } = useFilters();
     const { data, isLoading } = useMonthlyStatement(companyId, tipo, periodos);
-    const [showAV, setShowAV] = useState(false);
+    // AV% da DRE: DUAS bases, um botão para cada.
+    //
+    // Antes era um botão só e ele acendia as duas colunas de uma vez —
+    // três colunas por período, e sem escolha. "Sobre a Receita Bruta" e
+    // "sobre a Receita Líquida" respondem perguntas diferentes; quem
+    // está olhando decide qual quer.
+    const [avRB, setAvRB] = useState(false);
+    const [avRL, setAvRL] = useState(false);
+    const showAV = avRB || avRL;
+    const avSelecionadas = [
+      avRB ? "AV% RB" : null,
+      avRL ? "AV% RL" : null,
+    ].filter((x): x is string => x != null);
     const [showAH, setShowAH] = useState(false);
     const [category, setCategory] = useState<"all" | "receita" | "despesa">("all");
 
@@ -95,8 +107,24 @@ export function makeStatementPage(tipo: string, title: string, avBase?: string, 
                 ))}
               </div>
             )}
-            <Button size="sm" variant={showAV ? "default" : "outline"} onClick={() => setShowAV((v) => !v)}>AV%</Button>
-            <Button size="sm" variant={showAH ? "default" : "outline"} onClick={() => setShowAH((v) => !v)}>AH%</Button>
+            <div className="flex items-center gap-1">
+              <span className="text-xs text-muted-foreground mr-0.5">AV%</span>
+              <Button size="sm" variant={avRB ? "default" : "outline"}
+                title="Análise vertical sobre a RECEITA BRUTA — cada linha como % do faturamento total"
+                onClick={() => setAvRB((v) => !v)}>RB</Button>
+              <Button size="sm" variant={avRL ? "default" : "outline"}
+                title="Análise vertical sobre a RECEITA LÍQUIDA — cada linha como % da receita já sem as deduções"
+                onClick={() => setAvRL((v) => !v)}>RL</Button>
+            </div>
+            <Button
+            size="sm"
+            variant={showAH ? "default" : "outline"}
+            disabled={periods.length < 2}
+            title={periods.length < 2
+              ? "A análise horizontal compara períodos — selecione pelo menos dois meses no filtro."
+              : "Variação por coluna (período anterior ou base fixa, selecionável na tabela)"}
+            onClick={() => setShowAH((v) => !v)}
+          >AH%</Button>
             <ExportMenu
               rows={rows}
               periods={periods}
@@ -117,7 +145,10 @@ export function makeStatementPage(tipo: string, title: string, avBase?: string, 
             showTotal
             basePeriod={basePeriod}
             avBaseCodigo={avBase}
-            initialExpandLevel={3}
+            avSelecionadas={avSelecionadas}
+            initialExpandLevel={1}
+            variante={tipo === "DFC" ? "dfc" : "dre"}
+            padraoMaxNivel={tipo === "DRE" ? 1 : undefined}
           />
         )}
       </div>

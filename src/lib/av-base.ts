@@ -71,7 +71,7 @@ const BASES_DRE = [
 
 export function resolverBasesAV<T extends LinhaAV>(
   rows: T[],
-  opts: { variante?: "dre" | "bp"; avBaseCodigo?: string } = {},
+  opts: { variante?: "dre" | "bp" | "dfc"; avBaseCodigo?: string } = {},
 ): BaseAV<T>[] {
   const { variante = "dre", avBaseCodigo } = opts;
 

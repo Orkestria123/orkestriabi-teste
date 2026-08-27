@@ -26,7 +26,6 @@ import { Route as DashboardBalancoRouteImport } from './routes/dashboard.balanco
 import { Route as DashboardAnaliseRouteImport } from './routes/dashboard.analise'
 import { Route as AdminUsuariosRouteImport } from './routes/admin.usuarios'
 import { Route as AdminUploadRouteImport } from './routes/admin.upload'
-import { Route as AdminSistemasRouteImport } from './routes/admin.sistemas'
 import { Route as AdminPlanoPadraoRouteImport } from './routes/admin.plano-padrao'
 import { Route as AdminIndicadoresRouteImport } from './routes/admin.indicadores'
 import { Route as AdminEmpresasRouteImport } from './routes/admin.empresas'
@@ -120,11 +119,6 @@ const AdminUploadRoute = AdminUploadRouteImport.update({
   path: '/admin/upload',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AdminSistemasRoute = AdminSistemasRouteImport.update({
-  id: '/admin/sistemas',
-  path: '/admin/sistemas',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const AdminPlanoPadraoRoute = AdminPlanoPadraoRouteImport.update({
   id: '/admin/plano-padrao',
   path: '/admin/plano-padrao',
@@ -170,7 +164,6 @@ export interface FileRoutesByFullPath {
   '/admin/empresas': typeof AdminEmpresasRouteWithChildren
   '/admin/indicadores': typeof AdminIndicadoresRoute
   '/admin/plano-padrao': typeof AdminPlanoPadraoRoute
-  '/admin/sistemas': typeof AdminSistemasRoute
   '/admin/upload': typeof AdminUploadRoute
   '/admin/usuarios': typeof AdminUsuariosRoute
   '/dashboard/analise': typeof DashboardAnaliseRoute
@@ -195,7 +188,6 @@ export interface FileRoutesByTo {
   '/admin/diagnostico': typeof AdminDiagnosticoRoute
   '/admin/indicadores': typeof AdminIndicadoresRoute
   '/admin/plano-padrao': typeof AdminPlanoPadraoRoute
-  '/admin/sistemas': typeof AdminSistemasRoute
   '/admin/upload': typeof AdminUploadRoute
   '/admin/usuarios': typeof AdminUsuariosRoute
   '/dashboard/analise': typeof DashboardAnaliseRoute
@@ -223,7 +215,6 @@ export interface FileRoutesById {
   '/admin/empresas': typeof AdminEmpresasRouteWithChildren
   '/admin/indicadores': typeof AdminIndicadoresRoute
   '/admin/plano-padrao': typeof AdminPlanoPadraoRoute
-  '/admin/sistemas': typeof AdminSistemasRoute
   '/admin/upload': typeof AdminUploadRoute
   '/admin/usuarios': typeof AdminUsuariosRoute
   '/dashboard/analise': typeof DashboardAnaliseRoute
@@ -252,7 +243,6 @@ export interface FileRouteTypes {
     | '/admin/empresas'
     | '/admin/indicadores'
     | '/admin/plano-padrao'
-    | '/admin/sistemas'
     | '/admin/upload'
     | '/admin/usuarios'
     | '/dashboard/analise'
@@ -277,7 +267,6 @@ export interface FileRouteTypes {
     | '/admin/diagnostico'
     | '/admin/indicadores'
     | '/admin/plano-padrao'
-    | '/admin/sistemas'
     | '/admin/upload'
     | '/admin/usuarios'
     | '/dashboard/analise'
@@ -304,7 +293,6 @@ export interface FileRouteTypes {
     | '/admin/empresas'
     | '/admin/indicadores'
     | '/admin/plano-padrao'
-    | '/admin/sistemas'
     | '/admin/upload'
     | '/admin/usuarios'
     | '/dashboard/analise'
@@ -332,7 +320,6 @@ export interface RootRouteChildren {
   AdminEmpresasRoute: typeof AdminEmpresasRouteWithChildren
   AdminIndicadoresRoute: typeof AdminIndicadoresRoute
   AdminPlanoPadraoRoute: typeof AdminPlanoPadraoRoute
-  AdminSistemasRoute: typeof AdminSistemasRoute
   AdminUploadRoute: typeof AdminUploadRoute
   AdminUsuariosRoute: typeof AdminUsuariosRoute
   OrkestriaAdminTenantsRoute: typeof OrkestriaAdminTenantsRoute
@@ -461,13 +448,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminUploadRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/admin/sistemas': {
-      id: '/admin/sistemas'
-      path: '/admin/sistemas'
-      fullPath: '/admin/sistemas'
-      preLoaderRoute: typeof AdminSistemasRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/admin/plano-padrao': {
       id: '/admin/plano-padrao'
       path: '/admin/plano-padrao'
@@ -571,7 +551,6 @@ const rootRouteChildren: RootRouteChildren = {
   AdminEmpresasRoute: AdminEmpresasRouteWithChildren,
   AdminIndicadoresRoute: AdminIndicadoresRoute,
   AdminPlanoPadraoRoute: AdminPlanoPadraoRoute,
-  AdminSistemasRoute: AdminSistemasRoute,
   AdminUploadRoute: AdminUploadRoute,
   AdminUsuariosRoute: AdminUsuariosRoute,
   OrkestriaAdminTenantsRoute: OrkestriaAdminTenantsRoute,

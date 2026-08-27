@@ -15,7 +15,7 @@
 /** O mínimo que uma linha de demonstração precisa ter para servir de base. */
 export interface LinhaAV {
   descricao: string;
-  codigo_conta: string | null;
+  codigo_conta?: string | null;
   is_subtotal: boolean;
   values: Record<string, number>;
 }
@@ -71,7 +71,7 @@ const BASES_DRE = [
 
 export function resolverBasesAV<T extends LinhaAV>(
   rows: T[],
-  opts: { variante?: "dre" | "bp"; avBaseCodigo?: string } = {},
+  opts: { variante?: "dre" | "bp" | "dfc"; avBaseCodigo?: string } = {},
 ): BaseAV<T>[] {
   const { variante = "dre", avBaseCodigo } = opts;
 

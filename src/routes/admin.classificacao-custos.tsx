@@ -105,14 +105,14 @@ function Page() {
     try {
       // update em paralelo
       const updates = Array.from(dirty.entries()).map(([id, tipo_custo]) =>
-        supabase.from("mapeamento_demonstracao").update({ tipo_custo }).eq("id", id),
+        supabase.from("plano_contas").update({ tipo_custo }).eq("id", id),
       );
       const results = await Promise.all(updates);
       const errs = results.filter((r) => r.error);
       if (errs.length > 0) throw new Error(`${errs.length} falhas`);
       toast.success(`${dirty.size} classificações salvas.`);
       setDirty(new Map());
-      qc.invalidateQueries({ queryKey: ["mapeamento-despesa", companyId] });
+      qc.invalidateQueries({ queryKey: ["plano-tipo-custo", companyId] });
     } catch (e: any) {
       toast.error(e?.message ?? "Erro ao salvar");
     } finally {

@@ -344,6 +344,20 @@ export function StatementTable({
 
   const extrasPorPeriodo = (showAV ? basesAV.length : 0) + (showAH ? 1 : 0);
 
+  // Totalizador configurável: padrão "Ano" com vários anos, "Seleção inteira" com um só.
+  const multiAno = useMemo(
+    () => new Set(periods.map((p) => p.slice(0, 4))).size > 1,
+    [periods],
+  );
+  const [agrupador, setAgrupador] = useState<Agrupador | null>(null);
+  const agrupadorEfetivo: Agrupador = agrupador ?? (multiAno ? "ano" : "selecao");
+  const colunas = useMemo(
+    () => montarColunas(periods, agrupadorEfetivo),
+    [periods, agrupadorEfetivo],
+  );
+  const colsSubtotal = colunas.filter((c) => c.kind === "s").length;
+  const mostrarBanda = agrupadorEfetivo !== "mes" && agrupadorEfetivo !== "selecao";
+
   // Filtrar linhas por busca
   const rowsFiltradas = useMemo(() => {
     if (!busca.trim()) return rows;

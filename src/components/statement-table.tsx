@@ -610,7 +610,7 @@ export function StatementTable({
             periods={periods}
             colSpanLeft={1}
             colSpanRight={0}
-            extraMiddleCols={periods.length * extrasPorPeriodo}
+            extraMiddleCols={periods.length * extrasPorPeriodo + colsSubtotal * (1 + extrasPorPeriodo)}
             variante={variante === "bp" ? "bp" : variante === "dfc" ? "dfc" : "dre"}
             emMilhares={mostrarMilhares}
           />

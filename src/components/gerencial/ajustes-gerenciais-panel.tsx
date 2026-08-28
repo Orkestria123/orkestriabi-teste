@@ -659,8 +659,8 @@ function AjusteDialog({
     !contasIguais &&
     !valorInvalido;
 
-  const dInfo = contas.find((c) => c.codigo === contaDebito);
-  const cInfo = contas.find((c) => c.codigo === contaCredito);
+  const dInfo = resolvidas[contaDebito] ?? contas.find((c) => c.codigo === contaDebito);
+  const cInfo = resolvidas[contaCredito] ?? contas.find((c) => c.codigo === contaCredito);
 
   const salvar = async () => {
     if (!podeSalvar) return;

@@ -3,7 +3,7 @@
 // nenhuma tabela contábil. Partida dobrada: um único valor aplicado
 // a débito e crédito. As demonstrações continuam inalteradas — o
 // motor gerencial e o seletor de visão são etapas seguintes.
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Loader2, Plus, Pencil, Trash2, Sparkles } from "lucide-react";

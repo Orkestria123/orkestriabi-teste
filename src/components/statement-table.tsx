@@ -57,7 +57,7 @@ function formatarMoeda(valor: number, emMilhares: boolean = false): string {
 
 function formatarPercentual(valor: number): string {
   if (valor == null || !isFinite(valor)) return '—';
-  return `${valor.toFixed(1).replace('.', ',')}%`;
+  return `${valor.toFixed(2).replace('.', ',')}%`;
 }
 
 function formatarPeriodo(periodo: string): string {

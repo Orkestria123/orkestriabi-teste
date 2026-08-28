@@ -152,7 +152,7 @@ function Page() {
                           <div className="h-1.5 w-12 rounded-full bg-muted overflow-hidden">
                             <div className="h-full bg-primary" style={{ width: `${Math.min(100, pct)}%` }} />
                           </div>
-                          <span className="text-xs text-muted-foreground w-12 text-right">{pct.toFixed(1).replace(".", ",")}%</span>
+                          <span className="text-xs text-muted-foreground w-12 text-right">{pct.toFixed(2).replace(".", ",")}%</span>
                         </div>
                       </td>
                       <td className="px-2 py-2.5">

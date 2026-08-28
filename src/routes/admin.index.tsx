@@ -188,7 +188,7 @@ function Page() {
                           <TrendingDown className="h-3.5 w-3.5" />
                         )}
                         {positive ? "+" : ""}
-                        {v.toFixed(1).replace(".", ",")}%
+                        {v.toFixed(2).replace(".", ",")}%
                       </span>
                     </Link>
                   );

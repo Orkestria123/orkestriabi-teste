@@ -77,7 +77,7 @@ export function RankingDespesas({ ranking }: Props) {
                   {g.descricao}
                 </span>
                 <span className="tabular-nums text-muted-foreground">
-                  {formatBRL(g.valor)} · {formatPct(g.pct_total, 1)} do total
+                  {formatBRL(g.valor)} · {formatPct(g.pct_total)} do total
                 </span>
               </Button>
               {abertoAtual && g.filhos && g.filhos.length > 0 && (
@@ -86,7 +86,7 @@ export function RankingDespesas({ ranking }: Props) {
                     <div key={f.classificacao} className="flex items-center justify-between text-[11px] text-muted-foreground">
                       <span className="truncate">{f.descricao}</span>
                       <span className="tabular-nums whitespace-nowrap ml-2">
-                        {formatBRL(f.valor)} · {formatPct(f.pct_receita, 1)} rec.
+                        {formatBRL(f.valor)} · {formatPct(f.pct_receita)} rec.
                       </span>
                     </div>
                   ))}

@@ -143,7 +143,7 @@ function corDeStatus(s: "verde" | "vermelho" | "neutro") {
 
 function fmtPct(v: number | null) {
   if (v === null || !isFinite(v)) return "—";
-  return `${v > 0 ? "+" : ""}${v.toFixed(1).replace(".", ",")}%`;
+  return `${v > 0 ? "+" : ""}${v.toFixed(2).replace(".", ",")}%`;
 }
 
 // Constrói o `dados` esperado por <GraficoNatureza> a partir de UMA linha

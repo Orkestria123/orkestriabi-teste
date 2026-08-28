@@ -558,7 +558,7 @@ function ContaSelect({
               key={`${c.origem}:${c.codigo}`}
               type="button"
               onClick={() => {
-                onChange(c.codigo);
+                onChange(c.codigo, c);
                 setOpen(false);
               }}
               className={cn(

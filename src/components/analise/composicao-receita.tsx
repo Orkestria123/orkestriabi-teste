@@ -48,7 +48,7 @@ export function ComposicaoReceita({ data }: { data: OrigemItem[] }) {
                 <span className="truncate">{o.nome}</span>
               </div>
               <div className="tabular-nums text-muted-foreground whitespace-nowrap ml-2">
-                {formatBRL(o.valor)} <span className="opacity-70">· {formatPct(o.pct, 1)}</span>
+                {formatBRL(o.valor)} <span className="opacity-70">· {formatPct(o.pct)}</span>
               </div>
             </div>
           ))}

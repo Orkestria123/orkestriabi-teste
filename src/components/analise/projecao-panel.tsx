@@ -67,7 +67,7 @@ export function ProjecaoPanel({ serie }: Props) {
         <Kpi label={`Despesa projetada (+${meses}m)`} value={formatBRL(desProjFinal)} />
         <Kpi
           label="Margem projetada"
-          value={`${formatBRL(margemProj)} (${margemPct.toFixed(1).replace(".", ",")}%)`}
+          value={`${formatBRL(margemProj)} (${margemPct.toFixed(2).replace(".", ",")}%)`}
           tone={margemProj >= 0 ? "positive" : "negative"}
         />
       </div>

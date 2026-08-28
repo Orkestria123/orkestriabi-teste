@@ -270,7 +270,7 @@ function KpiConfigCard({
         : "before:bg-[var(--brand)]";
 
   const resultadoSuffix =
-    isSigned && value != null ? (value >= 0 ? "· Superávit" : "· Déficit") : "";
+    isSigned && value != null && value < 0 ? "· Déficit" : "";
 
   return (
     <Card
@@ -310,7 +310,7 @@ function KpiConfigCard({
             ) : (
               <Minus className="h-3 w-3" />
             )}
-            {(variation > 0 ? "+" : "") + formatPct(Math.abs(variation), 1)}
+            {(variation > 0 ? "+" : "") + formatPct(Math.abs(variation))}
             <span className="text-muted-foreground font-normal ml-1">{BASE_LABEL[base]}</span>
           </span>
         ) : (

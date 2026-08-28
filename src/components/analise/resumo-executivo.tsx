@@ -31,7 +31,7 @@ function ResumoCard({ titulo, valor, variacao, formato = "moeda", alertaSeSubir 
       {variacao != null && (
         <div className={cn("mt-2 flex items-center gap-1 text-xs font-medium", corVar)}>
           <Icon className="h-3.5 w-3.5" />
-          {formatPct(Math.abs(variacao), 1)} vs período anterior
+          {formatPct(Math.abs(variacao))} vs período anterior
         </div>
       )}
     </Card>
@@ -54,7 +54,7 @@ interface Props {
 export function ResumoExecutivo(props: Props) {
   const { receita, despesa, lucro, margem, varReceita, varDespesa, varLucro, maiorDespesaNome, maiorDespesaPct, insightPrincipal } = props;
   const sinal = (v: number | null | undefined) =>
-    v == null ? "estável" : v > 0 ? `alta de ${formatPct(Math.abs(v), 1)}` : `queda de ${formatPct(Math.abs(v), 1)}`;
+    v == null ? "estável" : v > 0 ? `alta de ${formatPct(Math.abs(v))}` : `queda de ${formatPct(Math.abs(v))}`;
   const narrativa = `No período, sua empresa faturou ${formatBRL(receita)} (${sinal(varReceita)} vs período anterior). As despesas somaram ${formatBRL(despesa)}${maiorDespesaNome ? `, sendo "${maiorDespesaNome}" a mais representativa (${formatPct(maiorDespesaPct ?? 0)} da receita)` : ""}. O resultado foi um ${lucro >= 0 ? "lucro" : "prejuízo"} líquido de ${formatBRL(Math.abs(lucro))}, margem de ${formatPct(margem)}.${insightPrincipal ? ` ${insightPrincipal}` : ""}`;
 
   return (

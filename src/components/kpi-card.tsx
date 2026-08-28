@@ -67,7 +67,7 @@ export function KpiCard({
             ) : (
               <Minus className="h-3 w-3" />
             )}
-            {formatPct(Math.abs(variation), 1)}
+            {formatPct(Math.abs(variation))}
           </span>
         )}
       </div>

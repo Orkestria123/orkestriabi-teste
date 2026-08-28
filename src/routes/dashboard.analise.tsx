@@ -535,7 +535,7 @@ function Page() {
                     </div>
                     {variacao != null && (
                       <p className={cn("mt-2 text-xs font-medium", variacao > 0 ? "text-success" : variacao < 0 ? "text-destructive" : "text-muted-foreground")}>
-                        {variacao > 0 ? "▲" : variacao < 0 ? "▼" : ""} {ind.format === "percent" ? `${Math.abs(variacao).toFixed(2).replace(".", ",")} p.p.` : formatPct(Math.abs(variacao), 1)}
+                        {variacao > 0 ? "▲" : variacao < 0 ? "▼" : ""} {ind.format === "percent" ? `${Math.abs(variacao).toFixed(2).replace(".", ",")} p.p.` : formatPct(Math.abs(variacao))}
                       </p>
                     )}
                     <p className="mt-2 text-[10px] text-muted-foreground">{ind.description}</p>

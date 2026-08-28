@@ -55,7 +55,7 @@ export function RankingDespesas({ ranking }: Props) {
               dataKey="pct_receita"
               position="right"
               fontSize={10}
-              formatter={(v: any) => `${formatPct(Number(v), 1)} rec.`}
+              formatter={(v: any) => `${formatPct(Number(v))} rec.`}
             />
           </Bar>
         </BarChart>

@@ -179,7 +179,7 @@ export async function buildCtxForVisao(
           descricao: r.descricao,
           natureza,
           is_sintetica: false,
-          is_participante: r.origem === "plano" ? false : false,
+          is_participante: false,
         });
         codigoToClass.set(r.codigo, r.classificacao);
       }

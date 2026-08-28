@@ -462,17 +462,29 @@ function ContaSelect({
         escopo,
       )
         .eq("codigo", value)
-        .maybeSingle();
+        .limit(1);
       if (error) throw error;
-      if (!data) return null;
+      const row = (data ?? [])[0] as any;
+      if (!row) return null;
       return {
-        codigo: data.codigo,
-        descricao: data.descricao,
-        classificacao: data.classificacao,
-        origem: data.is_participante ? "participante" : "plano",
+        codigo: row.codigo,
+        descricao: row.descricao,
+        classificacao: row.classificacao,
+        origem: row.is_participante ? "participante" : "plano",
       };
     },
   });
+
+  // Ao resolver uma conta que não está na lista base (cliente/fornecedor,
+  // ou conta de um ajuste em edição), avisa o pai para que a prévia da
+  // partida e a validação enxerguem a conta vinculada.
+  useEffect(() => {
+    if (selecionadaExtra && selecionadaExtra.codigo === value) {
+      onChange(selecionadaExtra.codigo, selecionadaExtra);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selecionadaExtra?.codigo]);
+
 
   const pool = useMemo(() => {
     const m = new Map<string, ContaOpt>();

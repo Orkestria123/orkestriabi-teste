@@ -1,6 +1,6 @@
 // src/components/statement-table.tsx
 import { useState, useMemo, useEffect, Fragment } from 'react';
-import { ChevronDown, ChevronRight, ChevronUp, Search } from 'lucide-react';
+import { ChevronDown, ChevronRight, ChevronUp, ChevronsDown, ChevronsUp, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useFiltersOptional } from '@/components/filter-bar';
 import { InlineDrilldown } from './inline-drilldown';
@@ -743,50 +743,53 @@ export function StatementTable({
   };
 
   return (
-    <div className="rounded-lg border overflow-hidden">
+    <div className="rounded-lg border overflow-hidden max-w-full">
       {/* Barra de ferramentas */}
-      <div className="flex items-center justify-between gap-2 px-3 py-2 border-b bg-muted/20 text-xs">
-        <div className="flex items-center gap-4">
-          <div className="relative">
+      <div className="flex flex-col gap-2 px-3 py-2 border-b bg-muted/20 text-xs">
+        {/* Linha 1: busca + contador */}
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="relative flex-1 min-w-0">
             <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
             <Input
-              className="h-7 pl-7 text-xs w-48"
+              className="h-7 pl-7 text-xs w-full"
               placeholder="Filtrar por conta..."
               value={busca}
               onChange={(e) => setBusca(e.target.value)}
             />
           </div>
-          <span className="text-muted-foreground">
+          <span className="text-muted-foreground whitespace-nowrap shrink-0">
             {rowsFiltradas.length} de {rows.length} linhas
           </span>
+        </div>
+
+        {/* Linha 2: ações */}
+        <div className="flex flex-wrap items-center gap-1.5 min-w-0">
           {idsComFilhos.length > 0 && !busca.trim() && (
-            <div className="flex items-center gap-1.5">
-              <div className="flex items-center">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-7 w-7 p-0 rounded-md"
-                  onClick={recolherUmNivel}
-                  disabled={abertoMax < 0}
-                  title="Recolher um nível em todas as contas"
-                >
-                  <ChevronUp className="h-3.5 w-3.5" />
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-7 w-7 p-0 rounded-md ml-1"
-                  onClick={expandirUmNivel}
-                  disabled={!podeExpandirCamada}
-                  title="Expandir um nível em todas as contas"
-                >
-                  <ChevronDown className="h-3.5 w-3.5" />
-                </Button>
-              </div>
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 w-7 p-0 rounded-md shrink-0"
+                onClick={recolherUmNivel}
+                disabled={abertoMax < 0}
+                title="Recolher um nível em todas as contas"
+              >
+                <ChevronUp className="h-3.5 w-3.5" />
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 w-7 p-0 rounded-md shrink-0"
+                onClick={expandirUmNivel}
+                disabled={!podeExpandirCamada}
+                title="Expandir um nível em todas as contas"
+              >
+                <ChevronDown className="h-3.5 w-3.5" />
+              </Button>
               <Button
                 variant={modoExpand === "padrao" ? "default" : "outline"}
                 size="sm"
-                className="h-7 text-xs rounded-md"
+                className="h-7 px-2 text-xs rounded-md shrink-0"
                 onClick={aplicarPadrao}
                 title="Abre os grupos da demonstração, sem o detalhe analítico completo"
               >
@@ -795,50 +798,53 @@ export function StatementTable({
               <Button
                 variant={modoExpand === "tudo" ? "default" : "outline"}
                 size="sm"
-                className="h-7 text-xs rounded-md"
+                className="h-7 w-7 p-0 rounded-md shrink-0"
                 onClick={expandirTudo}
+                title="Expandir tudo"
               >
-                Expandir tudo
+                <ChevronsDown className="h-3.5 w-3.5" />
               </Button>
               <Button
                 variant={modoExpand === "recolher" ? "default" : "outline"}
                 size="sm"
-                className="h-7 text-xs rounded-md"
+                className="h-7 w-7 p-0 rounded-md shrink-0"
                 onClick={recolherTudo}
+                title="Recolher tudo"
               >
-                Recolher
+                <ChevronsUp className="h-3.5 w-3.5" />
               </Button>
-            </div>
+            </>
           )}
-        </div>
-        
-        <div className="flex items-center gap-2">
-          <span className="text-muted-foreground whitespace-nowrap">Totalizar por:</span>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="h-7 text-xs rounded-md">
-                {AGRUPADOR_LABEL[agrupadorEfetivo]}
-                <ChevronDown className="ml-1 h-3 w-3" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              {(["mes", "trimestre", "semestre", "ano", "selecao"] as Agrupador[]).map((a) => (
-                <DropdownMenuItem key={a} onClick={() => setAgrupador(a)}>
-                  {AGRUPADOR_LABEL[a]}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-7 text-xs"
-            onClick={() => setMostrarMilhares(!mostrarMilhares)}
-          >
-            {mostrarMilhares ? 'R$' : 'R$ mil'}
-          </Button>
+
+          <div className="flex items-center gap-1 ml-auto shrink-0">
+            <span className="text-muted-foreground whitespace-nowrap">Totalizar:</span>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="h-7 px-2 text-xs rounded-md">
+                  {AGRUPADOR_LABEL[agrupadorEfetivo]}
+                  <ChevronDown className="ml-1 h-3 w-3" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {(["mes", "trimestre", "semestre", "ano", "selecao"] as Agrupador[]).map((a) => (
+                  <DropdownMenuItem key={a} onClick={() => setAgrupador(a)}>
+                    {AGRUPADOR_LABEL[a]}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 px-2 text-xs"
+              onClick={() => setMostrarMilhares(!mostrarMilhares)}
+            >
+              {mostrarMilhares ? 'R$' : 'R$ mil'}
+            </Button>
+          </div>
         </div>
       </div>
+
 
       {/* Tabela */}
       <div className="overflow-x-auto bg-transparent">

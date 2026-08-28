@@ -161,6 +161,29 @@ export async function buildCtxForVisao(
       });
       codigoToClass.set(vp.codigo, vp.classificacao);
     }
+    // Contas usadas nos ajustes que NÃO vieram no snapshot — tipicamente
+    // clientes/fornecedores (contas participantes) sem movimento contábil
+    // próprio. Sem entrar no plano do contexto, a classificação delas fica
+    // desconhecida e o ajuste some do Ativo/Passivo Circulante.
+    for (const a of ger.ajustes) {
+      for (const r of [a.debito, a.credito]) {
+        if (!r || codigoToClass.has(r.codigo)) continue;
+        const grupo = grupoDe(r.classificacao, mascara);
+        const natureza =
+          grupo === "passivo" || grupo === "pl" || grupo === "receita" || grupo === "resultado"
+            ? "C"
+            : "D";
+        planoEng.push({
+          codigo: r.codigo,
+          classificacao: r.classificacao,
+          descricao: r.descricao,
+          natureza,
+          is_sintetica: false,
+          is_participante: false,
+        });
+        codigoToClass.set(r.codigo, r.classificacao);
+      }
+    }
     for (const a of ger.ajustes) {
       if (!a.debito || !a.credito) continue;
       const clsD = codigoToClass.get(a.conta_debito) ?? a.debito.classificacao;

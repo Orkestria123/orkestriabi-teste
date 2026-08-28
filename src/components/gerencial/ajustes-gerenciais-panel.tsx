@@ -3,7 +3,7 @@
 // nenhuma tabela contábil. Partida dobrada: um único valor aplicado
 // a débito e crédito. As demonstrações continuam inalteradas — o
 // motor gerencial e o seletor de visão são etapas seguintes.
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Loader2, Plus, Pencil, Trash2, Sparkles } from "lucide-react";
@@ -417,7 +417,7 @@ function ContaSelect({
 }: {
   contas: ContaOpt[];
   value: string;
-  onChange: (codigo: string) => void;
+  onChange: (codigo: string, conta?: ContaOpt) => void;
   placeholder: string;
   onNovaConta?: () => void;
   companyId: string;
@@ -462,17 +462,29 @@ function ContaSelect({
         escopo,
       )
         .eq("codigo", value)
-        .maybeSingle();
+        .limit(1);
       if (error) throw error;
-      if (!data) return null;
+      const row = (data ?? [])[0] as any;
+      if (!row) return null;
       return {
-        codigo: data.codigo,
-        descricao: data.descricao,
-        classificacao: data.classificacao,
-        origem: data.is_participante ? "participante" : "plano",
+        codigo: row.codigo,
+        descricao: row.descricao,
+        classificacao: row.classificacao,
+        origem: row.is_participante ? "participante" : "plano",
       };
     },
   });
+
+  // Ao resolver uma conta que não está na lista base (cliente/fornecedor,
+  // ou conta de um ajuste em edição), avisa o pai para que a prévia da
+  // partida e a validação enxerguem a conta vinculada.
+  useEffect(() => {
+    if (selecionadaExtra && selecionadaExtra.codigo === value) {
+      onChange(selecionadaExtra.codigo, selecionadaExtra);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selecionadaExtra?.codigo]);
+
 
   const pool = useMemo(() => {
     const m = new Map<string, ContaOpt>();
@@ -558,7 +570,7 @@ function ContaSelect({
               key={`${c.origem}:${c.codigo}`}
               type="button"
               onClick={() => {
-                onChange(c.codigo);
+                onChange(c.codigo, c);
                 setOpen(false);
               }}
               className={cn(
@@ -615,6 +627,13 @@ function AjusteDialog({
   const [contaCredito, setContaCredito] = useState("");
   const [valor, setValor] = useState<string>("");
   const [busy, setBusy] = useState(false);
+  // Contas escolhidas fora da lista base (clientes/fornecedores), para que
+  // a prévia da partida mostre a conta vinculada.
+  const [resolvidas, setResolvidas] = useState<Record<string, ContaOpt>>({});
+  const registrar = (c?: ContaOpt) => {
+    if (!c) return;
+    setResolvidas((prev) => (prev[c.codigo] ? prev : { ...prev, [c.codigo]: c }));
+  };
 
   // Reset quando abrir
   useMemo(() => {
@@ -647,8 +666,8 @@ function AjusteDialog({
     !contasIguais &&
     !valorInvalido;
 
-  const dInfo = contas.find((c) => c.codigo === contaDebito);
-  const cInfo = contas.find((c) => c.codigo === contaCredito);
+  const dInfo = resolvidas[contaDebito] ?? contas.find((c) => c.codigo === contaDebito);
+  const cInfo = resolvidas[contaCredito] ?? contas.find((c) => c.codigo === contaCredito);
 
   const salvar = async () => {
     if (!podeSalvar) return;
@@ -746,7 +765,10 @@ function AjusteDialog({
               <ContaSelect
                 contas={contas}
                 value={contaDebito}
-                onChange={setContaDebito}
+                onChange={(cod, c) => {
+                  setContaDebito(cod);
+                  registrar(c);
+                }}
                 placeholder={loadingContas ? "Carregando…" : "Escolher conta"}
                 onNovaConta={onNovaConta}
                 companyId={companyId}
@@ -757,7 +779,10 @@ function AjusteDialog({
               <ContaSelect
                 contas={contas}
                 value={contaCredito}
-                onChange={setContaCredito}
+                onChange={(cod, c) => {
+                  setContaCredito(cod);
+                  registrar(c);
+                }}
                 placeholder={loadingContas ? "Carregando…" : "Escolher conta"}
                 onNovaConta={onNovaConta}
                 companyId={companyId}

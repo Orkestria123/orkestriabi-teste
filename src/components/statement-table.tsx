@@ -1,6 +1,6 @@
 // src/components/statement-table.tsx
 import { useState, useMemo, useEffect, Fragment } from 'react';
-import { ChevronDown, ChevronRight, ChevronUp, Search } from 'lucide-react';
+import { ChevronDown, ChevronRight, ChevronUp, ChevronsDown, ChevronsUp, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useFiltersOptional } from '@/components/filter-bar';
 import { InlineDrilldown } from './inline-drilldown';

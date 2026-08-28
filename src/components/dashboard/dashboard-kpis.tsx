@@ -270,7 +270,7 @@ function KpiConfigCard({
         : "before:bg-[var(--brand)]";
 
   const resultadoSuffix =
-    isSigned && value != null ? (value >= 0 ? "· Superávit" : "· Déficit") : "";
+    isSigned && value != null && value < 0 ? "· Déficit" : "";
 
   return (
     <Card

@@ -481,7 +481,8 @@ function EstruturaTab({ tenantId, podeEditar }: { tenantId: string; podeEditar: 
 
   const invalidar = () => {
     for (const k of ["dfc-cobertura", "dfc-sinteticas-pendentes", "dfc-analiticas-sem-codigo",
-                     "dfc-vinculos-mapa", "plano-acumuladores", "plano-padrao-resumo"]) {
+                     "dfc-vinculos-mapa", "plano-acumuladores", "plano-padrao-resumo",
+                     "plano-padrao-destinos"]) {
       qc.invalidateQueries({ queryKey: [k, tenantId] });
       qc.invalidateQueries({ queryKey: [k] });
     }

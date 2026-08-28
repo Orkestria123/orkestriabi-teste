@@ -765,7 +765,10 @@ function AjusteDialog({
               <ContaSelect
                 contas={contas}
                 value={contaDebito}
-                onChange={setContaDebito}
+                onChange={(cod, c) => {
+                  setContaDebito(cod);
+                  registrar(c);
+                }}
                 placeholder={loadingContas ? "Carregando…" : "Escolher conta"}
                 onNovaConta={onNovaConta}
                 companyId={companyId}

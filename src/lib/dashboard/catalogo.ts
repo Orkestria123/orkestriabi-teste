@@ -10,7 +10,7 @@ export interface BlocoDef {
 
 export const BLOCOS_CATALOGO: BlocoDef[] = [
   { key: "kpi_faturamento", label: "KPI — Faturamento", descricao: "Receita bruta do período, com comparação.", categoria: "kpi", suportaBaseComparacao: true },
-  { key: "kpi_lucro_liquido", label: "KPI — Lucro Líquido", descricao: "Resultado do exercício. Cor indica superávit/déficit.", categoria: "kpi", suportaBaseComparacao: true },
+  { key: "kpi_lucro_liquido", label: "KPI — Lucro Líquido", descricao: "Resultado do exercício. Cor indica resultado positivo ou déficit.", categoria: "kpi", suportaBaseComparacao: true },
   { key: "kpi_ebit", label: "KPI — EBIT", descricao: "Mesma fórmula do indicador Ebit.", categoria: "kpi", suportaBaseComparacao: true },
   { key: "kpi_ebitda", label: "KPI — EBITDA", descricao: "Mesma fórmula do indicador Ebitda.", categoria: "kpi", suportaBaseComparacao: true },
   { key: "kpi_receita_liquida", label: "KPI — Receita Líquida", descricao: "Receita líquida do período, com comparação.", categoria: "kpi", suportaBaseComparacao: true },

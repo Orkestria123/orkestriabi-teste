@@ -417,7 +417,7 @@ function ContaSelect({
 }: {
   contas: ContaOpt[];
   value: string;
-  onChange: (codigo: string) => void;
+  onChange: (codigo: string, conta?: ContaOpt) => void;
   placeholder: string;
   onNovaConta?: () => void;
   companyId: string;

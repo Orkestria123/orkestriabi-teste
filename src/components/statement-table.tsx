@@ -526,8 +526,24 @@ export function StatementTable({
             </div>
           </td>
 
-          {/* Cada período: valor + AV% (RB/RL) + AH% daquela coluna */}
-          {periods.map((periodo) => {
+          {/* Cada período: valor + AV% (RB/RL) + AH% daquela coluna; subtotais por agrupamento */}
+          {colunas.map((col) => {
+            if (col.kind === "s") {
+              const bruto = valorSubtotal(row.values, col.periodos, variante);
+              const ger = row.valuesGer
+                ? valorSubtotal(row.valuesGer, col.periodos, variante)
+                : bruto;
+              return (
+                <td
+                  key={col.key}
+                  colSpan={1 + extrasPorPeriodo}
+                  className="px-2 py-1 text-right tabular-nums whitespace-nowrap text-xs min-w-[90px] bg-muted/60 font-semibold border-l border-border"
+                >
+                  {formatarMoeda(row.valuesGer ? ger : bruto, mostrarMilhares)}
+                </td>
+              );
+            }
+            const periodo = col.periodo;
             const valor = row.values[periodo] ?? 0;
             const valorGer = row.valuesGer?.[periodo] ?? valor;
             const isGerencial = row.valuesGer && row.valuesGer[periodo] !== undefined;

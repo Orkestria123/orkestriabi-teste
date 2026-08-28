@@ -1,0 +1,2 @@
+ALTER FUNCTION public._garantir_sinteticas_interno(uuid, uuid, text) SET statement_timeout = '300s';
+ALTER FUNCTION public.garantir_sinteticas_faltantes(uuid, uuid, text) SET statement_timeout = '300s';

@@ -627,6 +627,13 @@ function AjusteDialog({
   const [contaCredito, setContaCredito] = useState("");
   const [valor, setValor] = useState<string>("");
   const [busy, setBusy] = useState(false);
+  // Contas escolhidas fora da lista base (clientes/fornecedores), para que
+  // a prévia da partida mostre a conta vinculada.
+  const [resolvidas, setResolvidas] = useState<Record<string, ContaOpt>>({});
+  const registrar = (c?: ContaOpt) => {
+    if (!c) return;
+    setResolvidas((prev) => (prev[c.codigo] ? prev : { ...prev, [c.codigo]: c }));
+  };
 
   // Reset quando abrir
   useMemo(() => {

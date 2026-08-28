@@ -623,66 +623,119 @@ export function StatementTable({
   const renderHeader = () => {
     const colsPorPeriodo = 1 + extrasPorPeriodo;
     const comSub = extrasPorPeriodo > 0;
+    const rowSpanDesc = 1 + (mostrarBanda ? 1 : 0) + (comSub ? 1 : 0);
+
+    // Faixas de agrupamento (ex.: "1º Trimestre 2025" sobre Jan/Fev/Mar/Total)
+    const bandas: { key: string; label: string; cols: number }[] = [];
+    if (mostrarBanda) {
+      let atual: { key: string; label: string; cols: number } | null = null;
+      colunas.forEach((c, i) => {
+        if (!atual) atual = { key: `banda-${i}`, label: "", cols: 0 };
+        atual.cols += colsPorPeriodo;
+        if (c.kind === "s") {
+          atual.label = c.banda;
+          bandas.push(atual);
+          atual = null;
+        }
+      });
+      if (atual) bandas.push(atual);
+    }
+
+    const thDescricao = (
+      <th
+        rowSpan={rowSpanDesc}
+        className="text-left font-medium text-[10px] uppercase tracking-wider text-muted-foreground px-2 py-2 sticky left-0 z-10 bg-background min-w-[220px] max-w-[280px]"
+      >
+        Descrição
+      </th>
+    );
+
     return (
       <thead>
+        {mostrarBanda && (
+          <tr className="border-b bg-muted/40">
+            {thDescricao}
+            {bandas.map((b) => (
+              <th
+                key={b.key}
+                colSpan={b.cols}
+                className="text-center font-semibold text-[10px] uppercase tracking-wider text-muted-foreground px-2 py-1.5 whitespace-nowrap border-l border-border"
+              >
+                {b.label}
+              </th>
+            ))}
+          </tr>
+        )}
         <tr className="border-b bg-muted/30">
-          <th
-            rowSpan={comSub ? 2 : 1}
-            className="text-left font-medium text-[10px] uppercase tracking-wider text-muted-foreground px-2 py-2 sticky left-0 z-10 bg-background min-w-[220px] max-w-[280px]"
-          >
-            Descrição
-          </th>
-          {periods.map((periodo) => (
+          {!mostrarBanda && thDescricao}
+          {colunas.map((col) => (
             <th
-              key={periodo}
+              key={`h-${col.key}`}
               colSpan={colsPorPeriodo}
-              className="text-right font-medium text-[10px] text-muted-foreground px-2 py-2 whitespace-nowrap min-w-[90px]"
+              className={cn(
+                "text-right font-medium text-[10px] text-muted-foreground px-2 py-2 whitespace-nowrap min-w-[90px]",
+                col.kind === "s" && "bg-muted/60 font-semibold text-foreground border-l border-border",
+              )}
             >
-              {formatarPeriodo(periodo)}
+              {col.kind === "s" ? col.label : formatarPeriodo(col.periodo)}
             </th>
           ))}
         </tr>
         {comSub && (
           <tr className="border-b bg-muted/20">
-            {periods.map((periodo) => (
-              <Fragment key={`sub-${periodo}`}>
-                <th className="text-right font-medium text-[9px] text-muted-foreground px-2 py-1 whitespace-nowrap">
-                  R$
-                </th>
-                {showAV && basesAV.map((base) => (
+            {colunas.map((col) => {
+              if (col.kind === "s") {
+                return (
                   <th
-                    key={`avh-${periodo}-${base.rotulo}`}
-                    className="text-right font-medium text-[9px] text-muted-foreground px-1 py-1 whitespace-nowrap"
-                    title={`Análise vertical sobre ${base.titulo}`}
+                    key={`sub-${col.key}`}
+                    colSpan={colsPorPeriodo}
+                    className="text-right font-medium text-[9px] text-muted-foreground px-2 py-1 whitespace-nowrap bg-muted/60 border-l border-border"
                   >
-                    {base.rotulo}
+                    R$
                   </th>
-                ))}
-                {showAH && (
-                  <th className="text-right font-medium text-[9px] text-muted-foreground px-1 py-1 whitespace-nowrap">
-                    {periodo === periods[0] ? (
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm" className="h-5 px-1 text-[9px]">
-                            AH%
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => setAhTipo('anterior')}>
-                            Período anterior
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => setAhTipo('base')}>
-                            Base: {basePeriod ? formatarPeriodo(basePeriod) : 'Primeiro'}
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    ) : (
-                      "AH%"
-                    )}
+                );
+              }
+              const periodo = col.periodo;
+              return (
+                <Fragment key={`sub-${periodo}`}>
+                  <th className="text-right font-medium text-[9px] text-muted-foreground px-2 py-1 whitespace-nowrap">
+                    R$
                   </th>
-                )}
-              </Fragment>
-            ))}
+                  {showAV && basesAV.map((base) => (
+                    <th
+                      key={`avh-${periodo}-${base.rotulo}`}
+                      className="text-right font-medium text-[9px] text-muted-foreground px-1 py-1 whitespace-nowrap"
+                      title={`Análise vertical sobre ${base.titulo}`}
+                    >
+                      {base.rotulo}
+                    </th>
+                  ))}
+                  {showAH && (
+                    <th className="text-right font-medium text-[9px] text-muted-foreground px-1 py-1 whitespace-nowrap">
+                      {periodo === periods[0] ? (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm" className="h-5 px-1 text-[9px]">
+                              AH%
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => setAhTipo('anterior')}>
+                              Período anterior
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setAhTipo('base')}>
+                              Base: {basePeriod ? formatarPeriodo(basePeriod) : 'Primeiro'}
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      ) : (
+                        "AH%"
+                      )}
+                    </th>
+                  )}
+                </Fragment>
+              );
+            })}
           </tr>
         )}
       </thead>

@@ -813,6 +813,22 @@ export function StatementTable({
         </div>
         
         <div className="flex items-center gap-2">
+          <span className="text-muted-foreground whitespace-nowrap">Totalizar por:</span>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="h-7 text-xs rounded-md">
+                {AGRUPADOR_LABEL[agrupadorEfetivo]}
+                <ChevronDown className="ml-1 h-3 w-3" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {(["mes", "trimestre", "semestre", "ano", "selecao"] as Agrupador[]).map((a) => (
+                <DropdownMenuItem key={a} onClick={() => setAgrupador(a)}>
+                  {AGRUPADOR_LABEL[a]}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Button
             variant="ghost"
             size="sm"

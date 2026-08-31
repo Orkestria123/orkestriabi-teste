@@ -742,15 +742,28 @@ export function StatementTable({
             {colunas.map((col) => {
               if (col.kind === "s") {
                 return (
-                  <th
-                    key={`sub-${col.key}`}
-                    colSpan={colsPorPeriodo}
-                    className="text-right font-medium text-[9px] text-muted-foreground px-2 py-1 whitespace-nowrap bg-muted/60 border-l border-border"
-                  >
-                    R$
-                  </th>
+                  <Fragment key={`sub-${col.key}`}>
+                    <th className="text-right font-medium text-[9px] text-muted-foreground px-2 py-1 whitespace-nowrap bg-muted/60 border-l border-border">
+                      R$
+                    </th>
+                    {showAV && basesAV.map((base) => (
+                      <th
+                        key={`avh-${col.key}-${base.rotulo}`}
+                        className="text-right font-medium text-[9px] text-muted-foreground px-1 py-1 whitespace-nowrap bg-muted/60"
+                        title={`Análise vertical sobre ${base.titulo}`}
+                      >
+                        {base.rotulo}
+                      </th>
+                    ))}
+                    {showAH && (
+                      <th className="text-right font-medium text-[9px] text-muted-foreground px-1 py-1 whitespace-nowrap bg-muted/60">
+                        AH%
+                      </th>
+                    )}
+                  </Fragment>
                 );
               }
+
               const periodo = col.periodo;
               return (
                 <Fragment key={`sub-${periodo}`}>

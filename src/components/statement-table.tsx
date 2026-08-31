@@ -886,22 +886,42 @@ export function StatementTable({
           )}
 
           <div className="flex items-center gap-1 ml-auto shrink-0">
-            <span className="text-muted-foreground whitespace-nowrap">Totalizar:</span>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="h-7 px-2 text-xs rounded-md">
-                  {AGRUPADOR_LABEL[agrupadorEfetivo]}
-                  <ChevronDown className="ml-1 h-3 w-3" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                {(["mes", "trimestre", "semestre", "ano", "selecao"] as Agrupador[]).map((a) => (
-                  <DropdownMenuItem key={a} onClick={() => setAgrupador(a)}>
-                    {AGRUPADOR_LABEL[a]}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
+            {variante !== "bp" && (
+              <>
+                {temSubtotais && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 px-2 text-xs rounded-md"
+                    onClick={() => setMostrarMeses((v) => !v)}
+                    title={
+                      mostrarMeses
+                        ? "Esconder os meses e deixar só os totalizadores"
+                        : "Mostrar novamente as colunas de cada mês"
+                    }
+                  >
+                    {mostrarMeses ? "Só totais" : "Ver meses"}
+                  </Button>
+                )}
+                <span className="text-muted-foreground whitespace-nowrap">Totalizar:</span>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="h-7 px-2 text-xs rounded-md">
+                      {AGRUPADOR_LABEL[agrupadorEfetivo]}
+                      <ChevronDown className="ml-1 h-3 w-3" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    {(["mes", "trimestre", "semestre", "ano", "selecao"] as Agrupador[]).map((a) => (
+                      <DropdownMenuItem key={a} onClick={() => setAgrupador(a)}>
+                        {AGRUPADOR_LABEL[a]}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </>
+            )}
+
             <Button
               variant="ghost"
               size="sm"

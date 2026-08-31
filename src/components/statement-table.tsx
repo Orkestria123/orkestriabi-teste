@@ -533,16 +533,56 @@ export function StatementTable({
               const ger = row.valuesGer
                 ? valorSubtotal(row.valuesGer, col.periodos, variante)
                 : bruto;
+              const valorCol = row.valuesGer ? ger : bruto;
+              const idxSub = colunasSub.findIndex((c) => c.key === col.key);
               return (
-                <td
-                  key={col.key}
-                  colSpan={1 + extrasPorPeriodo}
-                  className="px-2 py-1 text-right tabular-nums whitespace-nowrap text-xs min-w-[90px] bg-muted/60 font-semibold border-l border-border"
-                >
-                  {formatarMoeda(row.valuesGer ? ger : bruto, mostrarMilhares)}
-                </td>
+                <Fragment key={col.key}>
+                  <td className="px-2 py-1 text-right tabular-nums whitespace-nowrap text-xs min-w-[90px] bg-muted/60 font-semibold border-l border-border">
+                    {formatarMoeda(valorCol, mostrarMilhares)}
+                  </td>
+                  {showAV && basesAV.map((base) => {
+                    const den = base.row
+                      ? valorSubtotal(base.row.values, col.periodos, variante)
+                      : 0;
+                    const pct = Math.abs(den) < 0.001 ? null : (valorCol / den) * 100;
+                    return (
+                      <td
+                        key={`${col.key}-${base.rotulo}`}
+                        className="px-2 py-1 text-right tabular-nums whitespace-nowrap text-[11px] text-muted-foreground min-w-[62px] bg-muted/60"
+                      >
+                        {pct !== null && isFinite(pct) ? formatarPercentual(pct) : "—"}
+                      </td>
+                    );
+                  })}
+                  {showAH && (
+                    <td className="px-2 py-1 text-right tabular-nums whitespace-nowrap text-[11px] min-w-[62px] bg-muted/60">
+                      {(() => {
+                        const ref =
+                          ahTipo === "base" ? colunasSub[0] : colunasSub[idxSub - 1];
+                        if (!ref || ref.key === col.key) return "—";
+                        const anterior = row.valuesGer
+                          ? valorSubtotal(row.valuesGer, ref.periodos, variante)
+                          : valorSubtotal(row.values, ref.periodos, variante);
+                        if (Math.abs(anterior) < 0.001) return "—";
+                        const pct = ((valorCol - anterior) / Math.abs(anterior)) * 100;
+                        if (!isFinite(pct)) return "—";
+                        return (
+                          <span
+                            className={cn(
+                              pct > 0 && "text-success",
+                              pct < 0 && "text-destructive",
+                            )}
+                          >
+                            {formatarPercentual(pct)}
+                          </span>
+                        );
+                      })()}
+                    </td>
+                  )}
+                </Fragment>
               );
             }
+
             const periodo = col.periodo;
             const valor = row.values[periodo] ?? 0;
             const valorGer = row.valuesGer?.[periodo] ?? valor;

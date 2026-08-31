@@ -372,7 +372,7 @@ export function StatementTable({
     () => colunas.filter((c): c is Extract<Coluna, { kind: "s" }> => c.kind === "s"),
     [colunas],
   );
-  void colsSubtotal;
+  
   const mostrarBanda =
     mostrarMeses && agrupadorEfetivo !== "mes" && agrupadorEfetivo !== "selecao";
 

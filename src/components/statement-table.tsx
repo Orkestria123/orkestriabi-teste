@@ -350,13 +350,32 @@ export function StatementTable({
     [periods],
   );
   const [agrupador, setAgrupador] = useState<Agrupador | null>(null);
-  const agrupadorEfetivo: Agrupador = agrupador ?? (multiAno ? "ano" : "selecao");
-  const colunas = useMemo(
+  // No Balanço não há totalizador: cada mês é um saldo, somar/subtotalizar não faz sentido.
+  const agrupadorEfetivo: Agrupador =
+    variante === "bp" ? "mes" : (agrupador ?? (multiAno ? "ano" : "selecao"));
+
+  // Mostrar/esconder as colunas de mês, deixando só os totalizadores.
+  const [mostrarMeses, setMostrarMeses] = useState(true);
+  const colunasTodas = useMemo(
     () => montarColunas(periods, agrupadorEfetivo),
     [periods, agrupadorEfetivo],
   );
-  const colsSubtotal = colunas.filter((c) => c.kind === "s").length;
-  const mostrarBanda = agrupadorEfetivo !== "mes" && agrupadorEfetivo !== "selecao";
+  const temSubtotais = colunasTodas.some((c) => c.kind === "s");
+  const colunas = useMemo(
+    () =>
+      mostrarMeses || !temSubtotais
+        ? colunasTodas
+        : colunasTodas.filter((c) => c.kind === "s"),
+    [colunasTodas, mostrarMeses, temSubtotais],
+  );
+  const colunasSub = useMemo(
+    () => colunas.filter((c): c is Extract<Coluna, { kind: "s" }> => c.kind === "s"),
+    [colunas],
+  );
+  
+  const mostrarBanda =
+    mostrarMeses && agrupadorEfetivo !== "mes" && agrupadorEfetivo !== "selecao";
+
 
   // Filtrar linhas por busca
   const rowsFiltradas = useMemo(() => {
@@ -533,16 +552,56 @@ export function StatementTable({
               const ger = row.valuesGer
                 ? valorSubtotal(row.valuesGer, col.periodos, variante)
                 : bruto;
+              const valorCol = row.valuesGer ? ger : bruto;
+              const idxSub = colunasSub.findIndex((c) => c.key === col.key);
               return (
-                <td
-                  key={col.key}
-                  colSpan={1 + extrasPorPeriodo}
-                  className="px-2 py-1 text-right tabular-nums whitespace-nowrap text-xs min-w-[90px] bg-muted/60 font-semibold border-l border-border"
-                >
-                  {formatarMoeda(row.valuesGer ? ger : bruto, mostrarMilhares)}
-                </td>
+                <Fragment key={col.key}>
+                  <td className="px-2 py-1 text-right tabular-nums whitespace-nowrap text-xs min-w-[90px] bg-muted/60 font-semibold border-l border-border">
+                    {formatarMoeda(valorCol, mostrarMilhares)}
+                  </td>
+                  {showAV && basesAV.map((base) => {
+                    const den = base.row
+                      ? valorSubtotal(base.row.values, col.periodos, variante)
+                      : 0;
+                    const pct = Math.abs(den) < 0.001 ? null : (valorCol / den) * 100;
+                    return (
+                      <td
+                        key={`${col.key}-${base.rotulo}`}
+                        className="px-2 py-1 text-right tabular-nums whitespace-nowrap text-[11px] text-muted-foreground min-w-[62px] bg-muted/60"
+                      >
+                        {pct !== null && isFinite(pct) ? formatarPercentual(pct) : "—"}
+                      </td>
+                    );
+                  })}
+                  {showAH && (
+                    <td className="px-2 py-1 text-right tabular-nums whitespace-nowrap text-[11px] min-w-[62px] bg-muted/60">
+                      {(() => {
+                        const ref =
+                          ahTipo === "base" ? colunasSub[0] : colunasSub[idxSub - 1];
+                        if (!ref || ref.key === col.key) return "—";
+                        const anterior = row.valuesGer
+                          ? valorSubtotal(row.valuesGer, ref.periodos, variante)
+                          : valorSubtotal(row.values, ref.periodos, variante);
+                        if (Math.abs(anterior) < 0.001) return "—";
+                        const pct = ((valorCol - anterior) / Math.abs(anterior)) * 100;
+                        if (!isFinite(pct)) return "—";
+                        return (
+                          <span
+                            className={cn(
+                              pct > 0 && "text-success",
+                              pct < 0 && "text-destructive",
+                            )}
+                          >
+                            {formatarPercentual(pct)}
+                          </span>
+                        );
+                      })()}
+                    </td>
+                  )}
+                </Fragment>
               );
             }
+
             const periodo = col.periodo;
             const valor = row.values[periodo] ?? 0;
             const valorGer = row.valuesGer?.[periodo] ?? valor;
@@ -610,7 +669,7 @@ export function StatementTable({
             periods={periods}
             colSpanLeft={1}
             colSpanRight={0}
-            extraMiddleCols={periods.length * extrasPorPeriodo + colsSubtotal * (1 + extrasPorPeriodo)}
+            extraMiddleCols={Math.max(0, colunas.length * (1 + extrasPorPeriodo) - periods.length)}
             variante={variante === "bp" ? "bp" : variante === "dfc" ? "dfc" : "dre"}
             emMilhares={mostrarMilhares}
           />
@@ -686,15 +745,28 @@ export function StatementTable({
             {colunas.map((col) => {
               if (col.kind === "s") {
                 return (
-                  <th
-                    key={`sub-${col.key}`}
-                    colSpan={colsPorPeriodo}
-                    className="text-right font-medium text-[9px] text-muted-foreground px-2 py-1 whitespace-nowrap bg-muted/60 border-l border-border"
-                  >
-                    R$
-                  </th>
+                  <Fragment key={`sub-${col.key}`}>
+                    <th className="text-right font-medium text-[9px] text-muted-foreground px-2 py-1 whitespace-nowrap bg-muted/60 border-l border-border">
+                      R$
+                    </th>
+                    {showAV && basesAV.map((base) => (
+                      <th
+                        key={`avh-${col.key}-${base.rotulo}`}
+                        className="text-right font-medium text-[9px] text-muted-foreground px-1 py-1 whitespace-nowrap bg-muted/60"
+                        title={`Análise vertical sobre ${base.titulo}`}
+                      >
+                        {base.rotulo}
+                      </th>
+                    ))}
+                    {showAH && (
+                      <th className="text-right font-medium text-[9px] text-muted-foreground px-1 py-1 whitespace-nowrap bg-muted/60">
+                        AH%
+                      </th>
+                    )}
+                  </Fragment>
                 );
               }
+
               const periodo = col.periodo;
               return (
                 <Fragment key={`sub-${periodo}`}>
@@ -817,22 +889,42 @@ export function StatementTable({
           )}
 
           <div className="flex items-center gap-1 ml-auto shrink-0">
-            <span className="text-muted-foreground whitespace-nowrap">Totalizar:</span>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="h-7 px-2 text-xs rounded-md">
-                  {AGRUPADOR_LABEL[agrupadorEfetivo]}
-                  <ChevronDown className="ml-1 h-3 w-3" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                {(["mes", "trimestre", "semestre", "ano", "selecao"] as Agrupador[]).map((a) => (
-                  <DropdownMenuItem key={a} onClick={() => setAgrupador(a)}>
-                    {AGRUPADOR_LABEL[a]}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
+            {variante !== "bp" && (
+              <>
+                {temSubtotais && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 px-2 text-xs rounded-md"
+                    onClick={() => setMostrarMeses((v) => !v)}
+                    title={
+                      mostrarMeses
+                        ? "Esconder os meses e deixar só os totalizadores"
+                        : "Mostrar novamente as colunas de cada mês"
+                    }
+                  >
+                    {mostrarMeses ? "Só totais" : "Ver meses"}
+                  </Button>
+                )}
+                <span className="text-muted-foreground whitespace-nowrap">Totalizar:</span>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="h-7 px-2 text-xs rounded-md">
+                      {AGRUPADOR_LABEL[agrupadorEfetivo]}
+                      <ChevronDown className="ml-1 h-3 w-3" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    {(["mes", "trimestre", "semestre", "ano", "selecao"] as Agrupador[]).map((a) => (
+                      <DropdownMenuItem key={a} onClick={() => setAgrupador(a)}>
+                        {AGRUPADOR_LABEL[a]}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </>
+            )}
+
             <Button
               variant="ghost"
               size="sm"

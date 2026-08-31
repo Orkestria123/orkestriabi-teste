@@ -351,12 +351,28 @@ export function StatementTable({
   );
   const [agrupador, setAgrupador] = useState<Agrupador | null>(null);
   const agrupadorEfetivo: Agrupador = agrupador ?? (multiAno ? "ano" : "selecao");
-  const colunas = useMemo(
+  // Mostrar/esconder as colunas de mês, deixando só os totalizadores.
+  const [mostrarMeses, setMostrarMeses] = useState(true);
+  const colunasTodas = useMemo(
     () => montarColunas(periods, agrupadorEfetivo),
     [periods, agrupadorEfetivo],
   );
-  const colsSubtotal = colunas.filter((c) => c.kind === "s").length;
-  const mostrarBanda = agrupadorEfetivo !== "mes" && agrupadorEfetivo !== "selecao";
+  const temSubtotais = colunasTodas.some((c) => c.kind === "s");
+  const colunas = useMemo(
+    () =>
+      mostrarMeses || !temSubtotais
+        ? colunasTodas
+        : colunasTodas.filter((c) => c.kind === "s"),
+    [colunasTodas, mostrarMeses, temSubtotais],
+  );
+  const colunasSub = useMemo(
+    () => colunas.filter((c): c is Extract<Coluna, { kind: "s" }> => c.kind === "s"),
+    [colunas],
+  );
+  const colsSubtotal = colunasSub.length;
+  const mostrarBanda =
+    mostrarMeses && agrupadorEfetivo !== "mes" && agrupadorEfetivo !== "selecao";
+
 
   // Filtrar linhas por busca
   const rowsFiltradas = useMemo(() => {

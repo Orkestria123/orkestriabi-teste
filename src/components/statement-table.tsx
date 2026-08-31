@@ -350,7 +350,10 @@ export function StatementTable({
     [periods],
   );
   const [agrupador, setAgrupador] = useState<Agrupador | null>(null);
-  const agrupadorEfetivo: Agrupador = agrupador ?? (multiAno ? "ano" : "selecao");
+  // No Balanço não há totalizador: cada mês é um saldo, somar/subtotalizar não faz sentido.
+  const agrupadorEfetivo: Agrupador =
+    variante === "bp" ? "mes" : (agrupador ?? (multiAno ? "ano" : "selecao"));
+
   // Mostrar/esconder as colunas de mês, deixando só os totalizadores.
   const [mostrarMeses, setMostrarMeses] = useState(true);
   const colunasTodas = useMemo(

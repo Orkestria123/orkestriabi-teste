@@ -666,7 +666,7 @@ export function StatementTable({
             periods={periods}
             colSpanLeft={1}
             colSpanRight={0}
-            extraMiddleCols={periods.length * extrasPorPeriodo + colsSubtotal * (1 + extrasPorPeriodo)}
+            extraMiddleCols={Math.max(0, colunas.length * (1 + extrasPorPeriodo) - periods.length)}
             variante={variante === "bp" ? "bp" : variante === "dfc" ? "dfc" : "dre"}
             emMilhares={mostrarMilhares}
           />

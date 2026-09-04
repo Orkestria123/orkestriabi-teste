@@ -13,10 +13,12 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Plus, Search, BarChart3, ArrowRight, Trash2, Database, Pencil, Loader2, ChevronDown } from "lucide-react";
+import { Plus, Search, BarChart3, ArrowRight, Trash2, Database, Pencil, Loader2, ChevronDown, LayoutGrid, List as ListIcon, ArrowUpDown } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
-import { deleteCompany } from "@/lib/api/orkestria.functions";
+import { deleteCompany, setEmpresaUsuarios } from "@/lib/api/orkestria.functions";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
 import { formatarCnpj, limparCnpj, erroCnpj } from "@/lib/cnpj";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 

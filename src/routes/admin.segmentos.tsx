@@ -90,8 +90,12 @@ function Page() {
     if (!confirm(`Excluir o segmento "${s.nome}"?`)) return;
     const { error } = await supabase.from("segmentos").delete().eq("id", s.id);
     if (error) return toast.error(error.message);
+    void registrarExclusao({
+      data: { entidade: "segmento", entidade_id: s.id, entidade_nome: s.nome },
+    }).catch(() => {});
     toast.success("Segmento excluído");
     qc.invalidateQueries({ queryKey: ["segmentos"] });
+
   };
 
   return (

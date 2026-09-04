@@ -468,6 +468,13 @@ export const createUsuario = createServerFn({ method: "POST" })
         company_id: c.id,
       }));
       if (rows.length) await supabaseAdmin.from("usuario_empresas").insert(rows);
+      await registrarDiffVinculosPorEmpresa(supabaseAdmin, {
+        callerId: context.userId,
+        tenantId,
+        userId: newUid,
+        adicionadas: rows.map((r: any) => r.company_id),
+        removidas: [],
+      });
     }
 
     return { ok: true, user_id: newUid };
@@ -518,6 +525,10 @@ export const updateUsuario = createServerFn({ method: "POST" })
         tenant_id: alvoTenant,
       });
 
+    const { data: vincAntes } = await supabaseAdmin
+      .from("usuario_empresas")
+      .select("company_id")
+      .eq("user_id", data.user_id);
     await supabaseAdmin.from("usuario_empresas").delete().eq("user_id", data.user_id);
     if (isCliente && data.company_ids.length) {
       const { data: comps } = await supabaseAdmin
@@ -532,6 +543,16 @@ export const updateUsuario = createServerFn({ method: "POST" })
       }));
       if (rows.length) await supabaseAdmin.from("usuario_empresas").insert(rows);
     }
+
+    const compAntes: string[] = (vincAntes ?? []).map((r: any) => r.company_id);
+    const compDepois: string[] = isCliente ? data.company_ids : [];
+    await registrarDiffVinculosPorEmpresa(supabaseAdmin, {
+      callerId: context.userId,
+      tenantId: alvoTenant,
+      userId: data.user_id,
+      adicionadas: compDepois.filter((id) => !compAntes.includes(id)),
+      removidas: compAntes.filter((id) => !compDepois.includes(id)),
+    });
 
     return { ok: true };
   });
@@ -570,6 +591,10 @@ export const setEmpresaUsuarios = createServerFn({ method: "POST" })
       .eq("tipo_usuario", "cliente")
       .in("id", data.user_ids.length ? data.user_ids : ["00000000-0000-0000-0000-000000000000"]);
 
+    const { data: antes } = await supabaseAdmin
+      .from("usuario_empresas")
+      .select("user_id")
+      .eq("company_id", data.company_id);
     await supabaseAdmin.from("usuario_empresas").delete().eq("company_id", data.company_id);
     const rows = (alvos ?? []).map((u: any) => ({
       tenant_id: comp.tenant_id,
@@ -577,6 +602,16 @@ export const setEmpresaUsuarios = createServerFn({ method: "POST" })
       company_id: data.company_id,
     }));
     if (rows.length) await supabaseAdmin.from("usuario_empresas").insert(rows);
+
+    const antesIds: string[] = (antes ?? []).map((r: any) => r.user_id);
+    const depoisIds: string[] = rows.map((r) => r.user_id);
+    await registrarDiffVinculos(supabaseAdmin, {
+      callerId: context.userId,
+      tenantId: comp.tenant_id,
+      companyId: data.company_id,
+      adicionados: depoisIds.filter((id) => !antesIds.includes(id)),
+      removidos: antesIds.filter((id) => !depoisIds.includes(id)),
+    });
     return { ok: true, total: rows.length };
   });
 
@@ -650,3 +685,70 @@ export const getAdminOverview = createServerFn({ method: "GET" })
         .sort((a, b) => b.total - a.total),
     };
   });
+
+/** Helpers de auditoria de vínculos cliente x empresa. */
+async function nomesDeUsuarios(supabaseAdmin: any, ids: string[]) {
+  if (!ids.length) return new Map<string, string>();
+  const { data } = await supabaseAdmin.from("profiles").select("id, full_name, email").in("id", ids);
+  return new Map<string, string>((data ?? []).map((p: any) => [p.id, p.full_name || p.email || p.id]));
+}
+
+async function nomesDeEmpresas(supabaseAdmin: any, ids: string[]) {
+  if (!ids.length) return new Map<string, string>();
+  const { data } = await supabaseAdmin.from("companies").select("id, name").in("id", ids);
+  return new Map<string, string>((data ?? []).map((c: any) => [c.id, c.name]));
+}
+
+async function registrarDiffVinculos(
+  supabaseAdmin: any,
+  args: { callerId: string; tenantId: string; companyId: string; adicionados: string[]; removidos: string[] },
+) {
+  if (!args.adicionados.length && !args.removidos.length) return;
+  const { gravarLog } = await import("./auditoria.server");
+  const users = await nomesDeUsuarios(supabaseAdmin, [...args.adicionados, ...args.removidos]);
+  const empresas = await nomesDeEmpresas(supabaseAdmin, [args.companyId]);
+  const empresaNome = empresas.get(args.companyId) ?? null;
+  for (const [lista, acao] of [
+    [args.adicionados, "vinculo_criado"],
+    [args.removidos, "vinculo_removido"],
+  ] as const) {
+    for (const uid of lista) {
+      await gravarLog(supabaseAdmin, {
+        user_id: args.callerId,
+        tenant_id: args.tenantId,
+        acao,
+        entidade: "vinculo",
+        entidade_id: args.companyId,
+        entidade_nome: empresaNome,
+        detalhes: { cliente_id: uid, cliente_nome: users.get(uid) ?? null, empresa_nome: empresaNome },
+      });
+    }
+  }
+}
+
+async function registrarDiffVinculosPorEmpresa(
+  supabaseAdmin: any,
+  args: { callerId: string; tenantId: string; userId: string; adicionadas: string[]; removidas: string[] },
+) {
+  if (!args.adicionadas.length && !args.removidas.length) return;
+  const { gravarLog } = await import("./auditoria.server");
+  const empresas = await nomesDeEmpresas(supabaseAdmin, [...args.adicionadas, ...args.removidas]);
+  const users = await nomesDeUsuarios(supabaseAdmin, [args.userId]);
+  const clienteNome = users.get(args.userId) ?? null;
+  for (const [lista, acao] of [
+    [args.adicionadas, "vinculo_criado"],
+    [args.removidas, "vinculo_removido"],
+  ] as const) {
+    for (const cid of lista) {
+      await gravarLog(supabaseAdmin, {
+        user_id: args.callerId,
+        tenant_id: args.tenantId,
+        acao,
+        entidade: "vinculo",
+        entidade_id: cid,
+        entidade_nome: empresas.get(cid) ?? null,
+        detalhes: { cliente_id: args.userId, cliente_nome: clienteNome, empresa_nome: empresas.get(cid) ?? null },
+      });
+    }
+  }
+}

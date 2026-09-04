@@ -33,6 +33,8 @@ interface FormEmpresa {
   bairro: string; municipio: string; uf: string;
   // contato
   telefone: string; email: string; responsavel: string;
+  // perfil
+  site: string; segmento_id: string; porte: string;
 }
 
 const FORM_VAZIO: FormEmpresa = {
@@ -40,7 +42,24 @@ const FORM_VAZIO: FormEmpresa = {
   cep: "", logradouro: "", numero: "", complemento: "",
   bairro: "", municipio: "", uf: "",
   telefone: "", email: "", responsavel: "",
+  site: "", segmento_id: "", porte: "",
 };
+
+const PORTES = ["MEI", "Micro", "Pequena", "Média", "Grande"];
+
+/** Aceita vazio; se preencher, tem que parecer um endereço web. */
+function erroSite(v: string): string | null {
+  const s = (v ?? "").trim();
+  if (!s) return null;
+  const comProtocolo = /^https?:\/\//i.test(s) ? s : `https://${s}`;
+  try {
+    const u = new URL(comProtocolo);
+    if (!/^[\w-]+(\.[\w-]+)+$/.test(u.hostname)) return "Endereço de site inválido.";
+    return null;
+  } catch {
+    return "Endereço de site inválido.";
+  }
+}
 
 /** 00000-000 — só formata o que foi digitado, não valida. */
 function formatarCep(v: string): string {
@@ -67,6 +86,7 @@ function camposOpcionais(f: FormEmpresa) {
     complemento: t(f.complemento), bairro: t(f.bairro), municipio: t(f.municipio),
     uf: f.uf.trim() ? f.uf.trim().toUpperCase() : null,
     telefone: t(f.telefone), email: t(f.email), responsavel: t(f.responsavel),
+    site: t(f.site), segmento_id: f.segmento_id || null, porte: t(f.porte),
   };
 }
 
@@ -113,10 +133,16 @@ function EmpresaForm({
   salvando: boolean;
   rotuloBotao: string;
 }) {
-  const erro = erroCnpj(valor.cnpj);
+  const erro = erroCnpj(valor.cnpj) ?? erroSite(valor.site);
+  const { data: segmentos } = useQuery({
+    queryKey: ["segmentos"],
+    queryFn: async () => (await supabase.from("segmentos").select("id, nome").order("nome")).data ?? [],
+  });
   // Só reclama depois de o campo ter conteúdo suficiente para julgar —
   // acusar "incompleto" no terceiro caractere digitado é ruído.
-  const mostrarErro = !!erro && limparCnpj(valor.cnpj).length >= 14;
+  const erroDoCnpj = erroCnpj(valor.cnpj);
+  const mostrarErro = !!erroDoCnpj && limparCnpj(valor.cnpj).length >= 14;
+  const msgSite = erroSite(valor.site);
 
   return (
     <form onSubmit={onSubmit} className="space-y-3">
@@ -141,7 +167,7 @@ function EmpresaForm({
           onChange={(e) => onChange({ ...valor, cnpj: formatarCnpj(e.target.value) })}
         />
         {mostrarErro
-          ? <p className="text-xs text-destructive mt-1">{erro}</p>
+          ? <p className="text-xs text-destructive mt-1">{erroDoCnpj}</p>
           : <p className="text-xs text-muted-foreground mt-1">Opcional. Se preencher, tem que ser válido.</p>}
       </div>
       <div>
@@ -156,6 +182,49 @@ function EmpresaForm({
           </SelectContent>
         </Select>
       </div>
+      <Secao
+        titulo="Perfil da empresa"
+        preenchidos={[valor.site, valor.segmento_id, valor.porte].filter((v) => v.trim()).length}
+      >
+        <div>
+          <Label className="text-xs">Site</Label>
+          <Input value={valor.site} placeholder="www.empresa.com.br"
+            aria-invalid={!!msgSite}
+            className={msgSite ? "border-destructive focus-visible:ring-destructive" : undefined}
+            onChange={(e) => onChange({ ...valor, site: e.target.value })} />
+          {msgSite && <p className="text-xs text-destructive mt-1">{msgSite}</p>}
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <Label className="text-xs">Segmento</Label>
+            <Select value={valor.segmento_id || "__none"}
+              onValueChange={(v) => onChange({ ...valor, segmento_id: v === "__none" ? "" : v })}>
+              <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none">Não informado</SelectItem>
+                {(segmentos ?? []).map((sg: any) => (
+                  <SelectItem key={sg.id} value={sg.id}>{sg.nome}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label className="text-xs">Porte</Label>
+            <Select value={valor.porte || "__none"}
+              onValueChange={(v) => onChange({ ...valor, porte: v === "__none" ? "" : v })}>
+              <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none">Não informado</SelectItem>
+                {PORTES.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Logo e perfil da empresa serão configurados futuramente.
+        </p>
+      </Secao>
+
       <Secao
         titulo="Endereço"
         preenchidos={[valor.cep, valor.logradouro, valor.numero, valor.complemento,
@@ -262,6 +331,9 @@ function EditarEmpresaDialog({ empresa, onSaved }: { empresa: any; onSaved: () =
         telefone: formatarTelefone(empresa.telefone ?? ""),
         email: empresa.email ?? "",
         responsavel: empresa.responsavel ?? "",
+        site: empresa.site ?? "",
+        segmento_id: empresa.segmento_id ?? "",
+        porte: empresa.porte ?? "",
       });
     }
     setOpen(v);
@@ -269,7 +341,7 @@ function EditarEmpresaDialog({ empresa, onSaved }: { empresa: any; onSaved: () =
 
   const salvar = async (e: React.FormEvent) => {
     e.preventDefault();
-    const erro = erroCnpj(form.cnpj);
+    const erro = erroCnpj(form.cnpj) ?? erroSite(form.site);
     if (erro) return toast.error(erro);
     setSalvando(true);
     try {
@@ -347,7 +419,7 @@ function Page() {
       toast.error("Tenant não definido para seu usuário.");
       return;
     }
-    const erro = erroCnpj(form.cnpj);
+    const erro = erroCnpj(form.cnpj) ?? erroSite(form.site);
     if (erro) return toast.error(erro);
     setSalvando(true);
     try {

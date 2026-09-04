@@ -7,6 +7,7 @@ import { useMyCompanies, useAvailablePeriods } from "@/hooks/use-financial-data"
 import { DashboardCompanyContext } from "@/components/dashboard-context";
 import { VisaoGerencialProvider } from "@/hooks/use-visao-gerencial";
 import { VisaoToggle } from "@/components/visao-toggle";
+import { registrarAcessoEmpresa } from "@/lib/api/auditoria.functions";
 import {
   Select,
   SelectContent,

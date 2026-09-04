@@ -1146,7 +1146,7 @@ function OrcamentoAnalise() {
         )}
 
         <div className="ml-auto flex items-center gap-2">
-          {!editMode ? (
+          {somenteLeitura ? null : !editMode ? (
             <>
               <Button
                 size="sm"

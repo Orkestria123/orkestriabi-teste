@@ -17,7 +17,8 @@ import {
   Target,
   Settings,
   BookOpen,
-, Tags } from "lucide-react";
+  Tags,
+} from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";

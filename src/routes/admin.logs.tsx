@@ -14,7 +14,19 @@ import {
 import { Loader2, ChevronLeft, ChevronRight, ShieldAlert } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 
-export const Route = createFileRoute("/admin/logs")({ component: Page });
+export const Route = createFileRoute("/admin/logs")({
+  component: Page,
+  head: () => ({
+    meta: [
+      { title: "Logs de auditoria | Orkestria BI" },
+      { name: "description", content: "Histórico de eventos de segurança do escritório: acessos, exclusões e vínculos de acesso." },
+      { property: "og:title", content: "Logs de auditoria | Orkestria BI" },
+      { property: "og:description", content: "Histórico de eventos de segurança do escritório no Orkestria BI." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
+});
 
 const PAGE_SIZE = 25;
 

@@ -489,3 +489,47 @@ export const updateUsuario = createServerFn({ method: "POST" })
 
     return { ok: true };
   });
+
+/**
+ * Dupla-via: define os clientes com acesso a UMA empresa.
+ * Escreve na mesma tabela usuario_empresas usada no cadastro de usuário.
+ */
+export const setEmpresaUsuarios = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z
+      .object({
+        company_id: z.string().uuid(),
+        user_ids: z.array(z.string().uuid()).default([]),
+      })
+      .parse(input),
+  )
+  .handler(async ({ context, data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { tenantId, isOrk } = await assertGestorTenant(supabaseAdmin, context.userId);
+
+    const { data: comp } = await supabaseAdmin
+      .from("companies")
+      .select("id, tenant_id")
+      .eq("id", data.company_id)
+      .maybeSingle();
+    if (!comp) throw new Error("Empresa não encontrada");
+    if (!isOrk && comp.tenant_id !== tenantId) throw new Error("Forbidden");
+
+    // Só clientes do mesmo escritório podem ser vinculados.
+    const { data: alvos } = await supabaseAdmin
+      .from("profiles")
+      .select("id")
+      .eq("tenant_id", comp.tenant_id)
+      .eq("tipo_usuario", "cliente")
+      .in("id", data.user_ids.length ? data.user_ids : ["00000000-0000-0000-0000-000000000000"]);
+
+    await supabaseAdmin.from("usuario_empresas").delete().eq("company_id", data.company_id);
+    const rows = (alvos ?? []).map((u: any) => ({
+      tenant_id: comp.tenant_id,
+      user_id: u.id,
+      company_id: data.company_id,
+    }));
+    if (rows.length) await supabaseAdmin.from("usuario_empresas").insert(rows);
+    return { ok: true, total: rows.length };
+  });

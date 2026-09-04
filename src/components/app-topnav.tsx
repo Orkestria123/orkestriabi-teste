@@ -17,6 +17,7 @@ import {
   Settings,
   BookOpen,
   Tags,
+  ScrollText,
 } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";

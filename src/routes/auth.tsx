@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
+import { registrarAcesso } from "@/lib/api/auditoria.functions";
 import { useAuth } from "@/hooks/use-auth";
 import { ArrowRight, Loader2, BarChart3 } from "lucide-react";
 import { claimOrkestriaAdmin } from "@/lib/api/orkestria.functions";
@@ -43,6 +44,7 @@ function AuthPage() {
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
+        void registrarAcesso({ data: { acao: "login" } }).catch(() => {});
         toast.success("Bem-vindo!");
       }
       navigate({ to: "/", replace: true });
@@ -61,6 +63,7 @@ function AuthPage() {
       });
       if (result.error) throw result.error;
       if (result.redirected) return;
+      void registrarAcesso({ data: { acao: "login" } }).catch(() => {});
       navigate({ to: "/", replace: true });
     } catch (e: any) {
       toast.error(e.message || "Erro Google");

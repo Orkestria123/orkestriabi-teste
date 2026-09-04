@@ -14,6 +14,7 @@ import {
 import { Plus, Pencil, Trash2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
+import { registrarExclusao } from "@/lib/api/auditoria.functions";
 
 export const Route = createFileRoute("/admin/segmentos")({ component: Page });
 

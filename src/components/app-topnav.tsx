@@ -66,6 +66,7 @@ const ADMIN_NAV: NavItem[] = [
   
   { to: "/admin/usuarios", label: "Usuários", icon: Users },
   { to: "/admin/segmentos", label: "Segmentos", icon: Tags },
+  { to: "/admin/logs", label: "Logs", icon: ScrollText },
 ];
 
 const CLIENT_NAV: NavItem[] = [

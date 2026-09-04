@@ -308,6 +308,96 @@ function EmpresaForm({
   );
 }
 
+/**
+ * Vínculo pelo lado da empresa. Mesma tabela usada no cadastro do usuário —
+ * marcar aqui ou lá dá exatamente no mesmo, é fonte única de verdade.
+ */
+function UsuariosDaEmpresa({ companyId }: { companyId: string }) {
+  const qc = useQueryClient();
+  const [busca, setBusca] = useState("");
+  const [salvando, setSalvando] = useState(false);
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["empresa-usuarios", companyId],
+    queryFn: async () => {
+      const [{ data: clientes }, { data: vinculos }] = await Promise.all([
+        supabase
+          .from("profiles")
+          .select("id, full_name, email")
+          .eq("tipo_usuario", "cliente")
+          .order("full_name"),
+        supabase.from("usuario_empresas").select("user_id").eq("company_id", companyId),
+      ]);
+      return {
+        clientes: clientes ?? [],
+        vinculados: new Set((vinculos ?? []).map((v: any) => v.user_id as string)),
+      };
+    },
+  });
+
+  const [selecao, setSelecao] = useState<Set<string> | null>(null);
+  const marcados = selecao ?? data?.vinculados ?? new Set<string>();
+
+  const alternar = (id: string) => {
+    const novo = new Set(marcados);
+    if (novo.has(id)) novo.delete(id); else novo.add(id);
+    setSelecao(novo);
+  };
+
+  const salvar = async () => {
+    setSalvando(true);
+    try {
+      await setEmpresaUsuarios({ data: { company_id: companyId, user_ids: [...marcados] } });
+      toast.success("Acessos atualizados");
+      setSelecao(null);
+      qc.invalidateQueries({ queryKey: ["empresa-usuarios", companyId] });
+      qc.invalidateQueries({ queryKey: ["tenant-users"] });
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setSalvando(false);
+    }
+  };
+
+  const lista = (data?.clientes ?? []).filter((u: any) => {
+    const s = busca.trim().toLowerCase();
+    if (!s) return true;
+    return [u.full_name, u.email].filter(Boolean).some((v: string) => v.toLowerCase().includes(s));
+  });
+
+  return (
+    <div className="border rounded-md p-3 space-y-3">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-sm font-medium">Usuários com acesso</span>
+        <Badge variant="secondary">{marcados.size} cliente(s)</Badge>
+      </div>
+      <p className="text-xs text-muted-foreground">
+        Apenas usuários do tipo Cliente aparecem aqui. Colaboradores do escritório já têm
+        acesso a todas as empresas.
+      </p>
+      <Input placeholder="Buscar cliente…" value={busca} onChange={(e) => setBusca(e.target.value)} />
+      <div className="max-h-48 overflow-y-auto space-y-1">
+        {isLoading && <p className="text-xs text-muted-foreground">Carregando…</p>}
+        {!isLoading && lista.length === 0 && (
+          <p className="text-xs text-muted-foreground">Nenhum cliente cadastrado.</p>
+        )}
+        {lista.map((u: any) => (
+          <label key={u.id} className="flex items-center gap-2 text-sm px-1 py-1 rounded hover:bg-muted/50 cursor-pointer">
+            <Checkbox checked={marcados.has(u.id)} onCheckedChange={() => alternar(u.id)} />
+            <span className="flex-1 truncate">{u.full_name ?? "—"}</span>
+            <span className="text-xs text-muted-foreground truncate">{u.email}</span>
+          </label>
+        ))}
+      </div>
+      <Button type="button" size="sm" variant="outline" onClick={salvar}
+        disabled={salvando || selecao === null}>
+        {salvando && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+        Salvar acessos
+      </Button>
+    </div>
+  );
+}
+
 /** Diálogo de edição de uma empresa já cadastrada. */
 function EditarEmpresaDialog({ empresa, onSaved }: { empresa: any; onSaved: () => void }) {
   const [open, setOpen] = useState(false);

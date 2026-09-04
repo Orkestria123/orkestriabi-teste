@@ -596,17 +596,96 @@ function Page() {
         </Dialog>
       }
     >
-      <div className="mb-4 relative max-w-md">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Buscar empresa por nome, razão social ou CNPJ…"
-          className="pl-9"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <div className="relative flex-1 min-w-[240px] max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Buscar empresa por nome, razão social ou CNPJ…"
+            className="pl-9"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
+        <div className="flex items-center gap-1 border rounded-md p-0.5">
+          <Button size="sm" variant={visao === "quadros" ? "secondary" : "ghost"}
+            className="h-8 px-2" onClick={() => trocarVisao("quadros")} title="Ver em quadros">
+            <LayoutGrid className="h-4 w-4 mr-1" />Quadros
+          </Button>
+          <Button size="sm" variant={visao === "lista" ? "secondary" : "ghost"}
+            className="h-8 px-2" onClick={() => trocarVisao("lista")} title="Ver em lista">
+            <ListIcon className="h-4 w-4 mr-1" />Lista
+          </Button>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      {visao === "lista" && (
+        <Card className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="text-xs text-muted-foreground border-b">
+              <tr>
+                {([["name", "Nome"], ["segmento", "Segmento"], ["porte", "Porte"]] as const).map(([campo, rotulo]) => (
+                  <th key={campo} className="text-left font-medium px-3 py-2">
+                    <button type="button" className="inline-flex items-center gap-1 hover:text-foreground"
+                      onClick={() => ordenarPor(campo)}>
+                      {rotulo}
+                      <ArrowUpDown className="h-3 w-3" />
+                    </button>
+                  </th>
+                ))}
+                <th className="text-left font-medium px-3 py-2">Cidade/UF</th>
+                <th className="text-right font-medium px-3 py-2">Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((c: any) => {
+                const spedCount = c.sped_files?.[0]?.count ?? 0;
+                return (
+                  <tr key={c.id} className="border-b last:border-0 hover:bg-muted/40">
+                    <td className="px-3 py-2">
+                      <div className="font-medium">{c.name}</div>
+                      <div className="text-xs text-muted-foreground">{c.razao_social}</div>
+                    </td>
+                    <td className="px-3 py-2 text-muted-foreground">{nomeSegmento(c.segmento_id)}</td>
+                    <td className="px-3 py-2 text-muted-foreground">{c.porte ?? "—"}</td>
+                    <td className="px-3 py-2 text-muted-foreground">
+                      {[c.municipio, c.uf].filter(Boolean).join(" / ") || "—"}
+                    </td>
+                    <td className="px-3 py-2">
+                      <div className="flex items-center justify-end gap-1.5">
+                        <Button size="sm" onClick={() => openBI(c.id)}
+                          disabled={spedCount === 0 && (c.fonte_dados ?? "sped") === "sped"}>
+                          <BarChart3 className="h-4 w-4 mr-1.5" />Abrir BI
+                        </Button>
+                        <EditarEmpresaDialog empresa={c}
+                          onSaved={() => qc.invalidateQueries({ queryKey: ["companies"] })} />
+                        <Button size="icon" variant="outline" className="h-9 w-9"
+                          onClick={() => navigate({ to: "/admin/empresas/$id/dados", params: { id: c.id } })}
+                          title="Dados contábeis (plano, mapeamento, diário)">
+                          <Database className="h-4 w-4" />
+                        </Button>
+                        <Button size="icon" variant="ghost"
+                          className="h-9 w-9 text-destructive hover:text-destructive"
+                          onClick={() => handleDelete(c.id, c.name)} title="Excluir empresa">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+              {filtered.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="px-3 py-10 text-center text-muted-foreground">
+                    {search ? "Nenhuma empresa encontrada para esta busca." : "Nenhuma empresa cadastrada. Crie a primeira."}
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </Card>
+      )}
+
+      <div className={visao === "lista" ? "hidden" : "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"}>
         {filtered.map((c: any) => {
           const spedCount = c.sped_files?.[0]?.count ?? 0;
           return (

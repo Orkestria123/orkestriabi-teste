@@ -338,3 +338,154 @@ export const deleteSpedFile = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { ok: true };
   });
+
+/**
+ * Helper: valida que o chamador é tenant_admin (ou orkestria_admin) e devolve o tenant alvo.
+ */
+async function assertGestorTenant(supabaseAdmin: any, callerId: string) {
+  const { data: roles } = await supabaseAdmin
+    .from("user_roles")
+    .select("role, tenant_id")
+    .eq("user_id", callerId);
+  const isOrk = roles?.some((r: any) => r.role === "orkestria_admin");
+  const { data: prof } = await supabaseAdmin
+    .from("profiles")
+    .select("tenant_id")
+    .eq("id", callerId)
+    .maybeSingle();
+  const tenantAdminOf = roles?.find((r: any) => r.role === "tenant_admin")?.tenant_id ?? null;
+  const tenantId = prof?.tenant_id ?? tenantAdminOf;
+  if (!isOrk && !tenantAdminOf) throw new Error("Forbidden");
+  if (!tenantId) throw new Error("Usuário sem escritório vinculado");
+  return { tenantId: tenantId as string, isOrk: !!isOrk };
+}
+
+const usuarioBase = {
+  full_name: z.string().min(2),
+  telefone: z.string().optional().nullable(),
+  tipo_usuario: z.enum(["admin_escritorio", "cliente"]),
+  company_ids: z.array(z.string().uuid()).default([]),
+};
+
+/**
+ * Cria um usuário do escritório (colaborador) ou um cliente com vínculos de empresas.
+ */
+export const createUsuario = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z
+      .object({
+        ...usuarioBase,
+        email: z.string().email(),
+        password: z.string().min(8),
+      })
+      .parse(input),
+  )
+  .handler(async ({ context, data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { tenantId } = await assertGestorTenant(supabaseAdmin, context.userId);
+
+    const { data: userResp, error: uErr } = await supabaseAdmin.auth.admin.createUser({
+      email: data.email,
+      password: data.password,
+      email_confirm: true,
+      user_metadata: { full_name: data.full_name },
+    });
+    if (uErr) throw new Error(uErr.message);
+    const newUid = userResp.user!.id;
+
+    const isCliente = data.tipo_usuario === "cliente";
+    await supabaseAdmin
+      .from("profiles")
+      .update({
+        tenant_id: tenantId,
+        full_name: data.full_name,
+        telefone: data.telefone || null,
+        tipo_usuario: data.tipo_usuario,
+        company_id: isCliente ? (data.company_ids[0] ?? null) : null,
+      })
+      .eq("id", newUid);
+
+    await supabaseAdmin
+      .from("user_roles")
+      .insert({ user_id: newUid, role: isCliente ? "client" : "tenant_admin", tenant_id: tenantId });
+
+    if (isCliente && data.company_ids.length) {
+      const { data: comps } = await supabaseAdmin
+        .from("companies")
+        .select("id")
+        .eq("tenant_id", tenantId)
+        .in("id", data.company_ids);
+      const rows = (comps ?? []).map((c: any) => ({
+        tenant_id: tenantId,
+        user_id: newUid,
+        company_id: c.id,
+      }));
+      if (rows.length) await supabaseAdmin.from("usuario_empresas").insert(rows);
+    }
+
+    return { ok: true, user_id: newUid };
+  });
+
+/**
+ * Atualiza dados do usuário e (para clientes) os vínculos de empresas.
+ */
+export const updateUsuario = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z.object({ ...usuarioBase, user_id: z.string().uuid() }).parse(input),
+  )
+  .handler(async ({ context, data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { tenantId, isOrk } = await assertGestorTenant(supabaseAdmin, context.userId);
+
+    const { data: target } = await supabaseAdmin
+      .from("profiles")
+      .select("tenant_id")
+      .eq("id", data.user_id)
+      .maybeSingle();
+    if (!target) throw new Error("Usuário não encontrado");
+    if (!isOrk && target.tenant_id !== tenantId) throw new Error("Forbidden");
+    const alvoTenant = (target.tenant_id ?? tenantId) as string;
+
+    const isCliente = data.tipo_usuario === "cliente";
+    await supabaseAdmin
+      .from("profiles")
+      .update({
+        full_name: data.full_name,
+        telefone: data.telefone || null,
+        tipo_usuario: data.tipo_usuario,
+        company_id: isCliente ? (data.company_ids[0] ?? null) : null,
+      })
+      .eq("id", data.user_id);
+
+    await supabaseAdmin
+      .from("user_roles")
+      .delete()
+      .eq("user_id", data.user_id)
+      .in("role", ["tenant_admin", "client"]);
+    await supabaseAdmin
+      .from("user_roles")
+      .insert({
+        user_id: data.user_id,
+        role: isCliente ? "client" : "tenant_admin",
+        tenant_id: alvoTenant,
+      });
+
+    await supabaseAdmin.from("usuario_empresas").delete().eq("user_id", data.user_id);
+    if (isCliente && data.company_ids.length) {
+      const { data: comps } = await supabaseAdmin
+        .from("companies")
+        .select("id")
+        .eq("tenant_id", alvoTenant)
+        .in("id", data.company_ids);
+      const rows = (comps ?? []).map((c: any) => ({
+        tenant_id: alvoTenant,
+        user_id: data.user_id,
+        company_id: c.id,
+      }));
+      if (rows.length) await supabaseAdmin.from("usuario_empresas").insert(rows);
+    }
+
+    return { ok: true };
+  });

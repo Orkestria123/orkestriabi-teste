@@ -18,3 +18,30 @@ export const registrarAcesso = createServerFn({ method: "POST" })
     });
     return { ok: true };
   });
+
+/** Registra uma exclusão feita pela interface (ex.: segmentos, cadastros simples). */
+export const registrarExclusao = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z
+      .object({
+        entidade: z.string().min(1),
+        entidade_id: z.string().uuid().optional().nullable(),
+        entidade_nome: z.string().optional().nullable(),
+        detalhes: z.record(z.string(), z.unknown()).optional(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ context, data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { gravarLog } = await import("./auditoria.server");
+    await gravarLog(supabaseAdmin, {
+      user_id: context.userId,
+      acao: "exclusao",
+      entidade: data.entidade,
+      entidade_id: data.entidade_id ?? null,
+      entidade_nome: data.entidade_nome ?? null,
+      detalhes: data.detalhes ?? {},
+    });
+    return { ok: true };
+  });

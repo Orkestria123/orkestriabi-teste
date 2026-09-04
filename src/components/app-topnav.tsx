@@ -17,7 +17,7 @@ import {
   Target,
   Settings,
   BookOpen,
-} from "lucide-react";
+, Tags } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
@@ -65,6 +65,7 @@ const ADMIN_NAV: NavItem[] = [
   { to: "/admin/empresas", label: "Empresas", icon: Building2 },
   { to: "/admin/upload", label: "Upload", icon: Upload },
   { to: "/admin/usuarios", label: "Usuários", icon: Users },
+  { to: "/admin/segmentos", label: "Segmentos", icon: Tags },
 ];
 
 const CLIENT_NAV: NavItem[] = [

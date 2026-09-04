@@ -33,6 +33,8 @@ interface FormEmpresa {
   bairro: string; municipio: string; uf: string;
   // contato
   telefone: string; email: string; responsavel: string;
+  // perfil
+  site: string; segmento_id: string; porte: string;
 }
 
 const FORM_VAZIO: FormEmpresa = {
@@ -40,7 +42,24 @@ const FORM_VAZIO: FormEmpresa = {
   cep: "", logradouro: "", numero: "", complemento: "",
   bairro: "", municipio: "", uf: "",
   telefone: "", email: "", responsavel: "",
+  site: "", segmento_id: "", porte: "",
 };
+
+const PORTES = ["MEI", "Micro", "Pequena", "Média", "Grande"];
+
+/** Aceita vazio; se preencher, tem que parecer um endereço web. */
+function erroSite(v: string): string | null {
+  const s = (v ?? "").trim();
+  if (!s) return null;
+  const comProtocolo = /^https?:\/\//i.test(s) ? s : `https://${s}`;
+  try {
+    const u = new URL(comProtocolo);
+    if (!/^[\w-]+(\.[\w-]+)+$/.test(u.hostname)) return "Endereço de site inválido.";
+    return null;
+  } catch {
+    return "Endereço de site inválido.";
+  }
+}
 
 /** 00000-000 — só formata o que foi digitado, não valida. */
 function formatarCep(v: string): string {
@@ -67,6 +86,7 @@ function camposOpcionais(f: FormEmpresa) {
     complemento: t(f.complemento), bairro: t(f.bairro), municipio: t(f.municipio),
     uf: f.uf.trim() ? f.uf.trim().toUpperCase() : null,
     telefone: t(f.telefone), email: t(f.email), responsavel: t(f.responsavel),
+    site: t(f.site), segmento_id: f.segmento_id || null, porte: t(f.porte),
   };
 }
 

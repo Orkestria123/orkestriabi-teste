@@ -498,13 +498,48 @@ function Page() {
   const [form, setForm] = useState<FormEmpresa>(FORM_VAZIO);
   const [salvando, setSalvando] = useState(false);
 
+  // Preferência de visualização fica no navegador: é escolha de quem usa,
+  // não configuração do escritório.
+  const [visao, setVisao] = useState<"quadros" | "lista">("quadros");
+  useEffect(() => {
+    const v = localStorage.getItem("empresas:visao");
+    if (v === "lista" || v === "quadros") setVisao(v);
+  }, []);
+  const trocarVisao = (v: "quadros" | "lista") => {
+    setVisao(v);
+    localStorage.setItem("empresas:visao", v);
+  };
+
+  const [ordem, setOrdem] = useState<{ campo: "name" | "segmento" | "porte"; asc: boolean }>({
+    campo: "name", asc: true,
+  });
+
+  const { data: segmentos } = useQuery({
+    queryKey: ["segmentos"],
+    queryFn: async () => (await supabase.from("segmentos").select("id, nome").order("nome")).data ?? [],
+  });
+  const nomeSegmento = (id: string | null) =>
+    (segmentos ?? []).find((s: any) => s.id === id)?.nome ?? "—";
+
   const filtered = useMemo(() => {
     const s = search.trim().toLowerCase();
-    if (!s) return companies ?? [];
-    return (companies ?? []).filter((c: any) =>
-      [c.name, c.razao_social, c.cnpj].filter(Boolean).some((v: string) => v.toLowerCase().includes(s)),
+    const base = !s
+      ? (companies ?? [])
+      : (companies ?? []).filter((c: any) =>
+          [c.name, c.razao_social, c.cnpj].filter(Boolean).some((v: string) => v.toLowerCase().includes(s)),
+        );
+    if (visao !== "lista") return base;
+    const chave = (c: any) =>
+      ordem.campo === "segmento" ? nomeSegmento(c.segmento_id)
+      : ordem.campo === "porte" ? (c.porte ?? "")
+      : (c.name ?? "");
+    return [...base].sort((a, b) =>
+      chave(a).localeCompare(chave(b), "pt-BR") * (ordem.asc ? 1 : -1),
     );
-  }, [companies, search]);
+  }, [companies, search, visao, ordem, segmentos]);
+
+  const ordenarPor = (campo: "name" | "segmento" | "porte") =>
+    setOrdem((o) => (o.campo === campo ? { campo, asc: !o.asc } : { campo, asc: true }));
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();

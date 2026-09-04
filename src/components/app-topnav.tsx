@@ -17,6 +17,7 @@ import {
   Settings,
   BookOpen,
   Tags,
+  ScrollText,
 } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
@@ -66,6 +67,7 @@ const ADMIN_NAV: NavItem[] = [
   
   { to: "/admin/usuarios", label: "Usuários", icon: Users },
   { to: "/admin/segmentos", label: "Segmentos", icon: Tags },
+  { to: "/admin/logs", label: "Logs", icon: ScrollText },
 ];
 
 const CLIENT_NAV: NavItem[] = [

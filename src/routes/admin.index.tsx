@@ -4,10 +4,66 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { getAdminOverview } from "@/lib/api/orkestria.functions";
 import { Card } from "@/components/ui/card";
-import { Building2, Users, HardDrive, Tags, ArrowRight } from "lucide-react";
+import { Building2, Users, HardDrive, Tags, ArrowRight, ScrollText } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/admin/")({ component: Page });
+
+const ACAO_LABEL: Record<string, string> = {
+  login: "Login",
+  logout: "Logout",
+  exclusao: "Exclusão",
+  vinculo_criado: "Vínculo criado",
+  vinculo_removido: "Vínculo removido",
+};
+
+function UltimosLogs() {
+  const { data } = useQuery({
+    queryKey: ["admin-ultimos-logs"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("logs_auditoria")
+        .select("id, created_at, user_nome, acao, entidade, entidade_nome")
+        .order("created_at", { ascending: false })
+        .limit(5);
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  return (
+    <Card className="p-5">
+      <div className="mb-3 flex items-center justify-between">
+        <h3 className="text-sm font-semibold flex items-center gap-2">
+          <ScrollText className="h-4 w-4" /> Últimos eventos
+        </h3>
+        <Link to="/admin/logs" className="text-xs text-primary hover:underline">
+          Ver todos os logs
+        </Link>
+      </div>
+      {!data?.length ? (
+        <p className="text-xs text-muted-foreground">Nenhum evento registrado ainda.</p>
+      ) : (
+        <ul className="space-y-2">
+          {data.map((l: any) => (
+            <li key={l.id} className="flex items-center justify-between gap-3 text-xs">
+              <span className="truncate">
+                <span className="font-medium">{ACAO_LABEL[l.acao] ?? l.acao}</span>
+                {" · "}
+                {l.user_nome ?? "—"}
+                {l.entidade_nome ? ` · ${l.entidade_nome}` : ""}
+              </span>
+              <span className="shrink-0 tabular-nums text-muted-foreground">
+                {new Date(l.created_at).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Card>
+  );
+}
 
 function formatBytes(bytes: number) {
   if (!bytes) return "0 MB";
@@ -70,10 +126,15 @@ function Page() {
         />
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="mb-6">
+        <UltimosLogs />
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Shortcut to="/admin/empresas" icon={<Building2 />} label="Empresas" />
         <Shortcut to="/admin/usuarios" icon={<Users />} label="Usuários" />
         <Shortcut to="/admin/segmentos" icon={<Tags />} label="Segmentos" />
+        <Shortcut to="/admin/logs" icon={<ScrollText />} label="Logs" />
       </div>
     </PortalShell>
   );
@@ -176,7 +237,7 @@ function Shortcut({
   icon,
   label,
 }: {
-  to: "/admin/empresas" | "/admin/usuarios" | "/admin/segmentos";
+  to: "/admin/empresas" | "/admin/usuarios" | "/admin/segmentos" | "/admin/logs";
   icon: React.ReactNode;
   label: string;
 }) {

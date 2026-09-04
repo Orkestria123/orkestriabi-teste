@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useMonthlyStatement } from "@/hooks/use-financial-data";
 import { useEstruturaPadrao } from "@/hooks/use-indicador-data";
+import { useAuth } from "@/hooks/use-auth";
 import { ensureDashboardConfig, lerDashboardBlocos } from "@/lib/dashboard/ensure-config";
 import {
   BLOCOS_CATALOGO, KPI_DESTAQUE, KPI_LABEL, KPI_PAPEL, KPI_VIA_INDICADOR,
@@ -66,6 +67,7 @@ export function DashboardKpisGrid({
   activePeriods: string[];
 }) {
   const qc = useQueryClient();
+  const { isCliente } = useAuth();
   const { data: configRows } = useQuery({
     queryKey: ["dashboard-config", tenantId, companyId],
     enabled: !!tenantId,
@@ -73,12 +75,12 @@ export function DashboardKpisGrid({
   });
 
   useEffect(() => {
-    if (!tenantId) return;
+    if (!tenantId || isCliente) return;
     (async () => {
       const criou = await ensureDashboardConfig(tenantId, companyId);
       if (criou) qc.invalidateQueries({ queryKey: ["dashboard-config", tenantId, companyId] });
     })();
-  }, [tenantId, companyId, qc]);
+  }, [tenantId, companyId, qc, isCliente]);
 
   const kpiCatalog = useMemo(
     () => new Set(BLOCOS_CATALOGO.filter((b) => b.categoria === "kpi").map((b) => b.key)),

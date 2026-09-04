@@ -533,3 +533,74 @@ export const setEmpresaUsuarios = createServerFn({ method: "POST" })
     if (rows.length) await supabaseAdmin.from("usuario_empresas").insert(rows);
     return { ok: true, total: rows.length };
   });
+
+/**
+ * Resumo do escritório para o dashboard do admin:
+ * contadores de empresas/usuários, espaço em storage e
+ * distribuição da carteira por segmento e porte.
+ */
+export const getAdminOverview = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { tenantId } = await assertGestorTenant(supabaseAdmin, context.userId);
+
+    const [companiesRes, profilesRes, segmentosRes] = await Promise.all([
+      supabaseAdmin.from("companies").select("id, segmento_id, porte").eq("tenant_id", tenantId),
+      supabaseAdmin.from("profiles").select("id, tipo_usuario").eq("tenant_id", tenantId),
+      supabaseAdmin.from("segmentos").select("id, nome").eq("tenant_id", tenantId),
+    ]);
+
+    const companies = companiesRes.data ?? [];
+    const profiles = profilesRes.data ?? [];
+    const segmentos = segmentosRes.data ?? [];
+
+    const segNome = new Map<string, string>(segmentos.map((s: any) => [s.id, s.nome]));
+    const porSegmento = new Map<string, number>();
+    const porPorte = new Map<string, number>();
+    for (const c of companies as any[]) {
+      const seg = (c.segmento_id && segNome.get(c.segmento_id)) || "Não classificado";
+      porSegmento.set(seg, (porSegmento.get(seg) ?? 0) + 1);
+      const porte = c.porte || "Não classificado";
+      porPorte.set(porte, (porPorte.get(porte) ?? 0) + 1);
+    }
+
+    // Espaço usado: soma dos objetos sob <tenantId>/<companyId>/ no bucket sped-files
+    let storageBytes = 0;
+    try {
+      const { data: pastas } = await supabaseAdmin.storage
+        .from("sped-files")
+        .list(tenantId, { limit: 1000 });
+      for (const pasta of pastas ?? []) {
+        let offset = 0;
+        // paginação simples por pasta de empresa
+        for (;;) {
+          const { data: objs } = await supabaseAdmin.storage
+            .from("sped-files")
+            .list(`${tenantId}/${pasta.name}`, { limit: 100, offset });
+          const lote = objs ?? [];
+          for (const o of lote as any[]) {
+            storageBytes += Number(o?.metadata?.size ?? 0);
+          }
+          if (lote.length < 100) break;
+          offset += 100;
+        }
+      }
+    } catch {
+      storageBytes = 0;
+    }
+
+    return {
+      empresas: companies.length,
+      usuarios: profiles.length,
+      colaboradores: profiles.filter((p: any) => p.tipo_usuario === "admin_escritorio").length,
+      clientes: profiles.filter((p: any) => p.tipo_usuario === "cliente").length,
+      storageBytes,
+      porSegmento: [...porSegmento.entries()]
+        .map(([nome, total]) => ({ nome, total }))
+        .sort((a, b) => b.total - a.total),
+      porPorte: [...porPorte.entries()]
+        .map(([nome, total]) => ({ nome, total }))
+        .sort((a, b) => b.total - a.total),
+    };
+  });

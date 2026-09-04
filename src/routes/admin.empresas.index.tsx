@@ -466,10 +466,11 @@ function EditarEmpresaDialog({ empresa, onSaved }: { empresa: any; onSaved: () =
           <Pencil className="h-4 w-4" />
         </Button>
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className="max-h-[85vh] overflow-y-auto">
         <DialogHeader><DialogTitle>Editar cadastro</DialogTitle></DialogHeader>
         <EmpresaForm valor={form} onChange={setForm} onSubmit={salvar}
           salvando={salvando} rotuloBotao="Salvar" />
+        {open && <UsuariosDaEmpresa companyId={empresa.id} />}
       </DialogContent>
     </Dialog>
   );

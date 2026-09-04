@@ -1670,6 +1670,66 @@ export type Database = {
           },
         ]
       }
+      logs_auditoria: {
+        Row: {
+          acao: string
+          created_at: string
+          detalhes: Json
+          entidade: string | null
+          entidade_id: string | null
+          entidade_nome: string | null
+          id: string
+          ip: string | null
+          tenant_id: string
+          user_id: string | null
+          user_nome: string | null
+          user_tipo: string | null
+        }
+        Insert: {
+          acao: string
+          created_at?: string
+          detalhes?: Json
+          entidade?: string | null
+          entidade_id?: string | null
+          entidade_nome?: string | null
+          id?: string
+          ip?: string | null
+          tenant_id: string
+          user_id?: string | null
+          user_nome?: string | null
+          user_tipo?: string | null
+        }
+        Update: {
+          acao?: string
+          created_at?: string
+          detalhes?: Json
+          entidade?: string | null
+          entidade_id?: string | null
+          entidade_nome?: string | null
+          id?: string
+          ip?: string | null
+          tenant_id?: string
+          user_id?: string | null
+          user_nome?: string | null
+          user_tipo?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "logs_auditoria_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "logs_auditoria_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       mascara_classificacao: {
         Row: {
           company_id: string | null

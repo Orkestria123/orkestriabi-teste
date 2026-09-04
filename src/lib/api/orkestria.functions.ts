@@ -437,7 +437,23 @@ export const createUsuario = createServerFn({ method: "POST" })
       email_confirm: true,
       user_metadata: { full_name: data.full_name },
     });
-    if (uErr) throw new Error(uErr.message);
+    if (uErr) {
+      const msg = (uErr.message || "").toLowerCase();
+      if (msg.includes("already been registered") || msg.includes("already exists") || (uErr as any).code === "email_exists") {
+        const { data: existente } = await supabaseAdmin
+          .from("profiles")
+          .select("full_name, tipo_usuario, tenant_id")
+          .eq("email", data.email)
+          .maybeSingle();
+        if (existente && existente.tenant_id === tenantId) {
+          throw new Error(
+            `Este e-mail já está cadastrado neste escritório${existente.full_name ? ` (${existente.full_name})` : ""}. Edite o usuário existente em vez de criar um novo.`,
+          );
+        }
+        throw new Error("Este e-mail já está em uso por outro usuário. Utilize outro e-mail.");
+      }
+      throw new Error(uErr.message);
+    }
     const newUid = userResp.user!.id;
 
     const isCliente = data.tipo_usuario === "cliente";

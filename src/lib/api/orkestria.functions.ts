@@ -207,8 +207,22 @@ export const deleteUserAccount = createServerFn({ method: "POST" })
       if (targetIsOrk) throw new Error("Forbidden");
     }
 
+    const { data: alvoPerfil } = await supabaseAdmin
+      .from("profiles")
+      .select("full_name, email, tenant_id")
+      .eq("id", data.user_id)
+      .maybeSingle();
     const { error } = await supabaseAdmin.auth.admin.deleteUser(data.user_id);
     if (error) throw new Error(error.message);
+    const { gravarLog } = await import("./auditoria.server");
+    await gravarLog(supabaseAdmin, {
+      user_id: context.userId,
+      tenant_id: alvoPerfil?.tenant_id ?? null,
+      acao: "exclusao",
+      entidade: "usuario",
+      entidade_id: data.user_id,
+      entidade_nome: alvoPerfil?.full_name ?? alvoPerfil?.email ?? null,
+    });
     return { ok: true };
   });
 
@@ -258,6 +272,15 @@ export const deleteTenant = createServerFn({ method: "POST" })
       await supabaseAdmin.auth.admin.deleteUser(p.id);
     }
 
+    const { gravarLog } = await import("./auditoria.server");
+    await gravarLog(supabaseAdmin, {
+      user_id: context.userId,
+      tenant_id: data.tenant_id,
+      acao: "exclusao",
+      entidade: "escritorio",
+      entidade_id: data.tenant_id,
+      entidade_nome: null,
+    });
     const { error } = await supabaseAdmin.from("tenants").delete().eq("id", data.tenant_id);
     if (error) throw new Error(error.message);
     return { ok: true };
@@ -298,8 +321,22 @@ export const deleteCompany = createServerFn({ method: "POST" })
     const paths = (files ?? []).map((f) => f.file_url).filter(Boolean) as string[];
     if (paths.length) await supabaseAdmin.storage.from("sped-files").remove(paths);
 
+    const { data: compNome } = await supabaseAdmin
+      .from("companies")
+      .select("name")
+      .eq("id", data.company_id)
+      .maybeSingle();
     const { error } = await supabaseAdmin.from("companies").delete().eq("id", data.company_id);
     if (error) throw new Error(error.message);
+    const { gravarLog } = await import("./auditoria.server");
+    await gravarLog(supabaseAdmin, {
+      user_id: context.userId,
+      tenant_id: company.tenant_id,
+      acao: "exclusao",
+      entidade: "empresa",
+      entidade_id: data.company_id,
+      entidade_nome: compNome?.name ?? null,
+    });
     return { ok: true };
   });
 
@@ -336,6 +373,15 @@ export const deleteSpedFile = createServerFn({ method: "POST" })
     }
     const { error } = await supabaseAdmin.from("sped_files").delete().eq("id", file.id);
     if (error) throw new Error(error.message);
+    const { gravarLog } = await import("./auditoria.server");
+    await gravarLog(supabaseAdmin, {
+      user_id: context.userId,
+      tenant_id: file.tenant_id,
+      acao: "exclusao",
+      entidade: "arquivo",
+      entidade_id: file.id,
+      entidade_nome: file.file_url ?? null,
+    });
     return { ok: true };
   });
 

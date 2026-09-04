@@ -237,7 +237,7 @@ function Shortcut({
   icon,
   label,
 }: {
-  to: "/admin/empresas" | "/admin/usuarios" | "/admin/segmentos";
+  to: "/admin/empresas" | "/admin/usuarios" | "/admin/segmentos" | "/admin/logs";
   icon: React.ReactNode;
   label: string;
 }) {

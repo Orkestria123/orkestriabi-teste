@@ -263,7 +263,7 @@ export function AppTopNav({
               </Link>
             );
           })}
-          {(
+          {!isCliente && (
             <div className="border-t mt-2 pt-2">
               <div className="px-3 py-1 text-[10px] uppercase tracking-wider text-muted-foreground">
                 Configurações

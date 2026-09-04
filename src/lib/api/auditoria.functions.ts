@@ -45,3 +45,27 @@ export const registrarExclusao = createServerFn({ method: "POST" })
     });
     return { ok: true };
   });
+
+/** Registra que um usuário abriu o BI de uma empresa. */
+export const registrarAcessoEmpresa = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z
+      .object({
+        company_id: z.string().uuid(),
+        company_nome: z.string().optional().nullable(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ context, data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { gravarLog } = await import("./auditoria.server");
+    await gravarLog(supabaseAdmin, {
+      user_id: context.userId,
+      acao: "acesso_empresa",
+      entidade: "empresa",
+      entidade_id: data.company_id,
+      entidade_nome: data.company_nome ?? null,
+    });
+    return { ok: true };
+  });

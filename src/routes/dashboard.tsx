@@ -7,6 +7,7 @@ import { useMyCompanies, useAvailablePeriods } from "@/hooks/use-financial-data"
 import { DashboardCompanyContext } from "@/components/dashboard-context";
 import { VisaoGerencialProvider } from "@/hooks/use-visao-gerencial";
 import { VisaoToggle } from "@/components/visao-toggle";
+import { registrarAcessoEmpresa } from "@/lib/api/auditoria.functions";
 import {
   Select,
   SelectContent,
@@ -41,8 +42,8 @@ function hexToOklchVar(hex?: string | null): string | undefined {
 }
 
 function DashboardLayout() {
-  const { role, profile, tenant } = useAuth();
-  const { data: companies } = useMyCompanies();
+  const { role, profile, tenant, isCliente } = useAuth();
+  const { data: companies, isLoading: companiesLoading } = useMyCompanies();
   const { company: companyParam } = Route.useSearch();
   const navigate = Route.useNavigate();
   const [selectedCompany, setSelectedCompany] = useState<string | null>(null);
@@ -63,10 +64,11 @@ function DashboardLayout() {
       setSelectedCompany(profile.company_id);
       return;
     }
-    if (companies && companies.length > 0) {
-      setSelectedCompany(companies[0].id);
-    }
-  }, [role, profile, companies, selectedCompany, companyParam]);
+    if (!companies || companies.length === 0) return;
+    // Cliente com várias empresas escolhe na tela inicial; com uma só, entra direto.
+    if (isCliente && companies.length > 1) return;
+    setSelectedCompany(companies[0].id);
+  }, [role, profile, companies, selectedCompany, companyParam, isCliente]);
 
   const setCompany = (id: string) => {
     setSelectedCompany(id);
@@ -79,9 +81,20 @@ function DashboardLayout() {
     [companies, selectedCompany],
   );
 
+  // Registra em auditoria qual empresa o usuário abriu.
+  useEffect(() => {
+    if (!company) return;
+    void registrarAcessoEmpresa({
+      data: { company_id: company.id, company_nome: company.name },
+    }).catch(() => {});
+  }, [company?.id]);
+
   const brandStyle = tenant?.primary_color
     ? ({ "--primary": tenant.primary_color, "--ring": tenant.primary_color, "--sidebar-primary": tenant.primary_color } as React.CSSProperties)
     : undefined;
+
+  const semEmpresas = !companiesLoading && (companies?.length ?? 0) === 0;
+  const precisaEscolher = !semEmpresas && !selectedCompany && (companies?.length ?? 0) > 1;
 
   return (
     <DashboardCompanyContext.Provider value={{ companyId: selectedCompany, company }}>
@@ -93,7 +106,7 @@ function DashboardLayout() {
         actions={
           <div className="flex items-center gap-2">
             <VisaoToggle />
-            {role !== "client" && companies && companies.length > 0 ? (
+            {companies && companies.length > 1 ? (
               <Select
                 value={selectedCompany ?? ""}
                 onValueChange={(v) => setCompany(v)}
@@ -113,11 +126,47 @@ function DashboardLayout() {
           </div>
         }
       >
-        <PeriodSync companyId={selectedCompany} />
-        <FilterBar />
-        <div className="p-3 sm:p-4">
-          <Outlet />
-        </div>
+        {semEmpresas ? (
+          <div className="flex min-h-[60vh] items-center justify-center p-6">
+            <div className="max-w-md rounded-lg border border-border bg-card p-8 text-center">
+              <h2 className="text-lg font-semibold tracking-tight">
+                Nenhuma empresa disponível
+              </h2>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Contate seu escritório contábil.
+              </p>
+            </div>
+          </div>
+        ) : precisaEscolher ? (
+          <div className="mx-auto max-w-3xl p-6">
+            <h2 className="text-xl font-semibold tracking-tight">Escolha a empresa</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Você tem acesso às empresas abaixo.
+            </p>
+            <div className="mt-6 grid gap-3 sm:grid-cols-2">
+              {companies!.map((c) => (
+                <button
+                  key={c.id}
+                  onClick={() => setCompany(c.id)}
+                  className="rounded-lg border border-border bg-card p-4 text-left transition-colors hover:border-primary hover:bg-accent/50"
+                >
+                  <div className="text-sm font-semibold">{c.name}</div>
+                  {c.cnpj && (
+                    <div className="mt-0.5 text-xs text-muted-foreground">CNPJ {c.cnpj}</div>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <>
+            <PeriodSync companyId={selectedCompany} />
+            <FilterBar />
+            <div className="p-3 sm:p-4">
+              <Outlet />
+            </div>
+          </>
+        )}
       </PortalShell>
       </div>
     </DashboardCompanyContext.Provider>

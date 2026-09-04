@@ -91,7 +91,7 @@ export function AppTopNav({
   title?: string;
   actions?: React.ReactNode;
 }) {
-  const { profile, tenant, signOut } = useAuth();
+  const { profile, tenant, signOut, isCliente } = useAuth();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -149,6 +149,12 @@ export function AppTopNav({
           </span>
         )}
 
+        {isCliente && (
+          <span className="hidden sm:inline rounded-full border border-border px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+            Área do cliente · somente leitura
+          </span>
+        )}
+
         {/* Right side (desktop) */}
         <div className="hidden md:flex items-center gap-2 ml-auto shrink-0">
           {actions}
@@ -160,7 +166,7 @@ export function AppTopNav({
             <span className="text-xs font-medium truncate max-w-[120px]">
               {profile?.full_name ?? "Usuário"}
             </span>
-            {(
+            {!isCliente && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button
@@ -257,7 +263,7 @@ export function AppTopNav({
               </Link>
             );
           })}
-          {(
+          {!isCliente && (
             <div className="border-t mt-2 pt-2">
               <div className="px-3 py-1 text-[10px] uppercase tracking-wider text-muted-foreground">
                 Configurações

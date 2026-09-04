@@ -4,6 +4,7 @@
 // anos são selecionados no filtro global. Cada coluna traz Orçado, Realizado
 // e Variação com semáforo, e permite drill-down por item nas contas do plano.
 import { createFileRoute } from "@tanstack/react-router";
+import { useAuth } from "@/hooks/use-auth";
 import { Fragment, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -246,6 +247,7 @@ interface Cell {
 }
 
 function OrcamentoAnalise() {
+  const { isCliente: somenteLeitura } = useAuth();
   const { companyId, company } = useDashboardCompany();
   const { years, months } = useFilters();
 
@@ -1146,7 +1148,7 @@ function OrcamentoAnalise() {
         )}
 
         <div className="ml-auto flex items-center gap-2">
-          {!editMode ? (
+          {somenteLeitura ? null : !editMode ? (
             <>
               <Button
                 size="sm"

@@ -33,6 +33,7 @@ const PAGE_SIZE = 25;
 const ACOES: Record<string, { label: string; tone: string }> = {
   login: { label: "Login", tone: "bg-emerald-500/10 text-emerald-600 border-emerald-500/30" },
   logout: { label: "Logout", tone: "bg-muted text-muted-foreground" },
+  acesso_empresa: { label: "Acesso à empresa", tone: "bg-sky-500/10 text-sky-600 border-sky-500/30" },
   exclusao: { label: "Exclusão", tone: "bg-destructive/10 text-destructive border-destructive/30" },
   vinculo_criado: { label: "Vínculo criado", tone: "bg-blue-500/10 text-blue-600 border-blue-500/30" },
   vinculo_removido: { label: "Vínculo removido", tone: "bg-amber-500/10 text-amber-600 border-amber-500/30" },

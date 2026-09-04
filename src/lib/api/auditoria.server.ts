@@ -3,6 +3,7 @@ import { getRequestHeader } from "@tanstack/react-start/server";
 export type AcaoLog =
   | "login"
   | "logout"
+  | "acesso_empresa"
   | "exclusao"
   | "vinculo_criado"
   | "vinculo_removido"

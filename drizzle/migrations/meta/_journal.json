@@ -1,0 +1,13 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1788513133142,
+      "tag": "0000_usuarios_segmentos_e_rls_cliente",
+      "breakpoints": true
+    }
+  ]
+}

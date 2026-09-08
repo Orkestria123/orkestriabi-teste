@@ -99,6 +99,97 @@ function linksSobre(html: string, base: string): string[] {
   return achados;
 }
 
+function montarPrompt(opts: { alvo: string; origem: string; nome: string; conteudo: string }) {
+  return `Abaixo está ${opts.origem}${opts.nome ? ` (${opts.nome})` : ""}.
+
+--- INÍCIO DO CONTEÚDO ---
+${opts.conteudo}
+--- FIM DO CONTEÚDO ---
+
+Escreva um perfil executivo do ${opts.alvo}, em português brasileiro, no estilo "Descrição da Empresa" de relatório executivo, em bullets objetivos, cobrindo apenas os tópicos que TÊM informação no conteúdo acima:
+- Descrição geral (o que faz)
+- Ramo/segmento de atuação
+- Localização (matriz/sede)
+- Tempo de mercado (ano de fundação)
+- Porte (funcionários, área, estrutura)
+- Produtos/serviços principais
+- Mercados/regiões atendidas
+- Pontos relevantes para análise
+
+REGRA ABSOLUTA: use SOMENTE informações presentes no conteúdo acima. Se um dado não estiver lá (fundação, número de funcionários, etc.), OMITA o tópico inteiro. Nunca estime, deduza ou invente. Não escreva frases como "não informado". Sem introdução, sem conclusão, sem markdown de títulos — apenas os bullets começando com "- ".`;
+}
+
+async function chamarIa(prompt: string) {
+  const apiKey = process.env.LOVABLE_API_KEY;
+  if (!apiKey) {
+    return { ok: false as const, erro: "Serviço de IA indisponível no momento. Preencha o perfil manualmente." };
+  }
+  try {
+    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({
+        model: "google/gemini-3.8-flash",
+        messages: [
+          {
+            role: "system",
+            content:
+              "Você redige perfis empresariais para relatórios executivos, usando exclusivamente os fatos fornecidos. Nunca inventa dados.",
+          },
+          { role: "user", content: prompt },
+        ],
+        temperature: 0.2,
+      }),
+    });
+    if (!res.ok) {
+      const txt = await res.text().catch(() => "");
+      console.error("[perfil-ia] gateway", res.status, txt);
+      if (res.status === 429)
+        return { ok: false as const, erro: "Muitas solicitações à IA agora. Tente de novo em alguns instantes." };
+      if (res.status === 402)
+        return { ok: false as const, erro: "Créditos de IA esgotados. Adicione créditos para continuar." };
+      return { ok: false as const, erro: "A IA não conseguiu gerar o perfil agora. Tente novamente ou preencha manualmente." };
+    }
+    const json = (await res.json()) as any;
+    const perfil = (json?.choices?.[0]?.message?.content ?? "").trim();
+    if (!perfil) return { ok: false as const, erro: "A IA não retornou conteúdo. Preencha o perfil manualmente." };
+    return { ok: true as const, perfil };
+  } catch (e) {
+    console.error("[perfil-ia] fetch", e);
+    return { ok: false as const, erro: "Falha ao falar com a IA. Tente novamente ou preencha manualmente." };
+  }
+}
+
+const TextoSchema = z.object({
+  texto: z.string().min(1),
+  tipo: z.enum(["empresa", "escritorio"]).default("empresa"),
+  nome: z.string().optional().default(""),
+});
+
+/** Gera o perfil a partir de um texto colado pelo admin (Instagram, Google, etc.). */
+export const gerarPerfilDeTexto = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => TextoSchema.parse(input))
+  .handler(async ({ data }) => {
+    const texto = data.texto.trim().slice(0, LIMITE_TEXTO);
+    if (texto.replace(/\s/g, "").length < 60) {
+      return {
+        ok: false as const,
+        erro: "Cole um pouco mais de informação (pelo menos algumas frases) para a IA montar o perfil.",
+      };
+    }
+    const alvo = data.tipo === "escritorio" ? "escritório contábil" : "empresa";
+    const r = await chamarIa(
+      montarPrompt({
+        alvo,
+        origem: "um texto sobre a organização, copiado de fontes como site, Instagram ou busca do Google",
+        nome: data.nome,
+        conteudo: texto,
+      }),
+    );
+    return r;
+  });
+
 export const gerarPerfilDoSite = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) => InputSchema.parse(input))

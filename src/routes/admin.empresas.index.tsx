@@ -36,7 +36,7 @@ interface FormEmpresa {
   // contato
   telefone: string; email: string; responsavel: string;
   // perfil
-  site: string; segmento_id: string; porte: string;
+  site: string; segmento_id: string; porte: string; perfil_ia: string;
 }
 
 const FORM_VAZIO: FormEmpresa = {

@@ -44,7 +44,7 @@ const FORM_VAZIO: FormEmpresa = {
   cep: "", logradouro: "", numero: "", complemento: "",
   bairro: "", municipio: "", uf: "",
   telefone: "", email: "", responsavel: "",
-  site: "", segmento_id: "", porte: "",
+  site: "", segmento_id: "", porte: "", perfil_ia: "",
 };
 
 const PORTES = ["MEI", "Micro", "Pequena", "Média", "Grande"];

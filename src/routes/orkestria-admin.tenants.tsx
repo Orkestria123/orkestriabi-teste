@@ -13,6 +13,7 @@ import {
 import { Plus, Pencil, Upload, Loader2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { createTenant, deleteTenant } from "@/lib/api/orkestria.functions";
+import { PerfilIaEditor } from "@/components/perfil-ia-editor";
 
 
 export const Route = createFileRoute("/orkestria-admin/tenants")({ component: Page });
@@ -25,6 +26,8 @@ interface TenantRow {
   primary_color: string;
   logo_url: string | null;
   created_at: string;
+  site: string | null;
+  perfil_ia: string | null;
 }
 
 function Page() {
@@ -179,7 +182,7 @@ function TenantRowItem({ t, onEdit, onDeleted }: { t: TenantRow; onEdit: () => v
       <td className="px-4 py-3 text-right">
         <div className="flex items-center justify-end gap-1">
           <Button size="sm" variant="ghost" onClick={onEdit}>
-            <Pencil className="h-3.5 w-3.5 mr-1" /> Branding
+            <Pencil className="h-3.5 w-3.5 mr-1" /> Editar
           </Button>
           <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:text-destructive" disabled={deleting} onClick={handleDelete}>
             <Trash2 className="h-4 w-4" />
@@ -202,10 +205,16 @@ function BrandingDialog({
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [nome, setNome] = useState("");
+  const [site, setSite] = useState("");
+  const [perfil, setPerfil] = useState("");
 
   useEffect(() => {
     if (!tenant) return;
     setColor(tenant.primary_color || "#6366F1");
+    setNome(tenant.name ?? "");
+    setSite(tenant.site ?? "");
+    setPerfil(tenant.perfil_ia ?? "");
     setFile(null);
     setPreview(null);
     if (tenant.logo_url) {
@@ -237,10 +246,16 @@ function BrandingDialog({
         if (upErr) throw upErr;
         logoPath = path;
       }
-      const update = { primary_color: color, ...(logoPath ? { logo_url: logoPath } : {}) };
+      const update = {
+        primary_color: color,
+        name: nome.trim() || tenant.name,
+        site: site.trim() || null,
+        perfil_ia: perfil.trim() || null,
+        ...(logoPath ? { logo_url: logoPath } : {}),
+      };
       const { error } = await supabase.from("tenants").update(update).eq("id", tenant.id);
       if (error) throw error;
-      toast.success("Branding atualizado");
+      toast.success("Escritório atualizado");
       onSaved();
     } catch (e: any) {
       toast.error(e.message || "Falha ao salvar");
@@ -251,9 +266,13 @@ function BrandingDialog({
 
   return (
     <Dialog open={!!tenant} onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent>
-        <DialogHeader><DialogTitle>Branding — {tenant?.name}</DialogTitle></DialogHeader>
+      <DialogContent className="max-h-[85vh] overflow-y-auto">
+        <DialogHeader><DialogTitle>Editar escritório — {tenant?.name}</DialogTitle></DialogHeader>
         <div className="space-y-4">
+          <div>
+            <Label>Nome</Label>
+            <Input value={nome} onChange={(e) => setNome(e.target.value)} className="mt-2" />
+          </div>
           <div>
             <Label>Logo</Label>
             <div className="mt-2 flex items-center gap-4">
@@ -282,6 +301,20 @@ function BrandingDialog({
               <Input type="color" value={color} onChange={(e) => setColor(e.target.value)} className="h-10 w-20 p-1" />
               <Input value={color} onChange={(e) => setColor(e.target.value)} className="flex-1 font-mono" />
             </div>
+          </div>
+          <div className="border-t pt-4 space-y-3">
+            <div>
+              <Label>Site</Label>
+              <Input value={site} onChange={(e) => setSite(e.target.value)} placeholder="www.escritorio.com.br" className="mt-2" />
+            </div>
+            <PerfilIaEditor
+              site={site}
+              nome={nome}
+              tipo="escritorio"
+              label="Perfil do escritório"
+              valor={perfil}
+              onChange={setPerfil}
+            />
           </div>
         </div>
         <DialogFooter>

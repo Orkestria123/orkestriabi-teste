@@ -21,6 +21,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { formatarCnpj, limparCnpj, erroCnpj } from "@/lib/cnpj";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { PerfilIaEditor } from "@/components/perfil-ia-editor";
 
 
 export const Route = createFileRoute("/admin/empresas/")({ component: Page });
@@ -36,7 +37,7 @@ interface FormEmpresa {
   // contato
   telefone: string; email: string; responsavel: string;
   // perfil
-  site: string; segmento_id: string; porte: string;
+  site: string; segmento_id: string; porte: string; perfil_ia: string;
 }
 
 const FORM_VAZIO: FormEmpresa = {
@@ -44,7 +45,7 @@ const FORM_VAZIO: FormEmpresa = {
   cep: "", logradouro: "", numero: "", complemento: "",
   bairro: "", municipio: "", uf: "",
   telefone: "", email: "", responsavel: "",
-  site: "", segmento_id: "", porte: "",
+  site: "", segmento_id: "", porte: "", perfil_ia: "",
 };
 
 const PORTES = ["MEI", "Micro", "Pequena", "Média", "Grande"];
@@ -89,6 +90,7 @@ function camposOpcionais(f: FormEmpresa) {
     uf: f.uf.trim() ? f.uf.trim().toUpperCase() : null,
     telefone: t(f.telefone), email: t(f.email), responsavel: t(f.responsavel),
     site: t(f.site), segmento_id: f.segmento_id || null, porte: t(f.porte),
+    perfil_ia: t(f.perfil_ia),
   };
 }
 
@@ -186,7 +188,7 @@ function EmpresaForm({
       </div>
       <Secao
         titulo="Perfil da empresa"
-        preenchidos={[valor.site, valor.segmento_id, valor.porte].filter((v) => v.trim()).length}
+        preenchidos={[valor.site, valor.segmento_id, valor.porte, valor.perfil_ia].filter((v) => v.trim()).length}
       >
         <div>
           <Label className="text-xs">Site</Label>
@@ -222,9 +224,14 @@ function EmpresaForm({
             </Select>
           </div>
         </div>
-        <p className="text-xs text-muted-foreground">
-          Logo e perfil da empresa serão configurados futuramente.
-        </p>
+        <PerfilIaEditor
+          site={valor.site}
+          nome={valor.name}
+          tipo="empresa"
+          label="Perfil da empresa"
+          valor={valor.perfil_ia}
+          onChange={(v) => onChange({ ...valor, perfil_ia: v })}
+        />
       </Secao>
 
       <Secao
@@ -426,6 +433,7 @@ function EditarEmpresaDialog({ empresa, onSaved }: { empresa: any; onSaved: () =
         site: empresa.site ?? "",
         segmento_id: empresa.segmento_id ?? "",
         porte: empresa.porte ?? "",
+        perfil_ia: empresa.perfil_ia ?? "",
       });
     }
     setOpen(v);

@@ -89,6 +89,7 @@ function camposOpcionais(f: FormEmpresa) {
     uf: f.uf.trim() ? f.uf.trim().toUpperCase() : null,
     telefone: t(f.telefone), email: t(f.email), responsavel: t(f.responsavel),
     site: t(f.site), segmento_id: f.segmento_id || null, porte: t(f.porte),
+    perfil_ia: t(f.perfil_ia),
   };
 }
 

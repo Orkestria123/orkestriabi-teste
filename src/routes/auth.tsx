@@ -178,6 +178,13 @@ function AuthPage() {
                 <Label htmlFor="pw">Senha</Label>
                 <Input id="pw" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} />
               </div>
+              {mode === "signin" && (
+                <div className="text-right">
+                  <Link to="/recuperar-senha" className="text-xs text-muted-foreground hover:underline">
+                    Esqueci minha senha
+                  </Link>
+                </div>
+              )}
               <Button type="submit" className="w-full" disabled={loading}>
                 {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : (
                   <>

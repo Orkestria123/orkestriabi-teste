@@ -84,6 +84,9 @@ export function MfaGate({ children }: { children: ReactNode }) {
     window.location.href = "/auth";
   };
 
+  // A tela de recuperação de senha nunca é bloqueada pela verificação em duas etapas.
+  if (emRecuperacao) return <>{children}</>;
+
   if (loading || checando) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">

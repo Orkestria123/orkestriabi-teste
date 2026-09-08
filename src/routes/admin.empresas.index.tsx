@@ -527,6 +527,7 @@ function Page() {
   const [search, setSearch] = useState("");
   const [form, setForm] = useState<FormEmpresa>(FORM_VAZIO);
   const [salvando, setSalvando] = useState(false);
+  const [pendentes, setPendentes] = useState<{ logo?: File | null; foto?: File | null }>({});
 
   // Preferência de visualização fica no navegador: é escolha de quem usa,
   // não configuração do escritório.
@@ -640,7 +641,9 @@ function Page() {
           <DialogContent>
             <DialogHeader><DialogTitle>Nova Empresa</DialogTitle></DialogHeader>
             <EmpresaForm valor={form} onChange={setForm} onSubmit={submit}
-              salvando={salvando} rotuloBotao="Criar" />
+              salvando={salvando} rotuloBotao="Criar"
+              empresaId={null} tenantId={profile?.tenant_id ?? null}
+              onPendente={(tipo, file) => setPendentes((p) => ({ ...p, [tipo]: file }))} />
           </DialogContent>
         </Dialog>
       }

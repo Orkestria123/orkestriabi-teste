@@ -301,6 +301,20 @@ function BrandingDialog({
               <Input value={color} onChange={(e) => setColor(e.target.value)} className="flex-1 font-mono" />
             </div>
           </div>
+          <div className="border-t pt-4 space-y-3">
+            <div>
+              <Label>Site</Label>
+              <Input value={site} onChange={(e) => setSite(e.target.value)} placeholder="www.escritorio.com.br" className="mt-2" />
+            </div>
+            <PerfilIaEditor
+              site={site}
+              nome={nome}
+              tipo="escritorio"
+              label="Perfil do escritório"
+              valor={perfil}
+              onChange={setPerfil}
+            />
+          </div>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancelar</Button>

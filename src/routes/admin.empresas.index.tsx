@@ -433,6 +433,7 @@ function EditarEmpresaDialog({ empresa, onSaved }: { empresa: any; onSaved: () =
         site: empresa.site ?? "",
         segmento_id: empresa.segmento_id ?? "",
         porte: empresa.porte ?? "",
+        perfil_ia: empresa.perfil_ia ?? "",
       });
     }
     setOpen(v);

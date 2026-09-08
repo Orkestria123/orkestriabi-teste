@@ -245,10 +245,16 @@ function BrandingDialog({
         if (upErr) throw upErr;
         logoPath = path;
       }
-      const update = { primary_color: color, ...(logoPath ? { logo_url: logoPath } : {}) };
+      const update = {
+        primary_color: color,
+        name: nome.trim() || tenant.name,
+        site: site.trim() || null,
+        perfil_ia: perfil.trim() || null,
+        ...(logoPath ? { logo_url: logoPath } : {}),
+      };
       const { error } = await supabase.from("tenants").update(update).eq("id", tenant.id);
       if (error) throw error;
-      toast.success("Branding atualizado");
+      toast.success("Escritório atualizado");
       onSaved();
     } catch (e: any) {
       toast.error(e.message || "Falha ao salvar");

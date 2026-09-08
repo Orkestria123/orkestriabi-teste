@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
+import { useRouterState } from "@tanstack/react-router";
 import { useAuth } from "@/hooks/use-auth";
 import { mfaStatus, mfaEnviarCodigo, mfaVerificarCodigo } from "@/lib/api/mfa.functions";
 import { supabase } from "@/integrations/supabase/client";
@@ -14,6 +15,8 @@ import { Loader2, ShieldCheck } from "lucide-react";
  */
 export function MfaGate({ children }: { children: ReactNode }) {
   const { loading, userId } = useAuth();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const emRecuperacao = pathname.startsWith("/recuperar-senha");
   const [checando, setChecando] = useState(true);
   const [precisa, setPrecisa] = useState(false);
   const [telefone, setTelefone] = useState<string | null>(null);
@@ -80,6 +83,9 @@ export function MfaGate({ children }: { children: ReactNode }) {
     await supabase.auth.signOut();
     window.location.href = "/auth";
   };
+
+  // A tela de recuperação de senha nunca é bloqueada pela verificação em duas etapas.
+  if (emRecuperacao) return <>{children}</>;
 
   if (loading || checando) {
     return (

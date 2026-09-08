@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as RecuperarSenhaRouteImport } from './routes/recuperar-senha'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as IndexRouteImport } from './routes/index'
@@ -37,6 +38,11 @@ import { Route as AdminComparativoRouteImport } from './routes/admin.comparativo
 import { Route as AdminEmpresasIndexRouteImport } from './routes/admin.empresas.index'
 import { Route as AdminEmpresasIdDadosRouteImport } from './routes/admin.empresas.$id.dados'
 
+const RecuperarSenhaRoute = RecuperarSenhaRouteImport.update({
+  id: '/recuperar-senha',
+  path: '/recuperar-senha',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DashboardRoute = DashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
@@ -177,6 +183,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/dashboard': typeof DashboardRouteWithChildren
+  '/recuperar-senha': typeof RecuperarSenhaRoute
   '/admin/comparativo': typeof AdminComparativoRoute
   '/admin/diagnostico': typeof AdminDiagnosticoRoute
   '/admin/empresas': typeof AdminEmpresasRouteWithChildren
@@ -205,6 +212,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/recuperar-senha': typeof RecuperarSenhaRoute
   '/admin/comparativo': typeof AdminComparativoRoute
   '/admin/diagnostico': typeof AdminDiagnosticoRoute
   '/admin/indicadores': typeof AdminIndicadoresRoute
@@ -234,6 +242,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/dashboard': typeof DashboardRouteWithChildren
+  '/recuperar-senha': typeof RecuperarSenhaRoute
   '/admin/comparativo': typeof AdminComparativoRoute
   '/admin/diagnostico': typeof AdminDiagnosticoRoute
   '/admin/empresas': typeof AdminEmpresasRouteWithChildren
@@ -265,6 +274,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/dashboard'
+    | '/recuperar-senha'
     | '/admin/comparativo'
     | '/admin/diagnostico'
     | '/admin/empresas'
@@ -293,6 +303,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/auth'
+    | '/recuperar-senha'
     | '/admin/comparativo'
     | '/admin/diagnostico'
     | '/admin/indicadores'
@@ -321,6 +332,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/dashboard'
+    | '/recuperar-senha'
     | '/admin/comparativo'
     | '/admin/diagnostico'
     | '/admin/empresas'
@@ -351,6 +363,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthRoute: typeof AuthRoute
   DashboardRoute: typeof DashboardRouteWithChildren
+  RecuperarSenhaRoute: typeof RecuperarSenhaRoute
   AdminComparativoRoute: typeof AdminComparativoRoute
   AdminDiagnosticoRoute: typeof AdminDiagnosticoRoute
   AdminEmpresasRoute: typeof AdminEmpresasRouteWithChildren
@@ -368,6 +381,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/recuperar-senha': {
+      id: '/recuperar-senha'
+      path: '/recuperar-senha'
+      fullPath: '/recuperar-senha'
+      preLoaderRoute: typeof RecuperarSenhaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/dashboard': {
       id: '/dashboard'
       path: '/dashboard'
@@ -606,6 +626,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthRoute: AuthRoute,
   DashboardRoute: DashboardRouteWithChildren,
+  RecuperarSenhaRoute: RecuperarSenhaRoute,
   AdminComparativoRoute: AdminComparativoRoute,
   AdminDiagnosticoRoute: AdminDiagnosticoRoute,
   AdminEmpresasRoute: AdminEmpresasRouteWithChildren,

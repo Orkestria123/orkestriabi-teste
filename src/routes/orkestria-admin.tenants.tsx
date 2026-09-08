@@ -204,10 +204,16 @@ function BrandingDialog({
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [nome, setNome] = useState("");
+  const [site, setSite] = useState("");
+  const [perfil, setPerfil] = useState("");
 
   useEffect(() => {
     if (!tenant) return;
     setColor(tenant.primary_color || "#6366F1");
+    setNome(tenant.name ?? "");
+    setSite(tenant.site ?? "");
+    setPerfil(tenant.perfil_ia ?? "");
     setFile(null);
     setPreview(null);
     if (tenant.logo_url) {

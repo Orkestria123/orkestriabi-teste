@@ -25,6 +25,8 @@ interface TenantRow {
   primary_color: string;
   logo_url: string | null;
   created_at: string;
+  site: string | null;
+  perfil_ia: string | null;
 }
 
 function Page() {

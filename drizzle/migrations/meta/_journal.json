@@ -15,6 +15,13 @@
       "when": 1788522787871,
       "tag": "0001_create_logs_auditoria",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1788886035566,
+      "tag": "0002_create_mfa_sessoes",
+      "breakpoints": true
     }
   ]
 }

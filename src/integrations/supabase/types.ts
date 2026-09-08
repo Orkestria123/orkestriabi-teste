@@ -1781,6 +1781,30 @@ export type Database = {
           },
         ]
       }
+      mfa_sessoes: {
+        Row: {
+          id: string
+          ip: string | null
+          session_id: string
+          user_id: string
+          verificado_em: string
+        }
+        Insert: {
+          id?: string
+          ip?: string | null
+          session_id: string
+          user_id: string
+          verificado_em?: string
+        }
+        Update: {
+          id?: string
+          ip?: string | null
+          session_id?: string
+          user_id?: string
+          verificado_em?: string
+        }
+        Relationships: []
+      }
       orcamento_cenario_valores: {
         Row: {
           cenario_id: string

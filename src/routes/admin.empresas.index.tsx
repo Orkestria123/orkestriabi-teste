@@ -21,6 +21,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { formatarCnpj, limparCnpj, erroCnpj } from "@/lib/cnpj";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { PerfilIaEditor } from "@/components/perfil-ia-editor";
 
 
 export const Route = createFileRoute("/admin/empresas/")({ component: Page });

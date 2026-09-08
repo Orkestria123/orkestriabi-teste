@@ -13,6 +13,7 @@ import {
 import { Plus, Pencil, Upload, Loader2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { createTenant, deleteTenant } from "@/lib/api/orkestria.functions";
+import { PerfilIaEditor } from "@/components/perfil-ia-editor";
 
 
 export const Route = createFileRoute("/orkestria-admin/tenants")({ component: Page });

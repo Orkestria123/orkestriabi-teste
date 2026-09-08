@@ -498,7 +498,8 @@ function EditarEmpresaDialog({ empresa, onSaved }: { empresa: any; onSaved: () =
       <DialogContent className="max-h-[85vh] overflow-y-auto">
         <DialogHeader><DialogTitle>Editar cadastro</DialogTitle></DialogHeader>
         <EmpresaForm valor={form} onChange={setForm} onSubmit={salvar}
-          salvando={salvando} rotuloBotao="Salvar" />
+          salvando={salvando} rotuloBotao="Salvar"
+          empresaId={empresa.id} tenantId={empresa.tenant_id} />
         {open && <UsuariosDaEmpresa companyId={empresa.id} />}
       </DialogContent>
     </Dialog>

@@ -581,16 +581,35 @@ function Page() {
     if (erro) return toast.error(erro);
     setSalvando(true);
     try {
-      const { error } = await supabase.from("companies").insert({
+      const { data: criada, error } = await supabase.from("companies").insert({
         name: form.name,
         regime_tributario: form.regime_tributario,
         tenant_id: profile.tenant_id,
         ...camposOpcionais(form),
-      });
+      }).select("id").single();
       if (error) throw error;
+
+      // As imagens escolhidas antes de existir o registro sobem agora.
+      const caminhos: Record<string, string> = {};
+      for (const tipo of ["logo", "foto"] as const) {
+        const file = pendentes[tipo];
+        if (!file || !criada) continue;
+        try {
+          caminhos[`${tipo}_url`] = await enviarImagemPerfil({
+            tenantId: profile.tenant_id, escopo: "empresa", id: criada.id, tipo, file,
+          });
+        } catch {
+          toast.error(`Empresa criada, mas a ${tipo} não pôde ser enviada. Envie na edição.`);
+        }
+      }
+      if (Object.keys(caminhos).length && criada) {
+        await supabase.from("companies").update(caminhos).eq("id", criada.id);
+      }
+
       toast.success("Empresa criada");
       setOpen(false);
       setForm(FORM_VAZIO);
+      setPendentes({});
       qc.invalidateQueries({ queryKey: ["companies"] });
     } catch (e: any) {
       toast.error(e.message);

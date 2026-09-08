@@ -252,6 +252,7 @@ export type Database = {
           created_at: string
           email: string | null
           fonte_dados: string
+          foto_url: string | null
           id: string
           logo_url: string | null
           logradouro: string | null
@@ -281,6 +282,7 @@ export type Database = {
           created_at?: string
           email?: string | null
           fonte_dados?: string
+          foto_url?: string | null
           id?: string
           logo_url?: string | null
           logradouro?: string | null
@@ -310,6 +312,7 @@ export type Database = {
           created_at?: string
           email?: string | null
           fonte_dados?: string
+          foto_url?: string | null
           id?: string
           logo_url?: string | null
           logradouro?: string | null
@@ -2750,6 +2753,7 @@ export type Database = {
         Row: {
           active: boolean
           created_at: string
+          foto_url: string | null
           id: string
           logo_url: string | null
           max_companies: number
@@ -2765,6 +2769,7 @@ export type Database = {
         Insert: {
           active?: boolean
           created_at?: string
+          foto_url?: string | null
           id?: string
           logo_url?: string | null
           max_companies?: number
@@ -2780,6 +2785,7 @@ export type Database = {
         Update: {
           active?: boolean
           created_at?: string
+          foto_url?: string | null
           id?: string
           logo_url?: string | null
           max_companies?: number

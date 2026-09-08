@@ -29,6 +29,13 @@
       "when": 1788892316118,
       "tag": "0003_add_perfil_ia_tenants",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1788894567693,
+      "tag": "0004_add_foto_url_e_bucket_perfil_imagens",
+      "breakpoints": true
     }
   ]
 }

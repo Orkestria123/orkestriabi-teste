@@ -14,6 +14,7 @@ import { Plus, Pencil, Upload, Loader2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { createTenant, deleteTenant } from "@/lib/api/orkestria.functions";
 import { PerfilIaEditor } from "@/components/perfil-ia-editor";
+import { PerfilImagens } from "@/components/perfil-imagens";
 
 
 export const Route = createFileRoute("/orkestria-admin/tenants")({ component: Page });
@@ -28,6 +29,7 @@ interface TenantRow {
   created_at: string;
   site: string | null;
   perfil_ia: string | null;
+  foto_url: string | null;
 }
 
 function Page() {
@@ -208,6 +210,7 @@ function BrandingDialog({
   const [nome, setNome] = useState("");
   const [site, setSite] = useState("");
   const [perfil, setPerfil] = useState("");
+  const [foto, setFoto] = useState<string | null>(null);
 
   useEffect(() => {
     if (!tenant) return;
@@ -215,6 +218,7 @@ function BrandingDialog({
     setNome(tenant.name ?? "");
     setSite(tenant.site ?? "");
     setPerfil(tenant.perfil_ia ?? "");
+    setFoto(tenant.foto_url ?? null);
     setFile(null);
     setPreview(null);
     if (tenant.logo_url) {
@@ -251,6 +255,7 @@ function BrandingDialog({
         name: nome.trim() || tenant.name,
         site: site.trim() || null,
         perfil_ia: perfil.trim() || null,
+        foto_url: foto,
         ...(logoPath ? { logo_url: logoPath } : {}),
       };
       const { error } = await supabase.from("tenants").update(update).eq("id", tenant.id);
@@ -314,6 +319,16 @@ function BrandingDialog({
               label="Perfil do escritório"
               valor={perfil}
               onChange={setPerfil}
+            />
+            <PerfilImagens
+              tenantId={tenant?.id ?? null}
+              escopo="escritorio"
+              id={tenant?.id ?? null}
+              site={site}
+              logoPath={null}
+              fotoPath={foto}
+              mostrarLogo={false}
+              onPathChange={(_tipo, path) => setFoto(path)}
             />
           </div>
         </div>

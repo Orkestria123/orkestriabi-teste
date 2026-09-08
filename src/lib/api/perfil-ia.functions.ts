@@ -234,3 +234,160 @@ export const gerarPerfilDoSite = createServerFn({ method: "POST" })
     if (!r.ok) return r;
     return { ...r, fonte: url };
   });
+
+// ---------------------------------------------------------------------------
+// Captura de LOGO e FOTO a partir do site. É uma conveniência: devolve
+// sugestões (imagem em base64) que o admin confirma ou troca por upload.
+// ---------------------------------------------------------------------------
+
+const ImagensSchema = z.object({ site: z.string().min(3) });
+
+const LIMITE_IMAGEM = 3 * 1024 * 1024;
+
+function absoluto(href: string, base: string): string | null {
+  try {
+    const u = new URL(href, base);
+    return u.protocol === "http:" || u.protocol === "https:" ? u.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
+function atributos(tag: string): Record<string, string> {
+  const out: Record<string, string> = {};
+  const re = /([a-zA-Z:-]+)\s*=\s*["']([^"']*)["']/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(tag))) out[m[1].toLowerCase()] = m[2];
+  return out;
+}
+
+function pontuarFormato(url: string): number {
+  const u = url.toLowerCase();
+  if (u.includes(".svg")) return 3;
+  if (u.includes(".png") || u.includes(".webp")) return 2;
+  if (u.includes(".jpg") || u.includes(".jpeg")) return 1;
+  return 0;
+}
+
+/** Candidatas a logo, da mais provável para a menos. */
+function candidatasLogo(html: string, base: string): string[] {
+  const cands: { url: string; peso: number }[] = [];
+  const push = (href: string | undefined, peso: number) => {
+    if (!href) return;
+    const abs = absoluto(href, base);
+    if (abs) cands.push({ url: abs, peso: peso + pontuarFormato(abs) });
+  };
+
+  for (const m of html.matchAll(/<link[^>]+>/gi)) {
+    const a = atributos(m[0]);
+    const rel = (a["rel"] ?? "").toLowerCase();
+    if (!rel.includes("icon")) continue;
+    const tamanho = Number((a["sizes"] ?? "").split("x")[0]) || 0;
+    push(a["href"], rel.includes("apple-touch") ? 14 : 10 + Math.min(tamanho / 64, 6));
+  }
+
+  for (const m of html.matchAll(/<img[^>]+>/gi)) {
+    const a = atributos(m[0]);
+    const alvo = `${a["src"] ?? ""} ${a["alt"] ?? ""} ${a["class"] ?? ""} ${a["id"] ?? ""}`.toLowerCase();
+    if (/logo|brand|marca/.test(alvo)) push(a["src"], 20);
+  }
+
+  push(absoluto("/favicon.ico", base) ?? undefined, 1);
+
+  const vistos = new Set<string>();
+  return cands
+    .sort((a, b) => b.peso - a.peso)
+    .map((c) => c.url)
+    .filter((u) => (vistos.has(u) ? false : (vistos.add(u), true)))
+    .slice(0, 6);
+}
+
+/** Candidatas a foto de capa: og:image primeiro, depois imagens de conteúdo. */
+function candidatasFoto(html: string, base: string): string[] {
+  const cands: { url: string; peso: number }[] = [];
+  const push = (href: string | undefined, peso: number) => {
+    if (!href) return;
+    const abs = absoluto(href, base);
+    if (abs) cands.push({ url: abs, peso });
+  };
+
+  for (const m of html.matchAll(/<meta[^>]+>/gi)) {
+    const a = atributos(m[0]);
+    const chave = (a["property"] ?? a["name"] ?? "").toLowerCase();
+    if (chave === "og:image" || chave === "og:image:secure_url") push(a["content"], 30);
+    if (chave === "twitter:image") push(a["content"], 25);
+  }
+
+  for (const m of html.matchAll(/<img[^>]+>/gi)) {
+    const a = atributos(m[0]);
+    const alvo = `${a["src"] ?? ""} ${a["alt"] ?? ""} ${a["class"] ?? ""}`.toLowerCase();
+    if (/logo|icon|sprite|avatar|pixel|banner-ads/.test(alvo)) continue;
+    const largura = Number(a["width"]) || 0;
+    push(a["src"], 5 + Math.min(largura / 200, 10));
+  }
+
+  const vistos = new Set<string>();
+  return cands
+    .sort((a, b) => b.peso - a.peso)
+    .map((c) => c.url)
+    .filter((u) => (vistos.has(u) ? false : (vistos.add(u), true)))
+    .slice(0, 6);
+}
+
+async function baixarImagem(url: string): Promise<{ dataUrl: string; origem: string } | null> {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), 10000);
+  try {
+    const res = await fetch(url, {
+      signal: ctrl.signal,
+      redirect: "follow",
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; OrkestriaBI/1.0; +perfil)" },
+    });
+    if (!res.ok) return null;
+    const tipo = (res.headers.get("content-type") ?? "").split(";")[0].trim();
+    if (!tipo.startsWith("image/")) return null;
+    const buf = await res.arrayBuffer();
+    if (buf.byteLength === 0 || buf.byteLength > LIMITE_IMAGEM) return null;
+    const bytes = new Uint8Array(buf);
+    let bin = "";
+    for (let i = 0; i < bytes.length; i += 8192) {
+      bin += String.fromCharCode(...bytes.subarray(i, i + 8192));
+    }
+    return { dataUrl: `data:${tipo};base64,${btoa(bin)}`, origem: url };
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(t);
+  }
+}
+
+async function primeiraQueBaixa(urls: string[]) {
+  for (const u of urls) {
+    const r = await baixarImagem(u);
+    if (r) return r;
+  }
+  return null;
+}
+
+export const capturarImagensDoSite = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => ImagensSchema.parse(input))
+  .handler(async ({ data }) => {
+    const url = normalizarUrl(data.site);
+    if (!url) return { ok: false as const, erro: "Endereço de site inválido. Confira e tente novamente." };
+
+    const html = await baixar(url);
+    if (!html) {
+      return { ok: false as const, erro: "Não foi possível ler o site. Envie as imagens manualmente." };
+    }
+
+    const [logo, foto] = await Promise.all([
+      primeiraQueBaixa(candidatasLogo(html, url)),
+      primeiraQueBaixa(candidatasFoto(html, url)),
+    ]);
+
+    if (!logo && !foto) {
+      return { ok: false as const, erro: "Nenhuma imagem utilizável foi encontrada no site. Envie manualmente." };
+    }
+    return { ok: true as const, logo, foto };
+  });

@@ -22,6 +22,8 @@ import { Badge } from "@/components/ui/badge";
 import { formatarCnpj, limparCnpj, erroCnpj } from "@/lib/cnpj";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { PerfilIaEditor } from "@/components/perfil-ia-editor";
+import { PerfilImagens } from "@/components/perfil-imagens";
+import { enviarImagemPerfil } from "@/lib/perfil-imagens";
 
 
 export const Route = createFileRoute("/admin/empresas/")({ component: Page });
@@ -38,6 +40,7 @@ interface FormEmpresa {
   telefone: string; email: string; responsavel: string;
   // perfil
   site: string; segmento_id: string; porte: string; perfil_ia: string;
+  logo_url: string | null; foto_url: string | null;
 }
 
 const FORM_VAZIO: FormEmpresa = {
@@ -46,6 +49,7 @@ const FORM_VAZIO: FormEmpresa = {
   bairro: "", municipio: "", uf: "",
   telefone: "", email: "", responsavel: "",
   site: "", segmento_id: "", porte: "", perfil_ia: "",
+  logo_url: null, foto_url: null,
 };
 
 const PORTES = ["MEI", "Micro", "Pequena", "Média", "Grande"];
@@ -91,6 +95,7 @@ function camposOpcionais(f: FormEmpresa) {
     telefone: t(f.telefone), email: t(f.email), responsavel: t(f.responsavel),
     site: t(f.site), segmento_id: f.segmento_id || null, porte: t(f.porte),
     perfil_ia: t(f.perfil_ia),
+    logo_url: f.logo_url, foto_url: f.foto_url,
   };
 }
 
@@ -129,13 +134,16 @@ function Secao({
  * fiscais depois.
  */
 function EmpresaForm({
-  valor, onChange, onSubmit, salvando, rotuloBotao,
+  valor, onChange, onSubmit, salvando, rotuloBotao, empresaId, tenantId, onPendente,
 }: {
   valor: FormEmpresa;
   onChange: (v: FormEmpresa) => void;
   onSubmit: (e: React.FormEvent) => void;
   salvando: boolean;
   rotuloBotao: string;
+  empresaId?: string | null;
+  tenantId?: string | null;
+  onPendente?: (tipo: "logo" | "foto", file: File | null) => void;
 }) {
   const erro = erroCnpj(valor.cnpj) ?? erroSite(valor.site);
   const { data: segmentos } = useQuery({
@@ -231,6 +239,17 @@ function EmpresaForm({
           label="Perfil da empresa"
           valor={valor.perfil_ia}
           onChange={(v) => onChange({ ...valor, perfil_ia: v })}
+        />
+        <PerfilImagens
+          tenantId={tenantId ?? null}
+          escopo="empresa"
+          id={empresaId ?? null}
+          site={valor.site}
+          logoPath={valor.logo_url}
+          fotoPath={valor.foto_url}
+          onPathChange={(tipo, path) =>
+            onChange({ ...valor, ...(tipo === "logo" ? { logo_url: path } : { foto_url: path }) })}
+          onPendenteChange={onPendente}
         />
       </Secao>
 
@@ -434,6 +453,8 @@ function EditarEmpresaDialog({ empresa, onSaved }: { empresa: any; onSaved: () =
         segmento_id: empresa.segmento_id ?? "",
         porte: empresa.porte ?? "",
         perfil_ia: empresa.perfil_ia ?? "",
+        logo_url: empresa.logo_url ?? null,
+        foto_url: empresa.foto_url ?? null,
       });
     }
     setOpen(v);
@@ -477,7 +498,8 @@ function EditarEmpresaDialog({ empresa, onSaved }: { empresa: any; onSaved: () =
       <DialogContent className="max-h-[85vh] overflow-y-auto">
         <DialogHeader><DialogTitle>Editar cadastro</DialogTitle></DialogHeader>
         <EmpresaForm valor={form} onChange={setForm} onSubmit={salvar}
-          salvando={salvando} rotuloBotao="Salvar" />
+          salvando={salvando} rotuloBotao="Salvar"
+          empresaId={empresa.id} tenantId={empresa.tenant_id} />
         {open && <UsuariosDaEmpresa companyId={empresa.id} />}
       </DialogContent>
     </Dialog>
@@ -505,6 +527,7 @@ function Page() {
   const [search, setSearch] = useState("");
   const [form, setForm] = useState<FormEmpresa>(FORM_VAZIO);
   const [salvando, setSalvando] = useState(false);
+  const [pendentes, setPendentes] = useState<{ logo?: File | null; foto?: File | null }>({});
 
   // Preferência de visualização fica no navegador: é escolha de quem usa,
   // não configuração do escritório.
@@ -559,16 +582,36 @@ function Page() {
     if (erro) return toast.error(erro);
     setSalvando(true);
     try {
-      const { error } = await supabase.from("companies").insert({
+      const { data: criada, error } = await supabase.from("companies").insert({
         name: form.name,
         regime_tributario: form.regime_tributario,
         tenant_id: profile.tenant_id,
         ...camposOpcionais(form),
-      });
+      }).select("id").single();
       if (error) throw error;
+
+      // As imagens escolhidas antes de existir o registro sobem agora.
+      const caminhos: { logo_url?: string; foto_url?: string } = {};
+      for (const tipo of ["logo", "foto"] as const) {
+        const file = pendentes[tipo];
+        if (!file || !criada) continue;
+        try {
+          const caminho = await enviarImagemPerfil({
+            tenantId: profile.tenant_id, escopo: "empresa", id: criada.id, tipo, file,
+          });
+          if (tipo === "logo") caminhos.logo_url = caminho; else caminhos.foto_url = caminho;
+        } catch {
+          toast.error(`Empresa criada, mas a ${tipo} não pôde ser enviada. Envie na edição.`);
+        }
+      }
+      if (Object.keys(caminhos).length && criada) {
+        await supabase.from("companies").update(caminhos).eq("id", criada.id);
+      }
+
       toast.success("Empresa criada");
       setOpen(false);
       setForm(FORM_VAZIO);
+      setPendentes({});
       qc.invalidateQueries({ queryKey: ["companies"] });
     } catch (e: any) {
       toast.error(e.message);
@@ -599,7 +642,9 @@ function Page() {
           <DialogContent>
             <DialogHeader><DialogTitle>Nova Empresa</DialogTitle></DialogHeader>
             <EmpresaForm valor={form} onChange={setForm} onSubmit={submit}
-              salvando={salvando} rotuloBotao="Criar" />
+              salvando={salvando} rotuloBotao="Criar"
+              empresaId={null} tenantId={profile?.tenant_id ?? null}
+              onPendente={(tipo, file) => setPendentes((p) => ({ ...p, [tipo]: file }))} />
           </DialogContent>
         </Dialog>
       }

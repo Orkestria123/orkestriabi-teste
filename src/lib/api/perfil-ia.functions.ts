@@ -233,8 +233,4 @@ export const gerarPerfilDoSite = createServerFn({ method: "POST" })
     );
     if (!r.ok) return r;
     return { ...r, fonte: url };
-    } catch (e) {
-      console.error("[perfil-ia] fetch", e);
-      return { ok: false as const, erro: "Falha ao falar com a IA. Tente novamente ou preencha manualmente." };
-    }
   });

@@ -223,9 +223,14 @@ function EmpresaForm({
             </Select>
           </div>
         </div>
-        <p className="text-xs text-muted-foreground">
-          Logo e perfil da empresa serão configurados futuramente.
-        </p>
+        <PerfilIaEditor
+          site={valor.site}
+          nome={valor.name}
+          tipo="empresa"
+          label="Perfil da empresa"
+          valor={valor.perfil_ia}
+          onChange={(v) => onChange({ ...valor, perfil_ia: v })}
+        />
       </Secao>
 
       <Secao

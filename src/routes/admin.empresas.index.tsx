@@ -22,6 +22,8 @@ import { Badge } from "@/components/ui/badge";
 import { formatarCnpj, limparCnpj, erroCnpj } from "@/lib/cnpj";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { PerfilIaEditor } from "@/components/perfil-ia-editor";
+import { PerfilImagens } from "@/components/perfil-imagens";
+import { enviarImagemPerfil } from "@/lib/perfil-imagens";
 
 
 export const Route = createFileRoute("/admin/empresas/")({ component: Page });
@@ -38,6 +40,7 @@ interface FormEmpresa {
   telefone: string; email: string; responsavel: string;
   // perfil
   site: string; segmento_id: string; porte: string; perfil_ia: string;
+  logo_url: string | null; foto_url: string | null;
 }
 
 const FORM_VAZIO: FormEmpresa = {
@@ -46,6 +49,7 @@ const FORM_VAZIO: FormEmpresa = {
   bairro: "", municipio: "", uf: "",
   telefone: "", email: "", responsavel: "",
   site: "", segmento_id: "", porte: "", perfil_ia: "",
+  logo_url: null, foto_url: null,
 };
 
 const PORTES = ["MEI", "Micro", "Pequena", "Média", "Grande"];
@@ -91,6 +95,7 @@ function camposOpcionais(f: FormEmpresa) {
     telefone: t(f.telefone), email: t(f.email), responsavel: t(f.responsavel),
     site: t(f.site), segmento_id: f.segmento_id || null, porte: t(f.porte),
     perfil_ia: t(f.perfil_ia),
+    logo_url: f.logo_url, foto_url: f.foto_url,
   };
 }
 
@@ -129,13 +134,16 @@ function Secao({
  * fiscais depois.
  */
 function EmpresaForm({
-  valor, onChange, onSubmit, salvando, rotuloBotao,
+  valor, onChange, onSubmit, salvando, rotuloBotao, empresaId, tenantId, onPendente,
 }: {
   valor: FormEmpresa;
   onChange: (v: FormEmpresa) => void;
   onSubmit: (e: React.FormEvent) => void;
   salvando: boolean;
   rotuloBotao: string;
+  empresaId?: string | null;
+  tenantId?: string | null;
+  onPendente?: (tipo: "logo" | "foto", file: File | null) => void;
 }) {
   const erro = erroCnpj(valor.cnpj) ?? erroSite(valor.site);
   const { data: segmentos } = useQuery({
@@ -231,6 +239,17 @@ function EmpresaForm({
           label="Perfil da empresa"
           valor={valor.perfil_ia}
           onChange={(v) => onChange({ ...valor, perfil_ia: v })}
+        />
+        <PerfilImagens
+          tenantId={tenantId ?? null}
+          escopo="empresa"
+          id={empresaId ?? null}
+          site={valor.site}
+          logoPath={valor.logo_url}
+          fotoPath={valor.foto_url}
+          onPathChange={(tipo, path) =>
+            onChange({ ...valor, ...(tipo === "logo" ? { logo_url: path } : { foto_url: path }) })}
+          onPendenteChange={onPendente}
         />
       </Secao>
 
@@ -434,6 +453,8 @@ function EditarEmpresaDialog({ empresa, onSaved }: { empresa: any; onSaved: () =
         segmento_id: empresa.segmento_id ?? "",
         porte: empresa.porte ?? "",
         perfil_ia: empresa.perfil_ia ?? "",
+        logo_url: empresa.logo_url ?? null,
+        foto_url: empresa.foto_url ?? null,
       });
     }
     setOpen(v);

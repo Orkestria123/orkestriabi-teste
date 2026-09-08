@@ -265,9 +265,13 @@ function BrandingDialog({
 
   return (
     <Dialog open={!!tenant} onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent>
-        <DialogHeader><DialogTitle>Branding — {tenant?.name}</DialogTitle></DialogHeader>
+      <DialogContent className="max-h-[85vh] overflow-y-auto">
+        <DialogHeader><DialogTitle>Editar escritório — {tenant?.name}</DialogTitle></DialogHeader>
         <div className="space-y-4">
+          <div>
+            <Label>Nome</Label>
+            <Input value={nome} onChange={(e) => setNome(e.target.value)} className="mt-2" />
+          </div>
           <div>
             <Label>Logo</Label>
             <div className="mt-2 flex items-center gap-4">

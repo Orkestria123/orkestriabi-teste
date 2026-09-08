@@ -2755,9 +2755,11 @@ export type Database = {
           max_companies: number
           max_users: number
           name: string
+          perfil_ia: string | null
           plan: string
           plano_contas_modo: string
           primary_color: string
+          site: string | null
           slug: string
         }
         Insert: {
@@ -2768,9 +2770,11 @@ export type Database = {
           max_companies?: number
           max_users?: number
           name: string
+          perfil_ia?: string | null
           plan?: string
           plano_contas_modo?: string
           primary_color?: string
+          site?: string | null
           slug: string
         }
         Update: {
@@ -2781,9 +2785,11 @@ export type Database = {
           max_companies?: number
           max_users?: number
           name?: string
+          perfil_ia?: string | null
           plan?: string
           plano_contas_modo?: string
           primary_color?: string
+          site?: string | null
           slug?: string
         }
         Relationships: []

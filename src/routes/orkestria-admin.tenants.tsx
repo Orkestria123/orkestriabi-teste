@@ -182,7 +182,7 @@ function TenantRowItem({ t, onEdit, onDeleted }: { t: TenantRow; onEdit: () => v
       <td className="px-4 py-3 text-right">
         <div className="flex items-center justify-end gap-1">
           <Button size="sm" variant="ghost" onClick={onEdit}>
-            <Pencil className="h-3.5 w-3.5 mr-1" /> Branding
+            <Pencil className="h-3.5 w-3.5 mr-1" /> Editar
           </Button>
           <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:text-destructive" disabled={deleting} onClick={handleDelete}>
             <Trash2 className="h-4 w-4" />

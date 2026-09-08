@@ -591,14 +591,15 @@ function Page() {
       if (error) throw error;
 
       // As imagens escolhidas antes de existir o registro sobem agora.
-      const caminhos: Record<string, string> = {};
+      const caminhos: { logo_url?: string; foto_url?: string } = {};
       for (const tipo of ["logo", "foto"] as const) {
         const file = pendentes[tipo];
         if (!file || !criada) continue;
         try {
-          caminhos[`${tipo}_url`] = await enviarImagemPerfil({
+          const caminho = await enviarImagemPerfil({
             tenantId: profile.tenant_id, escopo: "empresa", id: criada.id, tipo, file,
           });
+          if (tipo === "logo") caminhos.logo_url = caminho; else caminhos.foto_url = caminho;
         } catch {
           toast.error(`Empresa criada, mas a ${tipo} não pôde ser enviada. Envie na edição.`);
         }

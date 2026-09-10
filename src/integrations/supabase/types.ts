@@ -2992,6 +2992,10 @@ export type Database = {
         }
         Returns: Json
       }
+      depara_carregar_origem: {
+        Args: { _company_id: string; _contas: Json }
+        Returns: Json
+      }
       depara_pendencias: {
         Args: { _company_id: string; _limite?: number }
         Returns: {

@@ -202,7 +202,7 @@ function EmpresaForm({
       </div>
       <Secao
         titulo="Perfil da empresa"
-        preenchidos={[valor.site, valor.segmento_id, valor.porte, valor.perfil_ia].filter((v) => v.trim()).length}
+        preenchidos={[valor.site, valor.segmento_id, valor.grupo_id, valor.porte, valor.perfil_ia].filter((v) => v.trim()).length}
       >
         <div>
           <Label className="text-xs">Site</Label>

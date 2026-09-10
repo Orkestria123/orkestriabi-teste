@@ -3408,6 +3408,7 @@ export type Database = {
         }
         Returns: Json
       }
+      saude_ocupacao: { Args: { _tenant_id: string }; Returns: Json }
       semear_dfc_padrao: { Args: { _tenant_id?: string }; Returns: Json }
       semear_indicadores_globais: {
         Args: { _substituir?: boolean; _tenant_id: string }

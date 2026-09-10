@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as RecuperarSenhaRouteImport } from './routes/recuperar-senha'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as IndexRouteImport } from './routes/index'
@@ -27,8 +28,10 @@ import { Route as DashboardAnaliseRouteImport } from './routes/dashboard.analise
 import { Route as AdminUsuariosRouteImport } from './routes/admin.usuarios'
 import { Route as AdminUploadRouteImport } from './routes/admin.upload'
 import { Route as AdminSistemasRouteImport } from './routes/admin.sistemas'
+import { Route as AdminSegmentosRouteImport } from './routes/admin.segmentos'
 import { Route as AdminSaudeRouteImport } from './routes/admin.saude'
 import { Route as AdminPlanoPadraoRouteImport } from './routes/admin.plano-padrao'
+import { Route as AdminLogsRouteImport } from './routes/admin.logs'
 import { Route as AdminIndicadoresRouteImport } from './routes/admin.indicadores'
 import { Route as AdminEmpresasRouteImport } from './routes/admin.empresas'
 import { Route as AdminDiagnosticoRouteImport } from './routes/admin.diagnostico'
@@ -36,6 +39,11 @@ import { Route as AdminComparativoRouteImport } from './routes/admin.comparativo
 import { Route as AdminEmpresasIndexRouteImport } from './routes/admin.empresas.index'
 import { Route as AdminEmpresasIdDadosRouteImport } from './routes/admin.empresas.$id.dados'
 
+const RecuperarSenhaRoute = RecuperarSenhaRouteImport.update({
+  id: '/recuperar-senha',
+  path: '/recuperar-senha',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DashboardRoute = DashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
@@ -126,6 +134,11 @@ const AdminSistemasRoute = AdminSistemasRouteImport.update({
   path: '/admin/sistemas',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminSegmentosRoute = AdminSegmentosRouteImport.update({
+  id: '/admin/segmentos',
+  path: '/admin/segmentos',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminSaudeRoute = AdminSaudeRouteImport.update({
   id: '/admin/saude',
   path: '/admin/saude',
@@ -134,6 +147,11 @@ const AdminSaudeRoute = AdminSaudeRouteImport.update({
 const AdminPlanoPadraoRoute = AdminPlanoPadraoRouteImport.update({
   id: '/admin/plano-padrao',
   path: '/admin/plano-padrao',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminLogsRoute = AdminLogsRouteImport.update({
+  id: '/admin/logs',
+  path: '/admin/logs',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminIndicadoresRoute = AdminIndicadoresRouteImport.update({
@@ -171,12 +189,15 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/dashboard': typeof DashboardRouteWithChildren
+  '/recuperar-senha': typeof RecuperarSenhaRoute
   '/admin/comparativo': typeof AdminComparativoRoute
   '/admin/diagnostico': typeof AdminDiagnosticoRoute
   '/admin/empresas': typeof AdminEmpresasRouteWithChildren
   '/admin/indicadores': typeof AdminIndicadoresRoute
+  '/admin/logs': typeof AdminLogsRoute
   '/admin/plano-padrao': typeof AdminPlanoPadraoRoute
   '/admin/saude': typeof AdminSaudeRoute
+  '/admin/segmentos': typeof AdminSegmentosRoute
   '/admin/sistemas': typeof AdminSistemasRoute
   '/admin/upload': typeof AdminUploadRoute
   '/admin/usuarios': typeof AdminUsuariosRoute
@@ -198,11 +219,14 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/recuperar-senha': typeof RecuperarSenhaRoute
   '/admin/comparativo': typeof AdminComparativoRoute
   '/admin/diagnostico': typeof AdminDiagnosticoRoute
   '/admin/indicadores': typeof AdminIndicadoresRoute
+  '/admin/logs': typeof AdminLogsRoute
   '/admin/plano-padrao': typeof AdminPlanoPadraoRoute
   '/admin/saude': typeof AdminSaudeRoute
+  '/admin/segmentos': typeof AdminSegmentosRoute
   '/admin/sistemas': typeof AdminSistemasRoute
   '/admin/upload': typeof AdminUploadRoute
   '/admin/usuarios': typeof AdminUsuariosRoute
@@ -226,12 +250,15 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/dashboard': typeof DashboardRouteWithChildren
+  '/recuperar-senha': typeof RecuperarSenhaRoute
   '/admin/comparativo': typeof AdminComparativoRoute
   '/admin/diagnostico': typeof AdminDiagnosticoRoute
   '/admin/empresas': typeof AdminEmpresasRouteWithChildren
   '/admin/indicadores': typeof AdminIndicadoresRoute
+  '/admin/logs': typeof AdminLogsRoute
   '/admin/plano-padrao': typeof AdminPlanoPadraoRoute
   '/admin/saude': typeof AdminSaudeRoute
+  '/admin/segmentos': typeof AdminSegmentosRoute
   '/admin/sistemas': typeof AdminSistemasRoute
   '/admin/upload': typeof AdminUploadRoute
   '/admin/usuarios': typeof AdminUsuariosRoute
@@ -256,12 +283,15 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/dashboard'
+    | '/recuperar-senha'
     | '/admin/comparativo'
     | '/admin/diagnostico'
     | '/admin/empresas'
     | '/admin/indicadores'
+    | '/admin/logs'
     | '/admin/plano-padrao'
     | '/admin/saude'
+    | '/admin/segmentos'
     | '/admin/sistemas'
     | '/admin/upload'
     | '/admin/usuarios'
@@ -283,11 +313,14 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/auth'
+    | '/recuperar-senha'
     | '/admin/comparativo'
     | '/admin/diagnostico'
     | '/admin/indicadores'
+    | '/admin/logs'
     | '/admin/plano-padrao'
     | '/admin/saude'
+    | '/admin/segmentos'
     | '/admin/sistemas'
     | '/admin/upload'
     | '/admin/usuarios'
@@ -310,12 +343,15 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/dashboard'
+    | '/recuperar-senha'
     | '/admin/comparativo'
     | '/admin/diagnostico'
     | '/admin/empresas'
     | '/admin/indicadores'
+    | '/admin/logs'
     | '/admin/plano-padrao'
     | '/admin/saude'
+    | '/admin/segmentos'
     | '/admin/sistemas'
     | '/admin/upload'
     | '/admin/usuarios'
@@ -339,12 +375,15 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthRoute: typeof AuthRoute
   DashboardRoute: typeof DashboardRouteWithChildren
+  RecuperarSenhaRoute: typeof RecuperarSenhaRoute
   AdminComparativoRoute: typeof AdminComparativoRoute
   AdminDiagnosticoRoute: typeof AdminDiagnosticoRoute
   AdminEmpresasRoute: typeof AdminEmpresasRouteWithChildren
   AdminIndicadoresRoute: typeof AdminIndicadoresRoute
+  AdminLogsRoute: typeof AdminLogsRoute
   AdminPlanoPadraoRoute: typeof AdminPlanoPadraoRoute
   AdminSaudeRoute: typeof AdminSaudeRoute
+  AdminSegmentosRoute: typeof AdminSegmentosRoute
   AdminSistemasRoute: typeof AdminSistemasRoute
   AdminUploadRoute: typeof AdminUploadRoute
   AdminUsuariosRoute: typeof AdminUsuariosRoute
@@ -355,6 +394,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/recuperar-senha': {
+      id: '/recuperar-senha'
+      path: '/recuperar-senha'
+      fullPath: '/recuperar-senha'
+      preLoaderRoute: typeof RecuperarSenhaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/dashboard': {
       id: '/dashboard'
       path: '/dashboard'
@@ -481,6 +527,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminSistemasRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/segmentos': {
+      id: '/admin/segmentos'
+      path: '/admin/segmentos'
+      fullPath: '/admin/segmentos'
+      preLoaderRoute: typeof AdminSegmentosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/saude': {
       id: '/admin/saude'
       path: '/admin/saude'
@@ -493,6 +546,13 @@ declare module '@tanstack/react-router' {
       path: '/admin/plano-padrao'
       fullPath: '/admin/plano-padrao'
       preLoaderRoute: typeof AdminPlanoPadraoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/logs': {
+      id: '/admin/logs'
+      path: '/admin/logs'
+      fullPath: '/admin/logs'
+      preLoaderRoute: typeof AdminLogsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/indicadores': {
@@ -586,12 +646,15 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthRoute: AuthRoute,
   DashboardRoute: DashboardRouteWithChildren,
+  RecuperarSenhaRoute: RecuperarSenhaRoute,
   AdminComparativoRoute: AdminComparativoRoute,
   AdminDiagnosticoRoute: AdminDiagnosticoRoute,
   AdminEmpresasRoute: AdminEmpresasRouteWithChildren,
   AdminIndicadoresRoute: AdminIndicadoresRoute,
+  AdminLogsRoute: AdminLogsRoute,
   AdminPlanoPadraoRoute: AdminPlanoPadraoRoute,
   AdminSaudeRoute: AdminSaudeRoute,
+  AdminSegmentosRoute: AdminSegmentosRoute,
   AdminSistemasRoute: AdminSistemasRoute,
   AdminUploadRoute: AdminUploadRoute,
   AdminUsuariosRoute: AdminUsuariosRoute,

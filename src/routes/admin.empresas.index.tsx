@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { PortalShell } from "@/components/portal-shell";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -13,12 +13,17 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Plus, Search, BarChart3, ArrowRight, Trash2, Database, Pencil, Loader2, ChevronDown } from "lucide-react";
+import { Plus, Search, BarChart3, ArrowRight, Trash2, Database, Pencil, Loader2, ChevronDown, LayoutGrid, List as ListIcon, ArrowUpDown } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
-import { deleteCompany } from "@/lib/api/orkestria.functions";
+import { deleteCompany, setEmpresaUsuarios } from "@/lib/api/orkestria.functions";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
 import { formatarCnpj, limparCnpj, erroCnpj } from "@/lib/cnpj";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { PerfilIaEditor } from "@/components/perfil-ia-editor";
+import { PerfilImagens } from "@/components/perfil-imagens";
+import { enviarImagemPerfil } from "@/lib/perfil-imagens";
 
 
 export const Route = createFileRoute("/admin/empresas/")({ component: Page });
@@ -33,6 +38,9 @@ interface FormEmpresa {
   bairro: string; municipio: string; uf: string;
   // contato
   telefone: string; email: string; responsavel: string;
+  // perfil
+  site: string; segmento_id: string; porte: string; perfil_ia: string;
+  logo_url: string | null; foto_url: string | null;
 }
 
 const FORM_VAZIO: FormEmpresa = {
@@ -40,7 +48,25 @@ const FORM_VAZIO: FormEmpresa = {
   cep: "", logradouro: "", numero: "", complemento: "",
   bairro: "", municipio: "", uf: "",
   telefone: "", email: "", responsavel: "",
+  site: "", segmento_id: "", porte: "", perfil_ia: "",
+  logo_url: null, foto_url: null,
 };
+
+const PORTES = ["MEI", "Micro", "Pequena", "Média", "Grande"];
+
+/** Aceita vazio; se preencher, tem que parecer um endereço web. */
+function erroSite(v: string): string | null {
+  const s = (v ?? "").trim();
+  if (!s) return null;
+  const comProtocolo = /^https?:\/\//i.test(s) ? s : `https://${s}`;
+  try {
+    const u = new URL(comProtocolo);
+    if (!/^[\w-]+(\.[\w-]+)+$/.test(u.hostname)) return "Endereço de site inválido.";
+    return null;
+  } catch {
+    return "Endereço de site inválido.";
+  }
+}
 
 /** 00000-000 — só formata o que foi digitado, não valida. */
 function formatarCep(v: string): string {
@@ -67,6 +93,9 @@ function camposOpcionais(f: FormEmpresa) {
     complemento: t(f.complemento), bairro: t(f.bairro), municipio: t(f.municipio),
     uf: f.uf.trim() ? f.uf.trim().toUpperCase() : null,
     telefone: t(f.telefone), email: t(f.email), responsavel: t(f.responsavel),
+    site: t(f.site), segmento_id: f.segmento_id || null, porte: t(f.porte),
+    perfil_ia: t(f.perfil_ia),
+    logo_url: f.logo_url, foto_url: f.foto_url,
   };
 }
 
@@ -105,18 +134,27 @@ function Secao({
  * fiscais depois.
  */
 function EmpresaForm({
-  valor, onChange, onSubmit, salvando, rotuloBotao,
+  valor, onChange, onSubmit, salvando, rotuloBotao, empresaId, tenantId, onPendente,
 }: {
   valor: FormEmpresa;
   onChange: (v: FormEmpresa) => void;
   onSubmit: (e: React.FormEvent) => void;
   salvando: boolean;
   rotuloBotao: string;
+  empresaId?: string | null;
+  tenantId?: string | null;
+  onPendente?: (tipo: "logo" | "foto", file: File | null) => void;
 }) {
-  const erro = erroCnpj(valor.cnpj);
+  const erro = erroCnpj(valor.cnpj) ?? erroSite(valor.site);
+  const { data: segmentos } = useQuery({
+    queryKey: ["segmentos"],
+    queryFn: async () => (await supabase.from("segmentos").select("id, nome").order("nome")).data ?? [],
+  });
   // Só reclama depois de o campo ter conteúdo suficiente para julgar —
   // acusar "incompleto" no terceiro caractere digitado é ruído.
-  const mostrarErro = !!erro && limparCnpj(valor.cnpj).length >= 14;
+  const erroDoCnpj = erroCnpj(valor.cnpj);
+  const mostrarErro = !!erroDoCnpj && limparCnpj(valor.cnpj).length >= 14;
+  const msgSite = erroSite(valor.site);
 
   return (
     <form onSubmit={onSubmit} className="space-y-3">
@@ -141,7 +179,7 @@ function EmpresaForm({
           onChange={(e) => onChange({ ...valor, cnpj: formatarCnpj(e.target.value) })}
         />
         {mostrarErro
-          ? <p className="text-xs text-destructive mt-1">{erro}</p>
+          ? <p className="text-xs text-destructive mt-1">{erroDoCnpj}</p>
           : <p className="text-xs text-muted-foreground mt-1">Opcional. Se preencher, tem que ser válido.</p>}
       </div>
       <div>
@@ -156,6 +194,65 @@ function EmpresaForm({
           </SelectContent>
         </Select>
       </div>
+      <Secao
+        titulo="Perfil da empresa"
+        preenchidos={[valor.site, valor.segmento_id, valor.porte, valor.perfil_ia].filter((v) => v.trim()).length}
+      >
+        <div>
+          <Label className="text-xs">Site</Label>
+          <Input value={valor.site} placeholder="www.empresa.com.br"
+            aria-invalid={!!msgSite}
+            className={msgSite ? "border-destructive focus-visible:ring-destructive" : undefined}
+            onChange={(e) => onChange({ ...valor, site: e.target.value })} />
+          {msgSite && <p className="text-xs text-destructive mt-1">{msgSite}</p>}
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <Label className="text-xs">Segmento</Label>
+            <Select value={valor.segmento_id || "__none"}
+              onValueChange={(v) => onChange({ ...valor, segmento_id: v === "__none" ? "" : v })}>
+              <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none">Não informado</SelectItem>
+                {(segmentos ?? []).map((sg: any) => (
+                  <SelectItem key={sg.id} value={sg.id}>{sg.nome}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label className="text-xs">Porte</Label>
+            <Select value={valor.porte || "__none"}
+              onValueChange={(v) => onChange({ ...valor, porte: v === "__none" ? "" : v })}>
+              <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none">Não informado</SelectItem>
+                {PORTES.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        <PerfilIaEditor
+          site={valor.site}
+          nome={valor.name}
+          tipo="empresa"
+          label="Perfil da empresa"
+          valor={valor.perfil_ia}
+          onChange={(v) => onChange({ ...valor, perfil_ia: v })}
+        />
+        <PerfilImagens
+          tenantId={tenantId ?? null}
+          escopo="empresa"
+          id={empresaId ?? null}
+          site={valor.site}
+          logoPath={valor.logo_url}
+          fotoPath={valor.foto_url}
+          onPathChange={(tipo, path) =>
+            onChange({ ...valor, ...(tipo === "logo" ? { logo_url: path } : { foto_url: path }) })}
+          onPendenteChange={onPendente}
+        />
+      </Secao>
+
       <Secao
         titulo="Endereço"
         preenchidos={[valor.cep, valor.logradouro, valor.numero, valor.complemento,
@@ -237,6 +334,96 @@ function EmpresaForm({
   );
 }
 
+/**
+ * Vínculo pelo lado da empresa. Mesma tabela usada no cadastro do usuário —
+ * marcar aqui ou lá dá exatamente no mesmo, é fonte única de verdade.
+ */
+function UsuariosDaEmpresa({ companyId }: { companyId: string }) {
+  const qc = useQueryClient();
+  const [busca, setBusca] = useState("");
+  const [salvando, setSalvando] = useState(false);
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["empresa-usuarios", companyId],
+    queryFn: async () => {
+      const [{ data: clientes }, { data: vinculos }] = await Promise.all([
+        supabase
+          .from("profiles")
+          .select("id, full_name, email")
+          .eq("tipo_usuario", "cliente")
+          .order("full_name"),
+        supabase.from("usuario_empresas").select("user_id").eq("company_id", companyId),
+      ]);
+      return {
+        clientes: clientes ?? [],
+        vinculados: new Set((vinculos ?? []).map((v: any) => v.user_id as string)),
+      };
+    },
+  });
+
+  const [selecao, setSelecao] = useState<Set<string> | null>(null);
+  const marcados = selecao ?? data?.vinculados ?? new Set<string>();
+
+  const alternar = (id: string) => {
+    const novo = new Set(marcados);
+    if (novo.has(id)) novo.delete(id); else novo.add(id);
+    setSelecao(novo);
+  };
+
+  const salvar = async () => {
+    setSalvando(true);
+    try {
+      await setEmpresaUsuarios({ data: { company_id: companyId, user_ids: [...marcados] } });
+      toast.success("Acessos atualizados");
+      setSelecao(null);
+      qc.invalidateQueries({ queryKey: ["empresa-usuarios", companyId] });
+      qc.invalidateQueries({ queryKey: ["tenant-users"] });
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setSalvando(false);
+    }
+  };
+
+  const lista = (data?.clientes ?? []).filter((u: any) => {
+    const s = busca.trim().toLowerCase();
+    if (!s) return true;
+    return [u.full_name, u.email].filter(Boolean).some((v: string) => v.toLowerCase().includes(s));
+  });
+
+  return (
+    <div className="border rounded-md p-3 space-y-3">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-sm font-medium">Usuários com acesso</span>
+        <Badge variant="secondary">{marcados.size} cliente(s)</Badge>
+      </div>
+      <p className="text-xs text-muted-foreground">
+        Apenas usuários do tipo Cliente aparecem aqui. Colaboradores do escritório já têm
+        acesso a todas as empresas.
+      </p>
+      <Input placeholder="Buscar cliente…" value={busca} onChange={(e) => setBusca(e.target.value)} />
+      <div className="max-h-48 overflow-y-auto space-y-1">
+        {isLoading && <p className="text-xs text-muted-foreground">Carregando…</p>}
+        {!isLoading && lista.length === 0 && (
+          <p className="text-xs text-muted-foreground">Nenhum cliente cadastrado.</p>
+        )}
+        {lista.map((u: any) => (
+          <label key={u.id} className="flex items-center gap-2 text-sm px-1 py-1 rounded hover:bg-muted/50 cursor-pointer">
+            <Checkbox checked={marcados.has(u.id)} onCheckedChange={() => alternar(u.id)} />
+            <span className="flex-1 truncate">{u.full_name ?? "—"}</span>
+            <span className="text-xs text-muted-foreground truncate">{u.email}</span>
+          </label>
+        ))}
+      </div>
+      <Button type="button" size="sm" variant="outline" onClick={salvar}
+        disabled={salvando || selecao === null}>
+        {salvando && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+        Salvar acessos
+      </Button>
+    </div>
+  );
+}
+
 /** Diálogo de edição de uma empresa já cadastrada. */
 function EditarEmpresaDialog({ empresa, onSaved }: { empresa: any; onSaved: () => void }) {
   const [open, setOpen] = useState(false);
@@ -262,6 +449,12 @@ function EditarEmpresaDialog({ empresa, onSaved }: { empresa: any; onSaved: () =
         telefone: formatarTelefone(empresa.telefone ?? ""),
         email: empresa.email ?? "",
         responsavel: empresa.responsavel ?? "",
+        site: empresa.site ?? "",
+        segmento_id: empresa.segmento_id ?? "",
+        porte: empresa.porte ?? "",
+        perfil_ia: empresa.perfil_ia ?? "",
+        logo_url: empresa.logo_url ?? null,
+        foto_url: empresa.foto_url ?? null,
       });
     }
     setOpen(v);
@@ -269,7 +462,7 @@ function EditarEmpresaDialog({ empresa, onSaved }: { empresa: any; onSaved: () =
 
   const salvar = async (e: React.FormEvent) => {
     e.preventDefault();
-    const erro = erroCnpj(form.cnpj);
+    const erro = erroCnpj(form.cnpj) ?? erroSite(form.site);
     if (erro) return toast.error(erro);
     setSalvando(true);
     try {
@@ -302,10 +495,12 @@ function EditarEmpresaDialog({ empresa, onSaved }: { empresa: any; onSaved: () =
           <Pencil className="h-4 w-4" />
         </Button>
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className="max-h-[85vh] overflow-y-auto">
         <DialogHeader><DialogTitle>Editar cadastro</DialogTitle></DialogHeader>
         <EmpresaForm valor={form} onChange={setForm} onSubmit={salvar}
-          salvando={salvando} rotuloBotao="Salvar" />
+          salvando={salvando} rotuloBotao="Salvar"
+          empresaId={empresa.id} tenantId={empresa.tenant_id} />
+        {open && <UsuariosDaEmpresa companyId={empresa.id} />}
       </DialogContent>
     </Dialog>
   );
@@ -332,14 +527,50 @@ function Page() {
   const [search, setSearch] = useState("");
   const [form, setForm] = useState<FormEmpresa>(FORM_VAZIO);
   const [salvando, setSalvando] = useState(false);
+  const [pendentes, setPendentes] = useState<{ logo?: File | null; foto?: File | null }>({});
+
+  // Preferência de visualização fica no navegador: é escolha de quem usa,
+  // não configuração do escritório.
+  const [visao, setVisao] = useState<"quadros" | "lista">("quadros");
+  useEffect(() => {
+    const v = localStorage.getItem("empresas:visao");
+    if (v === "lista" || v === "quadros") setVisao(v);
+  }, []);
+  const trocarVisao = (v: "quadros" | "lista") => {
+    setVisao(v);
+    localStorage.setItem("empresas:visao", v);
+  };
+
+  const [ordem, setOrdem] = useState<{ campo: "name" | "segmento" | "porte"; asc: boolean }>({
+    campo: "name", asc: true,
+  });
+
+  const { data: segmentos } = useQuery({
+    queryKey: ["segmentos"],
+    queryFn: async () => (await supabase.from("segmentos").select("id, nome").order("nome")).data ?? [],
+  });
+  const nomeSegmento = (id: string | null) =>
+    (segmentos ?? []).find((s: any) => s.id === id)?.nome ?? "—";
 
   const filtered = useMemo(() => {
     const s = search.trim().toLowerCase();
-    if (!s) return companies ?? [];
-    return (companies ?? []).filter((c: any) =>
-      [c.name, c.razao_social, c.cnpj].filter(Boolean).some((v: string) => v.toLowerCase().includes(s)),
+    const base = !s
+      ? (companies ?? [])
+      : (companies ?? []).filter((c: any) =>
+          [c.name, c.razao_social, c.cnpj].filter(Boolean).some((v: string) => v.toLowerCase().includes(s)),
+        );
+    if (visao !== "lista") return base;
+    const chave = (c: any) =>
+      ordem.campo === "segmento" ? nomeSegmento(c.segmento_id)
+      : ordem.campo === "porte" ? (c.porte ?? "")
+      : (c.name ?? "");
+    return [...base].sort((a, b) =>
+      chave(a).localeCompare(chave(b), "pt-BR") * (ordem.asc ? 1 : -1),
     );
-  }, [companies, search]);
+  }, [companies, search, visao, ordem, segmentos]);
+
+  const ordenarPor = (campo: "name" | "segmento" | "porte") =>
+    setOrdem((o) => (o.campo === campo ? { campo, asc: !o.asc } : { campo, asc: true }));
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -347,20 +578,40 @@ function Page() {
       toast.error("Tenant não definido para seu usuário.");
       return;
     }
-    const erro = erroCnpj(form.cnpj);
+    const erro = erroCnpj(form.cnpj) ?? erroSite(form.site);
     if (erro) return toast.error(erro);
     setSalvando(true);
     try {
-      const { error } = await supabase.from("companies").insert({
+      const { data: criada, error } = await supabase.from("companies").insert({
         name: form.name,
         regime_tributario: form.regime_tributario,
         tenant_id: profile.tenant_id,
         ...camposOpcionais(form),
-      });
+      }).select("id").single();
       if (error) throw error;
+
+      // As imagens escolhidas antes de existir o registro sobem agora.
+      const caminhos: { logo_url?: string; foto_url?: string } = {};
+      for (const tipo of ["logo", "foto"] as const) {
+        const file = pendentes[tipo];
+        if (!file || !criada) continue;
+        try {
+          const caminho = await enviarImagemPerfil({
+            tenantId: profile.tenant_id, escopo: "empresa", id: criada.id, tipo, file,
+          });
+          if (tipo === "logo") caminhos.logo_url = caminho; else caminhos.foto_url = caminho;
+        } catch {
+          toast.error(`Empresa criada, mas a ${tipo} não pôde ser enviada. Envie na edição.`);
+        }
+      }
+      if (Object.keys(caminhos).length && criada) {
+        await supabase.from("companies").update(caminhos).eq("id", criada.id);
+      }
+
       toast.success("Empresa criada");
       setOpen(false);
       setForm(FORM_VAZIO);
+      setPendentes({});
       qc.invalidateQueries({ queryKey: ["companies"] });
     } catch (e: any) {
       toast.error(e.message);
@@ -391,22 +642,103 @@ function Page() {
           <DialogContent>
             <DialogHeader><DialogTitle>Nova Empresa</DialogTitle></DialogHeader>
             <EmpresaForm valor={form} onChange={setForm} onSubmit={submit}
-              salvando={salvando} rotuloBotao="Criar" />
+              salvando={salvando} rotuloBotao="Criar"
+              empresaId={null} tenantId={profile?.tenant_id ?? null}
+              onPendente={(tipo, file) => setPendentes((p) => ({ ...p, [tipo]: file }))} />
           </DialogContent>
         </Dialog>
       }
     >
-      <div className="mb-4 relative max-w-md">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Buscar empresa por nome, razão social ou CNPJ…"
-          className="pl-9"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <div className="relative flex-1 min-w-[240px] max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Buscar empresa por nome, razão social ou CNPJ…"
+            className="pl-9"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
+        <div className="flex items-center gap-1 border rounded-md p-0.5">
+          <Button size="sm" variant={visao === "quadros" ? "secondary" : "ghost"}
+            className="h-8 px-2" onClick={() => trocarVisao("quadros")} title="Ver em quadros">
+            <LayoutGrid className="h-4 w-4 mr-1" />Quadros
+          </Button>
+          <Button size="sm" variant={visao === "lista" ? "secondary" : "ghost"}
+            className="h-8 px-2" onClick={() => trocarVisao("lista")} title="Ver em lista">
+            <ListIcon className="h-4 w-4 mr-1" />Lista
+          </Button>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      {visao === "lista" && (
+        <Card className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="text-xs text-muted-foreground border-b">
+              <tr>
+                {([["name", "Nome"], ["segmento", "Segmento"], ["porte", "Porte"]] as const).map(([campo, rotulo]) => (
+                  <th key={campo} className="text-left font-medium px-3 py-2">
+                    <button type="button" className="inline-flex items-center gap-1 hover:text-foreground"
+                      onClick={() => ordenarPor(campo)}>
+                      {rotulo}
+                      <ArrowUpDown className="h-3 w-3" />
+                    </button>
+                  </th>
+                ))}
+                <th className="text-left font-medium px-3 py-2">Cidade/UF</th>
+                <th className="text-right font-medium px-3 py-2">Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((c: any) => {
+                const spedCount = c.sped_files?.[0]?.count ?? 0;
+                return (
+                  <tr key={c.id} className="border-b last:border-0 hover:bg-muted/40">
+                    <td className="px-3 py-2">
+                      <div className="font-medium">{c.name}</div>
+                      <div className="text-xs text-muted-foreground">{c.razao_social}</div>
+                    </td>
+                    <td className="px-3 py-2 text-muted-foreground">{nomeSegmento(c.segmento_id)}</td>
+                    <td className="px-3 py-2 text-muted-foreground">{c.porte ?? "—"}</td>
+                    <td className="px-3 py-2 text-muted-foreground">
+                      {[c.municipio, c.uf].filter(Boolean).join(" / ") || "—"}
+                    </td>
+                    <td className="px-3 py-2">
+                      <div className="flex items-center justify-end gap-1.5">
+                        <Button size="sm" onClick={() => openBI(c.id)}
+                          disabled={spedCount === 0 && (c.fonte_dados ?? "sped") === "sped"}>
+                          <BarChart3 className="h-4 w-4 mr-1.5" />Abrir BI
+                        </Button>
+                        <EditarEmpresaDialog empresa={c}
+                          onSaved={() => qc.invalidateQueries({ queryKey: ["companies"] })} />
+                        <Button size="icon" variant="outline" className="h-9 w-9"
+                          onClick={() => navigate({ to: "/admin/empresas/$id/dados", params: { id: c.id } })}
+                          title="Dados contábeis (plano, mapeamento, diário)">
+                          <Database className="h-4 w-4" />
+                        </Button>
+                        <Button size="icon" variant="ghost"
+                          className="h-9 w-9 text-destructive hover:text-destructive"
+                          onClick={() => handleDelete(c.id, c.name)} title="Excluir empresa">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+              {filtered.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="px-3 py-10 text-center text-muted-foreground">
+                    {search ? "Nenhuma empresa encontrada para esta busca." : "Nenhuma empresa cadastrada. Crie a primeira."}
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </Card>
+      )}
+
+      <div className={visao === "lista" ? "hidden" : "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"}>
         {filtered.map((c: any) => {
           const spedCount = c.sped_files?.[0]?.count ?? 0;
           return (

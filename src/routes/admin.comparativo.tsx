@@ -49,6 +49,7 @@ interface Empresa {
   razao_social: string | null;
   cnpj: string | null;
   segmento_id: string | null;
+  grupo_id: string | null;
   porte: string | null;
 }
 
@@ -64,7 +65,7 @@ function Page() {
     queryFn: async (): Promise<Empresa[]> => {
       const { data, error } = await supabase
         .from("companies")
-        .select("id, name, razao_social, cnpj, segmento_id, porte")
+        .select("id, name, razao_social, cnpj, segmento_id, grupo_id, porte")
         .eq("ativo", true)
         .order("name");
       if (error) throw error;
@@ -82,6 +83,18 @@ function Page() {
     },
   });
 
+  const { data: grupos } = useQuery({
+    queryKey: ["comparativo-grupos"],
+    enabled: !isCliente,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("grupos_economicos").select("id, nome").order("nome");
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  const [grupo, setGrupo] = useState("todos");
   const [segmento, setSegmento] = useState("todos");
   const [porte, setPorte] = useState("todos");
   const [selected, setSelected] = useState<string[]>([]);
@@ -94,9 +107,10 @@ function Page() {
       (companies ?? []).filter(
         (c) =>
           (segmento === "todos" || c.segmento_id === segmento) &&
+          (grupo === "todos" || c.grupo_id === grupo) &&
           (porte === "todos" || c.porte === porte),
       ),
-    [companies, segmento, porte],
+    [companies, segmento, grupo, porte],
   );
 
   // Ao trocar filtro, mantém só o que continua elegível e pré-seleciona até 6.
@@ -105,11 +119,11 @@ function Page() {
     const ids = filtradas.map((c) => c.id);
     setSelected((prev) => {
       const mantidos = prev.filter((id) => ids.includes(id));
-      if (segmento === "todos" && porte === "todos") return mantidos;
+      if (segmento === "todos" && grupo === "todos" && porte === "todos") return mantidos;
       return mantidos.length >= 2 ? mantidos : ids.slice(0, 6);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [segmento, porte, companies]);
+  }, [segmento, grupo, porte, companies]);
 
   const toggle = (id: string) =>
     setSelected((prev) =>

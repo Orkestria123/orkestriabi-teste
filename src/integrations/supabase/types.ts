@@ -2250,6 +2250,7 @@ export type Database = {
       plano_contas: {
         Row: {
           ativo: boolean
+          classe_gasto: string | null
           classificacao: string
           codigo: string
           company_id: string | null
@@ -2271,6 +2272,7 @@ export type Database = {
         }
         Insert: {
           ativo?: boolean
+          classe_gasto?: string | null
           classificacao: string
           codigo: string
           company_id?: string | null
@@ -2292,6 +2294,7 @@ export type Database = {
         }
         Update: {
           ativo?: boolean
+          classe_gasto?: string | null
           classificacao?: string
           codigo?: string
           company_id?: string | null

@@ -238,6 +238,19 @@ function EmpresaForm({
             </Select>
           </div>
         </div>
+        <div>
+          <Label className="text-xs">Grupo econômico</Label>
+          <Select value={valor.grupo_id || "__none"}
+            onValueChange={(v) => onChange({ ...valor, grupo_id: v === "__none" ? "" : v })}>
+            <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__none">Não informado</SelectItem>
+              {(grupos ?? []).map((g: any) => (
+                <SelectItem key={g.id} value={g.id}>{g.nome}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
         <PerfilIaEditor
           site={valor.site}
           nome={valor.name}

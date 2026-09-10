@@ -151,6 +151,11 @@ function EmpresaForm({
     queryKey: ["segmentos"],
     queryFn: async () => (await supabase.from("segmentos").select("id, nome").order("nome")).data ?? [],
   });
+  const { data: grupos } = useQuery({
+    queryKey: ["grupos"],
+    queryFn: async () =>
+      (await supabase.from("grupos_economicos").select("id, nome").order("nome")).data ?? [],
+  });
   // Só reclama depois de o campo ter conteúdo suficiente para julgar —
   // acusar "incompleto" no terceiro caractere digitado é ruído.
   const erroDoCnpj = erroCnpj(valor.cnpj);

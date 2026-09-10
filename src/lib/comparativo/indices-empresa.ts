@@ -165,12 +165,10 @@ export async function calcularIndicesEmpresa(opts: {
     const anterior = disponiveis[disponiveis.indexOf(periodo) - 1] ?? null;
     const periodos = anterior ? [anterior, periodo] : [periodo];
 
-    const [mascara, snap, estrutura, modo] = await Promise.all([
-      getMascaraConfig({ tenantId, companyId }),
-      fetchSnapshot(companyId),
-      getEstruturaPadrao(),
-      getModoGlobal(companyId),
-    ]);
+    const mascara = await getMascaraConfig({ tenantId, companyId });
+    const snap = await comRetry(() => fetchSnapshot(companyId));
+    const estrutura = await getEstruturaPadrao();
+    const modo = await getModoGlobal(companyId);
     const ctx = await buildCtxForVisao(companyId, tenantId, snap, mascara, visao);
 
     let demo;

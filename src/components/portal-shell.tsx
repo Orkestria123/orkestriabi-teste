@@ -13,7 +13,7 @@ interface Props {
 }
 
 export function PortalShell({ children, variant, title, actions, unstyled }: Props) {
-  const { loading, userId, role } = useAuth();
+  const { loading, userId, role, isCliente } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -23,13 +23,13 @@ export function PortalShell({ children, variant, title, actions, unstyled }: Pro
       return;
     }
     const allowed =
-      (variant === "orkestria" && role === "orkestria_admin") ||
-      (variant === "admin" && (role === "tenant_admin" || role === "orkestria_admin")) ||
+      (variant === "orkestria" && role === "orkestria_admin" && !isCliente) ||
+      (variant === "admin" && (role === "tenant_admin" || role === "orkestria_admin") && !isCliente) ||
       (variant === "client" && role != null);
     if (!allowed) {
       navigate({ to: "/", replace: true });
     }
-  }, [loading, userId, role, variant, navigate]);
+  }, [loading, userId, role, isCliente, variant, navigate]);
 
   if (loading || !userId) {
     return (

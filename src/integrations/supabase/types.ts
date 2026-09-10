@@ -253,6 +253,7 @@ export type Database = {
           email: string | null
           fonte_dados: string
           foto_url: string | null
+          grupo_id: string | null
           id: string
           logo_url: string | null
           logradouro: string | null
@@ -283,6 +284,7 @@ export type Database = {
           email?: string | null
           fonte_dados?: string
           foto_url?: string | null
+          grupo_id?: string | null
           id?: string
           logo_url?: string | null
           logradouro?: string | null
@@ -313,6 +315,7 @@ export type Database = {
           email?: string | null
           fonte_dados?: string
           foto_url?: string | null
+          grupo_id?: string | null
           id?: string
           logo_url?: string | null
           logradouro?: string | null
@@ -334,6 +337,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "companies_grupo_id_fkey"
+            columns: ["grupo_id"]
+            isOneToOne: false
+            referencedRelation: "grupos_economicos"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "companies_segmento_id_fkey"
             columns: ["segmento_id"]
@@ -1367,6 +1377,38 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      grupos_economicos: {
+        Row: {
+          created_at: string
+          id: string
+          nome: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          nome: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          nome?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "grupos_economicos_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
         ]

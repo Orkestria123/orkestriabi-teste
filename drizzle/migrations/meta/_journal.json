@@ -36,6 +36,13 @@
       "when": 1788894567693,
       "tag": "0004_add_foto_url_e_bucket_perfil_imagens",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1789068214425,
+      "tag": "0005_create_grupos_economicos",
+      "breakpoints": true
     }
   ]
 }

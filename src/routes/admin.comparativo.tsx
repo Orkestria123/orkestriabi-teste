@@ -209,7 +209,9 @@ function Page() {
     }))
     .filter((d) => d.valor != null);
 
-  const nomeSegmento = (segmentos ?? []).find((s) => s.id === segmento)?.nome;
+  const nomeSegmento =
+    (grupos ?? []).find((g: any) => g.id === grupo)?.nome ??
+    (segmentos ?? []).find((s) => s.id === segmento)?.nome;
 
   if (isCliente) {
     return (

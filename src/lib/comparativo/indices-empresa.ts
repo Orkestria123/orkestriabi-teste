@@ -95,6 +95,33 @@ function variacao(atual: number, anterior: number): number | null {
   return ((atual - anterior) / Math.abs(anterior)) * 100;
 }
 
+/**
+ * Fila global: o cálculo de uma empresa puxa plano de contas + saldos
+ * inteiros. Rodar várias empresas ao mesmo tempo estourava o tempo
+ * limite do banco ("statement timeout"), então roda uma de cada vez.
+ */
+let fila: Promise<unknown> = Promise.resolve();
+function naFila<T>(fn: () => Promise<T>): Promise<T> {
+  const proxima = fila.then(fn, fn);
+  fila = proxima.catch(() => {});
+  return proxima;
+}
+
+function ehTimeout(e: any): boolean {
+  const m = String(e?.message ?? e ?? "");
+  return m.includes("statement timeout") || m.includes("57014");
+}
+
+async function comRetry<T>(fn: () => Promise<T>): Promise<T> {
+  try {
+    return await fn();
+  } catch (e) {
+    if (!ehTimeout(e)) throw e;
+    await new Promise((r) => setTimeout(r, 1200));
+    return fn();
+  }
+}
+
 export async function periodosDaEmpresa(companyId: string): Promise<string[]> {
   const { data, error } = await (supabase as any).rpc("periodos_da_empresa", {
     _company_id: companyId,

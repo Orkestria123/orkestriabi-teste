@@ -39,7 +39,7 @@ interface FormEmpresa {
   // contato
   telefone: string; email: string; responsavel: string;
   // perfil
-  site: string; segmento_id: string; porte: string; perfil_ia: string;
+  site: string; segmento_id: string; grupo_id: string; porte: string; perfil_ia: string;
   logo_url: string | null; foto_url: string | null;
 }
 
@@ -48,7 +48,7 @@ const FORM_VAZIO: FormEmpresa = {
   cep: "", logradouro: "", numero: "", complemento: "",
   bairro: "", municipio: "", uf: "",
   telefone: "", email: "", responsavel: "",
-  site: "", segmento_id: "", porte: "", perfil_ia: "",
+  site: "", segmento_id: "", grupo_id: "", porte: "", perfil_ia: "",
   logo_url: null, foto_url: null,
 };
 
@@ -93,7 +93,8 @@ function camposOpcionais(f: FormEmpresa) {
     complemento: t(f.complemento), bairro: t(f.bairro), municipio: t(f.municipio),
     uf: f.uf.trim() ? f.uf.trim().toUpperCase() : null,
     telefone: t(f.telefone), email: t(f.email), responsavel: t(f.responsavel),
-    site: t(f.site), segmento_id: f.segmento_id || null, porte: t(f.porte),
+    site: t(f.site), segmento_id: f.segmento_id || null,
+    grupo_id: f.grupo_id || null, porte: t(f.porte),
     perfil_ia: t(f.perfil_ia),
     logo_url: f.logo_url, foto_url: f.foto_url,
   };
@@ -150,6 +151,11 @@ function EmpresaForm({
     queryKey: ["segmentos"],
     queryFn: async () => (await supabase.from("segmentos").select("id, nome").order("nome")).data ?? [],
   });
+  const { data: grupos } = useQuery({
+    queryKey: ["grupos"],
+    queryFn: async () =>
+      (await supabase.from("grupos_economicos").select("id, nome").order("nome")).data ?? [],
+  });
   // Só reclama depois de o campo ter conteúdo suficiente para julgar —
   // acusar "incompleto" no terceiro caractere digitado é ruído.
   const erroDoCnpj = erroCnpj(valor.cnpj);
@@ -196,7 +202,7 @@ function EmpresaForm({
       </div>
       <Secao
         titulo="Perfil da empresa"
-        preenchidos={[valor.site, valor.segmento_id, valor.porte, valor.perfil_ia].filter((v) => v.trim()).length}
+        preenchidos={[valor.site, valor.segmento_id, valor.grupo_id, valor.porte, valor.perfil_ia].filter((v) => v.trim()).length}
       >
         <div>
           <Label className="text-xs">Site</Label>
@@ -231,6 +237,19 @@ function EmpresaForm({
               </SelectContent>
             </Select>
           </div>
+        </div>
+        <div>
+          <Label className="text-xs">Grupo econômico</Label>
+          <Select value={valor.grupo_id || "__none"}
+            onValueChange={(v) => onChange({ ...valor, grupo_id: v === "__none" ? "" : v })}>
+            <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__none">Não informado</SelectItem>
+              {(grupos ?? []).map((g: any) => (
+                <SelectItem key={g.id} value={g.id}>{g.nome}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         <PerfilIaEditor
           site={valor.site}
@@ -451,6 +470,7 @@ function EditarEmpresaDialog({ empresa, onSaved }: { empresa: any; onSaved: () =
         responsavel: empresa.responsavel ?? "",
         site: empresa.site ?? "",
         segmento_id: empresa.segmento_id ?? "",
+        grupo_id: (empresa as any).grupo_id ?? "",
         porte: empresa.porte ?? "",
         perfil_ia: empresa.perfil_ia ?? "",
         logo_url: empresa.logo_url ?? null,

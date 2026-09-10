@@ -33,6 +33,7 @@ import { Route as AdminSaudeRouteImport } from './routes/admin.saude'
 import { Route as AdminPlanoPadraoRouteImport } from './routes/admin.plano-padrao'
 import { Route as AdminLogsRouteImport } from './routes/admin.logs'
 import { Route as AdminIndicadoresRouteImport } from './routes/admin.indicadores'
+import { Route as AdminGruposRouteImport } from './routes/admin.grupos'
 import { Route as AdminEmpresasRouteImport } from './routes/admin.empresas'
 import { Route as AdminDiagnosticoRouteImport } from './routes/admin.diagnostico'
 import { Route as AdminComparativoRouteImport } from './routes/admin.comparativo'
@@ -159,6 +160,11 @@ const AdminIndicadoresRoute = AdminIndicadoresRouteImport.update({
   path: '/admin/indicadores',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminGruposRoute = AdminGruposRouteImport.update({
+  id: '/admin/grupos',
+  path: '/admin/grupos',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminEmpresasRoute = AdminEmpresasRouteImport.update({
   id: '/admin/empresas',
   path: '/admin/empresas',
@@ -193,6 +199,7 @@ export interface FileRoutesByFullPath {
   '/admin/comparativo': typeof AdminComparativoRoute
   '/admin/diagnostico': typeof AdminDiagnosticoRoute
   '/admin/empresas': typeof AdminEmpresasRouteWithChildren
+  '/admin/grupos': typeof AdminGruposRoute
   '/admin/indicadores': typeof AdminIndicadoresRoute
   '/admin/logs': typeof AdminLogsRoute
   '/admin/plano-padrao': typeof AdminPlanoPadraoRoute
@@ -222,6 +229,7 @@ export interface FileRoutesByTo {
   '/recuperar-senha': typeof RecuperarSenhaRoute
   '/admin/comparativo': typeof AdminComparativoRoute
   '/admin/diagnostico': typeof AdminDiagnosticoRoute
+  '/admin/grupos': typeof AdminGruposRoute
   '/admin/indicadores': typeof AdminIndicadoresRoute
   '/admin/logs': typeof AdminLogsRoute
   '/admin/plano-padrao': typeof AdminPlanoPadraoRoute
@@ -254,6 +262,7 @@ export interface FileRoutesById {
   '/admin/comparativo': typeof AdminComparativoRoute
   '/admin/diagnostico': typeof AdminDiagnosticoRoute
   '/admin/empresas': typeof AdminEmpresasRouteWithChildren
+  '/admin/grupos': typeof AdminGruposRoute
   '/admin/indicadores': typeof AdminIndicadoresRoute
   '/admin/logs': typeof AdminLogsRoute
   '/admin/plano-padrao': typeof AdminPlanoPadraoRoute
@@ -287,6 +296,7 @@ export interface FileRouteTypes {
     | '/admin/comparativo'
     | '/admin/diagnostico'
     | '/admin/empresas'
+    | '/admin/grupos'
     | '/admin/indicadores'
     | '/admin/logs'
     | '/admin/plano-padrao'
@@ -316,6 +326,7 @@ export interface FileRouteTypes {
     | '/recuperar-senha'
     | '/admin/comparativo'
     | '/admin/diagnostico'
+    | '/admin/grupos'
     | '/admin/indicadores'
     | '/admin/logs'
     | '/admin/plano-padrao'
@@ -347,6 +358,7 @@ export interface FileRouteTypes {
     | '/admin/comparativo'
     | '/admin/diagnostico'
     | '/admin/empresas'
+    | '/admin/grupos'
     | '/admin/indicadores'
     | '/admin/logs'
     | '/admin/plano-padrao'
@@ -379,6 +391,7 @@ export interface RootRouteChildren {
   AdminComparativoRoute: typeof AdminComparativoRoute
   AdminDiagnosticoRoute: typeof AdminDiagnosticoRoute
   AdminEmpresasRoute: typeof AdminEmpresasRouteWithChildren
+  AdminGruposRoute: typeof AdminGruposRoute
   AdminIndicadoresRoute: typeof AdminIndicadoresRoute
   AdminLogsRoute: typeof AdminLogsRoute
   AdminPlanoPadraoRoute: typeof AdminPlanoPadraoRoute
@@ -562,6 +575,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminIndicadoresRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/grupos': {
+      id: '/admin/grupos'
+      path: '/admin/grupos'
+      fullPath: '/admin/grupos'
+      preLoaderRoute: typeof AdminGruposRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/empresas': {
       id: '/admin/empresas'
       path: '/admin/empresas'
@@ -650,6 +670,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminComparativoRoute: AdminComparativoRoute,
   AdminDiagnosticoRoute: AdminDiagnosticoRoute,
   AdminEmpresasRoute: AdminEmpresasRouteWithChildren,
+  AdminGruposRoute: AdminGruposRoute,
   AdminIndicadoresRoute: AdminIndicadoresRoute,
   AdminLogsRoute: AdminLogsRoute,
   AdminPlanoPadraoRoute: AdminPlanoPadraoRoute,

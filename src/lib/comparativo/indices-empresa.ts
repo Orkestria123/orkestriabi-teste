@@ -150,8 +150,9 @@ export async function calcularIndicesEmpresa(opts: {
     valores: {},
   };
 
+  return naFila(async () => {
   try {
-    const disponiveis = await periodosDaEmpresa(companyId);
+    const disponiveis = await comRetry(() => periodosDaEmpresa(companyId));
     if (disponiveis.length === 0) return { ...vazio, erro: "Sem dados" };
 
     const periodo = opts.periodo && disponiveis.includes(opts.periodo)

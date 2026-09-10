@@ -27,6 +27,8 @@ import {
   valoresTermosFormula,
   tokensDaFormula,
   tokensComBaseReceita,
+  tokensComLucroYtd,
+  indicadorUsaLucroYtd,
   type EngineContext,
   type IndicadorEmpresa,
   type SeriePonto,
@@ -38,6 +40,7 @@ import type { PapelEstrutura } from "@/lib/plano/estrutura";
 import { Card } from "@/components/ui/card";
 import { IndicadorCardCliente } from "./indicador-card-cliente";
 import { useVisaoGerencial } from "@/hooks/use-visao-gerencial";
+import { compararCategoria } from "@/lib/indicadores/categorias";
 
 type BaseAV = "rb" | "rl";
 
@@ -66,16 +69,22 @@ function computeOne(
       ? "EBIT"
       : null;
   if (alvoEbit) {
-    const serie = periodos.map((p) => ({
-      periodo: p,
-      valor: valorEbitEbitdaDaDre(demoDre, alvoEbit, p),
-    }));
+    const resolverEbit = criarResolverLinha(ctx, demoDre, estruturaPadrao);
+    const serie = periodos.map((p) => {
+      const daDre = valorEbitEbitdaDaDre(demoDre, alvoEbit, p);
+      const v =
+        daDre != null && Math.abs(daDre) > 0.005
+          ? daDre
+          : resolverEbit(alvoEbit, p);
+      return { periodo: p, valor: v };
+    });
     const { serie: serieMostrar, valorPrincipal } = aplicarModo(serie, ind.modo_analise);
     const valor = valorPrincipal == null || !isFinite(valorPrincipal) ? null : valorPrincipal;
     return { serie: serieMostrar, valor, termos: [] };
   }
   const resolver = criarResolverLinha(ctx, demoDre, estruturaPadrao);
-  const tokens = tokensComBaseReceita(tokensDaFormula(ind.formula), baseAV);
+  let tokens = tokensComBaseReceita(tokensDaFormula(ind.formula), baseAV);
+  if (indicadorUsaLucroYtd(ind.nome)) tokens = tokensComLucroYtd(tokens);
   const usaBase = !!baseAV;
   const serie = usaBase
     ? calcularSerieComBase(ind, periodos, ctx, resolver, baseAV)
@@ -113,7 +122,7 @@ export function IndicadoresClienteGrid({
       return ((data ?? []) as any[])
         .filter((i) => vis.has(i.visibilidade))
         .sort((a, b) =>
-          (a.categoria ?? "").localeCompare(b.categoria ?? "") ||
+          compararCategoria(a.categoria ?? "", b.categoria ?? "") ||
           (a.ordem ?? 0) - (b.ordem ?? 0) ||
           a.nome.localeCompare(b.nome)) as unknown as IndicadorEmpresa[];
     },
@@ -203,7 +212,7 @@ export function IndicadoresClienteGrid({
       if (!m.has(key)) m.set(key, []);
       m.get(key)!.push(c);
     }
-    return Array.from(m.entries());
+    return Array.from(m.entries()).sort((a, b) => compararCategoria(a[0], b[0]));
   }, [calculados]);
 
   const nada = !isLoading && !carregamentoErro && (indicadores?.length ?? 0) === 0;

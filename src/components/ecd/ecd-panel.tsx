@@ -25,7 +25,9 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { parseSpedContabil } from "@/lib/sped-parser";
-import { lerTudo } from "@/lib/supabase-paginado";
+import { textoSped } from "@/lib/importacao/encoding";
+import { apagarLancamentosEmLotes } from "@/lib/diario/uploader";
+import { lerTudo, lerRpcKeyset } from "@/lib/supabase-paginado";
 import { tituloConta } from "@/lib/format";
 import { useContasDestino } from "@/hooks/use-contas-destino";
 import { SeletorConta } from "@/components/contas/seletor-conta";
@@ -35,9 +37,11 @@ import {
   filtrarLinhas, contarEstados, estadoDe, veioDeSugestaoAutomatica,
   agruparPorClassificacao, agruparPorChave, niveisDisponiveis,
   agruparPorCaminho, niveisDoCaminho, caminhoSemFolha,
-  segmentosCaminho, SEP_CAMINHO_TELA,
+  segmentosCaminho, SEP_CAMINHO_TELA, cortarGrupos,
   type FiltroEstado, type LinhaDepara,
 } from "@/lib/contas/filtro-depara";
+import { grupoDoDestino, grupoMaisFrequente } from "@/lib/contas/busca";
+import { getMascaraConfig, MASCARA_DEFAULT, opcoesLotePorMascara, rotuloNivelMascara } from "@/lib/mascara/interpretar";
 import { Fragment } from "react";
 
 /**
@@ -62,7 +66,7 @@ const galhoDeCaminho = (caminho: string | null | undefined) =>
  * este código existe para remover.
  */
 async function enviarLancamentos(importacaoId: string, lancamentos: any[]) {
-  const BLOCO = 5000;
+  const BLOCO = 800;
   if (lancamentos.length === 0) return 0;
   let total = 0;
   for (let i = 0; i < lancamentos.length; i += BLOCO) {
@@ -75,11 +79,42 @@ async function enviarLancamentos(importacaoId: string, lancamentos: any[]) {
       _linhas: lancamentos.slice(i, i + BLOCO).map((l: any) => ({
         numero: l.numero, data: l.data, codigo: l.codigo_conta,
         debito: l.debito, credito: l.credito, historico: l.historico,
+        encerramento: !!l.encerramento,
       })),
       _primeiro_bloco: i === 0,
     });
     if (error) throw new Error(error.message);
     total = Number(data?.total ?? 0);
+  }
+  return total;
+}
+
+async function rpcEcd<T = any>(nome: string, args: Record<string, unknown>): Promise<T> {
+  const { data, error } = await (supabase as any).rpc(nome, args);
+  if (error) throw new Error(error.message);
+  return data as T;
+}
+
+/** Diário do ECD em fatias: um INSERT único estoura o timeout da nuvem. */
+async function materializarEcdEmLotes(importacaoId: string): Promise<number> {
+  const prep = await rpcEcd<{ tem_lancamentos?: boolean; upload_id?: string | null }>(
+    "ecd_preparar_diario",
+    { _importacao_id: importacaoId },
+  );
+  if (!prep?.tem_lancamentos || !prep.upload_id) return 0;
+  await rpcEcd("ecd_marcar_encerramento", { _importacao_id: importacaoId });
+  await apagarLancamentosEmLotes(prep.upload_id);
+  let depois = 0;
+  let total = 0;
+  for (;;) {
+    const lote = await rpcEcd<{ gravadas?: number; ultimo_seq?: number }>(
+      "ecd_materializar_lote",
+      { _importacao_id: importacaoId, _depois: depois, _limite: 2000 },
+    );
+    const ultimo = Number(lote?.ultimo_seq ?? 0);
+    total += Number(lote?.gravadas ?? 0);
+    if (!ultimo || ultimo <= depois) break;
+    depois = ultimo;
   }
   return total;
 }
@@ -125,8 +160,14 @@ export function EcdPanel({ tenantId, companyId }: Props) {
     qc.invalidateQueries({ queryKey: ["ecd-natureza", selecionada] });
   };
 
+  const { data: mascara = MASCARA_DEFAULT } = useQuery({
+    queryKey: ["mascara-classificacao", tenantId, companyId],
+    queryFn: () => getMascaraConfig({ tenantId, companyId }),
+  });
+
   const { data: importacoes, isLoading } = useQuery({
     queryKey: ["ecd-importacoes", companyId],
+    staleTime: 60_000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("ecd_importacao" as any)
@@ -145,46 +186,45 @@ export function EcdPanel({ tenantId, companyId }: Props) {
   const { data: contas } = useQuery({
     queryKey: ["ecd-contas", atual?.id],
     enabled: !!atual?.id,
+    staleTime: 60_000,
     queryFn: async () => {
-      // Paginado: um ECD de 500 contas × 12 meses são 6.000 linhas de
-      // saldo, e o servidor corta em 1.000 sem avisar. O resultado era
-      // 83% das contas aparecendo com movimento e saldo ZERO — o que
-      // corrompe o filtro "com movimento", a contagem de pendentes e a
-      // coluna "saldo final", que é justamente o número da virada.
-      const cs = await lerTudo<any>(
-        (de, ate) => supabase
-          .from("ecd_conta" as any)
-          .select("codigo, descricao, tipo, classificacao, classificacao_origem, " +
-                  "cod_superior, caminho_nomes, caminho_codigos, profundidade")
-          .eq("importacao_id", atual.id)
-          .order("codigo")
-          .range(de, ate),
-        "ecd_conta",
-      );
-      // Nome da conta superior: é o rótulo do grupo quando se agrupa pelo
-      // galho do próprio ECD.
+      // Plano paginado + movimento agregado no banco. Baixar ecd_saldo
+      // (conta × mês) numa empresa ECD grande era 15 mil linhas só para
+      // somar movimento e pegar o saldo da virada.
+      const [cs, sal] = await Promise.all([
+        lerTudo<any>(
+          (de, ate) => supabase
+            .from("ecd_conta" as any)
+            .select(
+              "codigo, descricao, tipo, classificacao, classificacao_origem, " +
+              "cod_superior, caminho_nomes, caminho_codigos, profundidade",
+              de === 0 ? { count: "exact" } : {},
+            )
+            .eq("importacao_id", atual.id)
+            .order("codigo")
+            .range(de, ate),
+          "ecd_conta",
+        ),
+        lerRpcKeyset<{ codigo: string; mov: number; fim: number }>(
+          "codigo",
+          (depois) =>
+            (supabase as any).rpc("ecd_movimento_por_conta", {
+              _importacao_id: atual.id,
+              _depois: depois,
+              _limite: 1000,
+            }),
+          "ecd_movimento_por_conta",
+        ),
+      ]);
       const nomePai = new Map<string, string>();
       for (const c of cs) nomePai.set(c.codigo, c.descricao ?? "");
 
-      const sal = await lerTudo<any>(
-        (de, ate) => supabase
-          .from("ecd_saldo" as any)
-          .select("codigo, competencia, saldo_final, debitos, creditos")
-          .eq("importacao_id", atual.id)
-          // ORDENADO. O código antigo dizia em comentário "a última lida
-          // vale; ordenado abaixo" — e não havia ordenação nenhuma, nem
-          // aqui nem depois. Cada conta exibia o saldo final de um mês
-          // qualquer.
-          .order("codigo").order("competencia")
-          .range(de, ate),
-        "ecd_saldo",
-      );
       const porConta = new Map<string, { mov: number; fim: number }>();
       for (const s of sal) {
-        const cur = porConta.get(s.codigo) ?? { mov: 0, fim: 0 };
-        cur.mov += Math.abs(Number(s.debitos) || 0) + Math.abs(Number(s.creditos) || 0);
-        cur.fim = Number(s.saldo_final) || 0; // ordenado por competência: a última é a última
-        porConta.set(s.codigo, cur);
+        porConta.set(s.codigo, {
+          mov: Number(s.mov) || 0,
+          fim: Number(s.fim) || 0,
+        });
       }
       return cs
         .filter((c) => (c.tipo ?? "A") !== "S")
@@ -198,6 +238,7 @@ export function EcdPanel({ tenantId, companyId }: Props) {
 
   const { data: depara } = useQuery({
     queryKey: ["ecd-depara", companyId],
+    staleTime: 60_000,
     queryFn: async () => {
       // Paginado: uma linha por conta vinculada. Acima de 1.000, as
       // contas que ficavam de fora apareciam como PENDENTES mesmo já
@@ -219,6 +260,7 @@ export function EcdPanel({ tenantId, companyId }: Props) {
   const { data: conferencia } = useQuery({
     queryKey: ["ecd-conferencia", atual?.id],
     enabled: !!atual?.id,
+    staleTime: 60_000,
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .rpc("ecd_conferencia", { _importacao_id: atual.id });
@@ -232,6 +274,7 @@ export function EcdPanel({ tenantId, companyId }: Props) {
   const { data: automaticas } = useQuery({
     queryKey: ["ecd-automaticas", atual?.id],
     enabled: !!atual?.id,
+    staleTime: 60_000,
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .rpc("ecd_contar_automaticas", { _importacao_id: atual.id });
@@ -245,6 +288,7 @@ export function EcdPanel({ tenantId, companyId }: Props) {
   const { data: encerramento } = useQuery({
     queryKey: ["ecd-encerramento", atual?.id],
     enabled: !!atual?.id,
+    staleTime: 60_000,
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .rpc("ecd_encerramento", { _importacao_id: atual.id });
@@ -260,6 +304,7 @@ export function EcdPanel({ tenantId, companyId }: Props) {
   const { data: diario } = useQuery({
     queryKey: ["ecd-diario", atual?.id],
     enabled: !!atual?.id,
+    staleTime: 60_000,
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .rpc("ecd_estado_diario", { _importacao_id: atual.id });
@@ -277,7 +322,8 @@ export function EcdPanel({ tenantId, companyId }: Props) {
   // O nome casava; a natureza, não.
   const { data: natureza } = useQuery({
     queryKey: ["ecd-natureza", atual?.id],
-    enabled: !!atual?.id,
+    enabled: !!atual?.id && !!contas,
+    staleTime: 60_000,
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .rpc("ecd_conferir_natureza", { _importacao_id: atual.id });
@@ -307,7 +353,7 @@ export function EcdPanel({ tenantId, companyId }: Props) {
     if (!atual?.id) return;
     setBusy("reler");
     try {
-      const p = parseSpedContabil(await arquivo.text());
+      const p = parseSpedContabil(await textoSped(arquivo));
       if (p.planoContas.length === 0) {
         throw new Error("O arquivo não tem plano de contas (registro I050). É mesmo um ECD?");
       }
@@ -352,16 +398,13 @@ export function EcdPanel({ tenantId, companyId }: Props) {
       // aqui, e só aqui: não toca em saldo nenhum.
       let nMaterializados = 0;
       if (nLctos > 0 && atual.status === "aplicado") {
-        const m = await (supabase as any).rpc("ecd_materializar_lancamentos", {
-          _importacao_id: atual.id,
-        });
-        if (m.error) {
+        try {
+          nMaterializados = await materializarEcdEmLotes(atual.id);
+        } catch (e: any) {
           toast.warning(
-            "O diário foi lido, mas não chegou ao drill-down: " + m.error.message +
+            "O diário foi lido, mas não chegou ao drill-down: " + (e?.message ?? String(e)) +
             ". Use \"Aplicar\" para completar.",
             { duration: 12000 });
-        } else {
-          nMaterializados = Number(m.data?.lancamentos ?? 0);
         }
       }
 
@@ -393,7 +436,7 @@ export function EcdPanel({ tenantId, companyId }: Props) {
   const importar = async (arquivo: File) => {
     setBusy("importar");
     try {
-      const texto = await arquivo.text();
+      const texto = await textoSped(arquivo);
       const p = parseSpedContabil(texto);
       if (p.planoContas.length === 0) {
         throw new Error("O arquivo não tem plano de contas (registro I050). É mesmo um ECD?");
@@ -664,10 +707,9 @@ export function EcdPanel({ tenantId, companyId }: Props) {
   const aplicar = async (forcar = false) => {
     setBusy("aplicar");
     try {
-      const { data, error } = await (supabase as any).rpc("ecd_aplicar", {
+      const data = await rpcEcd<any>("ecd_aplicar", {
         _importacao_id: atual.id, _substituir: false, _forcar: forcar,
       });
-      if (error) throw new Error(error.message);
       if (!data.ok) {
         toast.error(
           `${data.contas_sem_vinculo} conta(s) com movimento e sem vínculo. ` +
@@ -676,6 +718,14 @@ export function EcdPanel({ tenantId, companyId }: Props) {
         );
         return;
       }
+      let nLctos = Number(data.lancamentos) || 0;
+      if (data.tem_lancamentos) {
+        nLctos = await materializarEcdEmLotes(atual.id);
+      }
+      await rpcEcd("ecd_fechar_aplicacao", {
+        _importacao_id: atual.id,
+        _lancamentos: nLctos,
+      });
       // "0 linhas" com `ok: true` era indistinguível de sucesso. Agora a
       // resposta diz QUANTOS meses o diário já ocupava — que é o motivo
       // legítimo de não gravar nada — e quantas linhas velhas saíram
@@ -684,7 +734,9 @@ export function EcdPanel({ tenantId, companyId }: Props) {
       const removidas = Number(data.linhas_removidas) || 0;
       const nada = Number(data.linhas_saldos) === 0 && removidas === 0;
       const msg =
-        `${data.linhas_saldos} linha(s) de saldo e ${data.linhas_abertura} abertura(s) gravadas. ` +
+        `${data.linhas_saldos} linha(s) de saldo e ${data.linhas_abertura} abertura(s) gravadas` +
+        (nLctos > 0 ? `, ${nLctos.toLocaleString("pt-BR")} lançamento(s) do diário` : "") +
+        `. ` +
         (removidas > 0 ? `${removidas} linha(s) antiga(s) removida(s). ` : "") +
         (pulados > 0
           ? `${pulados} mês(es) não foram tocados porque o diário já manda neles. `
@@ -724,13 +776,15 @@ export function EcdPanel({ tenantId, companyId }: Props) {
 
   const desfazer = async () => {
     if (!confirm(
-      "Remover do sistema os saldos que vieram deste ECD?\n\n" +
-      "O diário não é tocado — só os períodos que o ECD trouxe.")) return;
+      "Remover do sistema os saldos e o diário que vieram deste ECD?\n\n" +
+      "Só os períodos que o ECD trouxe saem. O diário carregado à parte não é tocado.")) return;
     setBusy("desfazer");
     try {
-      const { data, error } = await (supabase as any)
-        .rpc("ecd_desfazer", { _importacao_id: atual.id });
-      if (error) throw new Error(error.message);
+      const uploadId = await rpcEcd<string | null>("ecd_upload_do_ecd", {
+        _importacao_id: atual.id,
+      });
+      if (uploadId) await apagarLancamentosEmLotes(uploadId);
+      const data = await rpcEcd<any>("ecd_desfazer", { _importacao_id: atual.id });
       toast.success(`${data.saldos_removidos} saldo(s) e ${data.aberturas_removidas} abertura(s) removidos.`);
       invalidar();
     } catch (e: any) { toast.error(e.message); }
@@ -807,7 +861,7 @@ export function EcdPanel({ tenantId, companyId }: Props) {
     };
   }, [listaContas]);
 
-  const niveis = useMemo(() => niveisDisponiveis(listaContas), [listaContas]);
+  const niveis = useMemo(() => niveisDisponiveis(listaContas, mascara), [listaContas, mascara]);
   const niveisGalho = useMemo(() => niveisDoCaminho(listaContas), [listaContas]);
   const temPai = useMemo(() => listaContas.some((l) => !!l.pai), [listaContas]);
 
@@ -817,17 +871,21 @@ export function EcdPanel({ tenantId, companyId }: Props) {
   const opcoesGrupo = useMemo(() => {
     const out: { valor: number; rotulo: string }[] = [];
     if (forma.temEstrutural && niveis > 1) {
-      for (let n = 1; n <= Math.min(niveis, 6); n++) {
-        out.push({ valor: n, rotulo: `classificação · ${n} ${n > 1 ? "níveis" : "nível"}` });
+      const lote = opcoesLotePorMascara(mascara, niveis);
+      if (lote.length > 0) out.push(...lote);
+      else {
+        for (let n = 1; n <= Math.min(niveis, 6); n++) {
+          out.push({ valor: n, rotulo: `${n}º nível da classificação` });
+        }
       }
     } else if (niveisGalho > 1) {
       for (let n = 1; n <= Math.min(niveisGalho, 6); n++) {
-        out.push({ valor: n, rotulo: `galho do ECD · ${n} ${n > 1 ? "níveis" : "nível"}` });
+        out.push({ valor: n, rotulo: `${n}º nível do galho` });
       }
     }
     if (temPai) out.push({ valor: -1, rotulo: "conta superior do ECD" });
     return out;
-  }, [forma.temEstrutural, niveis, niveisGalho, temPai]);
+  }, [forma.temEstrutural, niveis, niveisGalho, temPai, mascara]);
 
   // Agrupado: a janela conta LINHAS, não grupos — um galho de 300 contas
   // não pode entrar inteiro só porque é um grupo só.
@@ -840,13 +898,10 @@ export function EcdPanel({ tenantId, companyId }: Props) {
           (k, l) => (k ? `${l.nomePai ? tituloConta(l.nomePai) + " · " : ""}${k}` : ""),
           (k) => k)
       : forma.temEstrutural
-        ? agruparPorClassificacao(visiveis, nivelGrupo)
+        ? agruparPorClassificacao(visiveis, nivelGrupo, mascara)
         : agruparPorCaminho(visiveis, nivelGrupo);
-    const out: typeof todos = [];
-    let n = 0;
-    for (const g of todos) { if (n >= limite) break; out.push(g); n += g.linhas.length; }
-    return { mostrando: out, total: todos.length, linhas: n };
-  }, [visiveis, nivelGrupo, limite, forma.temEstrutural]);
+    return cortarGrupos(todos, limite);
+  }, [visiveis, nivelGrupo, limite, forma.temEstrutural, mascara]);
   const sugestoesVisiveis = visiveis.filter((l) => estadoDe(l) === "sugerido").length;
   const pendentesComMov = contagem.pendenteComMovimento;
 
@@ -941,6 +996,11 @@ export function EcdPanel({ tenantId, companyId }: Props) {
                 destinos={destinos ?? []}
                 carregando={carregandoDestinos}
                 valor={c.destino}
+                sugestaoGrupo={grupoDoDestino({
+                  descricao: c.descricao,
+                  classificacao: c.classificacao,
+                  galho: c.caminho,
+                })?.chave}
                 onEscolher={(cod) => vincular(c.codigo, cod)}
                 onIgnorar={() => vincular(c.codigo, null, true)}
                 permitirIgnorar
@@ -1344,23 +1404,24 @@ export function EcdPanel({ tenantId, companyId }: Props) {
                     {" "}o sistema contábil zerou{" "}
                     {(encerramento.meses ?? [])[0]?.contas_zeradas} conta(s) de resultado,
                     transferindo o acumulado para o PL. Esse lançamento está no I155 como
-                    movimento, então <strong>a DRE desse mês sai com o negativo do acumulado</strong>{" "}
-                    e a DRE do ano soma perto de zero. Não é a sua alocação — é o encerramento.
+                    Esse lançamento entra no I155 como movimento. Sem isolá-lo,{" "}
+                    <strong>a DRE desse mês sai com o negativo do acumulado</strong>{" "}
+                    e o ano some perto de zero. O BI ignora a transferência nas
+                    contas de resultado — o mês mostra só o movimento do período.
                     <div className="mt-1 text-muted-foreground">
                       {encerramento.corrigido_automaticamente ? (
                         <>
                           <strong className="text-emerald-700 dark:text-emerald-400">
                             Isto já está corrigido.
                           </strong>{" "}
-                          O diário do arquivo (I200/I250) foi lido e o lançamento de
-                          encerramento está identificado pelo histórico — o motor o desconta
-                          antes de montar a DRE. O número que você vê já é o do exercício.
+                          A transferência de resultado não entra na DRE nem no drill-down
+                          dessas contas. O Balanço (PL) continua com o encerramento.
                         </>
                       ) : encerramento.tem_lancamentos ? (
                         <>
-                          O diário foi lido, mas nenhum lançamento tem o histórico de
-                          transferência para resultado. Se a DRE do mês parecer o negativo do
-                          acumulado, é isto — me diga qual é o histórico que o seu sistema usa.
+                          O diário foi lido. Se a DRE do mês ainda parecer o negativo do
+                          acumulado, recarregue a demonstração — a correção vale para
+                          ECD já aplicado.
                         </>
                       ) : (
                         <>
@@ -1422,6 +1483,10 @@ export function EcdPanel({ tenantId, companyId }: Props) {
               onSelecionarVisiveis={() => setMarcadas(new Set(visiveis.map((l) => l.codigo)))}
               onLimparSelecao={() => setMarcadas(new Set())}
               destinos={destinos ?? []}
+              origensSelecionadas={[...marcadas].map((codigo) => {
+                const l = listaContas.find((x) => x.codigo === codigo);
+                return { codigo, descricao: tituloConta(l?.descricao ?? codigo) };
+              })}
               onVincularLote={(codigo) =>
                 gravarLote([...marcadas], codigo, false, "vínculo em lote")}
               onIgnorarLote={() =>
@@ -1468,6 +1533,13 @@ export function EcdPanel({ tenantId, companyId }: Props) {
                         <Fragment key={g.prefixo || "(sem)"}>
                           <CabecalhoGrupo
                             prefixo={g.prefixo}
+                            rotuloNivel={
+                              nivelGrupo < 0
+                                ? "Conta superior"
+                                : forma.temEstrutural
+                                  ? rotuloNivelMascara(mascara, nivelGrupo)
+                                  : `${nivelGrupo}º nível`
+                            }
                             quantidade={g.linhas.length}
                             pendentes={g.pendentes}
                             movimento={g.movimento}
@@ -1475,6 +1547,11 @@ export function EcdPanel({ tenantId, companyId }: Props) {
                             onAlternar={() => alternarGrupo(g.linhas.map((l) => l.codigo))}
                             destinos={destinos ?? []}
                             carregandoDestinos={carregandoDestinos}
+                            sugestaoGrupo={grupoMaisFrequente(g.linhas)}
+                            origens={g.linhas.map((l) => ({
+                              codigo: l.codigo,
+                              descricao: tituloConta(l.descricao ?? l.codigo),
+                            }))}
                             onVincularGrupo={(cod) =>
                               gravarLote(g.linhas.map((l) => l.codigo), cod, false,
                                 `grupo ${g.prefixo}`)}

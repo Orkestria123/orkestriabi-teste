@@ -12,7 +12,7 @@
 //  - DRE: movimento do período. BP: abertura + Σ movimento até a competência.
 
 import { supabase } from "@/integrations/supabase/client";
-import { lerTudo } from "@/lib/supabase-paginado";
+import { lerTudo, countNaPrimeira } from "@/lib/supabase-paginado";
 import {
   descendeDe,
   dividir,
@@ -42,14 +42,48 @@ import { getTradutor } from "@/lib/plano/depara";
  * formas. A antiga fica na lista por compatibilidade com dados já
  * gravados em financial_statements.
  */
+export const ROTULO_RESULTADO_NEUTRO = "(=) Resultado do Exercício";
+
 export const ROTULOS_RESULTADO_DRE = [
   "(=) Lucro do Exercício",
   "(=) Prejuízo do Exercício",
+  ROTULO_RESULTADO_NEUTRO,
   "(=) Lucro Líquido do Exercício",
+] as const;
+
+/** Custo de estoque (EI + compras ± deduções ± EF), sem MOD/GGF/GGC. */
+export const ROTULO_CUSTO_PRODUTOS_SEM_MOD =
+  "(-) Custo de materiais dos produtos";
+export const ROTULO_CUSTO_MERCADORIAS_SEM_MOD =
+  "(-) Custo de aquisição das mercadorias";
+export const PAPEIS_CUSTO_ESTOQUE = [
+  "ESTOQUE_INICIAL",
+  "COMPRAS",
+  "DEDUCOES_COMPRAS",
+  "ESTOQUE_FINAL",
 ] as const;
 
 export function rotuloResultado(valor: number): string {
   return valor < 0 ? "(=) Prejuízo do Exercício" : "(=) Lucro do Exercício";
+}
+
+export function ehRotuloResultadoExercicio(desc: string | null | undefined): boolean {
+  if (!desc) return false;
+  return (ROTULOS_RESULTADO_DRE as readonly string[]).includes(desc);
+}
+
+/** Lucro / Prejuízo / Resultado conforme o sinal das colunas visíveis. */
+export function rotuloResultadoDasColunas(valores: Iterable<number>): string {
+  let pos = false;
+  let neg = false;
+  for (const v of valores) {
+    if (!Number.isFinite(v) || Math.abs(v) < 0.005) continue;
+    if (v < 0) neg = true;
+    else pos = true;
+  }
+  if (pos && neg) return ROTULO_RESULTADO_NEUTRO;
+  if (neg) return "(=) Prejuízo do Exercício";
+  return "(=) Lucro do Exercício";
 }
 
 export type ModoDemonstracao = "contabil" | "gerencial";
@@ -143,6 +177,36 @@ function somaClassifsDre(
 // outros cinco lugares que não tinham como reaproveitar esta.
 const fetchAllPaginated = lerTudo;
 
+function agregarSaldosTraduzidos(
+  rows: any[],
+  traduzir: ((codigo: string) => string) | null,
+): Saldo[] {
+  const idx = new Map<string, Saldo>();
+  for (const r of rows) {
+    const codigo = traduzir ? traduzir(r.conta_codigo) : r.conta_codigo;
+    const competencia = r.competencia;
+    const k = `${codigo}|${competencia}`;
+    const d = Number(r.total_debitos) || 0;
+    const c = Number(r.total_creditos) || 0;
+    const mov = Number(r.movimento) || (d - c);
+    const cur = idx.get(k);
+    if (cur) {
+      cur.total_debitos += d;
+      cur.total_creditos += c;
+      cur.movimento += mov;
+    } else {
+      idx.set(k, {
+        conta_codigo: codigo,
+        competencia,
+        movimento: mov,
+        total_debitos: d,
+        total_creditos: c,
+      });
+    }
+  }
+  return Array.from(idx.values());
+}
+
 function buildMatcher(mapas: Mapa[], mascara: MascaraConfig) {
   const sorted = [...mapas].sort(
     (a, b) => b.classificacao_prefixo.length - a.classificacao_prefixo.length,
@@ -179,14 +243,15 @@ async function getPlanoPorTipo(
   const estruturais = await fetchAllPaginated<Plano>((from, to) => {
     const q = supabase
       .from("plano_contas")
-      .select("codigo, classificacao, descricao, nivel, is_participante, is_sintetica")
+      .select("codigo, classificacao, descricao, nivel, is_participante, is_sintetica", countNaPrimeira(from))
       .eq("tenant_id", tenantId)
       .eq("ativo", true)
       .in("tipo", tiposPlano)
       .eq("is_participante", false)
+      .order("codigo")
       .range(from, to);
     return modoGlobal ? q.is("company_id", null) : q.eq("company_id", companyId);
-  });
+  }, "plano estrutural");
 
   if (!opts.incluirParticipantes) return estruturais;
 
@@ -215,14 +280,15 @@ async function getPlanoPorTipo(
     const rows = await fetchAllPaginated<Plano>((from, to) => {
       const q = supabase
         .from("plano_contas")
-        .select("codigo, classificacao, descricao, nivel, is_participante, is_sintetica")
+        .select("codigo, classificacao, descricao, nivel, is_participante, is_sintetica", countNaPrimeira(from))
         .eq("tenant_id", tenantId)
         .eq("ativo", true)
         .in("tipo", tiposParticipantes)
         .in("codigo", lote)
+        .order("codigo")
         .range(from, to);
       return modoGlobal ? q.is("company_id", null) : q.eq("company_id", companyId);
-    });
+    }, "plano participantes");
     participantes.push(...rows);
   }
   return [...estruturais, ...participantes];
@@ -283,15 +349,16 @@ async function getMapa(
   }>((from, to) => {
     const q = supabase
       .from("plano_contas")
-      .select("classificacao, descricao, nivel")
+      .select("classificacao, descricao, nivel", countNaPrimeira(from))
       .eq("tenant_id", tenantId)
       .eq("ativo", true)
       .eq("is_participante", false)
       .eq("is_sintetica", true)
       .in("tipo", tiposConta)
+      .order("classificacao")
       .range(from, to);
     return modoGlobal ? q.is("company_id", null) : q.eq("company_id", companyId);
-  });
+  }, "sintéticas da demonstração");
 
   const estrutura = await getEstruturaPadrao();
 
@@ -437,21 +504,16 @@ async function getSaldos(
   const rows = await fetchAllPaginated<any>((from, to) =>
     supabase
       .from("saldos_mensais")
-      .select("conta_codigo, competencia, total_debitos, total_creditos, movimento")
+      .select("conta_codigo, competencia, total_debitos, total_creditos, movimento", countNaPrimeira(from))
       .eq("company_id", companyId)
       .in("competencia", periodos)
+      .order("conta_codigo")
+      .order("competencia")
       .range(from, to),
+    "saldos do período",
   );
   const trad = await getTradutor(companyId);
-  return rows.map((r: any) => ({
-    conta_codigo: trad ? trad.traduzir(r.conta_codigo) : r.conta_codigo,
-    competencia: r.competencia,
-    movimento:
-      Number(r.movimento) ||
-      (Number(r.total_debitos) || 0) - (Number(r.total_creditos) || 0),
-    total_debitos: Number(r.total_debitos) || 0,
-    total_creditos: Number(r.total_creditos) || 0,
-  }));
+  return agregarSaldosTraduzidos(rows, trad ? (c) => trad.traduzir(c) : null);
 }
 
 /**
@@ -467,23 +529,54 @@ async function getSaldos(
  * (o PL continua com o Resultado do Exercício correto).
  *
  * Heurística (robusta ao SPED brasileiro): rows onde o histórico contém
- * "Transferido Para Conta" e "Resultado" (case-insensitive). Cobre os
- * padrões de ContMatic, Domínio, Sage/Folhamatic e similares.
+ * transferência / encerramento / apuração de resultado. Cobre ContMatic,
+ * Domínio, Sage e o I200 IND_LCTO=E (quando o texto veio no I250).
  */
+const _corrEncCache = new Map<string, Promise<Map<string, { debitos: number; creditos: number }>>>();
+
 async function getCorrecoesEncerramento(
+  companyId: string,
+  periodos: string[],
+): Promise<Map<string, { debitos: number; creditos: number }>> {
+  const key = `${companyId}|${[...periodos].sort().join(",")}`;
+  let p = _corrEncCache.get(key);
+  if (!p) {
+    p = buscarCorrecoesEncerramento(companyId, periodos);
+    _corrEncCache.set(key, p);
+  }
+  return p;
+}
+
+async function buscarCorrecoesEncerramento(
   companyId: string,
   periodos: string[],
 ): Promise<Map<string, { debitos: number; creditos: number }>> {
   const out = new Map<string, { debitos: number; creditos: number }>();
   if (periodos.length === 0) return out;
+  // ILIKE '%x%' não usa índice — sem recortar histórico vazio o banco
+  // varre todos os lançamentos do período (centenas de milhares no ECD,
+  // todos com historico NULL).
   const rows = await fetchAllPaginated<any>((from, to) =>
     supabase
       .from("lancamentos_diario")
-      .select("conta_codigo, competencia, debito, credito")
+      .select("id, conta_codigo, competencia, debito, credito, historico", countNaPrimeira(from))
       .eq("company_id", companyId)
       .in("competencia", periodos)
-      .ilike("historico", "%Transferido Para Conta%Resultado%")
+      .not("historico", "is", null)
+      .neq("historico", "")
+      .or(
+        [
+          "historico.ilike.%Transferido Para Conta%Resultado%",
+          "historico.ilike.%transfer%resultado%",
+          "historico.ilike.%encerramento%resultado%",
+          "historico.ilike.%apura%resultado%",
+          "historico.ilike.%resultado do exercicio%",
+          "historico.ilike.%resultado do exercício%",
+        ].join(","),
+      )
+      .order("id")
       .range(from, to),
+    "encerramento de exercício",
   );
   for (const r of rows) {
     const k = `${r.conta_codigo}|${r.competencia}`;
@@ -529,21 +622,16 @@ async function getSaldosAteData(
   const rows = await fetchAllPaginated<any>((from, to) =>
     supabase
       .from("saldos_mensais")
-      .select("conta_codigo, competencia, total_debitos, total_creditos, movimento")
+      .select("conta_codigo, competencia, total_debitos, total_creditos, movimento", countNaPrimeira(from))
       .eq("company_id", companyId)
       .lte("competencia", ateData)
+      .order("conta_codigo")
+      .order("competencia")
       .range(from, to),
+    "saldos acumulados",
   );
   const trad = await getTradutor(companyId);
-  return rows.map((r: any) => ({
-    conta_codigo: trad ? trad.traduzir(r.conta_codigo) : r.conta_codigo,
-    competencia: r.competencia,
-    movimento:
-      Number(r.movimento) ||
-      (Number(r.total_debitos) || 0) - (Number(r.total_creditos) || 0),
-    total_debitos: Number(r.total_debitos) || 0,
-    total_creditos: Number(r.total_creditos) || 0,
-  }));
+  return agregarSaldosTraduzidos(rows, trad ? (c) => trad.traduzir(c) : null);
 }
 
 // Devolve TODAS as aberturas com a data de referência. Antes esta função
@@ -554,9 +642,12 @@ async function getAberturas(companyId: string): Promise<AberturaConta[]> {
   const data = await fetchAllPaginated<any>((from, to) =>
     supabase
       .from("saldos_abertura")
-      .select("conta_codigo, data_referencia, saldo")
+      .select("conta_codigo, data_referencia, saldo", countNaPrimeira(from))
       .eq("company_id", companyId)
+      .order("conta_codigo")
+      .order("data_referencia")
       .range(from, to),
+    "saldos de abertura",
   );
   const trad = await getTradutor(companyId);
   const linhas: AberturaConta[] = data.map((r: any) => ({
@@ -888,8 +979,10 @@ async function buildDRE(
   let planoExtra: Plano[] = [];
   if (modo === "gerencial") {
     const ger = gerData ?? (await getAjustesGerenciais(companyId, tenantId));
-    const perSet = new Set(periodos);
-    const virtuais = ajustesToSaldosVirtuais(ger.ajustes, (c) => perSet.has(c));
+    const perSet = new Set(periodos.map((p) => p.slice(0, 7)));
+    const virtuais = ajustesToSaldosVirtuais(ger.ajustes, (c) =>
+      perSet.has(c.slice(0, 7)),
+    );
     saldos = [...saldos, ...virtuais];
     // Plano virtual para contas gerenciais (afeta apenas quando classificadas
     // em grupo 3 — improvável para DRE, mas mantemos por simetria).
@@ -1274,6 +1367,70 @@ function addAcumuladores(
     return t;
   };
 
+  const valorPapelPrefixo = (papel: string, prefixo: string, periodo: string): number => {
+    const defs = estrutura.filter(
+      (e) =>
+        e.papel === papel &&
+        e.demonstracao === "DRE" &&
+        (e.classificacao === prefixo || descendeDe(e.classificacao, prefixo, mascara)),
+    );
+    if (defs.length === 0) return 0;
+    let t = 0;
+    for (const e of defs) {
+      if (e.tipo_linha === "corrido") {
+        t += soma(
+          (pref) => compararClassificacao(pref, e.classificacao) < 0,
+          periodo,
+        );
+      } else if (e.tipo_linha === "bloco") {
+        const partes = dividir(e.classificacao, mascara);
+        const pai =
+          partes.length > 1 ? juntar(partes.slice(0, -1), mascara) : e.classificacao;
+        t += soma(
+          (pref) => pref === pai || descendeDe(pref, pai, mascara),
+          periodo,
+        );
+      } else {
+        t += somaClassifs([e.classificacao], periodo);
+      }
+    }
+    return t;
+  };
+
+  const custoEstoqueSemMod = (prefixo: string, periodo: string): number =>
+    PAPEIS_CUSTO_ESTOQUE.reduce(
+      (acc, papel) => acc + valorPapelPrefixo(papel, prefixo, periodo),
+      0,
+    );
+
+  const ordemAntesDoPapel = (papel: string, fallback: number): number => {
+    const ac = ordenados.find((a) => a.papel === papel);
+    const est = estrutura.find((e) => e.papel === papel && e.demonstracao === "DRE");
+    const ordem = ac?.ordem ?? est?.ordem ?? fallback;
+    return ordem * 1000 - 20;
+  };
+
+  for (const p of periodos) {
+    rows.push({
+      linha_ordem: ordemAntesDoPapel("CPV", 50),
+      descricao: ROTULO_CUSTO_PRODUTOS_SEM_MOD,
+      codigo_conta: null,
+      nivel: 0,
+      is_subtotal: true,
+      periodo: p,
+      valor: custoEstoqueSemMod("3.02", p),
+    });
+    rows.push({
+      linha_ordem: ordemAntesDoPapel("CMV", 70),
+      descricao: ROTULO_CUSTO_MERCADORIAS_SEM_MOD,
+      codigo_conta: null,
+      nivel: 0,
+      is_subtotal: true,
+      periodo: p,
+      valor: custoEstoqueSemMod("3.03", p),
+    });
+  }
+
   const valorLinhaDre = (papel: string, periodo: string): number | null => {
     if (papel === "CUSTOS") {
       const a = valorPapel("CPV", periodo) ?? 0;
@@ -1439,18 +1596,16 @@ async function buildBP(
   // No modo gerencial os movimentos virtuais de ajustes em contas DRE (grupo 3)
   // já estão em saldosAcum e portanto propagam automaticamente para o resultado
   // — mantendo Ativo = Passivo + PL na visão gerencial.
-  const dreCodigos = new Set<string>(planoDRE.map((p) => p.codigo));
+  const dreCodigos = new Set<string>([...planoDRE, ...planoExtra].map((p) => p.codigo));
   const resultadoExercicioPorRef = new Map<string, number>();
   if (tipo === "BP_PASSIVO" && dreCodigos.size > 0) {
     for (const ref of periodos) {
-      const inicioExerc = `${ref.slice(0, 4)}-01`;
+      const refYm = ref.slice(0, 7);
+      const inicioExerc = `${refYm.slice(0, 4)}-01`;
       let soma = 0;
       for (const s of saldosAcum) {
-        if (
-          s.competencia >= inicioExerc &&
-          s.competencia <= ref &&
-          dreCodigos.has(s.conta_codigo)
-        ) {
+        const cYm = s.competencia.slice(0, 7);
+        if (cYm >= inicioExerc && cYm <= refYm && dreCodigos.has(s.conta_codigo)) {
           soma += s.movimento;
         }
       }
@@ -1927,6 +2082,11 @@ async function buildDFC(
 
   const dreVal = (descricao: string, p: string) =>
     dre.find((r) => r.descricao === descricao && r.periodo === p)?.valor ?? 0;
+  const lucroDoPeriodo = (p: string) => {
+    const row = dre.find((r) => r.periodo === p && ehRotuloResultadoExercicio(r.descricao));
+    if (row && Math.abs(row.valor) >= 0.005) return row.valor;
+    return ROTULOS_RESULTADO_DRE.map((r) => dreVal(r, p)).find((v) => v !== 0) ?? 0;
+  };
 
   // AJUSTE 01 — a DFC deixou de depender de prefixos fixos no código
   // (1.01.01 = caixa, 1.03 = imobilizado...) e de regex na descrição
@@ -1977,14 +2137,15 @@ async function buildDFC(
     const parte = await fetchAllPaginated<FlagDFC>((from, to) => {
       const q = supabase
         .from("plano_contas")
-        .select("codigo, classificacao, dfc_codigo, dfc_atividade, dfc_nao_caixa, tipo")
+        .select("codigo, classificacao, dfc_codigo, dfc_atividade, dfc_nao_caixa, tipo", countNaPrimeira(from))
         .eq("tenant_id", tenantId)
         .eq("ativo", true)
         .eq("is_sintetica", false)
         .in("codigo", lote)
+        .order("codigo")
         .range(from, to);
       return modoGlobal ? q.is("company_id", null) : q.eq("company_id", companyId);
-    });
+    }, "flags DFC");
     flagsBrutas.push(...parte);
   }
 
@@ -2049,7 +2210,16 @@ async function buildDFC(
     cod ? (catalogo.get(cod)?.bloco ?? null) : null;
 
   const porCodigo = new Map(flags.map((f) => [f.codigo, f]));
-  const saldos = saldosDFC;
+  // Mesmo recorte da DRE: tira o encerramento das contas de resultado.
+  // Sem isso o diário (histórico) deixa o PL com a contrapartida e a
+  // DFC conta o crédito como financiamento. No ECD os saldos de grupo 3
+  // já vêm recortados — a correção é vazia e o furo aparece na soma.
+  const correcoesEncerr = await getCorrecoesEncerramento(companyId, periodosOrd);
+  const saldos = aplicarCorrecoesEncerramento(
+    saldosDFC,
+    correcoesEncerr,
+    (c) => porCodigo.get(c)?.tipo === "3-DRE",
+  );
 
   // Soma dos movimentos do período, por CÓDIGO da planilha.
   //
@@ -2111,6 +2281,25 @@ async function buildDFC(
     acc.semFlag += mov;
   }
 
+  // Encerramento: a DRE tira o I200 E (grupo 3) e o Balanço mantém o
+  // crédito em Lucros Acumulados. Σ movimento deixa de ser 0. Sem
+  // absorver esse furo, o crédito do PL entra em FL como se fosse
+  // captação — a DFC não fecha, mesmo com 100% das contas classificadas.
+  // Distribuição real (débito em lucros nos outros meses) permanece:
+  // nesses meses o livro fecha (furo ≈ 0) e nada é absorvido.
+  for (const p of periodosOrd) {
+    const acc = somaPorPeriodo.get(p);
+    if (!acc) continue;
+    let furo = 0;
+    for (const s of saldos) {
+      if (s.competencia !== p) continue;
+      if (!porCodigo.has(s.conta_codigo)) continue;
+      furo += s.movimento;
+    }
+    const lucroLiq = lucroDoPeriodo(p);
+    absorverFuroEncerramentoDFC(acc, lucroLiq, catalogo, furo);
+  }
+
   const out: FlatRow[] = [];
 
   // Os códigos que realmente têm movimento, na ordem do catálogo.
@@ -2146,8 +2335,7 @@ async function buildDFC(
     };
 
     // aceita qualquer um dos rótulos (Lucro / Prejuízo / o antigo)
-    const lucroLiq =
-      ROTULOS_RESULTADO_DRE.map((r) => dreVal(r, p)).find((v) => v !== 0) ?? 0;
+    const lucroLiq = lucroDoPeriodo(p);
     const ajusteNaoCaixa = acc.naoCaixa;
     const varCapitalGiro = somaBloco("operacional");
     const investimento = somaBloco("investimento");
@@ -2173,7 +2361,7 @@ async function buildDFC(
     linhasDoBloco("operacional").forEach((c, i) =>
       emitirRow(out, ORD.giroDet + i, c.descricao, p, val(c.codigo), { nivel: 2, codigo: c.codigo }),
     );
-    emitirRow(out, ORD.operSub, "(=) Caixa das Atividades Operacionais", p, operacional, {
+    emitirRow(out, ORD.operSub, "(=) Caixa Das Atividades Operacionais", p, operacional, {
       nivel: 0, is_subtotal: true,
     });
 
@@ -2181,7 +2369,7 @@ async function buildDFC(
     linhasDoBloco("investimento").forEach((c, i) =>
       emitirRow(out, ORD.invDet + i, c.descricao, p, val(c.codigo), { nivel: 2, codigo: c.codigo }),
     );
-    emitirRow(out, ORD.invSub, "(=) Caixa das Atividades de Investimento", p, investimento, {
+    emitirRow(out, ORD.invSub, "(=) Caixa Das Atividades de Investimento", p, investimento, {
       nivel: 0, is_subtotal: true,
     });
 
@@ -2189,7 +2377,7 @@ async function buildDFC(
     linhasDoBloco("financiamento").forEach((c, i) =>
       emitirRow(out, ORD.finDet + i, c.descricao, p, val(c.codigo), { nivel: 2, codigo: c.codigo }),
     );
-    emitirRow(out, ORD.finSub, "(=) Caixa das Atividades de Financiamento", p, financiamento, {
+    emitirRow(out, ORD.finSub, "(=) Caixa Das Atividades de Financiamento", p, financiamento, {
       nivel: 0, is_subtotal: true,
     });
 
@@ -2204,10 +2392,13 @@ async function buildDFC(
     // e aí a mensagem diz o que fazer, em vez de esconder num
     // "validado" com 5% de tolerância como era antes.
     if (Math.abs(diferenca) >= 0.01) {
+      const motivo = Math.abs(acc.semFlag) >= 0.01
+        ? "há contas com movimento sem classificação de DFC. Configure em Plano de Contas > Estrutura e DFC."
+        : "a conferência das partidas não fechou. Confira o mapa da DFC e se o encerramento do exercício ficou só no Balanço.";
       emitirRow(
         out,
         ORD.aviso,
-        `⚠ Diferença de ${formatarDiferencaDFC(diferenca)} — há contas com movimento sem classificação de DFC. Configure em Plano de Contas > Estrutura e DFC.`,
+        `⚠ Diferença de ${formatarDiferencaDFC(diferenca)} — ${motivo}`,
         p,
         diferenca,
       );
@@ -2225,6 +2416,38 @@ function somaCodigo(
   valor: number,
 ) {
   acc.porCodigo.set(codigo, (acc.porCodigo.get(codigo) ?? 0) + valor);
+}
+
+/**
+ * Quando a DRE isola o encerramento e o PL permanece com a
+ * contrapartida, Σ movimento do mês = furo ≠ 0. A identidade da DFC
+ * (`lucro − ΔBP = Δcaixa`) assume partidas dobradas; o furo inteiro
+ * aparece como diferença. Se a diferença É o furo (nada a ver com
+ * conta sem flag), o crédito de apuração não é caixa — abate de FL.
+ * O residual em Lucros Acumulados (distribuição, AFAC, etc.) fica.
+ */
+function absorverFuroEncerramentoDFC(
+  acc: { caixa: number; naoCaixa: number; porCodigo: Map<string, number> },
+  lucroLiq: number,
+  catalogo: Map<string, DfcCatalogoItem>,
+  furo: number,
+) {
+  if (Math.abs(furo) < 0.01) return;
+  const somaBloco = (bloco: string) => {
+    let t = 0;
+    for (const c of catalogo.values()) {
+      if (c.bloco === bloco) t += acc.porCodigo.get(c.codigo) ?? 0;
+    }
+    return t;
+  };
+  const variacao =
+    lucroLiq +
+    acc.naoCaixa +
+    somaBloco("operacional") +
+    somaBloco("investimento") +
+    somaBloco("financiamento");
+  if (Math.abs(variacao - acc.caixa + furo) >= 0.5) return;
+  somaCodigo(acc, "FL", furo);
 }
 
 /**

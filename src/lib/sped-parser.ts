@@ -56,6 +56,8 @@ export interface LancamentoEcd {
   debito: number;
   credito: number;
   historico: string;
+  /** I200 IND_LCTO = E — transferência que zera conta de resultado. */
+  encerramento?: boolean;
 }
 
 export interface LinhaDemonstracao {
@@ -212,6 +214,7 @@ export function parseSpedContabil(content: string): SpedParseResult {
   // O lançamento I200 aberto — as partidas I250 pendem dele.
   let lctoNumero = "";
   let lctoData = "";
+  let lctoEncerramento = false;
   let currentDtIni = "";
   let currentDtFin = "";
 
@@ -294,8 +297,13 @@ export function parseSpedContabil(content: string): SpedParseResult {
 
       case "I200": {
         // |I200|NUM_LCTO|DT_LCTO|VL_LCTO|IND_LCTO|DT_LCTO_EXT|
+        // IND_LCTO: N = normal, E = encerramento das contas de resultado,
+        // X = extemporâneo. O E é o zeramento da DRE (em dezembro ou no
+        // último mês do arquivo). Sem isolá-lo, o mês fecha com o negativo
+        // do acumulado.
         lctoNumero = (fields[2] || "").trim();
         lctoData = parseSpedDate(fields[3]);
+        lctoEncerramento = (fields[5] || "").trim().toUpperCase() === "E";
         break;
       }
 
@@ -318,6 +326,7 @@ export function parseSpedContabil(content: string): SpedParseResult {
             debito: dc === "D" ? valor : 0,
             credito: dc === "C" ? valor : 0,
             historico: hist,
+            encerramento: lctoEncerramento,
           });
         }
         break;

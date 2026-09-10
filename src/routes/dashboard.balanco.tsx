@@ -17,7 +17,7 @@ function buildRows(data: any[]): StatementRow[] {
 
     if (!map.has(key)) map.set(key, {
       descricao: r.descricao,
-      codigo_conta: r.codigo_conta,
+      codigo_conta: r.codigo_conta ?? null,
       nivel: r.nivel ?? 0,
       is_subtotal: r.is_subtotal ?? false,
       values: {},
@@ -36,16 +36,23 @@ export const Route = createFileRoute("/dashboard/balanco")({ component: Page });
 function Page() {
   const { companyId, company } = useDashboardCompany();
   const { periodos } = useFilters();
-  const { data: ativo } = useMonthlyStatement(companyId, "BP_ATIVO", periodos);
-  const { data: passivo } = useMonthlyStatement(companyId, "BP_PASSIVO", periodos);
   const [showAV, setShowAV] = useState(false);
   const [showAH, setShowAH] = useState(false);
+
+  const { data: ativo } = useMonthlyStatement(companyId, "BP_ATIVO", periodos);
+  const { data: passivo } = useMonthlyStatement(companyId, "BP_PASSIVO", periodos);
   const ativoRows = useMemo(() => buildRows(ativo ?? []), [ativo]);
   const passivoRows = useMemo(() => buildRows(passivo ?? []), [passivo]);
-  const allRows = useMemo(() => [...ativoRows, ...passivoRows], [ativoRows, passivoRows]);
+  const bpRows = useMemo(() => {
+    const desloc = 1_000_000;
+    return [
+      ...ativoRows,
+      ...passivoRows.map((r) => ({ ...r, linha_ordem: r.linha_ordem + desloc })),
+    ];
+  }, [ativoRows, passivoRows]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-2 flex-wrap">
           <h2 className="text-2xl font-semibold tracking-tight">Balanço Patrimonial</h2>
@@ -57,13 +64,15 @@ function Page() {
             size="sm"
             variant={showAH ? "default" : "outline"}
             disabled={periodos.length < 2}
-            title={periodos.length < 2
-              ? "A análise horizontal compara períodos — selecione pelo menos dois meses no filtro."
-              : "Variação por coluna (período anterior ou base fixa, selecionável na tabela)"}
+            title={
+              periodos.length < 2
+                ? "A análise horizontal compara períodos — selecione pelo menos dois meses no filtro."
+                : "Variação por coluna (período anterior ou base fixa, selecionável na tabela)"
+            }
             onClick={() => setShowAH((v) => !v)}
           >AH%</Button>
           <ExportMenu
-            rows={allRows}
+            rows={bpRows}
             periods={periodos}
             filename={`BP-${company?.name ?? "empresa"}`}
             title="Balanço Patrimonial"
@@ -71,16 +80,18 @@ function Page() {
           />
         </div>
       </div>
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-        <div>
-          <h3 className="font-medium mb-2 text-sm uppercase tracking-wider text-muted-foreground">Ativo</h3>
-          <StatementTable rows={ativoRows} periods={periodos} showAV={showAV} showAH={showAH} basePeriod={periodos[0]} avBaseCodigo="Total do Ativo" variante="bp" padraoMaxNivel={3} />
-        </div>
-        <div>
-          <h3 className="font-medium mb-2 text-sm uppercase tracking-wider text-muted-foreground">Passivo + PL</h3>
-          <StatementTable rows={passivoRows} periods={periodos} showAV={showAV} showAH={showAH} basePeriod={periodos[0]} avBaseCodigo="Total do Passivo" variante="bp" padraoMaxNivel={3} />
-        </div>
-      </div>
+
+      <StatementTable
+        rows={bpRows}
+        periods={periodos}
+        showAV={showAV}
+        showAH={showAH}
+        basePeriod={periodos[0]}
+        avBaseCodigo="Total do Ativo"
+        variante="bp"
+        padraoMaxNivel={3}
+        lados
+      />
     </div>
   );
 }

@@ -11,7 +11,6 @@ export interface Profile {
   full_name: string | null;
   email: string | null;
   avatar_url: string | null;
-  tipo_usuario: string | null;
 }
 
 export interface Tenant {
@@ -28,8 +27,6 @@ interface AuthContextValue {
   profile: Profile | null;
   role: AppRole | null;
   tenant: Tenant | null;
-  /** Usuário do tipo cliente: acesso somente leitura ao BI. */
-  isCliente: boolean;
   refresh: () => Promise<void>;
   signOut: () => Promise<void>;
 }
@@ -113,8 +110,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const isCliente = profile?.tipo_usuario === "cliente" || (role === "client" && profile?.tipo_usuario == null);
-
   const refresh = async () => {
     await load(userId);
   };
@@ -126,7 +121,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ loading, userId, profile, role, tenant, isCliente, refresh, signOut }}>
+    <AuthContext.Provider value={{ loading, userId, profile, role, tenant, refresh, signOut }}>
       {children}
     </AuthContext.Provider>
   );

@@ -1,12 +1,18 @@
 import * as XLSX from "xlsx";
+import { baixarArquivo } from "@/lib/importacao/encoding";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import type { StatementRow } from "@/components/statement-table";
 import { periodoLabel } from "@/lib/format";
+import { ordenarPeriodosMesAnoAAno } from "@/lib/dre-acumulo";
 
 function fmt(v: number | undefined | null): string {
   if (v == null || isNaN(Number(v))) return "";
   return Number(v).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function colunasExport(periods: string[]): string[] {
+  return ordenarPeriodosMesAnoAAno(periods);
 }
 
 export function exportStatementXLSX(
@@ -15,16 +21,22 @@ export function exportStatementXLSX(
   filename: string,
   title: string,
 ) {
-  const header = ["Descrição", ...periods.map(periodoLabel)];
+  const cols = colunasExport(periods);
+  const header = ["Descrição", ...cols.map(periodoLabel)];
   const body = rows.map((r) => [
     `${"  ".repeat(r.nivel)}${r.descricao}`,
-    ...periods.map((p) => r.values[p] ?? 0),
+    ...cols.map((p) => r.values[p] ?? 0),
   ]);
   const ws = XLSX.utils.aoa_to_sheet([[title], [], header, ...body]);
-  ws["!cols"] = [{ wch: 50 }, ...periods.map(() => ({ wch: 18 }))];
+  ws["!cols"] = [{ wch: 50 }, ...cols.map(() => ({ wch: 18 }))];
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Demonstração");
-  XLSX.writeFile(wb, `${filename}.xlsx`);
+  const buf = XLSX.write(wb, { bookType: "xlsx", type: "array", compression: true });
+  baixarArquivo(
+    `${filename}.xlsx`,
+    new Uint8Array(buf),
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  );
 }
 
 export function exportStatementPDF(
@@ -35,7 +47,8 @@ export function exportStatementPDF(
   subtitle?: string,
   brand?: { primaryColor?: string; logoUrl?: string | null; tenantName?: string },
 ) {
-  const doc = new jsPDF({ orientation: periods.length > 3 ? "landscape" : "portrait", unit: "pt" });
+  const cols = colunasExport(periods);
+  const doc = new jsPDF({ orientation: cols.length > 3 ? "landscape" : "portrait", unit: "pt" });
   const pageWidth = doc.internal.pageSize.getWidth();
   const primary = brand?.primaryColor ?? "#6366F1";
 
@@ -59,16 +72,16 @@ export function exportStatementPDF(
 
   autoTable(doc, {
     startY: 110,
-    head: [["Descrição", ...periods.map(periodoLabel)]],
+    head: [["Descrição", ...cols.map(periodoLabel)]],
     body: rows.map((r) => [
       `${"  ".repeat(r.nivel)}${r.descricao}`,
-      ...periods.map((p) => fmt(r.values[p])),
+      ...cols.map((p) => fmt(r.values[p])),
     ]),
     styles: { fontSize: 9, cellPadding: 4 },
     headStyles: { fillColor: primary, textColor: "#FFFFFF", fontStyle: "bold" },
     columnStyles: {
       0: { cellWidth: "auto" },
-      ...Object.fromEntries(periods.map((_, i) => [i + 1, { halign: "right", cellWidth: 70 }])),
+      ...Object.fromEntries(cols.map((_, i) => [i + 1, { halign: "right", cellWidth: 70 }])),
     },
     didParseCell: (data) => {
       const row = rows[data.row.index];

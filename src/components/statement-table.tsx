@@ -1,6 +1,6 @@
 // src/components/statement-table.tsx
 import { useState, useMemo, useEffect, Fragment } from 'react';
-import { ChevronDown, ChevronRight, ChevronUp, ChevronsDown, ChevronsUp, Search } from 'lucide-react';
+import { ChevronDown, ChevronRight, ChevronUp, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useFiltersOptional } from '@/components/filter-bar';
 import { InlineDrilldown } from './inline-drilldown';
@@ -13,11 +13,26 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { resolverBasesAV, percentualAV } from '@/lib/av-base';
+import { tituloConta as formatarTituloConta } from '@/lib/format';
+import {
+  AGRUPADOR_LABEL,
+  AGRUPADORES,
+  montarColunas,
+  valorSubtotal,
+  gruposMesAnoAAno,
+  anoCurto,
+  type Agrupador,
+  type ColunaAgrupada,
+} from '@/lib/dre-acumulo';
+import {
+  ehRotuloResultadoExercicio,
+  rotuloResultadoDasColunas,
+} from '@/lib/diario/build-statements';
 
 export interface StatementRow {
   linha_ordem: number;
   descricao: string;
-  codigo_conta?: string | null;
+  codigo_conta: string | null;
   nivel: number;
   is_subtotal: boolean;
   values: Record<string, number>;
@@ -39,6 +54,8 @@ interface StatementTableProps {
   padraoMaxNivel?: number;
   onDrilldownClick?: (codigoConta: string, descricao: string) => void;
   emMilhares?: boolean;
+  /** Balanço: Ativo à esquerda e Passivo+PL à direita, com a mesma barra de filtro/expandir. */
+  lados?: boolean;
 }
 
 // Utilitários
@@ -57,7 +74,7 @@ function formatarMoeda(valor: number, emMilhares: boolean = false): string {
 
 function formatarPercentual(valor: number): string {
   if (valor == null || !isFinite(valor)) return '—';
-  return `${valor.toFixed(2).replace('.', ',')}%`;
+  return `${valor.toFixed(1).replace('.', ',')}%`;
 }
 
 function formatarPeriodo(periodo: string): string {
@@ -69,22 +86,50 @@ function formatarPeriodo(periodo: string): string {
   return `${meses[parseInt(mes) - 1]}/${ano.slice(2)}`;
 }
 
-function capitalize(str: string): string {
-  if (!str) return '';
-  return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
-}
-
-function tituloConta(descricao: string): string {
+function tituloConta(descricao: string, variante: 'dre' | 'bp' | 'dfc' = 'dre'): string {
   if (!descricao) return '';
-  // Remove prefixos comuns
-  let titulo = descricao
+  const semMarca = descricao
     .replace(/^\(=\)\s*/, '')
     .replace(/^\(-\)\s*/, '')
     .replace(/^\(\+\)\s*/, '')
     .replace(/^=\s*/, '');
-  
-  // Capitaliza cada palavra
-  return titulo.split(' ').map(capitalize).join(' ');
+  const t = formatarTituloConta(semMarca);
+  if (variante !== 'dfc') return t;
+  // Preposição "das" — o formatador trata DAS como o tributo do Simples.
+  return t.replace(/\bCaixa DAS Atividades\b/g, 'Caixa Das Atividades');
+}
+
+function valoresColunasVisiveis(
+  row: StatementRow,
+  colunas: ColunaAgrupada[],
+  variante: 'dre' | 'bp' | 'dfc',
+): number[] {
+  const out: number[] = [];
+  for (const col of colunas) {
+    if (col.kind === 's') {
+      const bruto = valorSubtotal(row.values, col.periodos, variante);
+      out.push(bruto);
+      if (row.valuesGer) {
+        out.push(valorSubtotal(row.valuesGer, col.periodos, variante));
+      }
+    } else {
+      const v = row.values[col.periodo] ?? 0;
+      out.push(v);
+      if (row.valuesGer) out.push(row.valuesGer[col.periodo] ?? v);
+    }
+  }
+  return out;
+}
+
+function descricaoExibida(
+  row: StatementRow,
+  colunas: ColunaAgrupada[],
+  variante: 'dre' | 'bp' | 'dfc',
+): string {
+  if (variante !== 'dre' || !ehRotuloResultadoExercicio(row.descricao)) {
+    return row.descricao;
+  }
+  return rotuloResultadoDasColunas(valoresColunasVisiveis(row, colunas, variante));
 }
 
 function calcularAH(
@@ -94,15 +139,30 @@ function calcularAH(
   basePeriod: string,
   tipo: 'anterior' | 'base',
 ): number | null {
-  const valorAtual = row.values[periodo] ?? 0;
+  const ler = (p: string) =>
+    row.valuesGer && row.valuesGer[p] !== undefined
+      ? row.valuesGer[p]
+      : (row.values[p] ?? 0);
+  const valorAtual = ler(periodo);
   let valorBase: number;
   if (tipo === 'anterior') {
-    const idx = periods.indexOf(periodo);
-    if (idx <= 0) return null;
-    valorBase = row.values[periods[idx - 1]] ?? 0;
+    const multiAno = new Set(periods.map((p) => p.slice(0, 4))).size > 1;
+    if (multiAno) {
+      const y = parseInt(periodo.slice(0, 4), 10);
+      const alvoYm = `${y - 1}${periodo.slice(4, 7)}`;
+      const prev =
+        periods.find((p) => p.slice(0, 7) === alvoYm) ??
+        Object.keys(row.values).find((p) => p.slice(0, 7) === alvoYm);
+      if (!prev) return null;
+      valorBase = ler(prev);
+    } else {
+      const idx = periods.indexOf(periodo);
+      if (idx <= 0) return null;
+      valorBase = ler(periods[idx - 1]);
+    }
   } else {
     if (periodo === basePeriod) return null;
-    valorBase = row.values[basePeriod] ?? 0;
+    valorBase = ler(basePeriod);
   }
   if (valorBase === 0 || Math.abs(valorBase) < 0.001) return null;
   return ((valorAtual - valorBase) / Math.abs(valorBase)) * 100;
@@ -193,104 +253,6 @@ function sameSet(a: Set<string>, b: Set<string>): boolean {
   return true;
 }
 
-// ===== Totalizadores configuráveis =====
-export type Agrupador = "mes" | "trimestre" | "semestre" | "ano" | "selecao";
-
-const AGRUPADOR_LABEL: Record<Agrupador, string> = {
-  mes: "Mês",
-  trimestre: "Trimestre",
-  semestre: "Semestre",
-  ano: "Ano",
-  selecao: "Seleção inteira",
-};
-
-const ORD = ["1º", "2º", "3º", "4º"];
-
-type Coluna =
-  | { kind: "p"; key: string; periodo: string }
-  | { kind: "s"; key: string; label: string; banda: string; periodos: string[] };
-
-function anoDe(p: string) {
-  return p.slice(0, 4);
-}
-function mesDe(p: string) {
-  return parseInt(p.slice(5, 7), 10);
-}
-
-function grupoDe(p: string, ag: Agrupador): string {
-  if (ag === "selecao") return "all";
-  const ano = anoDe(p);
-  if (ag === "ano") return ano;
-  const m = mesDe(p);
-  if (ag === "trimestre") return `${ano}-T${Math.ceil(m / 3)}`;
-  if (ag === "semestre") return `${ano}-S${Math.ceil(m / 6)}`;
-  return `${ano}-${p}`;
-}
-
-function rotulosGrupo(
-  p: string,
-  ag: Agrupador,
-  multiAno: boolean,
-): { label: string; banda: string } {
-  const ano = anoDe(p);
-  const m = mesDe(p);
-  if (ag === "selecao") return { label: "Total", banda: "Seleção" };
-  if (ag === "ano") return { label: `Total ${ano}`, banda: ano };
-  if (ag === "trimestre") {
-    const i = ORD[Math.ceil(m / 3) - 1];
-    return {
-      label: multiAno ? `${i} Tri ${ano}` : `${i} Tri`,
-      banda: `${i} Trimestre ${ano}`,
-    };
-  }
-  const i = ORD[Math.ceil(m / 6) - 1];
-  return {
-    label: multiAno ? `${i} Sem ${ano}` : `${i} Sem`,
-    banda: `${i} Semestre ${ano}`,
-  };
-}
-
-function montarColunas(periods: string[], ag: Agrupador): Coluna[] {
-  const ordenados = [...periods].sort();
-  const cols: Coluna[] = [];
-  if (ag === "mes") {
-    return ordenados.map((p) => ({ kind: "p" as const, key: p, periodo: p }));
-  }
-  const multiAno = new Set(ordenados.map(anoDe)).size > 1;
-  let atual: string | null = null;
-  let bucket: string[] = [];
-  const fechar = () => {
-    if (!atual || bucket.length === 0) return;
-    const { label, banda } = rotulosGrupo(bucket[0], ag, multiAno);
-    cols.push({ kind: "s", key: `sub:${atual}`, label, banda, periodos: [...bucket] });
-    bucket = [];
-  };
-  for (const p of ordenados) {
-    const g = grupoDe(p, ag);
-    if (atual !== null && g !== atual) fechar();
-    atual = g;
-    bucket.push(p);
-    cols.push({ kind: "p", key: p, periodo: p });
-  }
-  fechar();
-  return cols;
-}
-
-/** Subtotal: soma nos fluxos (DRE/DFC), saldo do último mês no Balanço. */
-function valorSubtotal(
-  valores: Record<string, number> | undefined,
-  periodos: string[],
-  variante: "dre" | "bp" | "dfc",
-): number {
-  if (!valores) return 0;
-  if (variante === "bp") {
-    const ultimo = periodos[periodos.length - 1];
-    return Number(valores[ultimo] ?? 0) || 0;
-  }
-  return periodos.reduce((acc, p) => acc + (Number(valores[p] ?? 0) || 0), 0);
-}
-
-
 export function StatementTable({
   rows,
   periods: periodsProp,
@@ -304,6 +266,7 @@ export function StatementTable({
   padraoMaxNivel,
   onDrilldownClick,
   emMilhares = false,
+  lados = false,
 }: StatementTableProps) {
   // Períodos vêm da prop (DRE/BP) ou, se omitidos, do FilterProvider do dashboard.
   const filterContext = useFiltersOptional();
@@ -334,7 +297,10 @@ export function StatementTable({
 
   // Encontrar base para AV
   const basesAV = useMemo(() => {
-    const todas = resolverBasesAV(rows, { variante, avBaseCodigo });
+    const todas = resolverBasesAV(rows, {
+      variante: variante === "bp" ? "bp" : "dre",
+      avBaseCodigo,
+    });
     if (!avSelecionadas || avSelecionadas.length === 0) return todas;
     return avSelecionadas.map((rotulo) => {
       const achada = todas.find((b) => b.rotulo === rotulo);
@@ -342,19 +308,34 @@ export function StatementTable({
     });
   }, [rows, variante, avBaseCodigo, avSelecionadas]);
 
-  const extrasPorPeriodo = (showAV ? basesAV.length : 0) + (showAH ? 1 : 0);
+  const corteLados = useMemo(() => {
+    if (!lados) return -1;
+    return rows.findIndex((r) => /passivo e patrim/i.test(r.descricao));
+  }, [lados, rows]);
 
-  // Totalizador configurável: padrão "Ano" com vários anos, "Seleção inteira" com um só.
+  const basesAVEsq = useMemo(() => {
+    if (corteLados <= 0) return basesAV;
+    return resolverBasesAV(rows.slice(0, corteLados), {
+      variante: "bp",
+      avBaseCodigo: "Total do Ativo",
+    });
+  }, [corteLados, rows, basesAV]);
+
+  const basesAVDir = useMemo(() => {
+    if (corteLados < 0) return basesAV;
+    return resolverBasesAV(rows.slice(corteLados), {
+      variante: "bp",
+      avBaseCodigo: "Total do Passivo",
+    });
+  }, [corteLados, rows, basesAV]);
+
   const multiAno = useMemo(
     () => new Set(periods.map((p) => p.slice(0, 4))).size > 1,
     [periods],
   );
   const [agrupador, setAgrupador] = useState<Agrupador | null>(null);
-  // No Balanço não há totalizador: cada mês é um saldo, somar/subtotalizar não faz sentido.
   const agrupadorEfetivo: Agrupador =
-    variante === "bp" ? "mes" : (agrupador ?? (multiAno ? "ano" : "selecao"));
-
-  // Mostrar/esconder as colunas de mês, deixando só os totalizadores.
+    variante === "bp" ? "mes" : (agrupador ?? (multiAno ? "mes" : "selecao"));
   const [mostrarMeses, setMostrarMeses] = useState(true);
   const colunasTodas = useMemo(
     () => montarColunas(periods, agrupadorEfetivo),
@@ -369,13 +350,23 @@ export function StatementTable({
     [colunasTodas, mostrarMeses, temSubtotais],
   );
   const colunasSub = useMemo(
-    () => colunas.filter((c): c is Extract<Coluna, { kind: "s" }> => c.kind === "s"),
+    () => colunas.filter((c): c is Extract<typeof c, { kind: "s" }> => c.kind === "s"),
     [colunas],
   );
-  
   const mostrarBanda =
     mostrarMeses && agrupadorEfetivo !== "mes" && agrupadorEfetivo !== "selecao";
-
+  const yoYMensal = multiAno && agrupadorEfetivo === "mes" && mostrarMeses;
+  const gruposYoY = useMemo(
+    () =>
+      yoYMensal
+        ? gruposMesAnoAAno(
+            colunas
+              .filter((c): c is Extract<typeof c, { kind: "p" }> => c.kind === "p")
+              .map((c) => c.periodo),
+          )
+        : [],
+    [yoYMensal, colunas],
+  );
 
   // Filtrar linhas por busca
   const rowsFiltradas = useMemo(() => {
@@ -478,7 +469,7 @@ export function StatementTable({
   }
 
   // Renderizar uma linha
-  const renderRow = (row: StatementRow, index: number) => {
+  const renderRow = (row: StatementRow, index: number, bases = basesAV) => {
     const children = getChildren(index);
     const hasChild = children.length > 0;
     const expanded = isExpanded(index);
@@ -487,6 +478,7 @@ export function StatementTable({
     const codigoDrill = row.codigo_conta;
     const hasDrilldown = !!codigoDrill;
     const drilldownExp = isDrilldownExpanded(index);
+    const desc = descricaoExibida(row, colunas, variante);
 
     return (
       <Fragment key={rowId(row)}>
@@ -497,8 +489,8 @@ export function StatementTable({
           )}
         >
           <td
-            className="px-2 py-1.5 sticky left-0 z-10 bg-background text-sm min-w-[220px] max-w-[280px]"
-            style={{ paddingLeft: `${8 + nivel * 12}px` }}
+            className="px-3 py-2 sticky left-0 z-10 bg-background text-sm min-w-[240px] max-w-[320px]"
+            style={{ paddingLeft: `${12 + nivel * 14}px` }}
           >
             <div className="flex items-center gap-1 min-w-0">
               {hasChild || hasDrilldown ? (
@@ -533,19 +525,19 @@ export function StatementTable({
                     "text-left min-w-0 truncate hover:text-foreground transition-colors",
                     drilldownExp && "text-foreground",
                   )}
-                  title={`Ver lançamentos: ${row.descricao}`}
+                  title={`Ver lançamentos: ${desc}`}
                 >
-                  <span className="truncate">{tituloConta(row.descricao)}</span>
+                  <span className="truncate">{tituloConta(desc, variante)}</span>
                 </button>
               ) : (
-                <span className="truncate" title={row.descricao}>
-                  {tituloConta(row.descricao)}
+                <span className="truncate" title={desc}>
+                  {tituloConta(desc, variante)}
                 </span>
               )}
             </div>
           </td>
 
-          {/* Cada período: valor + AV% (RB/RL) + AH% daquela coluna; subtotais por agrupamento */}
+          {/* Cada período: valor + AV% + AH%; subtotais conforme Totalizar */}
           {colunas.map((col) => {
             if (col.kind === "s") {
               const bruto = valorSubtotal(row.values, col.periodos, variante);
@@ -556,10 +548,13 @@ export function StatementTable({
               const idxSub = colunasSub.findIndex((c) => c.key === col.key);
               return (
                 <Fragment key={col.key}>
-                  <td className="px-2 py-1 text-right tabular-nums whitespace-nowrap text-xs min-w-[90px] bg-muted/60 font-semibold border-l border-border">
+                  <td className={cn(
+                    "px-3 py-1.5 text-right tabular-nums whitespace-nowrap min-w-[7.25rem] bg-muted/20 font-medium",
+                    yoYMensal && "border-l",
+                  )}>
                     {formatarMoeda(valorCol, mostrarMilhares)}
                   </td>
-                  {showAV && basesAV.map((base) => {
+                  {showAV && bases.map((base) => {
                     const den = base.row
                       ? valorSubtotal(base.row.values, col.periodos, variante)
                       : 0;
@@ -567,14 +562,14 @@ export function StatementTable({
                     return (
                       <td
                         key={`${col.key}-${base.rotulo}`}
-                        className="px-2 py-1 text-right tabular-nums whitespace-nowrap text-[11px] text-muted-foreground min-w-[62px] bg-muted/60"
+                        className="px-2 py-1.5 text-right tabular-nums whitespace-nowrap text-xs text-muted-foreground min-w-[3.5rem] bg-muted/20"
                       >
                         {pct !== null && isFinite(pct) ? formatarPercentual(pct) : "—"}
                       </td>
                     );
                   })}
                   {showAH && (
-                    <td className="px-2 py-1 text-right tabular-nums whitespace-nowrap text-[11px] min-w-[62px] bg-muted/60">
+                    <td className="px-2 py-1.5 text-right tabular-nums whitespace-nowrap text-xs min-w-[3.5rem] bg-muted/20">
                       {(() => {
                         const ref =
                           ahTipo === "base" ? colunasSub[0] : colunasSub[idxSub - 1];
@@ -586,12 +581,10 @@ export function StatementTable({
                         const pct = ((valorCol - anterior) / Math.abs(anterior)) * 100;
                         if (!isFinite(pct)) return "—";
                         return (
-                          <span
-                            className={cn(
-                              pct > 0 && "text-success",
-                              pct < 0 && "text-destructive",
-                            )}
-                          >
+                          <span className={cn(
+                            pct > 0 && "text-success",
+                            pct < 0 && "text-destructive",
+                          )}>
                             {formatarPercentual(pct)}
                           </span>
                         );
@@ -609,7 +602,10 @@ export function StatementTable({
 
             return (
               <Fragment key={periodo}>
-                <td className="px-2 py-1 text-right tabular-nums whitespace-nowrap text-xs min-w-[90px]">
+                <td className={cn(
+                  "px-3 py-1.5 text-right tabular-nums whitespace-nowrap min-w-[7.25rem]",
+                  yoYMensal && "border-l",
+                )}>
                   {isGerencial && Math.abs(valorGer - valor) > 0.01 ? (
                     <div className="flex flex-col items-end">
                       <span className="text-muted-foreground line-through text-[10px]">
@@ -623,19 +619,19 @@ export function StatementTable({
                     <span>{formatarMoeda(valor, mostrarMilhares)}</span>
                   )}
                 </td>
-                {showAV && basesAV.map((base) => {
+                {showAV && bases.map((base) => {
                   const pct = percentualAV(row, base.row, periodo);
                   return (
                     <td
                       key={`${periodo}-${base.rotulo}`}
-                      className="px-2 py-1 text-right tabular-nums whitespace-nowrap text-[11px] text-muted-foreground min-w-[62px]"
+                      className="px-2 py-1.5 text-right tabular-nums whitespace-nowrap text-xs text-muted-foreground min-w-[3.5rem]"
                     >
                       {pct !== null && isFinite(pct) ? formatarPercentual(pct) : '—'}
                     </td>
                   );
                 })}
                 {showAH && (
-                  <td className="px-2 py-1 text-right tabular-nums whitespace-nowrap text-[11px] min-w-[62px]">
+                  <td className="px-2 py-1.5 text-right tabular-nums whitespace-nowrap text-xs min-w-[3.5rem]">
                     {(() => {
                       const pct = calcularAH(
                         row,
@@ -665,11 +661,11 @@ export function StatementTable({
         {drilldownExp && hasDrilldown && (
           <InlineDrilldown
             codigoConta={codigoDrill!}
-            descricao={tituloConta(row.descricao)}
+            descricao={tituloConta(desc, variante)}
             periods={periods}
             colSpanLeft={1}
             colSpanRight={0}
-            extraMiddleCols={Math.max(0, colunas.length * (1 + extrasPorPeriodo) - periods.length)}
+            extraMiddleCols={colunas.length * ((showAV ? bases.length : 0) + (showAH ? 1 : 0))}
             variante={variante === "bp" ? "bp" : variante === "dfc" ? "dfc" : "dre"}
             emMilhares={mostrarMilhares}
           />
@@ -678,190 +674,223 @@ export function StatementTable({
     );
   };
 
-  // Renderizar cabeçalho
-  const renderHeader = () => {
+  const renderHeader = (bases = basesAV) => {
+    const extrasPorPeriodo = (showAV ? bases.length : 0) + (showAH ? 1 : 0);
     const colsPorPeriodo = 1 + extrasPorPeriodo;
     const comSub = extrasPorPeriodo > 0;
-    const rowSpanDesc = 1 + (mostrarBanda ? 1 : 0) + (comSub ? 1 : 0);
-
-    // Faixas de agrupamento (ex.: "1º Trimestre 2025" sobre Jan/Fev/Mar/Total)
-    const bandas: { key: string; label: string; cols: number }[] = [];
-    if (mostrarBanda) {
-      let atual: { key: string; label: string; cols: number } | null = null;
-      colunas.forEach((c, i) => {
-        if (!atual) atual = { key: `banda-${i}`, label: "", cols: 0 };
-        atual.cols += colsPorPeriodo;
-        if (c.kind === "s") {
-          atual.label = c.banda;
-          bandas.push(atual);
-          atual = null;
-        }
-      });
-      if (atual) bandas.push(atual);
-    }
-
-    const thDescricao = (
+    const temBandaSuperior = mostrarBanda || yoYMensal;
+    const rowSpanDesc = (temBandaSuperior ? 1 : 0) + 1 + (comSub ? 1 : 0);
+    const thDesc = (
       <th
         rowSpan={rowSpanDesc}
-        className="text-left font-medium text-[10px] uppercase tracking-wider text-muted-foreground px-2 py-2 sticky left-0 z-10 bg-background min-w-[220px] max-w-[280px]"
+        className="text-left font-medium text-xs uppercase tracking-wider text-muted-foreground px-3 py-2.5 sticky left-0 z-10 bg-background min-w-[240px] max-w-[320px]"
       >
         Descrição
       </th>
     );
-
+    const bandas: { banda: string; n: number }[] = [];
+    if (mostrarBanda) {
+      let n = 0;
+      for (const c of colunas) {
+        n += 1;
+        if (c.kind === "s") {
+          bandas.push({ banda: c.banda, n });
+          n = 0;
+        }
+      }
+      if (n > 0) bandas.push({ banda: "", n });
+    }
     return (
       <thead>
-        {mostrarBanda && (
+        {temBandaSuperior && (
           <tr className="border-b bg-muted/40">
-            {thDescricao}
-            {bandas.map((b) => (
-              <th
-                key={b.key}
-                colSpan={b.cols}
-                className="text-center font-semibold text-[10px] uppercase tracking-wider text-muted-foreground px-2 py-1.5 whitespace-nowrap border-l border-border"
-              >
-                {b.label}
-              </th>
-            ))}
+            {thDesc}
+            {yoYMensal
+              ? gruposYoY.map((g) => (
+                  <th
+                    key={`mes-${g.mes}`}
+                    colSpan={g.periodos.length * colsPorPeriodo}
+                    className="text-center font-medium text-xs text-muted-foreground px-3 py-1.5 whitespace-nowrap border-l"
+                  >
+                    {g.rotulo}
+                  </th>
+                ))
+              : bandas.map((g, i) => (
+                  <th
+                    key={`banda-${i}`}
+                    colSpan={g.n * colsPorPeriodo}
+                    className="text-center font-medium text-xs text-muted-foreground px-3 py-1.5 whitespace-nowrap"
+                  >
+                    {g.banda}
+                  </th>
+                ))}
           </tr>
         )}
         <tr className="border-b bg-muted/30">
-          {!mostrarBanda && thDescricao}
+          {!temBandaSuperior && thDesc}
           {colunas.map((col) => (
             <th
-              key={`h-${col.key}`}
+              key={col.key}
               colSpan={colsPorPeriodo}
               className={cn(
-                "text-right font-medium text-[10px] text-muted-foreground px-2 py-2 whitespace-nowrap min-w-[90px]",
-                col.kind === "s" && "bg-muted/60 font-semibold text-foreground border-l border-border",
+                "text-right font-medium text-xs text-muted-foreground px-3 py-2.5 whitespace-nowrap min-w-[7.25rem]",
+                col.kind === "s" && "bg-muted/40",
+                yoYMensal && "border-l",
               )}
             >
-              {col.kind === "s" ? col.label : formatarPeriodo(col.periodo)}
+              {col.kind === "s"
+                ? col.label
+                : yoYMensal
+                  ? anoCurto(col.periodo)
+                  : formatarPeriodo(col.periodo)}
             </th>
           ))}
         </tr>
         {comSub && (
           <tr className="border-b bg-muted/20">
-            {colunas.map((col) => {
-              if (col.kind === "s") {
-                return (
-                  <Fragment key={`sub-${col.key}`}>
-                    <th className="text-right font-medium text-[9px] text-muted-foreground px-2 py-1 whitespace-nowrap bg-muted/60 border-l border-border">
-                      R$
-                    </th>
-                    {showAV && basesAV.map((base) => (
-                      <th
-                        key={`avh-${col.key}-${base.rotulo}`}
-                        className="text-right font-medium text-[9px] text-muted-foreground px-1 py-1 whitespace-nowrap bg-muted/60"
-                        title={`Análise vertical sobre ${base.titulo}`}
-                      >
-                        {base.rotulo}
-                      </th>
-                    ))}
-                    {showAH && (
-                      <th className="text-right font-medium text-[9px] text-muted-foreground px-1 py-1 whitespace-nowrap bg-muted/60">
-                        AH%
-                      </th>
-                    )}
-                  </Fragment>
-                );
-              }
-
-              const periodo = col.periodo;
-              return (
-                <Fragment key={`sub-${periodo}`}>
-                  <th className="text-right font-medium text-[9px] text-muted-foreground px-2 py-1 whitespace-nowrap">
-                    R$
-                  </th>
-                  {showAV && basesAV.map((base) => (
-                    <th
-                      key={`avh-${periodo}-${base.rotulo}`}
-                      className="text-right font-medium text-[9px] text-muted-foreground px-1 py-1 whitespace-nowrap"
-                      title={`Análise vertical sobre ${base.titulo}`}
-                    >
-                      {base.rotulo}
-                    </th>
-                  ))}
-                  {showAH && (
-                    <th className="text-right font-medium text-[9px] text-muted-foreground px-1 py-1 whitespace-nowrap">
-                      {periodo === periods[0] ? (
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm" className="h-5 px-1 text-[9px]">
-                              AH%
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => setAhTipo('anterior')}>
-                              Período anterior
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => setAhTipo('base')}>
-                              Base: {basePeriod ? formatarPeriodo(basePeriod) : 'Primeiro'}
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      ) : (
-                        "AH%"
-                      )}
-                    </th>
+            {colunas.map((col, colIdx) => (
+              <Fragment key={`sub-${col.key}`}>
+                <th
+                  className={cn(
+                    "text-right font-medium text-[10px] text-muted-foreground px-3 py-1 whitespace-nowrap",
+                    col.kind === "s" && "bg-muted/30",
                   )}
-                </Fragment>
-              );
-            })}
+                >
+                  R$
+                </th>
+                {showAV && bases.map((base) => (
+                  <th
+                    key={`avh-${col.key}-${base.rotulo}`}
+                    className={cn(
+                      "text-right font-medium text-[10px] text-muted-foreground px-1 py-1 whitespace-nowrap",
+                      col.kind === "s" && "bg-muted/30",
+                    )}
+                    title={`Análise vertical sobre ${base.titulo}`}
+                  >
+                    {base.rotulo}
+                  </th>
+                ))}
+                {showAH && (
+                  <th
+                    className={cn(
+                      "text-right font-medium text-[10px] text-muted-foreground px-1 py-1 whitespace-nowrap",
+                      col.kind === "s" && "bg-muted/30",
+                    )}
+                  >
+                    {colIdx === 0 ? (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="sm" className="h-5 px-1 text-[10px]">
+                            AH%
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => setAhTipo("anterior")}>
+                            {multiAno ? "Mesmo mês do ano anterior" : "Período anterior"}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => setAhTipo("base")}>
+                            Base: {basePeriod ? formatarPeriodo(basePeriod) : "Primeiro"}
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    ) : (
+                      "AH%"
+                    )}
+                  </th>
+                )}
+              </Fragment>
+            ))}
           </tr>
         )}
       </thead>
     );
   };
 
+  const renderPainel = (
+    indices: number[],
+    bases: typeof basesAV,
+    titulo?: string,
+    encostar = false,
+  ) => {
+    const extras = (showAV ? bases.length : 0) + (showAH ? 1 : 0);
+    const visiveis = busca.trim()
+      ? indices.filter((i) => rowsFiltradas.includes(rows[i]))
+      : indices.filter((i) => isRowVisible(rows, i, expandedRows));
+    return (
+      <div className={cn("min-w-0 bg-transparent", !encostar && "overflow-x-auto")}>
+        {titulo && (
+          <div className="px-3 py-1.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground border-b bg-muted/10">
+            {titulo}
+          </div>
+        )}
+        <table className="w-max text-sm border-collapse">
+          {renderHeader(bases)}
+          <tbody>
+            {visiveis.length === 0 ? (
+              <tr>
+                <td
+                  colSpan={1 + colunas.length * (1 + extras)}
+                  className="px-3 py-8 text-sm text-muted-foreground"
+                >
+                  {busca.trim()
+                    ? `Nenhuma conta encontrada para o filtro "${busca}".`
+                    : "Nenhum dado encontrado para os filtros selecionados."}
+                </td>
+              </tr>
+            ) : (
+              visiveis.map((i) => renderRow(rows[i], i, bases))
+            )}
+          </tbody>
+        </table>
+      </div>
+    );
+  };
+
   return (
-    <div className="rounded-lg border overflow-hidden max-w-full">
+    <div className="rounded-lg border overflow-hidden">
       {/* Barra de ferramentas */}
-      <div className="flex flex-col gap-2 px-3 py-2 border-b bg-muted/20 text-xs">
-        {/* Linha 1: busca + contador */}
-        <div className="flex items-center gap-2 min-w-0">
-          <div className="relative flex-1 min-w-0">
+      <div className="flex items-center justify-between gap-2 px-3 py-2 border-b bg-muted/20 text-xs">
+        <div className="flex items-center gap-4">
+          <div className="relative">
             <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
             <Input
-              className="h-7 pl-7 text-xs w-full"
+              className="h-7 pl-7 text-xs w-48"
               placeholder="Filtrar por conta..."
               value={busca}
               onChange={(e) => setBusca(e.target.value)}
             />
           </div>
-          <span className="text-muted-foreground whitespace-nowrap shrink-0">
+          <span className="text-muted-foreground">
             {rowsFiltradas.length} de {rows.length} linhas
           </span>
-        </div>
-
-        {/* Linha 2: ações */}
-        <div className="flex flex-wrap items-center gap-1.5 min-w-0">
           {idsComFilhos.length > 0 && !busca.trim() && (
-            <>
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-7 w-7 p-0 rounded-md shrink-0"
-                onClick={recolherUmNivel}
-                disabled={abertoMax < 0}
-                title="Recolher um nível em todas as contas"
-              >
-                <ChevronUp className="h-3.5 w-3.5" />
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-7 w-7 p-0 rounded-md shrink-0"
-                onClick={expandirUmNivel}
-                disabled={!podeExpandirCamada}
-                title="Expandir um nível em todas as contas"
-              >
-                <ChevronDown className="h-3.5 w-3.5" />
-              </Button>
+            <div className="flex items-center gap-1.5">
+              <div className="flex items-center">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 w-7 p-0 rounded-md"
+                  onClick={recolherUmNivel}
+                  disabled={abertoMax < 0}
+                  title="Recolher um nível em todas as contas"
+                >
+                  <ChevronUp className="h-3.5 w-3.5" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 w-7 p-0 rounded-md ml-1"
+                  onClick={expandirUmNivel}
+                  disabled={!podeExpandirCamada}
+                  title="Expandir um nível em todas as contas"
+                >
+                  <ChevronDown className="h-3.5 w-3.5" />
+                </Button>
+              </div>
               <Button
                 variant={modoExpand === "padrao" ? "default" : "outline"}
                 size="sm"
-                className="h-7 px-2 text-xs rounded-md shrink-0"
+                className="h-7 text-xs rounded-md"
                 onClick={aplicarPadrao}
                 title="Abre os grupos da demonstração, sem o detalhe analítico completo"
               >
@@ -870,92 +899,97 @@ export function StatementTable({
               <Button
                 variant={modoExpand === "tudo" ? "default" : "outline"}
                 size="sm"
-                className="h-7 w-7 p-0 rounded-md shrink-0"
+                className="h-7 text-xs rounded-md"
                 onClick={expandirTudo}
-                title="Expandir tudo"
               >
-                <ChevronsDown className="h-3.5 w-3.5" />
+                Expandir tudo
               </Button>
               <Button
                 variant={modoExpand === "recolher" ? "default" : "outline"}
                 size="sm"
-                className="h-7 w-7 p-0 rounded-md shrink-0"
+                className="h-7 text-xs rounded-md"
                 onClick={recolherTudo}
-                title="Recolher tudo"
               >
-                <ChevronsUp className="h-3.5 w-3.5" />
+                Recolher
               </Button>
-            </>
+            </div>
           )}
-
-          <div className="flex items-center gap-1 ml-auto shrink-0">
-            {variante !== "bp" && (
-              <>
-                {temSubtotais && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-7 px-2 text-xs rounded-md"
-                    onClick={() => setMostrarMeses((v) => !v)}
-                    title={
-                      mostrarMeses
-                        ? "Esconder os meses e deixar só os totalizadores"
-                        : "Mostrar novamente as colunas de cada mês"
-                    }
-                  >
-                    {mostrarMeses ? "Só totais" : "Ver meses"}
-                  </Button>
-                )}
-                <span className="text-muted-foreground whitespace-nowrap">Totalizar:</span>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm" className="h-7 px-2 text-xs rounded-md">
-                      {AGRUPADOR_LABEL[agrupadorEfetivo]}
-                      <ChevronDown className="ml-1 h-3 w-3" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    {(["mes", "trimestre", "semestre", "ano", "selecao"] as Agrupador[]).map((a) => (
-                      <DropdownMenuItem key={a} onClick={() => setAgrupador(a)}>
-                        {AGRUPADOR_LABEL[a]}
-                      </DropdownMenuItem>
-                    ))}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </>
-            )}
-
+        </div>
+        
+        <div className="flex items-center gap-2 flex-wrap justify-end">
+          {variante !== "bp" && temSubtotais && (
             <Button
-              variant="ghost"
+              variant={mostrarMeses ? "outline" : "default"}
               size="sm"
-              className="h-7 px-2 text-xs"
-              onClick={() => setMostrarMilhares(!mostrarMilhares)}
+              className="h-7 text-xs"
+              onClick={() => setMostrarMeses((v) => !v)}
+              title={mostrarMeses ? "Oculta os meses e deixa só os totais" : "Mostra de novo as colunas mensais"}
             >
-              {mostrarMilhares ? 'R$' : 'R$ mil'}
+              {mostrarMeses ? "Só totais" : "Ver meses"}
             </Button>
-          </div>
+          )}
+          {variante !== "bp" && (
+            <div className="flex items-center gap-1">
+              <span className="text-muted-foreground whitespace-nowrap">Totalizar:</span>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-7 text-xs font-medium">
+                    {AGRUPADOR_LABEL[agrupadorEfetivo]}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {AGRUPADORES.map((ag) => (
+                    <DropdownMenuItem
+                      key={ag}
+                      onClick={() => {
+                        setAgrupador(ag);
+                        if (ag === "mes") setMostrarMeses(true);
+                      }}
+                    >
+                      {AGRUPADOR_LABEL[ag]}
+                      {agrupadorEfetivo === ag ? " ✓" : ""}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          )}
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 text-xs"
+            onClick={() => setMostrarMilhares(!mostrarMilhares)}
+          >
+            {mostrarMilhares ? "R$" : "R$ mil"}
+          </Button>
         </div>
       </div>
 
-
       {/* Tabela */}
-      <div className="overflow-x-auto bg-transparent">
-        <table className="w-full text-xs border-collapse">
-          {renderHeader()}
-          <tbody>
-            {busca.trim()
-              ? rowsFiltradas.map((row) => {
-                  const index = rows.indexOf(row);
-                  return index >= 0 ? renderRow(row, index) : null;
-                })
-              : rows.map((row, index) =>
-                  isRowVisible(rows, index, expandedRows)
-                    ? renderRow(row, index)
-                    : null,
-                )}
-          </tbody>
-        </table>
-      </div>
+      {corteLados > 0 ? (
+        <div className="overflow-x-auto">
+          <div className="flex w-max items-stretch">
+            {renderPainel(
+              Array.from({ length: corteLados }, (_, i) => i),
+              basesAVEsq,
+              "Ativo",
+              true,
+            )}
+            <div className="w-px shrink-0 bg-border self-stretch" />
+            {renderPainel(
+              Array.from({ length: rows.length - corteLados }, (_, i) => i + corteLados),
+              basesAVDir,
+              "Passivo + PL",
+              true,
+            )}
+          </div>
+        </div>
+      ) : (
+        renderPainel(
+          rows.map((_, i) => i),
+          basesAV,
+        )
+      )}
     </div>
   );
 }

@@ -13,7 +13,7 @@ import { Loader2, Pencil, Eye, Trash2, AlertTriangle, Plus, Search, ChevronLeft,
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { tituloConta } from "@/lib/format";
-import { ehContaDeCustoDespesa } from "@/lib/plano/tipo-custo";
+import { ehContaDeCustoDespesa, ALOCACOES_GASTO, chaveAlocacao, type ClasseGasto, type TipoCusto, type ChaveAlocacao } from "@/lib/plano/tipo-custo";
 
 const TIPOS = [
   "1-Ativo", "2-Passivo", "3-DRE",
@@ -34,12 +34,14 @@ interface Conta {
   is_sintetica: boolean | null;
   is_participante: boolean | null;
   tipo_custo: "fixo" | "variavel" | null;
+  classe_gasto: "custo" | "despesa" | null;
 }
 
 const VAZIA: Omit<Conta, "id"> = {
   codigo: "", classificacao: "", descricao: "", tipo: "1-Ativo",
   natureza: "A", nivel: 1, is_sintetica: false, is_participante: false,
   tipo_custo: null,
+  classe_gasto: null,
 };
 
 export function ContasPlanoPadrao({
@@ -54,7 +56,9 @@ export function ContasPlanoPadrao({
   const [tipoFiltro, setTipoFiltro] = useState<string>("todos");
   const [prefixo, setPrefixo] = useState("");
   const [naturezaFiltro, setNaturezaFiltro] = useState<"todas" | "S" | "A">("todas");
-  const [custoFiltro, setCustoFiltro] = useState<"todos" | "fixo" | "variavel" | "sem">("todos");
+  const [custoFiltro, setCustoFiltro] = useState<
+    "todos" | "custo" | "despesa" | "fixo" | "variavel" | "sem"
+  >("todos");
   const [incluirPart, setIncluirPart] = useState(false);
   const [pagina, setPagina] = useState(1);
   const [editor, setEditor] = useState<Conta | null>(null);
@@ -83,7 +87,7 @@ export function ContasPlanoPadrao({
       let q = supabase
         .from("plano_contas")
         .select(
-          "id, codigo, classificacao, descricao, tipo, natureza, nivel, is_sintetica, is_participante, tipo_custo",
+          "id, codigo, classificacao, descricao, tipo, natureza, nivel, is_sintetica, is_participante, tipo_custo, classe_gasto",
           { count: "exact" },
         )
         .eq("tenant_id", tenantId)
@@ -94,7 +98,8 @@ export function ContasPlanoPadrao({
       if (tipoFiltro !== "todos") q = q.eq("tipo", tipoFiltro);
       if (naturezaFiltro !== "todas") q = q.eq("natureza", naturezaFiltro);
       if (custoFiltro === "fixo" || custoFiltro === "variavel") q = q.eq("tipo_custo", custoFiltro);
-      if (custoFiltro === "sem") q = q.is("tipo_custo", null);
+      if (custoFiltro === "custo" || custoFiltro === "despesa") q = q.eq("classe_gasto", custoFiltro);
+      if (custoFiltro === "sem") q = q.or("tipo_custo.is.null,classe_gasto.is.null");
       const pref = prefixo.trim().replace(/[,()%]/g, "");
       if (pref) q = q.like("classificacao", `${pref}%`);
       const t = termo.replace(/[,()%]/g, " ").trim();
@@ -118,6 +123,7 @@ export function ContasPlanoPadrao({
       tipo: c.tipo, natureza: c.natureza, nivel: c.nivel,
       is_sintetica: c.is_sintetica, is_participante: c.is_participante,
       tipo_custo: c.tipo_custo ?? null,
+      classe_gasto: c.classe_gasto ?? null,
     });
   };
 
@@ -144,18 +150,19 @@ export function ContasPlanoPadrao({
         classificacao: draft.classificacao.trim(),
         descricao: draft.descricao.trim(),
         tipo: draft.tipo,
-        natureza: draft.natureza,
+        natureza: draft.natureza ?? "A",
         nivel: Number(draft.nivel) || 1,
         is_sintetica: !!draft.is_sintetica,
         is_participante: !!draft.is_participante,
         tipo_custo: draft.tipo_custo,
+        classe_gasto: draft.classe_gasto,
       };
       if (editor?.id) {
-        const { error } = await supabase.from("plano_contas").update(payload as never).eq("id", editor.id);
+        const { error } = await supabase.from("plano_contas").update(payload).eq("id", editor.id);
         if (error) throw error;
         toast.success("Conta atualizada.");
       } else {
-        const { error } = await supabase.from("plano_contas").insert(payload as never);
+        const { error } = await supabase.from("plano_contas").insert(payload);
         if (error) throw error;
         toast.success("Conta criada no Plano Padrão.");
       }
@@ -197,10 +204,14 @@ export function ContasPlanoPadrao({
     finally { setApagandoTudo(false); }
   };
 
-  const gravarTipoCusto = async (c: Conta, tipo: "fixo" | "variavel" | "") => {
+  const gravarAlocacao = async (c: Conta, chave: ChaveAlocacao | "") => {
+    const [classe, tipo] = chave ? chave.split(":") : [null, null];
     const { error } = await supabase
       .from("plano_contas")
-      .update({ tipo_custo: tipo || null })
+      .update({
+        tipo_custo: (tipo as TipoCusto | null) || null,
+        classe_gasto: (classe as ClasseGasto | null) || null,
+      } as never)
       .eq("id", c.id);
     if (error) { toast.error(error.message); return; }
     qc.invalidateQueries({ queryKey: ["plano-padrao-contas", tenantId] });
@@ -239,7 +250,9 @@ export function ContasPlanoPadrao({
         </select>
         <select className="h-8 rounded-md border border-input bg-background px-2 text-xs"
           value={custoFiltro} onChange={(e) => setCustoFiltro(e.target.value as typeof custoFiltro)}>
-          <option value="todos">Fixo/Var. todos</option>
+          <option value="todos">Alocação: todas</option>
+          <option value="custo">Só custo</option>
+          <option value="despesa">Só despesa</option>
           <option value="fixo">Só fixo</option>
           <option value="variavel">Só variável</option>
           <option value="sem">Sem classificação</option>
@@ -259,7 +272,7 @@ export function ContasPlanoPadrao({
         {total.toLocaleString("pt-BR")} conta(s)
         {incluirPart ? " (incluindo clientes/fornecedores)" : " estruturais"}
         {total > POR_PAGINA ? ` · página ${pagina} de ${totalPaginas}` : ""}.
-        {" "}Em contas de resultado (3.x), Fixo/Variável alimenta o Ponto de Equilíbrio.
+        {" "}Em contas de resultado (3.x): Custo ou Despesa, e Fixo ou Variável. O Ponto de Equilíbrio usa as duas dimensões.
       </p>
 
       <Card className="overflow-hidden">
@@ -279,7 +292,7 @@ export function ContasPlanoPadrao({
                     <th className="text-left px-2 py-2 font-medium">Classificação</th>
                     <th className="text-left px-2 py-2 font-medium">Descrição</th>
                     <th className="text-left px-2 py-2 font-medium">Tipo</th>
-                    <th className="text-left px-2 py-2 font-medium">Fixo / Var.</th>
+                    <th className="text-left px-2 py-2 font-medium">Custo / Despesa</th>
                     <th className="w-[160px]" />
                   </tr>
                 </thead>
@@ -297,14 +310,15 @@ export function ContasPlanoPadrao({
                       <td className="px-2 py-1.5">
                         {ehContaDeCustoDespesa(c.classificacao) && !c.is_participante ? (
                           <select
-                            className="h-7 rounded border border-input bg-background px-1 text-xs"
-                            value={c.tipo_custo ?? ""}
+                            className="h-7 rounded border border-input bg-background px-1 text-xs min-w-[9.5rem]"
+                            value={chaveAlocacao(c.classe_gasto, c.tipo_custo)}
                             disabled={!podeEditar}
-                            onChange={(e) => gravarTipoCusto(c, e.target.value as "fixo" | "variavel" | "")}
+                            onChange={(e) => gravarAlocacao(c, e.target.value as ChaveAlocacao | "")}
                           >
                             <option value="">—</option>
-                            <option value="fixo">Fixo</option>
-                            <option value="variavel">Variável</option>
+                            {ALOCACOES_GASTO.map((o) => (
+                              <option key={o.value} value={o.value}>{o.label}</option>
+                            ))}
                           </select>
                         ) : (
                           <span className="text-xs text-muted-foreground">—</span>
@@ -439,19 +453,34 @@ export function ContasPlanoPadrao({
                 onChange={(e) => setDraft({ ...draft, nivel: Number(e.target.value) })} />
             </div>
             {ehContaDeCustoDespesa(draft.classificacao) && (
-              <div>
-                <Label className="text-xs">Custo / despesa</Label>
-                <select className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm"
-                  value={draft.tipo_custo ?? ""} disabled={leitura}
-                  onChange={(e) => setDraft({
-                    ...draft,
-                    tipo_custo: (e.target.value || null) as "fixo" | "variavel" | null,
-                  })}>
-                  <option value="">— não classificado</option>
-                  <option value="fixo">Fixo</option>
-                  <option value="variavel">Variável</option>
-                </select>
-              </div>
+              <>
+                <div>
+                  <Label className="text-xs">Custo ou despesa</Label>
+                  <select className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm"
+                    value={draft.classe_gasto ?? ""} disabled={leitura}
+                    onChange={(e) => setDraft({
+                      ...draft,
+                      classe_gasto: (e.target.value || null) as ClasseGasto | null,
+                    })}>
+                    <option value="">— não classificado</option>
+                    <option value="custo">Custo</option>
+                    <option value="despesa">Despesa</option>
+                  </select>
+                </div>
+                <div>
+                  <Label className="text-xs">Fixo ou variável</Label>
+                  <select className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm"
+                    value={draft.tipo_custo ?? ""} disabled={leitura}
+                    onChange={(e) => setDraft({
+                      ...draft,
+                      tipo_custo: (e.target.value || null) as TipoCusto | null,
+                    })}>
+                    <option value="">— não classificado</option>
+                    <option value="fixo">Fixo</option>
+                    <option value="variavel">Variável</option>
+                  </select>
+                </div>
+              </>
             )}
             <div className="flex flex-col justify-end gap-1 pb-1">
               <label className="flex items-center gap-1.5 text-xs cursor-pointer">

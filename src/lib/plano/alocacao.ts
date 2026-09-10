@@ -23,6 +23,7 @@ export interface AlocacaoConta {
   ordem_linha: number | null;
   inverter_sinal: boolean;
   tipo_custo: "fixo" | "variavel" | null;
+  classe_gasto: "custo" | "despesa" | null;
   dfc_atividade: DfcAtividade | null;
   dfc_nao_caixa: boolean;
 }

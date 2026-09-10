@@ -2,6 +2,7 @@ import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import {
   LayoutDashboard,
   Building2,
+  Upload,
   Users,
   BarChart3,
   Receipt,
@@ -16,8 +17,7 @@ import {
   Target,
   Settings,
   BookOpen,
-  Tags,
-  ScrollText,
+  HardDrive,
 } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
@@ -43,6 +43,7 @@ const CONFIG_ITEMS: NavItem[] = [
   { to: "/admin/empresas", label: "Cadastro de empresas", icon: Building2 },
   { to: "/admin/indicadores", label: "Indicadores", icon: LineChart },
   { to: "/admin/diagnostico", label: "Diagnóstico", icon: Stethoscope },
+  { to: "/admin/saude", label: "Ocupação e desempenho", icon: HardDrive },
 ];
 
 // Na visualização do BI (variant "client") a barra só tem as
@@ -64,10 +65,8 @@ const ADMIN_NAV: NavItem[] = [
   { to: "/admin", label: "Dashboard", icon: LayoutDashboard },
   { to: "/admin/comparativo", label: "Comparativo", icon: BarChart3 },
   { to: "/admin/empresas", label: "Empresas", icon: Building2 },
-  
+  { to: "/admin/upload", label: "Upload", icon: Upload },
   { to: "/admin/usuarios", label: "Usuários", icon: Users },
-  { to: "/admin/segmentos", label: "Segmentos", icon: Tags },
-  { to: "/admin/logs", label: "Logs", icon: ScrollText },
 ];
 
 const CLIENT_NAV: NavItem[] = [
@@ -91,7 +90,7 @@ export function AppTopNav({
   title?: string;
   actions?: React.ReactNode;
 }) {
-  const { profile, tenant, signOut, isCliente } = useAuth();
+  const { profile, tenant, signOut } = useAuth();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -149,12 +148,6 @@ export function AppTopNav({
           </span>
         )}
 
-        {isCliente && (
-          <span className="hidden sm:inline rounded-full border border-border px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
-            Área do cliente · somente leitura
-          </span>
-        )}
-
         {/* Right side (desktop) */}
         <div className="hidden md:flex items-center gap-2 ml-auto shrink-0">
           {actions}
@@ -166,7 +159,7 @@ export function AppTopNav({
             <span className="text-xs font-medium truncate max-w-[120px]">
               {profile?.full_name ?? "Usuário"}
             </span>
-            {!isCliente && (
+            {(
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button
@@ -263,7 +256,7 @@ export function AppTopNav({
               </Link>
             );
           })}
-          {!isCliente && (
+          {(
             <div className="border-t mt-2 pt-2">
               <div className="px-3 py-1 text-[10px] uppercase tracking-wider text-muted-foreground">
                 Configurações

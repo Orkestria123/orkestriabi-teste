@@ -10,7 +10,6 @@ import { type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { AuthProvider } from "@/hooks/use-auth";
-import { MfaGate } from "@/components/mfa-gate";
 import { ThemeProvider } from "@/hooks/use-theme";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -113,9 +112,7 @@ function RootComponent() {
       <ThemeProvider>
         <AuthProvider>
           <TooltipProvider>
-            <MfaGate>
-              <Outlet />
-            </MfaGate>
+            <Outlet />
             <Toaster richColors position="top-right" />
           </TooltipProvider>
         </AuthProvider>

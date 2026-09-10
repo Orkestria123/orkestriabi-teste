@@ -4,6 +4,7 @@
 // anos são selecionados no filtro global. Cada coluna traz Orçado, Realizado
 // e Variação com semáforo, e permite drill-down por item nas contas do plano.
 import { createFileRoute } from "@tanstack/react-router";
+import { useAuth } from "@/hooks/use-auth";
 import { Fragment, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -246,6 +247,7 @@ interface Cell {
 }
 
 function OrcamentoAnalise() {
+  const { isCliente: somenteLeitura } = useAuth();
   const { companyId, company } = useDashboardCompany();
   const { years, months } = useFilters();
 
@@ -1146,7 +1148,7 @@ function OrcamentoAnalise() {
         )}
 
         <div className="ml-auto flex items-center gap-2">
-          {!editMode ? (
+          {somenteLeitura ? null : !editMode ? (
             <>
               <Button
                 size="sm"
@@ -1591,7 +1593,7 @@ function CellTrio({
   const pctStr =
     varP === null
       ? "n/a"
-      : `${varP > 0 ? "+" : ""}${varP.toFixed(1).replace(".", ",")}%`;
+      : `${varP > 0 ? "+" : ""}${varP.toFixed(2).replace(".", ",")}%`;
   const varRStr =
     varR === null ? "—" : `${varR > 0 ? "+" : ""}${fmt(varR)}`;
   const varTitle =
@@ -1692,7 +1694,7 @@ function ResumoCard({
         {valor === null
           ? "—"
           : isPct
-            ? `${valor > 0 ? "+" : ""}${valor.toFixed(1).replace(".", ",")}%`
+            ? `${valor > 0 ? "+" : ""}${valor.toFixed(2).replace(".", ",")}%`
             : formatBRL(valor)}
       </div>
       {hint && <div className="text-[11px] text-muted-foreground mt-1">{hint}</div>}
@@ -1876,7 +1878,7 @@ function DetalheItem({
             <td className="px-2 py-0.5 border-l border-border/40 bg-muted/10" />
             <td
               className="px-2 py-0.5 text-right tabular-nums text-[11px] whitespace-nowrap min-w-[90px] bg-muted/10"
-              title={semDados ? "" : `${fmt(valor)}${pct !== null ? ` · ${pct.toFixed(1).replace(".", ",")}% do item` : ""}`}
+              title={semDados ? "" : `${fmt(valor)}${pct !== null ? ` · ${pct.toFixed(2).replace(".", ",")}% do item` : ""}`}
             >
               {semDados ? (
                 <span className="text-muted-foreground">—</span>
@@ -1885,7 +1887,7 @@ function DetalheItem({
                   <span>{fmt(valor)}</span>
                   {pct !== null && (
                     <span className="text-[10px] text-muted-foreground">
-                      ({pct.toFixed(1).replace(".", ",")}%)
+                      ({pct.toFixed(2).replace(".", ",")}%)
                     </span>
                   )}
                 </span>
@@ -1909,7 +1911,7 @@ function DetalheItem({
                   <span>{fmt(valor)}</span>
                   {pct !== null && (
                     <span className="text-[10px] text-muted-foreground">
-                      ({pct.toFixed(1).replace(".", ",")}%)
+                      ({pct.toFixed(2).replace(".", ",")}%)
                     </span>
                   )}
                 </span>

@@ -13,7 +13,6 @@
 //                            senão a do próprio indicador
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { compararCategoria } from "@/lib/indicadores/categorias";
 
 export interface IndicadorDaEmpresa {
   id: string;
@@ -47,7 +46,7 @@ export function useIndicadoresDaEmpresa(companyId: string | null | undefined) {
       if (error) throw error;
       return ((data ?? []) as IndicadorDaEmpresa[]).sort(
         (a, b) =>
-          compararCategoria(a.categoria ?? "", b.categoria ?? "") ||
+          (a.categoria ?? "").localeCompare(b.categoria ?? "") ||
           (a.ordem ?? 0) - (b.ordem ?? 0) ||
           a.nome.localeCompare(b.nome),
       );

@@ -1,6 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
 import { BLOCOS_CATALOGO, configPadraoDoBloco } from "@/lib/dashboard/catalogo";
-import { INDICES_DASHBOARD, blocoIndice } from "@/lib/dashboard/indices-financeiros";
 
 export type DashboardBlocoRow = {
   id?: string;
@@ -11,25 +10,6 @@ export type DashboardBlocoRow = {
   origem: "tenant" | "empresa";
 };
 
-export type IndiceVisivel = {
-  key: string;
-  label: string;
-  formula: string;
-  visivel: boolean;
-  ordem: number;
-  id?: string;
-};
-
-function defsIndices() {
-  return INDICES_DASHBOARD.map((d, i) => ({
-    key: blocoIndice(d.key),
-    indiceKey: d.key,
-    label: d.label,
-    formula: d.formula,
-    ordem: d.key === "resultado" ? -10 : (i + 1) * 10,
-  }));
-}
-
 async function seedTenant(tenantId: string): Promise<boolean> {
   const { data, error } = await supabase
     .from("dashboard_config" as any)
@@ -37,19 +17,12 @@ async function seedTenant(tenantId: string): Promise<boolean> {
     .eq("tenant_id", tenantId)
     .is("company_id", null);
   if (error) throw error;
-  const rows = (data ?? []) as unknown as {
-    id: string;
-    bloco: string;
-    config: Record<string, unknown> | null;
-    visivel: boolean;
-    ordem: number;
-  }[];
+  const rows = (data ?? []) as unknown as { id: string; bloco: string; config: Record<string, unknown> | null; visivel: boolean; ordem: number }[];
   const existentes = new Set(rows.map((r) => r.bloco));
+  const faltantes = BLOCOS_CATALOGO.filter((b) => !existentes.has(b.key));
   let mudou = false;
-
-  const faltantesKpi = BLOCOS_CATALOGO.filter((b) => !existentes.has(b.key));
-  if (faltantesKpi.length > 0) {
-    const inserts = faltantesKpi.map((b) => ({
+  if (faltantes.length > 0) {
+    const inserts = faltantes.map((b) => ({
       tenant_id: tenantId,
       company_id: null,
       bloco: b.key,
@@ -61,22 +34,6 @@ async function seedTenant(tenantId: string): Promise<boolean> {
     if (insErr) throw insErr;
     mudou = true;
   }
-
-  const faltantesIdx = defsIndices().filter((b) => !existentes.has(b.key));
-  if (faltantesIdx.length > 0) {
-    const inserts = faltantesIdx.map((b) => ({
-      tenant_id: tenantId,
-      company_id: null,
-      bloco: b.key,
-      visivel: true,
-      ordem: b.ordem,
-      config: {},
-    }));
-    const { error: insErr } = await supabase.from("dashboard_config" as any).insert(inserts as any);
-    if (insErr) throw insErr;
-    mudou = true;
-  }
-
   for (const row of rows) {
     const def = BLOCOS_CATALOGO.find((b) => b.key === row.bloco);
     if (!def) continue;
@@ -104,16 +61,15 @@ export async function ensureDashboardConfig(tenantId: string, companyId?: string
   if (error) throw error;
   const rows = (data ?? []) as unknown as { id: string; bloco: string; config: Record<string, unknown> | null }[];
   const existentes = new Set(rows.map((r) => r.bloco));
-  const { data: globais } = await supabase
-    .from("dashboard_config" as any)
-    .select("bloco, visivel, ordem, config")
-    .eq("tenant_id", tenantId)
-    .is("company_id", null);
-  const gBy = new Map(((globais ?? []) as any[]).map((r) => [r.bloco, r]));
-
-  const faltantesKpi = BLOCOS_CATALOGO.filter((b) => !existentes.has(b.key));
-  if (faltantesKpi.length > 0) {
-    const inserts = faltantesKpi.map((b) => {
+  const faltantes = BLOCOS_CATALOGO.filter((b) => !existentes.has(b.key));
+  if (faltantes.length > 0) {
+    const { data: globais } = await supabase
+      .from("dashboard_config" as any)
+      .select("bloco, visivel, ordem, config")
+      .eq("tenant_id", tenantId)
+      .is("company_id", null);
+    const gBy = new Map(((globais ?? []) as any[]).map((r) => [r.bloco, r]));
+    const inserts = faltantes.map((b) => {
       const g = gBy.get(b.key);
       return {
         tenant_id: tenantId,
@@ -122,24 +78,6 @@ export async function ensureDashboardConfig(tenantId: string, companyId?: string
         visivel: g?.visivel ?? true,
         ordem: g?.ordem ?? BLOCOS_CATALOGO.findIndex((x) => x.key === b.key) * 10,
         config: g?.config ?? configPadraoDoBloco(b.key, b.suportaBaseComparacao),
-      };
-    });
-    const { error: insErr } = await supabase.from("dashboard_config" as any).insert(inserts as any);
-    if (insErr) throw insErr;
-    mudou = true;
-  }
-
-  const faltantesIdx = defsIndices().filter((b) => !existentes.has(b.key));
-  if (faltantesIdx.length > 0) {
-    const inserts = faltantesIdx.map((b) => {
-      const g = gBy.get(b.key);
-      return {
-        tenant_id: tenantId,
-        company_id: companyId,
-        bloco: b.key,
-        visivel: g?.visivel ?? true,
-        ordem: g?.ordem ?? b.ordem,
-        config: {},
       };
     });
     const { error: insErr } = await supabase.from("dashboard_config" as any).insert(inserts as any);
@@ -185,43 +123,4 @@ export async function lerDashboardBlocos(tenantId: string, companyId?: string): 
       origem: (g ? "tenant" : "empresa") as "tenant" | "empresa",
     };
   }).sort((a, b) => a.ordem - b.ordem);
-}
-
-/** Linhas da tabela de índices da Visão Geral (tenant, com override da empresa). */
-export async function lerIndicesDashboard(
-  tenantId: string,
-  companyId?: string,
-): Promise<IndiceVisivel[]> {
-  const { data: globais, error: e1 } = await supabase
-    .from("dashboard_config" as any)
-    .select("id, bloco, visivel, ordem")
-    .eq("tenant_id", tenantId)
-    .is("company_id", null);
-  if (e1) throw e1;
-  const gMap = new Map(((globais ?? []) as any[]).map((r) => [r.bloco as string, r]));
-
-  let eMap = new Map<string, any>();
-  if (companyId) {
-    const { data: empresa, error: e2 } = await supabase
-      .from("dashboard_config" as any)
-      .select("id, bloco, visivel, ordem")
-      .eq("company_id", companyId);
-    if (e2) throw e2;
-    eMap = new Map(((empresa ?? []) as any[]).map((r) => [r.bloco as string, r]));
-  }
-
-  return defsIndices()
-    .map((def) => {
-      const g = gMap.get(def.key);
-      const e = eMap.get(def.key);
-      return {
-        key: def.indiceKey,
-        label: def.label,
-        formula: def.formula,
-        visivel: (e?.visivel ?? g?.visivel ?? true) as boolean,
-        ordem: (g?.ordem ?? e?.ordem ?? def.ordem) as number,
-        id: (companyId ? e?.id : g?.id) as string | undefined,
-      };
-    })
-    .sort((a, b) => a.ordem - b.ordem);
 }

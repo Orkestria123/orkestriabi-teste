@@ -48,7 +48,6 @@ import {
 } from "@/hooks/use-indicador-data";
 import { IndicadorEditorDialog } from "./indicador-editor-dialog";
 import type { ContaPlanoItem } from "./conta-picker";
-import { compararCategoria } from "@/lib/indicadores/categorias";
 
 // ---------------------------------------------------------------
 // A visibilidade tem 4 valores no banco, mas são 2 decisões
@@ -143,7 +142,7 @@ export function IndicadoresEmpresaPanel({
       .filter((i) => !destinosDe(i.visibilidade).dashboard)
       .filter((i) => !t || norm(`${i.nome} ${i.categoria}`).includes(t))
       .sort((a, b) =>
-        compararCategoria(a.categoria ?? "", b.categoria ?? "") || a.nome.localeCompare(b.nome));
+        (a.categoria ?? "").localeCompare(b.categoria ?? "") || a.nome.localeCompare(b.nome));
   }, [indicadores, busca]);
 
   // ---------- gravação ----------

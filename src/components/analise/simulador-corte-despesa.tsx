@@ -79,11 +79,11 @@ export function SimuladorCorteDespesa({ ranking, receita, lucroAtual }: Props) {
         <div>
           <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Nova margem</p>
           <p className="text-lg font-semibold tabular-nums inline-flex items-center gap-1">
-            {novaMargem.toFixed(1).replace(".", ",")}%
+            {novaMargem.toFixed(2).replace(".", ",")}%
             <TrendingUp className="h-3.5 w-3.5 text-success" />
           </p>
           <p className="text-[10px] text-muted-foreground">
-            antes: {margemAtual.toFixed(1).replace(".", ",")}%
+            antes: {margemAtual.toFixed(2).replace(".", ",")}%
           </p>
         </div>
       </div>

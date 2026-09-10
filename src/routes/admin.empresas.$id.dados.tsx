@@ -20,7 +20,6 @@ import { useAuth } from "@/hooks/use-auth";
 import { parsePlanoContasCSV, type PlanoContaRow, type PlanoParseResult } from "@/lib/diario/plano-parser";
 import { parseDiarioXLSX, type DiarioParseResult } from "@/lib/diario/diario-parser";
 import { salvarPlanoContas, salvarDiarioUpload, removerUpload } from "@/lib/diario/uploader";
-import { layoutDeJson } from "@/lib/importacao/layout";
 import { formatBRL } from "@/lib/format";
 import { MascaraConfigPanel } from "@/components/mascara-config";
 import { BalancoFechaBadge } from "@/components/balanco-fecha-badge";
@@ -32,9 +31,7 @@ import { OrcamentoConfigPanel } from "@/components/orcamento/orcamento-config-pa
 import { PlanilhaDfcBotoes } from "@/components/dfc/planilha-dfc-botoes";
 import { DeParaPanel } from "@/components/plano/depara-panel";
 import { ContasNovasEmpresaPanel } from "@/components/plano/contas-novas-empresa";
-import { DescartadasPlano } from "@/components/plano/descartadas-plano";
 import { getEscopoPlano } from "@/lib/plano/escopo";
-import { limparCacheDepara } from "@/lib/plano/depara";
 
 export const Route = createFileRoute("/admin/empresas/$id/dados")({
   component: Page,
@@ -46,7 +43,7 @@ function ajusteAplicadoRaw(c: any): boolean {
 
 function Page() {
   const { id } = useParams({ from: "/admin/empresas/$id/dados" });
-  const [tab, setTab] = useState<"plano" | "depara" | "saldo-inicial" | "diarios" | "ecd" | "mascara" | "indicadores" | "gerencial" | "orcamento">("plano");
+  const [tab, setTab] = useState<"plano" | "depara" | "saldo-inicial" | "diarios" | "mascara" | "indicadores" | "gerencial" | "orcamento">("plano");
 
   const { data: company } = useQuery({
     queryKey: ["company", id],
@@ -236,7 +233,7 @@ function Page() {
         </TabsList>
 
         <TabsContent value="ecd">
-          {tab === "ecd" && company && (
+          {company && (
             <EcdPanel tenantId={company.tenant_id!} companyId={company.id} />
           )}
         </TabsContent>
@@ -289,7 +286,7 @@ function Page() {
         </TabsContent>
 
         <TabsContent value="depara">
-          {tab === "depara" && company && mostraDePara && (
+          {company && mostraDePara && (
             <DeParaPanel tenantId={company.tenant_id!} companyId={company.id} sistemaId={company.sistema_id} />
           )}
         </TabsContent>
@@ -302,7 +299,7 @@ function Page() {
 
         <TabsContent value="diarios">
           {company && (
-            <DiariosTab companyId={company.id} tenantId={company.tenant_id!} sistemaId={company.sistema_id} />
+            <DiariosTab companyId={company.id} tenantId={company.tenant_id!} />
           )}
         </TabsContent>
       </Tabs>
@@ -403,10 +400,10 @@ function PlanoTab({ tenantId, companyId, readonly }: { tenantId: string; company
 
       {!readonly && (
         <Card className="p-5">
-          <h3 className="font-semibold mb-3">Atualização mensal do plano</h3>
+          <h3 className="font-semibold mb-3">Importar plano de contas</h3>
           <p className="text-xs text-muted-foreground mb-3">
             CSV separado por <code>;</code> com cabeçalho <code>Código;Classificação;Descrição;Tipo;Natureza</code>.
-            Encoding ISO-8859-1 ou UTF-8 (detectado automaticamente). Importar substitui o plano desta empresa.
+            Encoding ISO-8859-1 ou UTF-8 (detectado automaticamente). Importar substitui o plano atual.
           </p>
           <div className="flex items-center gap-3">
             <Input
@@ -456,29 +453,13 @@ function PlanoTab({ tenantId, companyId, readonly }: { tenantId: string; company
 // ============================================================
 // TAB 3 — Diários
 // ============================================================
-function DiariosTab({ companyId, tenantId, sistemaId }: { companyId: string; tenantId: string; sistemaId?: string | null }) {
+function DiariosTab({ companyId, tenantId }: { companyId: string; tenantId: string }) {
   const qc = useQueryClient();
-  const { userId, role } = useAuth();
-  const podeEditar = role === "tenant_admin" || role === "orkestria_admin";
+  const { userId } = useAuth();
   const [parsed, setParsed] = useState<DiarioParseResult | null>(null);
   const [filename, setFilename] = useState<string>("");
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState(0);
-
-  const { data: sistema, isLoading: carregandoSistema } = useQuery({
-    queryKey: ["sistema-layout", sistemaId],
-    enabled: !!sistemaId,
-    queryFn: async () => {
-      const { data, error } = await (supabase as any)
-        .from("sistemas_contabeis")
-        .select("id, nome, layout")
-        .eq("id", sistemaId)
-        .maybeSingle();
-      if (error) throw error;
-      return data as { id: string; nome: string; layout: unknown } | null;
-    },
-  });
-  const layout = sistema ? layoutDeJson(sistema.layout) : null;
 
   const { data: uploads } = useQuery({
     queryKey: ["diario-uploads", companyId],
@@ -498,7 +479,7 @@ function DiariosTab({ companyId, tenantId, sistemaId }: { companyId: string; ten
     setFilename(f.name);
     try {
       toast.info("Lendo arquivo...");
-      const r = await parseDiarioXLSX(f, layout);
+      const r = await parseDiarioXLSX(f);
       setParsed(r);
     } catch (e: any) {
       toast.error(e.message ?? String(e));
@@ -558,27 +539,19 @@ function DiariosTab({ companyId, tenantId, sistemaId }: { companyId: string; ten
 
   return (
     <div className="space-y-4">
-      {/* Contas novas do diário e descartadas — não ficam mais no Plano Padrão */}
-      <ContasNovasEmpresaPanel tenantId={tenantId} companyId={companyId} podeEditar={podeEditar} />
-      <div>
-        <h3 className="text-sm font-medium mb-2">Descartadas</h3>
-        <p className="text-xs text-muted-foreground mb-2">
-          Contas novas que foram recusadas. Restaurar volta para a fila acima.
-        </p>
-        <DescartadasPlano tenantId={tenantId} podeEditar={podeEditar} />
-      </div>
+      {/* Carrega diário -> valida contas novas -> aprovação para o Plano Padrão */}
+      <ContasNovasEmpresaPanel tenantId={tenantId} companyId={companyId} />
 
       <Card className="p-5">
         <h3 className="font-semibold mb-3">Importar livro diário</h3>
         <p className="text-xs text-muted-foreground mb-3">
-          {layout
-            ? <>Usa o layout de <strong>{sistema?.nome}</strong> — só as colunas mapeadas entram (histórico até 400 caracteres).</>
-            : <>XLSX com colunas Conta, Data, Débito, Crédito. Vincule um sistema em De-Para para ignorar colunas extras do ERP.</>}
+          XLSX com colunas <code>Conta, Data, Débito, Crédito</code> (e opcionais).
+          O sistema corrige automaticamente XLSX gerados em Windows com barras invertidas no ZIP.
         </p>
         <Input
           type="file"
-          accept={layout ? ".xlsx,.xls,.csv,.txt" : ".xlsx"}
-          disabled={busy || (!!sistemaId && carregandoSistema)}
+          accept=".xlsx"
+          disabled={busy}
           onChange={(e) => { const f = e.target.files?.[0]; if (f) onFile(f); }}
         />
         {busy && !parsed && <div className="text-xs text-muted-foreground mt-2"><Loader2 className="h-3 w-3 inline animate-spin mr-1" />Lendo arquivo (pode demorar)…</div>}
@@ -601,11 +574,6 @@ function DiariosTab({ companyId, tenantId, sistemaId }: { companyId: string; ten
                 {parsed.partidas_fechadas ? "(partidas fechadas ✓)" : "(partidas NÃO fechadas)"}
               </li>
               <li>{parsed.competencias.length} competências distintas, {parsed.contas_codigos.length} contas distintas</li>
-              {(parsed.colunas_ignoradas ?? 0) > 0 && (
-                <li className="text-muted-foreground text-xs">
-                  {parsed.colunas_ignoradas} coluna(s) do arquivo não foram gravadas (fora do layout).
-                </li>
-              )}
               {parsed.warnings.map((w, i) => (
                 <li key={i} className="text-amber-600 text-xs"><AlertTriangle className="h-3 w-3 inline mr-1" />{w}</li>
               ))}
@@ -879,17 +847,12 @@ function OrigemPlanoCard({ company }: { company: any }) {
         .update({ plano_tipo: novo })
         .eq("id", company.id);
       if (error) throw error;
-      limparCacheDepara(company.id);
       toast.success(
         novo === "padrao"
           ? "Empresa marcada como Plano Padrão."
           : "Empresa marcada como plano próprio — configure o De-Para.",
       );
       qc.invalidateQueries({ queryKey: ["company", company.id] });
-      qc.invalidateQueries({ queryKey: ["escopo-plano", company.id] });
-      qc.invalidateQueries({ queryKey: ["indic-engine-data"] });
-      qc.invalidateQueries({ queryKey: ["indic-demo-dre"] });
-      qc.invalidateQueries({ queryKey: ["financial-statements"] });
     } catch (e: any) {
       toast.error(e.message);
     } finally {

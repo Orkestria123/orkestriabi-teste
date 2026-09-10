@@ -5,12 +5,6 @@
 
 import JSZip from "jszip";
 import * as XLSX from "xlsx";
-import {
-  layoutDeJson,
-  truncarHistorico,
-  type LayoutImportacao,
-} from "@/lib/importacao/layout";
-import { lerArquivoQualquer, valorDaLinha } from "@/lib/importacao/ler-arquivo";
 
 export interface DiarioRow {
   conta_codigo: string;
@@ -39,8 +33,6 @@ export interface DiarioParseResult {
   contas_codigos: string[]; // distinct
   invalid_rows: number;
   warnings: string[];
-  /** Colunas do arquivo que o layout descartou. */
-  colunas_ignoradas?: number;
 }
 
 function normalizeHeader(h: string): string {
@@ -130,68 +122,7 @@ async function readXlsxFixingBackslashes(file: File): Promise<XLSX.WorkBook> {
   }
 }
 
-export async function parseDiarioXLSX(
-  file: File,
-  layout?: LayoutImportacao | null,
-): Promise<DiarioParseResult> {
-  const l = layout ? layoutDeJson(layout) : null;
-  if (l && l.colunas.conta && l.colunas.data && (l.colunas.debito || l.colunas.credito)) {
-    return parseComLayout(file, l);
-  }
-  return parsePorAlias(file);
-}
-
-async function parseComLayout(file: File, layout: LayoutImportacao): Promise<DiarioParseResult> {
-  const grade = await lerArquivoQualquer(file, {
-    temCabecalho: layout.tem_cabecalho,
-    linhaCabecalho: layout.linha_cabecalho,
-  });
-  const headers = grade.headers;
-  const rows: DiarioRow[] = [];
-  const comps = new Set<string>();
-  const contas = new Set<string>();
-  let total_debitos = 0;
-  let total_creditos = 0;
-  let invalid_rows = 0;
-
-  for (const r of grade.linhas) {
-    const conta = valorDaLinha(headers, r, layout.colunas.conta);
-    if (!conta) continue;
-    const d = parseDataBR(valorDaLinha(headers, r, layout.colunas.data));
-    if (!d) { invalid_rows++; continue; }
-    const debito = parseValorBR(valorDaLinha(headers, r, layout.colunas.debito));
-    const credito = parseValorBR(valorDaLinha(headers, r, layout.colunas.credito));
-    if (debito === 0 && credito === 0) continue;
-    const dataISO = fmtISO(d);
-    const competencia = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-01`;
-    total_debitos += debito;
-    total_creditos += credito;
-    comps.add(competencia);
-    contas.add(conta);
-    rows.push({
-      conta_codigo: conta,
-      conta_nome: valorDaLinha(headers, r, layout.colunas.descricao) || null,
-      subconta_codigo: valorDaLinha(headers, r, layout.colunas.sub) || null,
-      data: dataISO,
-      competencia,
-      historico: truncarHistorico(valorDaLinha(headers, r, layout.colunas.historico)),
-      debito,
-      credito,
-      grupo_lancamento: null,
-      lote: null,
-      numero_lancamento: valorDaLinha(headers, r, layout.colunas.numero) || null,
-    });
-  }
-
-  const nMapeadas = Object.values(layout.colunas).filter(Boolean).length;
-  const warnings: string[] = [];
-  if (invalid_rows > 0) warnings.push(`${invalid_rows} linhas com data inválida foram ignoradas.`);
-  return fecharResultado(rows, total_debitos, total_creditos, comps, contas, invalid_rows, warnings, {
-    colunas_ignoradas: Math.max(0, grade.nColunasArquivo - nMapeadas),
-  });
-}
-
-async function parsePorAlias(file: File): Promise<DiarioParseResult> {
+export async function parseDiarioXLSX(file: File): Promise<DiarioParseResult> {
   const wb = await readXlsxFixingBackslashes(file);
   const sheetName = wb.SheetNames[0];
   const ws = wb.Sheets[sheetName];
@@ -236,7 +167,7 @@ async function parsePorAlias(file: File): Promise<DiarioParseResult> {
       subconta_codigo: idx.subconta != null ? (String(r[idx.subconta] ?? "").trim() || null) : null,
       data: dataISO,
       competencia,
-      historico: truncarHistorico(idx.historico != null ? String(r[idx.historico] ?? "") : null),
+      historico: idx.historico != null ? (String(r[idx.historico] ?? "").trim() || null) : null,
       debito,
       credito,
       grupo_lancamento: idx.grupo != null ? (String(r[idx.grupo] ?? "").trim() || null) : null,
@@ -245,29 +176,11 @@ async function parsePorAlias(file: File): Promise<DiarioParseResult> {
     });
   }
 
-  const nIgnoradas = Math.max(0, header.length - Object.keys(idx).length);
-  const warnings: string[] = [];
-  if (invalid_rows > 0) warnings.push(`${invalid_rows} linhas com data inválida foram ignoradas.`);
-  if (nIgnoradas > 0) {
-    warnings.push(`${nIgnoradas} coluna(s) do arquivo não entram no BI.`);
-  }
-  return fecharResultado(rows, total_debitos, total_creditos, comps, contas, invalid_rows, warnings, {
-    colunas_ignoradas: nIgnoradas,
-  });
-}
-
-function fecharResultado(
-  rows: DiarioRow[],
-  total_debitos: number,
-  total_creditos: number,
-  comps: Set<string>,
-  contas: Set<string>,
-  invalid_rows: number,
-  warnings: string[],
-  extra?: { colunas_ignoradas?: number },
-): DiarioParseResult {
   const diferenca = Math.abs(total_debitos - total_creditos);
   const comps_ord = Array.from(comps).sort();
+  const warnings: string[] = [];
+  if (invalid_rows > 0) warnings.push(`${invalid_rows} linhas com data inválida foram ignoradas.`);
+
   return {
     rows,
     total: rows.length,
@@ -281,6 +194,5 @@ function fecharResultado(
     contas_codigos: Array.from(contas),
     invalid_rows,
     warnings,
-    colunas_ignoradas: extra?.colunas_ignoradas,
   };
 }

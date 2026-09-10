@@ -86,7 +86,7 @@ export function ComparativoTable({ rows, labelA, labelB, presentation }: Props) 
                     {variacao != null ? (
                       <span className="inline-flex items-center justify-end gap-1">
                         {extreme && <Zap className="h-3 w-3 animate-pulse" />}
-                        {variacao > 0 ? "▲" : variacao < 0 ? "▼" : ""} {formatPct(Math.abs(variacao), 1)}
+                        {variacao > 0 ? "▲" : variacao < 0 ? "▼" : ""} {formatPct(Math.abs(variacao))}
                       </span>
                     ) : (
                       "—"

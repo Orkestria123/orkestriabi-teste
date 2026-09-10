@@ -29,7 +29,6 @@ import { Route as AdminUsuariosRouteImport } from './routes/admin.usuarios'
 import { Route as AdminUploadRouteImport } from './routes/admin.upload'
 import { Route as AdminSistemasRouteImport } from './routes/admin.sistemas'
 import { Route as AdminSegmentosRouteImport } from './routes/admin.segmentos'
-import { Route as AdminSaudeRouteImport } from './routes/admin.saude'
 import { Route as AdminPlanoPadraoRouteImport } from './routes/admin.plano-padrao'
 import { Route as AdminLogsRouteImport } from './routes/admin.logs'
 import { Route as AdminIndicadoresRouteImport } from './routes/admin.indicadores'
@@ -139,11 +138,6 @@ const AdminSegmentosRoute = AdminSegmentosRouteImport.update({
   path: '/admin/segmentos',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AdminSaudeRoute = AdminSaudeRouteImport.update({
-  id: '/admin/saude',
-  path: '/admin/saude',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const AdminPlanoPadraoRoute = AdminPlanoPadraoRouteImport.update({
   id: '/admin/plano-padrao',
   path: '/admin/plano-padrao',
@@ -196,7 +190,6 @@ export interface FileRoutesByFullPath {
   '/admin/indicadores': typeof AdminIndicadoresRoute
   '/admin/logs': typeof AdminLogsRoute
   '/admin/plano-padrao': typeof AdminPlanoPadraoRoute
-  '/admin/saude': typeof AdminSaudeRoute
   '/admin/segmentos': typeof AdminSegmentosRoute
   '/admin/sistemas': typeof AdminSistemasRoute
   '/admin/upload': typeof AdminUploadRoute
@@ -225,7 +218,6 @@ export interface FileRoutesByTo {
   '/admin/indicadores': typeof AdminIndicadoresRoute
   '/admin/logs': typeof AdminLogsRoute
   '/admin/plano-padrao': typeof AdminPlanoPadraoRoute
-  '/admin/saude': typeof AdminSaudeRoute
   '/admin/segmentos': typeof AdminSegmentosRoute
   '/admin/sistemas': typeof AdminSistemasRoute
   '/admin/upload': typeof AdminUploadRoute
@@ -257,7 +249,6 @@ export interface FileRoutesById {
   '/admin/indicadores': typeof AdminIndicadoresRoute
   '/admin/logs': typeof AdminLogsRoute
   '/admin/plano-padrao': typeof AdminPlanoPadraoRoute
-  '/admin/saude': typeof AdminSaudeRoute
   '/admin/segmentos': typeof AdminSegmentosRoute
   '/admin/sistemas': typeof AdminSistemasRoute
   '/admin/upload': typeof AdminUploadRoute
@@ -290,7 +281,6 @@ export interface FileRouteTypes {
     | '/admin/indicadores'
     | '/admin/logs'
     | '/admin/plano-padrao'
-    | '/admin/saude'
     | '/admin/segmentos'
     | '/admin/sistemas'
     | '/admin/upload'
@@ -319,7 +309,6 @@ export interface FileRouteTypes {
     | '/admin/indicadores'
     | '/admin/logs'
     | '/admin/plano-padrao'
-    | '/admin/saude'
     | '/admin/segmentos'
     | '/admin/sistemas'
     | '/admin/upload'
@@ -350,7 +339,6 @@ export interface FileRouteTypes {
     | '/admin/indicadores'
     | '/admin/logs'
     | '/admin/plano-padrao'
-    | '/admin/saude'
     | '/admin/segmentos'
     | '/admin/sistemas'
     | '/admin/upload'
@@ -382,7 +370,6 @@ export interface RootRouteChildren {
   AdminIndicadoresRoute: typeof AdminIndicadoresRoute
   AdminLogsRoute: typeof AdminLogsRoute
   AdminPlanoPadraoRoute: typeof AdminPlanoPadraoRoute
-  AdminSaudeRoute: typeof AdminSaudeRoute
   AdminSegmentosRoute: typeof AdminSegmentosRoute
   AdminSistemasRoute: typeof AdminSistemasRoute
   AdminUploadRoute: typeof AdminUploadRoute
@@ -534,13 +521,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminSegmentosRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/admin/saude': {
-      id: '/admin/saude'
-      path: '/admin/saude'
-      fullPath: '/admin/saude'
-      preLoaderRoute: typeof AdminSaudeRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/admin/plano-padrao': {
       id: '/admin/plano-padrao'
       path: '/admin/plano-padrao'
@@ -653,7 +633,6 @@ const rootRouteChildren: RootRouteChildren = {
   AdminIndicadoresRoute: AdminIndicadoresRoute,
   AdminLogsRoute: AdminLogsRoute,
   AdminPlanoPadraoRoute: AdminPlanoPadraoRoute,
-  AdminSaudeRoute: AdminSaudeRoute,
   AdminSegmentosRoute: AdminSegmentosRoute,
   AdminSistemasRoute: AdminSistemasRoute,
   AdminUploadRoute: AdminUploadRoute,

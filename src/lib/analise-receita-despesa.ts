@@ -14,7 +14,6 @@
 
 import { supabase } from "@/integrations/supabase/client";
 import { getMapaDeLinhas } from "@/lib/plano/mapa-linhas";
-import { lerTudo, countNaPrimeira } from "@/lib/supabase-paginado";
 
 const DEFAULT_RECEITA_PREFIX = ["3.01", "3.10"];
 const DEFAULT_DESPESA_PREFIX = ["3.06", "3.15"];
@@ -95,6 +94,21 @@ function prefixosDe(classificacao: string): string[] {
   return out;
 }
 
+async function fetchAllPaginated<T>(build: (from: number, to: number) => any): Promise<T[]> {
+  const PAGE = 1000;
+  const out: T[] = [];
+  let from = 0;
+  for (let i = 0; i < 200; i++) {
+    const { data, error } = await build(from, from + PAGE - 1);
+    if (error) throw error;
+    const rows = (data ?? []) as T[];
+    out.push(...rows);
+    if (rows.length < PAGE) break;
+    from += PAGE;
+  }
+  return out;
+}
+
 export async function montarReceitaDespesaDetalhado(
   companyId: string,
   competencias: string[],
@@ -113,16 +127,14 @@ export async function montarReceitaDespesaDetalhado(
   // Plano: empresa + global (tenant). Só contas de resultado (classif. "3.*")
   // — o plano completo pode ter dezenas de milhares de contas analíticas
   // (clientes/fornecedores) que não interessam para Receita × Despesa.
-  const plano = await lerTudo<PlanoRow>((from, to) =>
+  const plano = await fetchAllPaginated<PlanoRow>((from, to) =>
     supabase
       .from("plano_contas")
-      .select("codigo,classificacao,descricao,nivel", countNaPrimeira(from))
+      .select("codigo,classificacao,descricao,nivel")
       .or(`company_id.eq.${companyId}${tenantId ? `,company_id.is.null` : ""}`)
       .eq("ativo", true)
       .like("classificacao", "3.%")
-      .order("codigo")
       .range(from, to),
-    "plano receita/despesa",
   );
 
   // Mapeamento DRE — agora derivado dos MARCOS do plano
@@ -138,16 +150,13 @@ export async function montarReceitaDespesaDetalhado(
   }));
 
   // Saldos do período
-  const saldos = await lerTudo<SaldoRow>((from, to) =>
+  const saldos = await fetchAllPaginated<SaldoRow>((from, to) =>
     supabase
       .from("saldos_mensais")
-      .select("conta_codigo,competencia,movimento,total_debitos,total_creditos", countNaPrimeira(from))
+      .select("conta_codigo,competencia,movimento,total_debitos,total_creditos")
       .eq("company_id", companyId)
       .in("competencia", competencias)
-      .order("conta_codigo")
-      .order("competencia")
       .range(from, to),
-    "saldos receita/despesa",
   );
 
 

@@ -16,14 +16,6 @@
 // partida dobrada (D=C), portanto o Balanço continua fechando.
 
 import { supabase } from "@/integrations/supabase/client";
-import { getTradutor } from "@/lib/plano/depara";
-import { escoparPlano, getEscopoConsulta } from "@/lib/plano/consulta";
-
-/** Competência do ajuste/saldo no mesmo formato do filtro (YYYY-MM-01). */
-export function competenciaPadrao(c: string): string {
-  const m = String(c ?? "").match(/^(\d{4}-\d{2})/);
-  return m ? `${m[1]}-01` : String(c ?? "").slice(0, 10);
-}
 
 export interface AjusteResolvido {
   id: string;
@@ -98,29 +90,20 @@ export async function getAjustesGerenciais(
     if (!gerMap.has(a.conta_credito)) codigosContabeis.add(a.conta_credito);
   }
 
-  const trad = await getTradutor(companyId);
-  const escopo = await getEscopoConsulta(companyId);
-  const planoResolvido = new Map<string, { codigo: string; classificacao: string; descricao: string }>();
+  const planoResolvido = new Map<string, { classificacao: string; descricao: string }>();
   if (codigosContabeis.size > 0) {
-    const codes = Array.from(
-      new Set(
-        Array.from(codigosContabeis).flatMap((c) => {
-          const t = trad?.traduzir(c) ?? c;
-          return t === c ? [c] : [c, t];
-        }),
-      ),
-    );
+    const codes = Array.from(codigosContabeis);
+    // .in() em lotes para evitar URLs muito grandes
     for (let i = 0; i < codes.length; i += 500) {
       const lote = codes.slice(i, i + 500);
-      const { data, error } = await escoparPlano(
-        supabase.from("plano_contas").select("codigo, classificacao, descricao"),
-        companyId,
-        escopo.tenantId ? escopo : { ...escopo, tenantId },
-      ).in("codigo", lote);
+      const { data, error } = await supabase
+        .from("plano_contas")
+        .select("codigo, classificacao, descricao")
+        .eq("tenant_id", tenantId)
+        .in("codigo", lote);
       if (error) throw error;
       for (const r of (data ?? []) as any[]) {
         planoResolvido.set(r.codigo, {
-          codigo: r.codigo,
           classificacao: r.classificacao,
           descricao: r.descricao,
         });
@@ -138,11 +121,10 @@ export async function getAjustesGerenciais(
         origem: "gerencial",
       };
     }
-    const motor = trad?.traduzir(codigo) ?? codigo;
-    const p = planoResolvido.get(motor) ?? planoResolvido.get(codigo);
+    const p = planoResolvido.get(codigo);
     if (p) {
       return {
-        codigo: p.codigo,
+        codigo,
         descricao: p.descricao,
         classificacao: p.classificacao,
         origem: "plano",
@@ -153,7 +135,7 @@ export async function getAjustesGerenciais(
 
   const ajustes: AjusteResolvido[] = rows.map((r) => ({
     id: r.id,
-    competencia: competenciaPadrao(r.competencia),
+    competencia: r.competencia,
     descricao: r.descricao,
     conta_debito: r.conta_debito,
     conta_credito: r.conta_credito,
@@ -190,19 +172,18 @@ export function ajustesToSaldosVirtuais(
 ): SaldoVirtual[] {
   const out: SaldoVirtual[] = [];
   for (const a of ajustes) {
-    const comp = competenciaPadrao(a.competencia);
-    if (!filter(comp) && !filter(a.competencia)) continue;
+    if (!filter(a.competencia)) continue;
     if (!a.debito || !a.credito) continue; // conta removida — ignora
     out.push({
-      conta_codigo: a.debito.codigo,
-      competencia: comp,
+      conta_codigo: a.conta_debito,
+      competencia: a.competencia,
       total_debitos: a.valor,
       total_creditos: 0,
       movimento: a.valor,
     });
     out.push({
-      conta_codigo: a.credito.codigo,
-      competencia: comp,
+      conta_codigo: a.conta_credito,
+      competencia: a.competencia,
       total_debitos: 0,
       total_creditos: a.valor,
       movimento: -a.valor,

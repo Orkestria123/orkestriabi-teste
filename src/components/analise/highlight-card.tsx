@@ -59,7 +59,7 @@ export function HighlightCard({ label, valorA, valorB, labelA, labelB, format = 
           )}
         >
           {variacao > 0 ? <ArrowUpRight className="h-3.5 w-3.5" /> : variacao < 0 ? <ArrowDownRight className="h-3.5 w-3.5" /> : <Minus className="h-3.5 w-3.5" />}
-          {Math.abs(variacao).toFixed(1).replace(".", ",")}{varSuffix}
+          {Math.abs(variacao).toFixed(2).replace(".", ",")}{varSuffix}
         </div>
       )}
     </Card>

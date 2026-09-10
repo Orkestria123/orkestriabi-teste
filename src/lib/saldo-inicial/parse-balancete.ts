@@ -8,7 +8,6 @@
 //   - Sintéticas (Cta. título = "1-Sim") são totais calculados → ignoradas
 //   - Sinal padronizado para D−C via saldoPadronizado()
 
-import { textoDoArquivo } from "@/lib/importacao/encoding";
 import { saldoPadronizado } from "./sinal";
 import {
   dividir,
@@ -58,8 +57,14 @@ function normalizeHeader(h: string): string {
 async function readWithEncoding(
   file: File,
 ): Promise<{ text: string; encoding: "utf-8" | "iso-8859-1" }> {
-  const { text, encoding } = await textoDoArquivo(file);
-  return { text, encoding: encoding === "windows-1252" ? "iso-8859-1" : "utf-8" };
+  const buf = await file.arrayBuffer();
+  let utf8 = new TextDecoder("utf-8", { fatal: false }).decode(buf);
+  // Remove BOM
+  if (utf8.charCodeAt(0) === 0xfeff) utf8 = utf8.slice(1);
+  if (utf8.includes("\uFFFD")) {
+    return { text: new TextDecoder("iso-8859-1").decode(buf), encoding: "iso-8859-1" };
+  }
+  return { text: utf8, encoding: "utf-8" };
 }
 
 function splitCsv(line: string): string[] {

@@ -83,7 +83,6 @@ const SIGLAS = new Set([
   "DRE", "DFC", "DVA", "DLPA", "BP", "PL", "CDB", "LCI", "LCA", "TR", "TJLP",
   "SELIC", "CDI", "IGPM", "IPCA", "INPC", "RET", "SCI", "EPI", "PPRA", "PCMSO",
   "CIPA", "FAP", "RH", "TI", "PDV", "ADM", "CMV", "CPV", "EBIT", "EBITDA",
-  "MOD", "GGF", "GGC",
 ]);
 
 const MINUSCULAS = new Set([

@@ -80,14 +80,14 @@ export function PontoEquilibrioPanel({ resultado, labelPeriodo }: Props) {
         />
         <Kpi
           label="Margem de Contribuição"
-          value={`${(margem_contribuicao_pct * 100).toFixed(1).replace(".", ",")}%`}
+          value={`${(margem_contribuicao_pct * 100).toFixed(2).replace(".", ",")}%`}
           sub="Sobra após custos variáveis"
         />
         <Kpi
           label="Margem de Segurança"
           value={
             margem_seguranca_pct != null
-              ? `${(margem_seguranca_pct * 100).toFixed(1).replace(".", ",")}%`
+              ? `${(margem_seguranca_pct * 100).toFixed(2).replace(".", ",")}%`
               : "—"
           }
           sub={

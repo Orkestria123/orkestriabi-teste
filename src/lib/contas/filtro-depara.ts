@@ -9,8 +9,6 @@
 // A lógica vive aqui, fora de componente, porque é ela que decide o que
 // o usuário vê. Fora do componente, o harness testa; dentro, não.
 
-import { nivelDe, prefixoAteNivel, MASCARA_DEFAULT, type MascaraConfig } from "@/lib/mascara/interpretar";
-
 export type EstadoLinha = "pendente" | "sugerido" | "vinculado" | "ignorado";
 
 export interface LinhaDepara {
@@ -61,7 +59,7 @@ export function veioDeSugestaoAutomatica(observacao?: string | null): boolean {
 
 export function estadoDe(l: LinhaDepara): EstadoLinha {
   if (l.ignorada) return "ignorado";
-  if (!l.destino) return l.sugerido ? "sugerido" : "pendente";
+  if (!l.destino) return "pendente";
   return l.sugerido ? "sugerido" : "vinculado";
 }
 
@@ -151,15 +149,14 @@ export function contarEstados(linhas: LinhaDepara[]): Contagem {
 // linha do plano padrão. Agrupando pelo prefixo da classificação, esse
 // galho inteiro vira UMA decisão.
 
-/** "1.01.01.1.0001" com nível 3 → "1.01.01" (respeita o separador da máscara). */
+/** "1.01.01.1.0001" com nível 3 → "1.01.01". */
 export function prefixoClassificacao(
   classificacao: string | null | undefined,
   nivel: number,
-  mascara: MascaraConfig = MASCARA_DEFAULT,
 ): string {
   const c = (classificacao ?? "").trim();
   if (!c || nivel <= 0) return "";
-  return prefixoAteNivel(c, nivel, mascara);
+  return c.split(".").slice(0, nivel).join(".");
 }
 
 /**
@@ -215,26 +212,6 @@ export interface GrupoDepara<T extends LinhaDepara> {
 }
 
 /**
- * Corta a lista agrupada pela quantidade de LINHAS, não de grupos.
- * Sem isto, um subgrupo com 800 contas entra inteiro na primeira
- * página — e cada linha com seletor trava o navegador.
- */
-export function cortarGrupos<T extends LinhaDepara>(
-  todos: GrupoDepara<T>[],
-  limite: number,
-): { mostrando: GrupoDepara<T>[]; total: number; linhas: number } {
-  const out: GrupoDepara<T>[] = [];
-  let n = 0;
-  for (const g of todos) {
-    if (n >= limite) break;
-    const cabe = limite - n;
-    out.push(cabe < g.linhas.length ? { ...g, linhas: g.linhas.slice(0, cabe) } : g);
-    n += Math.min(g.linhas.length, cabe);
-  }
-  return { mostrando: out, total: todos.length, linhas: n };
-}
-
-/**
  * Agrupa mantendo a ordem que `filtrarLinhas` já deu dentro de cada
  * grupo. Grupos vêm em ordem de classificação, e o "sem classificação"
  * vai para o fim — ele é o resto, não o começo.
@@ -242,20 +219,8 @@ export function cortarGrupos<T extends LinhaDepara>(
 export function agruparPorClassificacao<T extends LinhaDepara>(
   linhas: T[],
   nivel: number,
-  mascara: MascaraConfig = MASCARA_DEFAULT,
 ): GrupoDepara<T>[] {
-  return agruparPorChave(linhas, (l) => prefixoClassificacao(l.classificacao, nivel, mascara));
-}
-
-/**
- * Agrupa pelo tipo da conta de origem (Ativo / Passivo / DRE).
- * Vale quando o arquivo não traz classificação estrutural, mas o tipo
- * dá para inferir — o lote ainda junta dezenas de contas numa decisão.
- */
-export function agruparPorTipo<T extends LinhaDepara & { tipo?: string | null }>(
-  linhas: T[],
-): GrupoDepara<T>[] {
-  return agruparPorChave(linhas, (l) => (l.tipo ?? "").trim());
+  return agruparPorChave(linhas, (l) => prefixoClassificacao(l.classificacao, nivel));
 }
 
 // ---------------------------------------------------------------
@@ -322,13 +287,10 @@ export function niveisDoCaminho(linhas: LinhaDepara[]): number {
 }
 
 /** Quantos níveis a classificação mais funda tem — limita o seletor. */
-export function niveisDisponiveis(
-  linhas: LinhaDepara[],
-  mascara: MascaraConfig = MASCARA_DEFAULT,
-): number {
+export function niveisDisponiveis(linhas: LinhaDepara[]): number {
   let max = 0;
   for (const l of linhas) {
-    const n = nivelDe(l.classificacao ?? "", mascara);
+    const n = (l.classificacao ?? "").trim().split(".").filter(Boolean).length;
     if (n > max) max = n;
   }
   return max;

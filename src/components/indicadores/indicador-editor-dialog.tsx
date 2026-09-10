@@ -18,9 +18,7 @@ import {
   type Token,
 } from "@/lib/indicadores/engine";
 
-import { CATEGORIAS_INDICADOR } from "@/lib/indicadores/categorias";
-
-const CATEGORIAS = [...CATEGORIAS_INDICADOR];
+const CATEGORIAS = ["Liquidez", "Rentabilidade", "Endividamento", "Atividade", "Personalizado"];
 
 const MODOS: { value: ModoAnalise; label: string; hint: string }[] = [
   { value: "numero", label: "nº — Número puro", hint: "Índice / razão (ex.: 1,50)" },

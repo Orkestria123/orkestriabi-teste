@@ -50,7 +50,7 @@ export function ParetoDespesas({ data }: { data: ParetoItem[] }) {
           <Tooltip
             contentStyle={TOOLTIP_STYLE}
             formatter={(v: any, k: any) =>
-              k === "acumuladoPct" ? `${Number(v).toFixed(1)}%` : formatBRL(Number(v))
+              k === "acumuladoPct" ? `${Number(v).toFixed(2)}%` : formatBRL(Number(v))
             }
           />
           <Bar yAxisId="left" dataKey="valor" fill="var(--chart-1)" radius={[4, 4, 0, 0]} />

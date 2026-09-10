@@ -154,52 +154,6 @@ export function interpretarClassificacao(
   return { classificacao, partes, nivel: partes.length, grupo, rotulos };
 }
 
-/** Prefixo de cada nível acima da folha — sintéticas inferidas pela máscara. */
-export function ancestraisDe(
-  classificacao: string,
-  mascara: MascaraConfig = MASCARA_DEFAULT,
-): { nivel: number; classificacao: string; rotuloNivel: string }[] {
-  const partes = dividir(classificacao, mascara);
-  const out: { nivel: number; classificacao: string; rotuloNivel: string }[] = [];
-  for (let i = 1; i < partes.length; i++) {
-    out.push({
-      nivel: i,
-      classificacao: juntar(partes.slice(0, i), mascara),
-      rotuloNivel: mascara.niveis[i - 1]?.nome ?? `Nível ${i}`,
-    });
-  }
-  return out;
-}
-
-/** Opções de agrupamento em lote: só sintéticas (níveis acima da analítica). */
-export function opcoesLotePorMascara(
-  mascara: MascaraConfig,
-  maxNivelArquivo: number,
-): { valor: number; rotulo: string }[] {
-  const teto = Math.min(
-    Math.max(0, mascara.niveis.length - 1),
-    Math.max(0, maxNivelArquivo - 1),
-    6,
-  );
-  return mascara.niveis.slice(0, teto).map((nv, i) => ({
-    valor: i + 1,
-    rotulo: `${nv.nome} · ${i + 1}º nível`,
-  }));
-}
-
-/** Nome do nível da máscara (1 = Grupo, 2 = Subgrupo, …). */
-export function rotuloNivelMascara(mascara: MascaraConfig, nivel: number): string {
-  if (nivel <= 0) return "";
-  return mascara.niveis[nivel - 1]?.nome ?? `Nível ${nivel}`;
-}
-
-export function rotuloMascara(mascara: MascaraConfig): string {
-  const niveis = mascara.niveis.map((n) => n.nome).join(mascara.separador || " › ");
-  return mascara.separador
-    ? `${niveis} (separador "${mascara.separador}")`
-    : `${niveis} (largura fixa)`;
-}
-
 /** Sinal de exibição do saldo inicial: Ativo mantém, Passivo/PL invertem. */
 export function sinalSaldoInicial(grupo: GrupoContabil, valor: number): number {
   if (grupo === "passivo" || grupo === "pl") return -valor;

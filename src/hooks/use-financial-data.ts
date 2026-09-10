@@ -3,7 +3,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { buildStatementFromDiario } from "@/lib/diario/build-statements";
 import { useVisaoGerencial } from "@/hooks/use-visao-gerencial";
 import { getModoGlobal } from "@/lib/plano/escopo";
-import { lerTudo, countNaPrimeira } from "@/lib/supabase-paginado";
 
 export interface Company {
   id: string;
@@ -66,21 +65,16 @@ export function useFinancialStatement(
     queryKey: ["fs", companyId, tipo, minYear, maxYear],
     enabled: !!companyId,
     queryFn: async () => {
-      const data = await lerTudo<any>(
-        (from, to) =>
-          supabase
-            .from("financial_statements")
-            .select("*", countNaPrimeira(from))
-            .eq("company_id", companyId!)
-            .eq("tipo_demonstracao", tipo)
-            .gte("periodo", `${minYear}-01-01`)
-            .lte("periodo", `${maxYear}-12-31`)
-            .order("periodo")
-            .order("linha_ordem")
-            .range(from, to),
-        "financial_statements",
-      );
-      return data;
+      const { data, error } = await supabase
+        .from("financial_statements")
+        .select("*")
+        .eq("company_id", companyId!)
+        .eq("tipo_demonstracao", tipo)
+        .gte("periodo", `${minYear}-01-01`)
+        .lte("periodo", `${maxYear}-12-31`)
+        .order("linha_ordem");
+      if (error) throw error;
+      return data ?? [];
     },
   });
 }
@@ -89,7 +83,6 @@ export function useAvailablePeriods(companyId: string | null) {
   return useQuery({
     queryKey: ["available-periods", companyId],
     enabled: !!companyId,
-    staleTime: 60_000,
     queryFn: async () => {
       // Era uma leitura de `saldos_mensais` linha a linha, SEM paginação:
       // uma linha por conta × mês. Com `max_rows = 1000` no servidor, uma
@@ -129,8 +122,6 @@ export function useMonthlyStatement(
   return useQuery({
     queryKey: ["monthly-stmt", companyId, tipo, periodos.join(","), visao],
     enabled: !!companyId && periodos.length > 0,
-    staleTime: 60_000,
-    retry: 2,
     queryFn: async () => {
       // Roteamento por fonte_dados. Se a empresa já está no novo pipeline (diario),
       // monta DRE/BP a partir de saldos_mensais + plano_contas + mapeamento_demonstracao.
@@ -173,50 +164,35 @@ export function useMonthlyStatement(
         }
         return buildStatementFromDiario(companyId!, meta.tenantId, meta.modoGlobal, t, periodos, visao);
       }
-      const [allStmt, chartRows, balRows] = await Promise.all([
-        lerTudo<any>(
-          (from, to) =>
-            supabase
-              .from("financial_statements")
-              .select("linha_ordem, descricao, codigo_conta, nivel, is_subtotal, periodo, valor", countNaPrimeira(from))
-              .eq("company_id", companyId!)
-              .eq("tipo_demonstracao", tipo)
-              .order("periodo")
-              .order("linha_ordem")
-              .range(from, to),
-          "sped statements",
-        ),
-        lerTudo<any>(
-          (from, to) =>
-            supabase
-              .from("chart_of_accounts")
-              .select("codigo_conta, parent_codigo, tipo_conta", countNaPrimeira(from))
-              .eq("company_id", companyId!)
-              .order("codigo_conta")
-              .range(from, to),
-          "sped plano",
-        ),
-        lerTudo<any>(
-          (from, to) =>
-            supabase
-              .from("account_balances")
-              .select("codigo_conta, periodo, debitos, creditos, saldo_final", countNaPrimeira(from))
-              .eq("company_id", companyId!)
-              .in("periodo", periodos)
-              .order("codigo_conta")
-              .order("periodo")
-              .range(from, to),
-          "sped saldos",
-        ),
+      const [stmtRes, chartRes, balRes] = await Promise.all([
+        supabase
+          .from("financial_statements")
+          .select("linha_ordem, descricao, codigo_conta, nivel, is_subtotal, periodo, valor")
+          .eq("company_id", companyId!)
+          .eq("tipo_demonstracao", tipo)
+          .order("linha_ordem"),
+        supabase
+          .from("chart_of_accounts")
+          .select("codigo_conta, parent_codigo, tipo_conta")
+          .eq("company_id", companyId!),
+        supabase
+          .from("account_balances")
+          .select("codigo_conta, periodo, debitos, creditos, saldo_final")
+          .eq("company_id", companyId!)
+          .in("periodo", periodos),
       ]);
+      if (stmtRes.error) throw stmtRes.error;
+      if (chartRes.error) throw chartRes.error;
+      if (balRes.error) throw balRes.error;
 
+      const allStmt = stmtRes.data ?? [];
       const periodSet = Array.from(new Set(allStmt.map((s: any) => s.periodo))).sort();
       const tplPeriod = periodSet[periodSet.length - 1];
       const template = allStmt.filter((s: any) => s.periodo === tplPeriod);
 
       const children = new Map<string, string[]>();
       const tipoMap = new Map<string, string>();
-      for (const c of chartRows) {
+      for (const c of chartRes.data ?? []) {
         tipoMap.set(c.codigo_conta, c.tipo_conta ?? "A");
         if (c.parent_codigo) {
           if (!children.has(c.parent_codigo)) children.set(c.parent_codigo, []);
@@ -243,7 +219,7 @@ export function useMonthlyStatement(
       };
 
       const bMap = new Map<string, Map<string, { d: number; c: number; sf: number }>>();
-      for (const b of balRows) {
+      for (const b of balRes.data ?? []) {
         let m = bMap.get(b.codigo_conta);
         if (!m) {
           m = new Map();

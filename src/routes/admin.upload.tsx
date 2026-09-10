@@ -12,7 +12,6 @@ import {
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
 import { parseSpedContabil } from "@/lib/sped-parser";
-import { textoSped } from "@/lib/importacao/encoding";
 import { parseSpedFiscal, isSpedFiscal } from "@/lib/sped-fiscal-parser";
 import { deleteSpedFile } from "@/lib/api/orkestria.functions";
 import { Upload as UploadIcon, FileText, CheckCircle2, AlertCircle, Trash2, Receipt, BookOpen } from "lucide-react";
@@ -62,7 +61,7 @@ function Page() {
     setProcessing(true);
     setProgress("Lendo arquivo…");
     try {
-      const content = await textoSped(file);
+      const content = await file.text();
       const fiscal = isSpedFiscal(content);
       setProgress(fiscal ? "Detectado SPED Fiscal — processando…" : "Detectado SPED Contábil — processando…");
 

@@ -86,7 +86,7 @@ export const generateFinancialInsights = createServerFn({ method: "POST" })
         const v = r.values[last] ?? 0;
         const p = prev ? r.values[prev] ?? 0 : 0;
         const delta = prev && p !== 0 ? ((v - p) / Math.abs(p)) * 100 : null;
-        return `${r.descricao}: ${brl(v)}${delta != null ? ` (${delta > 0 ? "+" : ""}${delta.toFixed(1)}% vs período anterior)` : ""}`;
+        return `${r.descricao}: ${brl(v)}${delta != null ? ` (${delta > 0 ? "+" : ""}${delta.toFixed(2)}% vs período anterior)` : ""}`;
       })
       .join("\n");
 

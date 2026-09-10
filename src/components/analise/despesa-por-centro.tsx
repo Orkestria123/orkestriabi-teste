@@ -57,7 +57,7 @@ export function DespesaPorCentro({ data }: { data: CentroItem[] }) {
                 <span className="truncate">{c.nome}</span>
               </div>
               <div className="tabular-nums text-muted-foreground whitespace-nowrap ml-2">
-                {formatBRL(c.valor)} <span className="opacity-70">· {formatPct(c.pct, 1)}</span>
+                {formatBRL(c.valor)} <span className="opacity-70">· {formatPct(c.pct)}</span>
               </div>
             </div>
           ))}

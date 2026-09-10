@@ -32,7 +32,6 @@ import { resolverLinha as resolverLinhaCatalogo, indexarDemoDre, type DemoDre } 
 import { getEstruturaPadrao, type PapelEstrutura } from "@/lib/plano/estrutura";
 import type { Visao } from "@/hooks/use-visao-gerencial";
 import { getModoGlobal } from "@/lib/plano/escopo";
-import { tipoCustoEfetivo, classeGastoEfetivo } from "@/lib/plano/tipo-custo";
 
 interface SnapshotRaw {
   plano: any[];
@@ -73,7 +72,6 @@ export async function buildCtxForVisao(
       is_sintetica: p.is_sintetica,
       is_participante: p.is_participante,
       tipo_custo: p.tipo_custo === "fixo" || p.tipo_custo === "variavel" ? p.tipo_custo : null,
-      classe_gasto: p.classe_gasto === "custo" || p.classe_gasto === "despesa" ? p.classe_gasto : null,
     };
   });
 
@@ -95,10 +93,8 @@ export async function buildCtxForVisao(
       });
     }
   };
-  const classSet = new Set(planoEng.map((p) => p.classificacao));
   for (const s of snap.saldos ?? []) {
-    const raw = String(s.conta_codigo ?? "");
-    const cls = codigoToClass.get(raw) ?? (classSet.has(raw) ? raw : undefined);
+    const cls = codigoToClass.get(s.conta_codigo);
     if (!cls) continue;
     push(cls, s.competencia, Number(s.total_debitos) || 0, Number(s.total_creditos) || 0);
   }
@@ -138,7 +134,7 @@ export async function buildCtxForVisao(
   // 3) soma por CLASSIFICAÇÃO.
   const aberturas = new Map<string, number>();
   for (const [cod, { saldo }] of ultimaPorConta) {
-    const cls = codigoToClass.get(cod) ?? (classSet.has(cod) ? cod : undefined);
+    const cls = codigoToClass.get(cod);
     if (!cls) continue;
     aberturas.set(cls, (aberturas.get(cls) ?? 0) + saldo);
   }
@@ -155,8 +151,6 @@ export async function buildCtxForVisao(
         grupo === "passivo" || grupo === "pl" || grupo === "receita" || grupo === "resultado"
           ? "C"
           : "D";
-      const tipoPai = tipoCustoEfetivo(vp.classificacao, planoEng);
-      const classePai = classeGastoEfetivo(vp.classificacao, planoEng);
       planoEng.push({
         codigo: vp.codigo,
         classificacao: vp.classificacao,
@@ -164,25 +158,41 @@ export async function buildCtxForVisao(
         natureza,
         is_sintetica: false,
         is_participante: false,
-        tipo_custo: tipoPai,
-        classe_gasto: classePai,
       });
       codigoToClass.set(vp.codigo, vp.classificacao);
     }
+    // Contas usadas nos ajustes que NÃO vieram no snapshot — tipicamente
+    // clientes/fornecedores (contas participantes) sem movimento contábil
+    // próprio. Sem entrar no plano do contexto, a classificação delas fica
+    // desconhecida e o ajuste some do Ativo/Passivo Circulante.
+    for (const a of ger.ajustes) {
+      for (const r of [a.debito, a.credito]) {
+        if (!r || codigoToClass.has(r.codigo)) continue;
+        const grupo = grupoDe(r.classificacao, mascara);
+        const natureza =
+          grupo === "passivo" || grupo === "pl" || grupo === "receita" || grupo === "resultado"
+            ? "C"
+            : "D";
+        planoEng.push({
+          codigo: r.codigo,
+          classificacao: r.classificacao,
+          descricao: r.descricao,
+          natureza,
+          is_sintetica: false,
+          is_participante: false,
+        });
+        codigoToClass.set(r.codigo, r.classificacao);
+      }
+    }
     for (const a of ger.ajustes) {
       if (!a.debito || !a.credito) continue;
-      const comp = a.competencia;
-      const codD = a.debito.codigo;
-      const codC = a.credito.codigo;
-      const clsD = codigoToClass.get(codD) ?? a.debito.classificacao;
-      const clsC = codigoToClass.get(codC) ?? a.credito.classificacao;
-      codigoToClass.set(codD, clsD);
-      codigoToClass.set(codC, clsC);
-      push(clsD, comp, a.valor, 0);
-      push(clsC, comp, 0, a.valor);
+      const clsD = codigoToClass.get(a.conta_debito) ?? a.debito.classificacao;
+      const clsC = codigoToClass.get(a.conta_credito) ?? a.credito.classificacao;
+      push(clsD, a.competencia, a.valor, 0);
+      push(clsC, a.competencia, 0, a.valor);
       movimentosGerenciais.push(
-        { conta_codigo: codD, competencia: comp, movimento: a.valor },
-        { conta_codigo: codC, competencia: comp, movimento: -a.valor },
+        { conta_codigo: a.conta_debito, competencia: a.competencia, movimento: a.valor },
+        { conta_codigo: a.conta_credito, competencia: a.competencia, movimento: -a.valor },
       );
     }
   }
@@ -232,7 +242,7 @@ export async function buildCtxForVisao(
   // Contas de cada classificação, para somar sob demanda.
   const contasPorClasse = new Map<string, string[]>();
   for (const conta of acumulador.contas()) {
-    const cls = codigoToClass.get(conta) ?? (classSet.has(conta) ? conta : undefined);
+    const cls = codigoToClass.get(conta);
     if (!cls) continue;
     const arr = contasPorClasse.get(cls);
     if (arr) arr.push(conta);
@@ -330,7 +340,6 @@ export async function buildCtxForVisao(
     mascara,
     saldoAcumuladoDC,
     saldosPorCodigo,
-    visao,
   });
 }
 
@@ -360,7 +369,7 @@ export function useIndicadorData(
   return useQuery({
     queryKey: ["indic-engine-data", tenantId, companyId, visao],
     enabled: !!tenantId && !!companyId,
-    staleTime: 30_000,
+    staleTime: 5 * 60_000,
     retry: 1,
     queryFn: async (): Promise<IndicadorCtx> => {
       const mascara = await getMascaraConfig({ tenantId: tenantId!, companyId: companyId! });
@@ -395,8 +404,8 @@ export function useDemoValues(
   return useQuery({
     queryKey: ["indic-demo-dre", tenantId, companyId, key, visao],
     enabled: !!tenantId && !!companyId && periodos.length > 0,
-    staleTime: 30_000,
-    retry: 2,
+    staleTime: 5 * 60_000,
+    retry: 1,
     queryFn: async (): Promise<DemoValues> => {
       if (!periodos || periodos.length === 0) {
         return visao === "comparativo"
@@ -406,15 +415,20 @@ export function useDemoValues(
       const { modoGlobal } = await getModoGlobal(companyId!);  // AJUSTE 02: escopo por empresa
       const estrutura = await getEstruturaPadrao();
       const build = async (modo: "contabil" | "gerencial"): Promise<DemoDre> => {
-        const rows = await buildStatementFromDiario(
-          companyId!,
-          tenantId!,
-          modoGlobal,
-          "DRE",
-          periodos,
-          modo,
-        );
-        return indexarDemoDre(rows, estrutura);
+        try {
+          const rows = await buildStatementFromDiario(
+            companyId!,
+            tenantId!,
+            modoGlobal,
+            "DRE",
+            periodos,
+            modo,
+          );
+          return indexarDemoDre(rows, estrutura);
+        } catch (e) {
+          console.warn(`[useDemoValues:${modo}] falha ao montar DRE:`, e);
+          return new Map();
+        }
       };
       if (visao === "comparativo") {
         const [contabil, gerencial] = await Promise.all([build("contabil"), build("gerencial")]);
@@ -458,12 +472,10 @@ export function criarResolverLinha(
 export function isCtxPair(
   c: IndicadorCtx | undefined,
 ): c is { contabil: EngineContext; gerencial: EngineContext } {
-  const x = c as { contabil?: EngineContext; gerencial?: EngineContext } | undefined;
-  return !!x?.contabil?.plano && !!x?.gerencial?.plano;
+  return !!c && (c as any).contabil !== undefined && (c as any).gerencial !== undefined;
 }
 export function isDemoPair(
   d: DemoValues | undefined,
 ): d is { contabil: DemoDre; gerencial: DemoDre } {
-  const x = d as { contabil?: DemoDre; gerencial?: DemoDre } | undefined;
-  return !!x && x.contabil instanceof Map && x.gerencial instanceof Map;
+  return !!d && (d as any).contabil !== undefined && (d as any).gerencial !== undefined;
 }

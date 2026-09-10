@@ -1,4 +1,4 @@
-import { createFileRoute, Outlet, useRouterState } from "@tanstack/react-router";
+import { createFileRoute, Outlet } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { PortalShell } from "@/components/portal-shell";
 import { FilterProvider, FilterBar, useFilters } from "@/components/filter-bar";
@@ -7,6 +7,7 @@ import { useMyCompanies, useAvailablePeriods } from "@/hooks/use-financial-data"
 import { DashboardCompanyContext } from "@/components/dashboard-context";
 import { VisaoGerencialProvider } from "@/hooks/use-visao-gerencial";
 import { VisaoToggle } from "@/components/visao-toggle";
+import { registrarAcessoEmpresa } from "@/lib/api/auditoria.functions";
 import {
   Select,
   SelectContent,
@@ -41,8 +42,8 @@ function hexToOklchVar(hex?: string | null): string | undefined {
 }
 
 function DashboardLayout() {
-  const { role, profile, tenant } = useAuth();
-  const { data: companies } = useMyCompanies();
+  const { role, profile, tenant, isCliente } = useAuth();
+  const { data: companies, isLoading: companiesLoading } = useMyCompanies();
   const { company: companyParam } = Route.useSearch();
   const navigate = Route.useNavigate();
   const [selectedCompany, setSelectedCompany] = useState<string | null>(null);
@@ -63,10 +64,11 @@ function DashboardLayout() {
       setSelectedCompany(profile.company_id);
       return;
     }
-    if (companies && companies.length > 0) {
-      setSelectedCompany(companies[0].id);
-    }
-  }, [role, profile, companies, selectedCompany, companyParam]);
+    if (!companies || companies.length === 0) return;
+    // Cliente com várias empresas escolhe na tela inicial; com uma só, entra direto.
+    if (isCliente && companies.length > 1) return;
+    setSelectedCompany(companies[0].id);
+  }, [role, profile, companies, selectedCompany, companyParam, isCliente]);
 
   const setCompany = (id: string) => {
     setSelectedCompany(id);
@@ -79,9 +81,20 @@ function DashboardLayout() {
     [companies, selectedCompany],
   );
 
+  // Registra em auditoria qual empresa o usuário abriu.
+  useEffect(() => {
+    if (!company) return;
+    void registrarAcessoEmpresa({
+      data: { company_id: company.id, company_nome: company.name },
+    }).catch(() => {});
+  }, [company?.id]);
+
   const brandStyle = tenant?.primary_color
     ? ({ "--primary": tenant.primary_color, "--ring": tenant.primary_color, "--sidebar-primary": tenant.primary_color } as React.CSSProperties)
     : undefined;
+
+  const semEmpresas = !companiesLoading && (companies?.length ?? 0) === 0;
+  const precisaEscolher = !semEmpresas && !selectedCompany && (companies?.length ?? 0) > 1;
 
   return (
     <DashboardCompanyContext.Provider value={{ companyId: selectedCompany, company }}>
@@ -93,7 +106,7 @@ function DashboardLayout() {
         actions={
           <div className="flex items-center gap-2">
             <VisaoToggle />
-            {role !== "client" && companies && companies.length > 0 ? (
+            {companies && companies.length > 1 ? (
               <Select
                 value={selectedCompany ?? ""}
                 onValueChange={(v) => setCompany(v)}
@@ -113,26 +126,54 @@ function DashboardLayout() {
           </div>
         }
       >
-        <PeriodSync companyId={selectedCompany} />
-        <FilterBar />
-        <div className="p-3 sm:p-4">
-          <Outlet />
-        </div>
+        {semEmpresas ? (
+          <div className="flex min-h-[60vh] items-center justify-center p-6">
+            <div className="max-w-md rounded-lg border border-border bg-card p-8 text-center">
+              <h2 className="text-lg font-semibold tracking-tight">
+                Nenhuma empresa disponível
+              </h2>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Contate seu escritório contábil.
+              </p>
+            </div>
+          </div>
+        ) : precisaEscolher ? (
+          <div className="mx-auto max-w-3xl p-6">
+            <h2 className="text-xl font-semibold tracking-tight">Escolha a empresa</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Você tem acesso às empresas abaixo.
+            </p>
+            <div className="mt-6 grid gap-3 sm:grid-cols-2">
+              {companies!.map((c) => (
+                <button
+                  key={c.id}
+                  onClick={() => setCompany(c.id)}
+                  className="rounded-lg border border-border bg-card p-4 text-left transition-colors hover:border-primary hover:bg-accent/50"
+                >
+                  <div className="text-sm font-semibold">{c.name}</div>
+                  {c.cnpj && (
+                    <div className="mt-0.5 text-xs text-muted-foreground">CNPJ {c.cnpj}</div>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <>
+            <PeriodSync companyId={selectedCompany} />
+            <FilterBar />
+            <div className="p-3 sm:p-4">
+              <Outlet />
+            </div>
+          </>
+        )}
       </PortalShell>
       </div>
     </DashboardCompanyContext.Provider>
   );
 }
 
-function ymDe(p: string): { y: number; m: number } {
-  const d = new Date(p);
-  return { y: d.getUTCFullYear(), m: d.getUTCMonth() + 1 };
-}
-
 function PeriodSync({ companyId }: { companyId: string | null }) {
-  const noBalanco = useRouterState({
-    select: (s) => s.location.pathname === "/dashboard/balanco",
-  });
   const { data } = useAvailablePeriods(companyId);
   const {
     setAvailableYears,
@@ -141,77 +182,35 @@ function PeriodSync({ companyId }: { companyId: string | null }) {
     setYears,
     months,
     setMonths,
-    preservarFiltro,
-    restaurarFiltro,
-    pegarFiltroPreservado,
   } = useFilters();
-
   useEffect(() => {
-    if (!data || data.length === 0) {
-      if (data) setAvailablePeriods(data);
-      return;
-    }
+    if (!data) return;
     setAvailablePeriods(data);
-    const ys = Array.from(new Set(data.map((p) => ymDe(p).y))).sort((a, b) => a - b);
-    setAvailableYears(ys);
+    const ys = Array.from(
+      new Set(data.map((p) => new Date(p).getUTCFullYear())),
+    ).sort();
     if (ys.length === 0) return;
+    setAvailableYears(ys);
 
-    const overlapAnos = years.filter((y) => ys.includes(y));
-    const targetYear = overlapAnos.length === 0 ? ys[ys.length - 1] : overlapAnos[overlapAnos.length - 1];
+    // Se o ano selecionado não tem dados, cai para o ano mais recente disponível
+    const overlap = years.filter((y) => ys.includes(y));
+    const targetYear = overlap.length === 0 ? ys[ys.length - 1] : overlap[overlap.length - 1];
+    if (overlap.length === 0) setYears([targetYear]);
+
+    // Garante que os meses selecionados existam dentro do ano alvo;
+    // caso contrário, marca todos os meses disponíveis nesse ano.
     const monthsDoAno = Array.from(
-      new Set(data.filter((p) => ymDe(p).y === targetYear).map((p) => ymDe(p).m)),
+      new Set(
+        data
+          .filter((p) => new Date(p).getUTCFullYear() === targetYear)
+          .map((p) => new Date(p).getUTCMonth() + 1),
+      ),
     ).sort((a, b) => a - b);
-    const lastM = monthsDoAno.length > 0 ? monthsDoAno[monthsDoAno.length - 1] : 0;
-    const ateUltimoMovimento = lastM > 0 ? Array.from({ length: lastM }, (_, i) => i + 1) : [];
-
-    if (noBalanco) {
-      if (!pegarFiltroPreservado()) {
-        const mesesSnap =
-          months.filter((m) => lastM === 0 || m <= lastM).length > 0
-            ? months.filter((m) => lastM === 0 || m <= lastM)
-            : ateUltimoMovimento;
-        preservarFiltro(
-          overlapAnos.length > 0 ? years : [targetYear],
-          mesesSnap.length > 0 ? mesesSnap : ateUltimoMovimento,
-        );
-      }
-      const base = pegarFiltroPreservado();
-      if (!base) return;
-      const noDash = data
-        .filter((p) => {
-          const { y, m } = ymDe(p);
-          return base.years.includes(y) && base.months.includes(m);
-        })
-        .sort();
-      const fonte = noDash.length > 0 ? noDash : [...data].sort();
-      const ultimoPorAno = new Map<number, string>();
-      for (const p of fonte) {
-        ultimoPorAno.set(ymDe(p).y, p);
-      }
-      const pares = [...ultimoPorAno.values()].sort();
-      if (pares.length === 0) return;
-      const anosBP = pares.map((p) => ymDe(p).y);
-      const mesesBP = [...new Set(pares.map((p) => ymDe(p).m))].sort((a, b) => a - b);
-      const sameYears =
-        years.length === anosBP.length && years.every((y, i) => y === anosBP[i]);
-      const sameMonths =
-        months.length === mesesBP.length && months.every((m, i) => m === mesesBP[i]);
-      if (!sameYears) setYears(anosBP);
-      if (!sameMonths) setMonths(mesesBP);
-      return;
-    }
-
-    if (restaurarFiltro()) return;
-
-    if (overlapAnos.length === 0) setYears([targetYear]);
-    if (ateUltimoMovimento.length === 0) return;
-    if (months.length === 0 || months.every((m) => m > lastM)) {
-      setMonths(ateUltimoMovimento);
-    } else if (months.some((m) => m > lastM)) {
-      setMonths(months.filter((m) => m <= lastM));
+    const overlapMonths = months.filter((m) => monthsDoAno.includes(m));
+    if (overlapMonths.length === 0 && monthsDoAno.length > 0) {
+      setMonths(monthsDoAno);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data, noBalanco]);
-
+  }, [data]);
   return null;
 }

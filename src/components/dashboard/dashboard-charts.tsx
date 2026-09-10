@@ -10,6 +10,7 @@ import {
 } from "@/lib/chart-config";
 import { useMonthlyStatement } from "@/hooks/use-financial-data";
 import { useEstruturaPadrao } from "@/hooks/use-indicador-data";
+import { useAuth } from "@/hooks/use-auth";
 import { ensureDashboardConfig, lerDashboardBlocos } from "@/lib/dashboard/ensure-config";
 import {
   indexarDemoDre,
@@ -44,6 +45,7 @@ export function DashboardCharts({
   activePeriods: string[];
 }) {
   const qc = useQueryClient();
+  const { isCliente } = useAuth();
   const { data: configRows } = useQuery({
     queryKey: ["dashboard-config", tenantId, companyId],
     enabled: !!tenantId,
@@ -51,12 +53,12 @@ export function DashboardCharts({
   });
 
   useEffect(() => {
-    if (!tenantId) return;
+    if (!tenantId || isCliente) return;
     (async () => {
       const criou = await ensureDashboardConfig(tenantId, companyId);
       if (criou) qc.invalidateQueries({ queryKey: ["dashboard-config", tenantId, companyId] });
     })();
-  }, [tenantId, companyId, qc]);
+  }, [tenantId, companyId, qc, isCliente]);
 
   const recVsCusto = configRows?.find((r) => r.bloco === "grafico_receita_despesa");
   const tendencia = configRows?.find((r) => r.bloco === "grafico_tendencia");
@@ -185,7 +187,7 @@ export function DashboardCharts({
                   strokeWidth={2.5}
                   dot={(props: any) => {
                     const { cx, cy, value, index } = props;
-                    if (cx == null || cy == null) return null;
+                    if (cx == null || cy == null) return <g key={index} />;
                     const color = (value ?? 0) >= 0 ? "var(--success)" : "var(--destructive)";
                     return <circle key={index} cx={cx} cy={cy} r={4} fill={color} stroke="var(--card)" strokeWidth={2} />;
                   }}

@@ -11,7 +11,6 @@ import {
   MASCARA_DEFAULT,
   type MascaraConfig,
 } from "@/lib/mascara/interpretar";
-import { textoDoArquivo } from "@/lib/importacao/encoding";
 
 export const TIPOS_PARTICIPANTE = new Set([
   "4-Cli. Nac.",
@@ -59,8 +58,12 @@ const ALIASES: Record<"codigo" | "classificacao" | "descricao" | "tipo" | "natur
 };
 
 async function readWithEncoding(file: File): Promise<{ text: string; encoding: "utf-8" | "iso-8859-1" }> {
-  const { text, encoding } = await textoDoArquivo(file);
-  return { text, encoding: encoding === "windows-1252" ? "iso-8859-1" : "utf-8" };
+  const buf = await file.arrayBuffer();
+  const utf8 = new TextDecoder("utf-8", { fatal: false }).decode(buf);
+  if (utf8.includes("\uFFFD")) {
+    return { text: new TextDecoder("iso-8859-1").decode(buf), encoding: "iso-8859-1" };
+  }
+  return { text: utf8, encoding: "utf-8" };
 }
 
 // CSV ;-delimitado com aspas opcionais

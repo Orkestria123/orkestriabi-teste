@@ -33,12 +33,12 @@ export function TendenciaPanel({ serie }: { serie: PontoSerie[] }) {
     const partes: string[] = [];
     if (crescR != null) {
       partes.push(
-        `Receita cresce em média ${formatPct(Math.abs(crescR), 1)} ao mês ${crescR >= 0 ? "" : "(queda)"}.`,
+        `Receita cresce em média ${formatPct(Math.abs(crescR))} ao mês ${crescR >= 0 ? "" : "(queda)"}.`,
       );
     }
     if (crescD != null) {
       partes.push(
-        `Despesa cresce ${formatPct(Math.abs(crescD), 1)} ao mês ${crescD >= 0 ? "" : "(queda)"}.`,
+        `Despesa cresce ${formatPct(Math.abs(crescD))} ao mês ${crescD >= 0 ? "" : "(queda)"}.`,
       );
     }
     if (crescR != null && crescD != null && crescD > crescR) {

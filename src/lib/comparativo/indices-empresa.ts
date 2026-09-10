@@ -206,8 +206,12 @@ export async function calcularIndicesEmpresa(opts: {
 
     return { id: companyId, nome, periodo, periodoAnterior: anterior, valores };
   } catch (e: any) {
-    return { ...vazio, erro: e?.message ?? "Falha ao calcular" };
+    const msg = ehTimeout(e)
+      ? "Cálculo demorou demais — tente de novo ou compare menos empresas."
+      : (e?.message ?? "Falha ao calcular");
+    return { ...vazio, erro: msg };
   }
+  });
 }
 
 export function formatarComparavel(v: number | null, formato: DefComparavel["formato"]): string {

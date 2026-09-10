@@ -3,7 +3,7 @@
 // da DRE / Balanço, garantindo consistência entre indicador e demonstração.
 
 import { descendeDe, grupoDe } from "@/lib/mascara/interpretar";
-import { tipoCustoEfetivo } from "@/lib/plano/tipo-custo";
+import { tipoCustoEfetivo, classeGastoEfetivo, type ClasseGasto, type TipoCusto } from "@/lib/plano/tipo-custo";
 import {
   getEstruturaPadraoSync,
   compararClassificacao,
@@ -30,10 +30,13 @@ export const LINHAS_CATALOGO: LinhaCatalogo[] = [
   { key: "DEDUCOES", label: "Deduções da Receita Bruta", origem: "DRE" },
   { key: "RECEITA_LIQUIDA", label: "Receita Líquida", origem: "DRE" },
   { key: "CUSTOS", label: "Custos (CMV/CPV/CSV)", origem: "DRE" },
-  { key: "CUSTOS_FIXOS", label: "Custos Fixos", origem: "DRE", descricao: "Contas 3.x marcadas Fixo no plano (folha herda o grupo)" },
-  { key: "CUSTOS_VARIAVEIS", label: "Custos Variáveis", origem: "DRE", descricao: "Contas 3.x marcadas Variável no plano" },
+  { key: "CUSTOS_FIXOS", label: "Custos Fixos", origem: "DRE", descricao: "Contas 3.x marcadas Custo + Fixo no plano (folha herda o grupo)" },
+  { key: "CUSTOS_VARIAVEIS", label: "Custos Variáveis", origem: "DRE", descricao: "Contas 3.x marcadas Custo + Variável no plano" },
+  { key: "DESPESAS_FIXAS", label: "Despesas Fixas", origem: "DRE", descricao: "Contas 3.x marcadas Despesa + Fixa no plano" },
+  { key: "DESPESAS_VARIAVEIS", label: "Despesas Variáveis", origem: "DRE", descricao: "Contas 3.x marcadas Despesa + Variável no plano" },
   { key: "PONTO_EQUILIBRIO", label: "Ponto de Equilíbrio", origem: "DRE", descricao: "Fixos / (1 − Variáveis / Receita Líquida)" },
-  { key: "CUSTO_MERCADORIA", label: "Custo da mercadoria (EI + compras − deduções − EF)", origem: "DRE", descricao: "Só a parte com estoque: sem mão de obra, GGF e demais gastos" },
+  { key: "CUSTO_MERCADORIA", label: "Custo de aquisição das mercadorias", origem: "DRE", descricao: "Grupo 3.03: EI + compras − deduções − EF, sem mão de obra e gastos gerais" },
+  { key: "CUSTO_PRODUTOS", label: "Custo de materiais dos produtos", origem: "DRE", descricao: "Grupo 3.02: EI + compras − deduções − EF, sem MOD e GGF/GGC" },
   { key: "LUCRO_BRUTO", label: "Lucro Bruto", origem: "DRE" },
   { key: "DESPESAS_OPERACIONAIS", label: "Despesas Operacionais", origem: "DRE" },
   { key: "DESPESAS_ADMINISTRATIVAS", label: "Despesas Administrativas", origem: "DRE" },
@@ -46,6 +49,7 @@ export const LINHAS_CATALOGO: LinhaCatalogo[] = [
   { key: "RESULTADO_ANTES_IR", label: "Resultado antes do IR/CSLL", origem: "DRE" },
   { key: "IRPJ_CSLL", label: "IRPJ + CSLL", origem: "DRE" },
   { key: "LUCRO_LIQUIDO", label: "Lucro Líquido", origem: "DRE" },
+  { key: "LUCRO_LIQUIDO_YTD", label: "Lucro Líquido (acumulado no ano)", origem: "DRE", descricao: "Resultado do exercício de janeiro até o mês" },
   // BP -------------------------------------------------------
   { key: "ATIVO_TOTAL", label: "Ativo Total", origem: "BP" },
   { key: "ATIVO_CIRCULANTE", label: "Ativo Circulante", origem: "BP" },
@@ -85,6 +89,7 @@ const ROTULOS_EBITDA = ["(=) EBITDA"];
 const ROTULOS_LL = [
   "(=) Lucro do Exercício",
   "(=) Prejuízo do Exercício",
+  "(=) Resultado do Exercício",
   "(=) Lucro Líquido do Exercício",
   "Lucro Líquido",
 ];
@@ -120,6 +125,18 @@ function aliasesDaLinha(key: string, est: PapelEstrutura[] | null | undefined): 
   if (key === "EBIT") ROTULOS_EBIT.forEach((a) => aliases.add(a));
   if (key === "EBITDA") ROTULOS_EBITDA.forEach((a) => aliases.add(a));
   if (key === "LUCRO_LIQUIDO") ROTULOS_LL.forEach((a) => aliases.add(a));
+  if (key === "CUSTO_PRODUTOS") {
+    aliases.add("(-) Custo de materiais dos produtos");
+    aliases.add("Custo de materiais dos produtos");
+    aliases.add("(-) Custo dos Produtos (sem MOD/GGF)");
+    aliases.add("(-) Custo dos produtos (sem MOD/GGF)");
+  }
+  if (key === "CUSTO_MERCADORIA") {
+    aliases.add("(-) Custo de aquisição das mercadorias");
+    aliases.add("Custo de aquisição das mercadorias");
+    aliases.add("(-) Custo das Mercadorias (sem MOD/GGF)");
+    aliases.add("(-) Custo das mercadorias (sem MOD/GGF)");
+  }
   return Array.from(aliases);
 }
 
@@ -259,7 +276,7 @@ export function valorEbitEbitdaDaDre(
   periodo: string,
 ): number | null {
   const rotulo = qual === "EBITDA" ? "(=) EBITDA" : "(=) EBIT";
-  return valorDemoDre(demo, periodo, [rotulo], undefined);
+  return valorDemoDre(demo, periodo, [rotulo], qual);
 }
 
 export function valorPapelDemo(
@@ -402,6 +419,34 @@ function resolverPorPapel(
   return total;
 }
 
+function somaPapeisSobPrefixo(
+  est: PapelEstrutura[],
+  papeis: readonly string[],
+  prefixo: string,
+  periodo: string,
+  ctx: EngineContext,
+): number {
+  let total = 0;
+  for (const papel of papeis) {
+    const entradas = est.filter(
+      (e) =>
+        e.papel === papel &&
+        (e.classificacao === prefixo || e.classificacao.startsWith(`${prefixo}.`)),
+    );
+    for (const e of entradas) {
+      total += valorDreClass(e.classificacao, periodo, ctx);
+    }
+  }
+  return total;
+}
+
+const PAPEIS_CUSTO_ESTOQUE = [
+  "ESTOQUE_INICIAL",
+  "COMPRAS",
+  "DEDUCOES_COMPRAS",
+  "ESTOQUE_FINAL",
+] as const;
+
 /** Papéis que são combinação de outros. */
 function resolverDerivado(
   est: PapelEstrutura[],
@@ -415,8 +460,10 @@ function resolverDerivado(
       // todos os blocos de custo do plano
       return v("CPV") + v("CMV") + v("CUSTO_IMOBILIARIO") + v("CSP");
     case "CUSTO_MERCADORIA":
-      // EI + compras + deduções de compras + EF — sem MOD, GGF, depreciação.
-      return v("ESTOQUE_INICIAL") + v("COMPRAS") + v("DEDUCOES_COMPRAS") + v("ESTOQUE_FINAL");
+      // 3.03: EI + compras + deduções + EF — sem MOD, GGF, depreciação.
+      return somaPapeisSobPrefixo(est, PAPEIS_CUSTO_ESTOQUE, "3.03", periodo, ctx);
+    case "CUSTO_PRODUTOS":
+      return somaPapeisSobPrefixo(est, PAPEIS_CUSTO_ESTOQUE, "3.02", periodo, ctx);
     case "IRPJ_CSLL":
       return v("PROVISAO_IRPJ") + v("PROVISAO_CSLL");
     case "EBITDA": {
@@ -432,10 +479,15 @@ function resolverDerivado(
   }
 }
 
+function ymComp(c: string): string {
+  return String(c ?? "").slice(0, 7);
+}
+
 /** Resultado acumulado do exercício até o período (Σ movimento contas grupo 3,
  * do início do ano até a competência, na natureza credora → lucro positivo). */
-function resultadoExercicioAte(ctx: EngineContext, periodo: string): number {
-  const inicio = `${periodo.slice(0, 4)}-01`;
+export function resultadoExercicioAte(ctx: EngineContext, periodo: string): number {
+  const pYm = ymComp(periodo);
+  const inicio = `${pYm.slice(0, 4)}-01`;
   let total = 0;
   const vistos = new Set<string>();
   for (const p of ctx.plano) {
@@ -450,18 +502,21 @@ function resultadoExercicioAte(ctx: EngineContext, periodo: string): number {
     // Convenção da DRE, igual à do motor de demonstrações: crédito − débito,
     // então lucro é positivo.
     for (const [comp, s] of saldos) {
-      if (comp < inicio || comp > periodo) continue;
+      const cYm = ymComp(comp);
+      if (cYm < inicio || cYm > pYm) continue;
       total += Number(s.total_creditos) - Number(s.total_debitos);
     }
   }
   return total;
 }
 
-/** Soma positiva de custos/despesas (3.x, sem receita) com aquele tipo_custo. */
+/** Soma positiva de custos/despesas (3.x, sem receita) com aquele tipo_custo.
+ *  `classe` restringe a custo ou despesa; omitido = os dois (Ponto de Equilíbrio). */
 export function valorCustosPorTipo(
   ctx: EngineContext,
   periodo: string,
-  tipo: "fixo" | "variavel",
+  tipo: TipoCusto,
+  classe?: ClasseGasto,
 ): number {
   let total = 0;
   const vistos = new Set<string>();
@@ -475,6 +530,11 @@ export function valorCustosPorTipo(
     if ((raiz.charAt(0) || "") !== "3") continue;
     if (ehApuracaoClass(p.classificacao)) continue;
     if (tipoCustoEfetivo(p.classificacao, ctx.plano) !== tipo) continue;
+    if (classe) {
+      const cg = classeGastoEfetivo(p.classificacao, ctx.plano);
+      if (classe === "despesa" && cg !== "despesa") continue;
+      if (classe === "custo" && cg === "despesa") continue;
+    }
     const s = saldoNoPeriodo(ctx.saldosByClass.get(p.classificacao), periodo);
     if (!s) continue;
     // Despesa na DRE: crédito − débito é negativo; PE usa valor absoluto.
@@ -506,8 +566,11 @@ export function resolverLinha(
   // Ficou um só. Sem a estrutura carregada devolve `null` — a tela mostra
   // "—" por um instante, o que é infinitamente melhor que um número
   // quase-dobrado que parece certo.
-  if (key === "CUSTOS_FIXOS") return valorCustosPorTipo(ctx, periodo, "fixo");
-  if (key === "CUSTOS_VARIAVEIS") return valorCustosPorTipo(ctx, periodo, "variavel");
+  if (key === "CUSTOS_FIXOS") return valorCustosPorTipo(ctx, periodo, "fixo", "custo");
+  if (key === "CUSTOS_VARIAVEIS") return valorCustosPorTipo(ctx, periodo, "variavel", "custo");
+  if (key === "DESPESAS_FIXAS") return valorCustosPorTipo(ctx, periodo, "fixo", "despesa");
+  if (key === "DESPESAS_VARIAVEIS") return valorCustosPorTipo(ctx, periodo, "variavel", "despesa");
+  if (key === "LUCRO_LIQUIDO_YTD") return resultadoExercicioAte(ctx, periodo);
   if (key === "PONTO_EQUILIBRIO") {
     const rec = resolverLinha("RECEITA_LIQUIDA", periodo, ctx, demoDre, estrutura);
     const fixos = valorCustosPorTipo(ctx, periodo, "fixo");
@@ -527,7 +590,11 @@ export function resolverLinha(
   // na DRE. Sem essa linha, devolve null — não recalcula pela estrutura
   // (isso era outro número e quebrava o termo "EBITDA (DRE)").
   if (key === "EBIT" || key === "EBITDA") {
-    return valorEbitEbitdaDaDre(demoDre, key, periodo);
+    const daDre = valorEbitEbitdaDaDre(demoDre, key, periodo);
+    if (daDre != null && Math.abs(daDre) > 0.005) return daDre;
+    if (!est || est.length === 0) return daDre;
+    if (key === "EBITDA") return resolverDerivado(est, "EBITDA", periodo, ctx);
+    return resolverPorPapel(est, "EBIT", periodo, ctx);
   }
   if (key === "RESULTADO_OPERACIONAL") {
     const daDre = valorDemoDre(
@@ -546,6 +613,14 @@ export function resolverLinha(
   }
 
   if (cat?.origem === "DRE") {
+    // Na visão gerencial o ctx já tem os ajustes. A DRE indexada às vezes
+    // pega outra linha (mesmo papel) e o ROE/margem ficavam no valor contábil.
+    if (ctx.visao === "gerencial" && est && est.length > 0) {
+      const derivadoG = resolverDerivado(est, key, periodo, ctx);
+      if (derivadoG !== null) return derivadoG;
+      const doCtx = resolverPorPapel(est, key, periodo, ctx);
+      if (doCtx != null) return doCtx;
+    }
     const daDre = valorDemoDre(demoDre, periodo, aliasesDaLinha(key, est), key);
     if (daDre != null && Math.abs(daDre) > 0.005) return daDre;
   }

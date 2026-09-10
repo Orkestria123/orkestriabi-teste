@@ -11,8 +11,8 @@
 // agregadora ("CLIENTES NACIONAIS (consolidado)"), via regra em volume.
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import type { ContaDestino } from "@/lib/contas/busca";
-import { lerTudo } from "@/lib/supabase-paginado";
+import { grupoDoDestino, type ContaDestino } from "@/lib/contas/busca";
+import { countNaPrimeira, lerTudo } from "@/lib/supabase-paginado";
 
 export function useContasDestino(tenantId: string | null | undefined) {
   return useQuery({
@@ -24,23 +24,21 @@ export function useContasDestino(tenantId: string | null | undefined) {
     // consulta a cada foco de janela no meio de um de-para longo.
     staleTime: 5 * 60 * 1000,
     queryFn: async () => {
-      const out: ContaDestino[] = [];
-      const PAGE = 1000;
-      for (let from = 0; ; from += PAGE) {
-        const { data, error } = await supabase
-          .from("plano_contas")
-          .select("codigo, classificacao, descricao, tipo")
-          .eq("tenant_id", tenantId!)
-          .is("company_id", null)
-          .eq("is_sintetica", false)
-          .eq("is_participante", false)
-          .eq("ativo", true)
-          .order("classificacao")
-          .range(from, from + PAGE - 1);
-        if (error) throw error;
-        out.push(...((data ?? []) as ContaDestino[]));
-        if (!data || data.length < PAGE) break;
-      }
+      const out = await lerTudo<ContaDestino>(
+        (de, ate) =>
+          supabase
+            .from("plano_contas")
+            .select("codigo, classificacao, descricao, tipo", countNaPrimeira(de))
+            .eq("tenant_id", tenantId!)
+            .is("company_id", null)
+            .eq("is_sintetica", false)
+            .eq("is_participante", false)
+            .eq("ativo", true)
+            .order("classificacao")
+            .order("codigo")
+            .range(de, ate),
+        "plano-padrao-destinos",
+      );
 
       // Quantos participantes cada agregadora representa.
       //
@@ -85,6 +83,9 @@ export function useContasDestino(tenantId: string | null | undefined) {
         }
       } catch {
         /* sem galho, o seletor continua funcionando como antes */
+      }
+      for (const c of out) {
+        c.grupoPlano = grupoDoDestino(c);
       }
       return out;
     },

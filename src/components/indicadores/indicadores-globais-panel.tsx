@@ -29,6 +29,7 @@ import { formulaParaTexto } from "@/lib/indicadores/engine";
 import { labelLinha } from "@/lib/indicadores/linhas";
 import { tituloConta } from "@/lib/format";
 import { limparCacheFormulasEbit } from "@/lib/indicadores/ebit-fonte";
+import { compararCategoria } from "@/lib/indicadores/categorias";
 
 const MODO_LABEL: Record<string, string> = {
   numero: "nº", reais: "R$", percentual: "%", ah_percent: "AH%", ah_valor: "AH$",
@@ -146,9 +147,13 @@ export function IndicadoresGlobaisPanel({ tenantId, onEditGlobal }: Props) {
   const lista = useMemo(() => {
     const t = busca.trim().toLowerCase();
     const base = globais ?? [];
-    if (!t) return base;
-    return base.filter((g) =>
-      [g.nome, g.categoria, g.descricao].some((v) => (v ?? "").toLowerCase().includes(t)));
+    const filtrada = !t
+      ? base
+      : base.filter((g) =>
+          [g.nome, g.categoria, g.descricao].some((v) => (v ?? "").toLowerCase().includes(t)));
+    return [...filtrada].sort(
+      (a, b) => compararCategoria(a.categoria ?? "", b.categoria ?? "") || a.nome.localeCompare(b.nome),
+    );
   }, [globais, busca]);
 
   const simular = async () => {
@@ -260,10 +265,14 @@ export function IndicadoresGlobaisPanel({ tenantId, onEditGlobal }: Props) {
   const locaisFiltrados = useMemo(() => {
     const t = busca.trim().toLowerCase();
     const base = locais ?? [];
-    if (!t) return base;
-    return base.filter((g) =>
-      [g.nome, g.categoria, g.descricao, nomeEmpresa(g.company_id)].some((v) =>
-        (v ?? "").toLowerCase().includes(t)));
+    const filtrada = !t
+      ? base
+      : base.filter((g) =>
+          [g.nome, g.categoria, g.descricao, nomeEmpresa(g.company_id)].some((v) =>
+            (v ?? "").toLowerCase().includes(t)));
+    return [...filtrada].sort(
+      (a, b) => compararCategoria(a.categoria ?? "", b.categoria ?? "") || a.nome.localeCompare(b.nome),
+    );
   }, [locais, busca, empresas]);
 
   return (

@@ -1,30 +1,32 @@
-// DE-PARA — plano de terceiro -> Plano Padrão do escritório.
+// DE-PARA — Outro sistema -> Plano Padrão do escritório.
 //
-// Configuração única por empresa. Entram na fila apenas as contas que
-// TÊM MOVIMENTO, ordenadas pelo valor (maior primeiro), com sugestão
-// automática vinda do banco. O fluxo esperado é: conferir as
-// sugestões, aceitar tudo de uma vez, ajustar as poucas que sobraram.
+// A fila vem do movimento (diário/saldos) e das contas de origem
+// carregadas do arquivo do ERP. Cada escolha grava na hora e a tela
+// confere no banco — o seletor preenchido sem persistir era o que
+// fazia o de-para parecer pronto e a DRE continuar zerada.
 import { useEffect, useMemo, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { lerTudo } from "@/lib/supabase-paginado";
+import { lerTudo, countNaPrimeira } from "@/lib/supabase-paginado";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { AlertTriangle, CheckCircle2, Loader2, Save, Sparkles } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Loader2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { formatBRL } from "@/lib/format";
 import { useContasDestino } from "@/hooks/use-contas-destino";
-import type { ContaDestino } from "@/lib/contas/busca";
+import { grupoDoDestino, grupoMaisFrequente, type ContaDestino } from "@/lib/contas/busca";
 import { SeletorConta } from "@/components/contas/seletor-conta";
 import { BarraDepara } from "@/components/contas/barra-depara";
 import { CabecalhoGrupo } from "@/components/contas/grupo-depara";
 import {
   filtrarLinhas, contarEstados, estadoDe,
-  agruparPorClassificacao, niveisDisponiveis,
+  agruparPorClassificacao, agruparPorTipo, niveisDisponiveis, cortarGrupos,
   type FiltroEstado, type LinhaDepara,
 } from "@/lib/contas/filtro-depara";
+import { getMascaraConfig, MASCARA_DEFAULT, opcoesLotePorMascara, rotuloNivelMascara } from "@/lib/mascara/interpretar";
+import { aplicarDeparaConfirmado, limparCacheDepara } from "@/lib/plano/depara";
 import { Fragment } from "react";
 
 import { DeParaArquivoCard } from "./depara-arquivo-card";
@@ -46,27 +48,167 @@ interface Pendencia {
   sugestao_descricao: string | null;
 }
 
+interface Feito {
+  conta_codigo: string;
+  conta_padrao_codigo: string | null;
+  ignorada: boolean;
+  observacao: string | null;
+  classificacao: string;
+  descricao: string;
+  tipo: string;
+  movimento: number;
+}
+
 const IGNORAR = "__IGNORAR__";
 /** Teto da fila. Alto de propósito, e a tela avisa se for atingido. */
 const LIMITE_FILA = 3000;
+/** Agrupa pelo tipo inferido (Ativo / Passivo / DRE), não pela máscara. */
+const GRUPO_TIPO = 100;
+
+function chaveNivelGrupo(companyId: string) {
+  return `orkestria.depara.nivelGrupo.${companyId}`;
+}
+
+function lerNivelGrupo(companyId: string): number | null {
+  try {
+    const v = localStorage.getItem(chaveNivelGrupo(companyId));
+    if (v == null || v === "") return null;
+    const n = Number(v);
+    return Number.isFinite(n) ? n : null;
+  } catch {
+    return null;
+  }
+}
+
+function gravarNivelGrupo(companyId: string, n: number) {
+  try {
+    localStorage.setItem(chaveNivelGrupo(companyId), String(n));
+  } catch {
+    /* private mode etc. */
+  }
+}
+
+function tipoUnico(linhas: { tipo?: string | null }[]): string | undefined {
+  const tipos = new Set(linhas.map((l) => l.tipo).filter(Boolean) as string[]);
+  return tipos.size === 1 ? [...tipos][0] : undefined;
+}
+
+/** Só as contas que já estão no de-para — nunca o plano inteiro da empresa. */
+const TAM_ORIGEM = 120;
+
+async function nomesDasOrigens(companyId: string, codigos: string[]) {
+  const uniq = [...new Set(codigos.filter(Boolean))];
+  const porCod = new Map<string, {
+    classificacao: string | null;
+    descricao: string | null;
+    tipo: string | null;
+  }>();
+  for (let i = 0; i < uniq.length; i += TAM_ORIGEM) {
+    const fatia = uniq.slice(i, i + TAM_ORIGEM);
+    const { data, error } = await supabase
+      .from("plano_contas")
+      .select("codigo, classificacao, descricao, tipo")
+      .eq("company_id", companyId)
+      .in("codigo", fatia);
+    if (error) throw error;
+    for (const o of data ?? []) {
+      porCod.set(o.codigo, {
+        classificacao: o.classificacao,
+        descricao: o.descricao,
+        tipo: o.tipo,
+      });
+    }
+  }
+  return porCod;
+}
+
+function DestinoDaLinha({
+  linha,
+  destinos,
+  destinosPorCodigo,
+  carregando,
+  disabled,
+  onEscolher,
+  onIgnorar,
+}: {
+  linha: {
+    descricao: string;
+    classificacao: string;
+    tipo: string;
+    destino: string | null;
+  };
+  destinos: ContaDestino[];
+  destinosPorCodigo: Map<string, ContaDestino>;
+  carregando: boolean;
+  disabled: boolean;
+  onEscolher: (codigo: string | null) => void;
+  onIgnorar: () => void;
+}) {
+  const [editar, setEditar] = useState(false);
+  if (linha.destino && !editar) {
+    const d = destinosPorCodigo.get(linha.destino);
+    const rotulo = d
+      ? `${d.classificacao ?? ""} · ${d.descricao ?? d.codigo}`
+      : linha.destino;
+    return (
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => setEditar(true)}
+        className="flex-1 h-8 min-w-0 px-2 text-xs text-left truncate rounded-md border border-input bg-background hover:bg-accent disabled:opacity-50"
+        title="Trocar o destino"
+      >
+        {rotulo}
+      </button>
+    );
+  }
+  return (
+    <SeletorConta
+      destinos={destinos}
+      carregando={carregando}
+      valor={linha.destino}
+      tipo={linha.tipo}
+      sugestaoGrupo={grupoDoDestino({
+        descricao: linha.descricao,
+        classificacao: linha.classificacao,
+      })?.chave}
+      onEscolher={onEscolher}
+      onIgnorar={onIgnorar}
+      permitirIgnorar
+      disabled={disabled}
+      compacto
+      className="flex-1"
+      placeholder="Selecione a conta destino"
+      abrirAoMontar={editar}
+    />
+  );
+}
 
 export function DeParaPanel({ tenantId, companyId, sistemaId, readonly }: Props) {
   const qc = useQueryClient();
   const [busca, setBusca] = useState("");
   const [escolhas, setEscolhas] = useState<Record<string, string>>({});
   const [salvando, setSalvando] = useState(false);
-  const [filtro, setFiltro] = useState<FiltroEstado>("todas");
+  const [filtro, setFiltro] = useState<FiltroEstado>("pendente");
   const [marcadas, setMarcadas] = useState<Set<string>>(new Set());
-  // Plano de terceiro grande não cabe todo na tela de uma vez.
   const [limite, setLimite] = useState(150);
-  const [nivelGrupo, setNivelGrupo] = useState(0);
+  const [nivelGrupo, setNivelGrupo] = useState<number | null>(() => lerNivelGrupo(companyId));
 
-  const { data: pendencias, isLoading } = useQuery({
+  useEffect(() => {
+    setNivelGrupo(lerNivelGrupo(companyId));
+  }, [companyId]);
+
+  const { data: mascara = MASCARA_DEFAULT } = useQuery({
+    queryKey: ["mascara-classificacao", tenantId, companyId],
+    queryFn: () => getMascaraConfig({ tenantId, companyId }),
+  });
+
+  const { data: pendencias, isLoading, error: erroFila, isFetching } = useQuery({
     queryKey: ["depara-pendencias", companyId],
+    placeholderData: keepPreviousData,
+    retry: 1,
+    staleTime: 15_000,
     queryFn: async () => {
-      // Era 500 e cortava em silêncio: um plano maior que isso ficava
-      // com contas fora da fila sem ninguém saber. Agora o teto é alto e
-      // a tela avisa quando encosta nele.
       const { data, error } = await supabase.rpc("depara_pendencias", {
         _company_id: companyId,
         _limite: LIMITE_FILA,
@@ -77,66 +219,116 @@ export function DeParaPanel({ tenantId, companyId, sistemaId, readonly }: Props)
   });
 
   const { data: jaFeitos } = useQuery({
-    queryKey: ["depara-feitos", companyId],
+    queryKey: ["depara-feitos", companyId, "com-nome"],
     queryFn: async () => {
-      // Paginado: acima de 1.000 vínculos, as contas que ficavam de fora
-      // voltavam a aparecer como pendentes mesmo já resolvidas.
-      return await lerTudo<any>(
+      const rows = await lerTudo<{
+        conta_codigo: string;
+        conta_padrao_codigo: string | null;
+        ignorada: boolean;
+        observacao: string | null;
+      }>(
         (de, ate) => supabase
           .from("depara_contas")
-          .select("conta_codigo, conta_padrao_codigo, ignorada, observacao")
+          .select("conta_codigo, conta_padrao_codigo, ignorada, observacao", countNaPrimeira(de))
           .eq("company_id", companyId)
           .order("conta_codigo")
           .range(de, ate),
         "depara_contas",
       );
+      const porCod = await nomesDasOrigens(companyId, rows.map((r) => r.conta_codigo));
+      return rows.map((r): Feito => {
+        const o = porCod.get(r.conta_codigo);
+        return {
+          ...r,
+          classificacao: o?.classificacao ?? "",
+          descricao: o?.descricao ?? r.conta_codigo,
+          tipo: o?.tipo ?? "",
+          movimento: 0,
+        };
+      });
     },
   });
 
-  // Contas de destino do Plano Padrão — mesma consulta (e mesmo cache)
-  // que o painel do ECD usa. Trazia TODAS as analíticas: num plano de
-  // escritório são 135.000 linhas (99% clientes e fornecedores), o que
-  // dava 136 idas ao servidor e um seletor impossível de usar. O destino
-  // de um de-para é sempre uma conta da ESTRUTURA; cliente e fornecedor
-  // entram pela conta agregadora, via regra em volume.
   const { data: contasPadrao, isLoading: carregandoDestinos } = useContasDestino(tenantId);
 
-  // Pré-carrega as sugestões como escolha inicial (o usuário revisa e confirma).
-  useEffect(() => {
-    if (!pendencias) return;
-    setEscolhas((prev) => {
-      const next = { ...prev };
-      for (const p of pendencias) {
-        if (next[p.codigo] === undefined && p.sugestao_codigo) {
-          next[p.codigo] = p.sugestao_codigo;
-        }
-      }
-      return next;
-    });
-  }, [pendencias]);
+  const destinosPorClassif = useMemo(() => {
+    const m = new Map<string, ContaDestino>();
+    for (const d of contasPadrao ?? []) {
+      const k = (d.classificacao ?? "").trim();
+      if (k && !m.has(k)) m.set(k, d);
+    }
+    return m;
+  }, [contasPadrao]);
 
-  // A fila vira linhas de de-para: o "destino" é a escolha local ainda
-  // não salva, e "sugerido" marca as que continuam com a sugestão
-  // automática — é isso que separa o que você conferiu do que veio
-  // pronto do banco.
-  interface LinhaPlano extends LinhaDepara { tipo: string; sugestao_codigo: string | null }
+  const destinosPorCodigo = useMemo(() => {
+    const m = new Map<string, ContaDestino>();
+    for (const d of contasPadrao ?? []) m.set(d.codigo, d);
+    return m;
+  }, [contasPadrao]);
+
+  interface LinhaPlano extends LinhaDepara {
+    tipo: string;
+    sugestao_codigo: string | null;
+    sugestao_descricao: string | null;
+  }
 
   const linhas = useMemo<LinhaPlano[]>(() => {
-    return (pendencias ?? []).map((p) => {
-      const esc = escolhas[p.codigo];
+    const feitosPorCodigo = new Map((jaFeitos ?? []).map((f) => [f.conta_codigo, f]));
+    const porCodigo = new Map<string, LinhaPlano>();
+
+    const montar = (
+      codigo: string,
+      base: {
+        classificacao: string;
+        descricao: string;
+        tipo: string;
+        movimento: number;
+        sugestao_codigo: string | null;
+        sugestao_descricao: string | null;
+      },
+    ): LinhaPlano => {
+      const esc = escolhas[codigo];
+      const feito = feitosPorCodigo.get(codigo);
+      const local = destinosPorClassif.get((base.classificacao ?? "").trim());
+      const sugCodigo = base.sugestao_codigo || local?.codigo || null;
+      const sugDesc = base.sugestao_descricao || local?.descricao || null;
+      const ignorada = esc === IGNORAR || (!esc && !!feito?.ignorada);
+      const destino = ignorada
+        ? null
+        : esc && esc !== ""
+          ? esc
+          : (feito?.conta_padrao_codigo ?? null);
+      const temDecisao = ignorada || !!destino;
       return {
-        codigo: p.codigo,
-        descricao: p.descricao,
-        classificacao: p.classificacao,
-        movimento: Number(p.movimento) || 0,
-        destino: esc && esc !== IGNORAR ? esc : null,
-        ignorada: esc === IGNORAR,
-        sugerido: !!p.sugestao_codigo && esc === p.sugestao_codigo,
-        tipo: p.tipo,
-        sugestao_codigo: p.sugestao_codigo,
+        codigo,
+        descricao: base.descricao,
+        classificacao: base.classificacao,
+        movimento: Number(base.movimento) || 0,
+        destino,
+        ignorada,
+        sugerido: !!sugCodigo && !temDecisao,
+        tipo: base.tipo,
+        sugestao_codigo: sugCodigo,
+        sugestao_descricao: sugDesc,
       };
-    });
-  }, [pendencias, escolhas]);
+    };
+
+    for (const p of pendencias ?? []) {
+      porCodigo.set(p.codigo, montar(p.codigo, p));
+    }
+    for (const f of jaFeitos ?? []) {
+      if (porCodigo.has(f.conta_codigo)) continue;
+      porCodigo.set(f.conta_codigo, montar(f.conta_codigo, {
+        classificacao: f.classificacao,
+        descricao: f.descricao,
+        tipo: f.tipo,
+        movimento: f.movimento,
+        sugestao_codigo: null,
+        sugestao_descricao: null,
+      }));
+    }
+    return [...porCodigo.values()];
+  }, [pendencias, jaFeitos, escolhas, destinosPorClassif]);
 
   const contagem = useMemo(() => contarEstados(linhas), [linhas]);
   const visiveis = useMemo(
@@ -144,28 +336,163 @@ export function DeParaPanel({ tenantId, companyId, sistemaId, readonly }: Props)
     [linhas, filtro, busca],
   );
   const naTela = visiveis.slice(0, limite);
-  const niveis = useMemo(() => niveisDisponiveis(linhas), [linhas]);
-  // A janela conta LINHAS mesmo quando agrupado — um galho grande não
-  // entra inteiro só por ser um grupo só.
-  const grupos = useMemo(() => {
-    if (nivelGrupo <= 0) return null;
-    const todos = agruparPorClassificacao(visiveis, nivelGrupo);
-    const out: typeof todos = [];
-    let n = 0;
-    for (const g of todos) { if (n >= limite) break; out.push(g); n += g.linhas.length; }
-    return { mostrando: out, total: todos.length, linhas: n };
-  }, [visiveis, nivelGrupo, limite]);
+  const niveis = useMemo(() => niveisDisponiveis(linhas, mascara), [linhas, mascara]);
+  const opcoesGrupo = useMemo(() => {
+    const mask = opcoesLotePorMascara(mascara, niveis);
+    const temTipo = linhas.some((l) => (l.tipo ?? "").trim());
+    return [
+      ...mask,
+      ...(temTipo ? [{ valor: GRUPO_TIPO, rotulo: "Ativo / Passivo / DRE" }] : []),
+    ];
+  }, [mascara, niveis, linhas]);
 
-  // Limpar grava "" em vez de apagar a chave, de propósito: a chave
-  // ausente é o sinal que o pré-preenchimento usa para injetar a
-  // sugestão. Apagando, a sugestão voltava sozinha no próximo refetch e
-  // desfazia a decisão de quem acabou de limpar.
-  const definir = (codigos: string[], valor: string | null) =>
+  const nivelPadrao = useMemo(() => {
+    if (opcoesGrupo.some((o) => o.valor === 2)) return 2;
+    if (opcoesGrupo.some((o) => o.valor === 1)) return 1;
+    if (opcoesGrupo.some((o) => o.valor === GRUPO_TIPO)) return GRUPO_TIPO;
+    return 0;
+  }, [opcoesGrupo]);
+  const nivelUsado = useMemo(() => {
+    const n = nivelGrupo ?? nivelPadrao;
+    if (n === 0) return 0;
+    if (opcoesGrupo.some((o) => o.valor === n)) return n;
+    return nivelPadrao;
+  }, [nivelGrupo, nivelPadrao, opcoesGrupo]);
+
+  const escolherNivel = (n: number) => {
+    setNivelGrupo(n);
+    setLimite(150);
+    gravarNivelGrupo(companyId, n);
+  };
+
+  const grupos = useMemo(() => {
+    if (nivelUsado <= 0) return null;
+    const todos = nivelUsado === GRUPO_TIPO
+      ? agruparPorTipo(visiveis)
+      : agruparPorClassificacao(visiveis, nivelUsado, mascara);
+    return cortarGrupos(todos, limite);
+  }, [visiveis, nivelUsado, limite, mascara]);
+
+  const rotuloGrupo = nivelUsado === GRUPO_TIPO
+    ? "Tipo"
+    : rotuloNivelMascara(mascara, nivelUsado);
+
+  const definirLocal = (codigos: string[], valor: string | null) =>
     setEscolhas((s) => {
       const n = { ...s };
       for (const c of codigos) n[c] = valor ?? "";
       return n;
     });
+
+  const aposGravar = () => {
+    limparCacheDepara(companyId);
+    // Não espera a fila: se o refetch atrasar ou der timeout, o vínculo
+    // já está no banco e a lista local já tirou as contas gravadas.
+    void qc.invalidateQueries({ queryKey: ["depara-feitos", companyId] });
+    void qc.invalidateQueries({ queryKey: ["depara-feitos-status", companyId] });
+    void qc.invalidateQueries({ queryKey: ["depara-pendencias", companyId] });
+    void qc.invalidateQueries({ queryKey: ["indic-engine-data"] });
+    void qc.invalidateQueries({ queryKey: ["indic-demo-dre"] });
+    void qc.invalidateQueries({ queryKey: ["monthly-stmt"] });
+  };
+
+  const persistir = async (
+    itens: { conta_codigo: string; conta_padrao_codigo: string | null; ignorada?: boolean }[],
+    rotulo: string,
+  ) => {
+    if (readonly || itens.length === 0) return;
+    setSalvando(true);
+    for (const it of itens) {
+      definirLocal(
+        [it.conta_codigo],
+        it.ignorada ? IGNORAR : (it.conta_padrao_codigo ?? ""),
+      );
+    }
+    try {
+      const r = await aplicarDeparaConfirmado(
+        companyId,
+        itens.map((it) => ({
+          ...it,
+          observacao: `Outro sistema: ${rotulo}`,
+        })),
+      );
+      const partes = [
+        r.gravadas > 0 ? `${r.gravadas} vínculo(s) gravado(s)` : null,
+        r.limpas > 0 ? `${r.limpas} limpo(s)` : null,
+      ].filter(Boolean);
+      toast.success(
+        partes.length > 0
+          ? `${partes.join(" · ")}. Confirmado no banco.`
+          : "Nada a gravar — essas contas já estavam pendentes.",
+      );
+      const gravados = new Set(itens.map((it) => it.conta_codigo));
+      const porLinha = new Map(linhas.map((l) => [l.codigo, l]));
+      qc.setQueryData(["depara-pendencias", companyId], (old: Pendencia[] | undefined) => {
+        const resto = (old ?? []).filter((p) => !gravados.has(p.codigo));
+        const voltando: Pendencia[] = [];
+        for (const it of itens) {
+          if (it.ignorada || it.conta_padrao_codigo) continue;
+          const l = porLinha.get(it.conta_codigo);
+          if (!l) continue;
+          voltando.push({
+            codigo: l.codigo,
+            classificacao: l.classificacao ?? "",
+            descricao: l.descricao ?? l.codigo,
+            tipo: l.tipo,
+            movimento: l.movimento,
+            sugestao_codigo: l.sugestao_codigo,
+            sugestao_descricao: l.sugestao_descricao,
+          });
+        }
+        return [...resto, ...voltando];
+      });
+      qc.setQueryData(["depara-feitos", companyId, "com-nome"], (old: Feito[] | undefined) => {
+        const resto = (old ?? []).filter((d) => !gravados.has(d.conta_codigo));
+        const novos: Feito[] = itens
+          .filter((it) => it.ignorada || it.conta_padrao_codigo)
+          .map((it) => {
+            const l = porLinha.get(it.conta_codigo);
+            return {
+              conta_codigo: it.conta_codigo,
+              conta_padrao_codigo: it.conta_padrao_codigo,
+              ignorada: !!it.ignorada,
+              observacao: `Outro sistema: ${rotulo}`,
+              classificacao: l?.classificacao ?? "",
+              descricao: l?.descricao ?? it.conta_codigo,
+              tipo: l?.tipo ?? "",
+              movimento: l?.movimento ?? 0,
+            };
+          });
+        return [...novos, ...resto];
+      });
+      setEscolhas((s) => {
+        const n = { ...s };
+        for (const it of itens) delete n[it.conta_codigo];
+        return n;
+      });
+      setMarcadas((s) => {
+        const n = new Set(s);
+        for (const it of itens) n.delete(it.conta_codigo);
+        return n;
+      });
+      aposGravar();
+    } catch (e: any) {
+      for (const it of itens) definirLocal([it.conta_codigo], null);
+      toast.error(e.message);
+    } finally {
+      setSalvando(false);
+    }
+  };
+
+  const vincularCodigos = (codigos: string[], destino: string | null, ignorar = false) =>
+    persistir(
+      codigos.map((conta_codigo) => ({
+        conta_codigo,
+        conta_padrao_codigo: ignorar ? null : destino,
+        ignorada: ignorar,
+      })),
+      ignorar ? "ignorada" : destino ? "vínculo" : "limpo",
+    );
 
   const alternarMarcada = (codigo: string) =>
     setMarcadas((s) => {
@@ -174,9 +501,7 @@ export function DeParaPanel({ tenantId, companyId, sistemaId, readonly }: Props)
       return n;
     });
 
-  // Desenhada na lista simples e dentro de cada grupo — por isso fora do JSX.
   const linhaDaConta = (p: LinhaPlano) => {
-
     const estado = estadoDe(p);
     const marcada = marcadas.has(p.codigo);
     return (
@@ -191,9 +516,13 @@ export function DeParaPanel({ tenantId, companyId, sistemaId, readonly }: Props)
           />
         </td>
         <td className="px-3 py-2">
-          <div className="font-medium">{p.descricao}</div>
+          <div className="font-medium">
+            {p.descricao && p.descricao !== p.codigo
+              ? p.descricao
+              : <span className="italic text-muted-foreground">sem nome no arquivo</span>}
+          </div>
           <div className="text-xs text-muted-foreground font-mono">
-            {p.codigo} · {p.classificacao}
+            {p.codigo}{p.classificacao && p.classificacao !== p.codigo ? ` · ${p.classificacao}` : ""}
           </div>
         </td>
         <td className="px-3 py-2 text-right tabular-nums">{formatBRL(Number(p.movimento))}</td>
@@ -205,30 +534,34 @@ export function DeParaPanel({ tenantId, companyId, sistemaId, readonly }: Props)
                   não usada em demonstrações
                 </span>
                 <Button size="sm" variant="ghost" className="h-7 text-xs"
-                  disabled={readonly}
-                  onClick={() => definir([p.codigo], null)}>
+                  disabled={readonly || salvando}
+                  onClick={() => vincularCodigos([p.codigo], null)}>
                   desfazer
                 </Button>
               </>
             ) : (
-              <SeletorConta
+              <DestinoDaLinha
+                linha={p}
                 destinos={contasPadrao ?? []}
+                destinosPorCodigo={destinosPorCodigo}
                 carregando={carregandoDestinos}
-                valor={p.destino}
-                tipo={p.tipo}
-                onEscolher={(c) => definir([p.codigo], c)}
-                onIgnorar={() => definir([p.codigo], IGNORAR)}
-                permitirIgnorar
-                disabled={readonly}
-                compacto
-                className="flex-1"
-                placeholder="Selecione a conta destino"
+                disabled={readonly || salvando}
+                onEscolher={(c) => vincularCodigos([p.codigo], c)}
+                onIgnorar={() => vincularCodigos([p.codigo], null, true)}
               />
             )}
-            {estado === "sugerido" && (
-              <Badge variant="secondary" className="shrink-0 gap-1 text-[10px]">
-                <Sparkles className="h-2.5 w-2.5" /> sugerido
-              </Badge>
+            {estado === "sugerido" && p.sugestao_codigo && (
+              <Button
+                size="sm"
+                variant="secondary"
+                className="h-7 shrink-0 gap-1 text-[10px] px-2"
+                disabled={readonly || salvando}
+                title="Grava a sugestão agora"
+                onClick={() => vincularCodigos([p.codigo], p.sugestao_codigo)}
+              >
+                <Sparkles className="h-2.5 w-2.5" />
+                {p.sugestao_descricao || p.sugestao_codigo}
+              </Button>
             )}
           </div>
         </td>
@@ -244,76 +577,65 @@ export function DeParaPanel({ tenantId, companyId, sistemaId, readonly }: Props)
       return n;
     });
 
-  const totalEscolhido = useMemo(
-    () => (pendencias ?? []).filter((p) => !!escolhas[p.codigo]).length,
-    [pendencias, escolhas],
-  );
-
-  const salvar = async () => {
-    const itens = (pendencias ?? [])
-      .filter((p) => !!escolhas[p.codigo])
-      .map((p) => {
-        const v = escolhas[p.codigo];
-        return v === IGNORAR
-          ? { conta_codigo: p.codigo, ignorada: true, conta_padrao_codigo: null }
-          : { conta_codigo: p.codigo, conta_padrao_codigo: v, ignorada: false };
-      });
-    if (itens.length === 0) {
-      toast.error("Nenhuma conta selecionada.");
-      return;
-    }
-    setSalvando(true);
-    try {
-      const { data, error } = await supabase.rpc("aplicar_depara_em_lote", {
-        _company_id: companyId,
-        _itens: itens as any,
-      });
-      if (error) throw error;
-      toast.success(`${(data as any)?.gravadas ?? itens.length} conta(s) vinculada(s).`);
-      setEscolhas({});
-      qc.invalidateQueries({ queryKey: ["depara-pendencias", companyId] });
-      qc.invalidateQueries({ queryKey: ["depara-feitos", companyId] });
-    } catch (e: any) {
-      toast.error(e.message);
-    } finally {
-      setSalvando(false);
-    }
+  const aceitarSugestoes = () => {
+    const itens = visiveis
+      .filter((l) => l.sugerido && l.sugestao_codigo)
+      .map((l) => ({
+        conta_codigo: l.codigo,
+        conta_padrao_codigo: l.sugestao_codigo,
+        ignorada: false,
+      }));
+    return persistir(itens, "sugestão aceita");
   };
 
   const pendentes = pendencias?.length ?? 0;
+  const feitos = jaFeitos?.length ?? 0;
+  const filaVazia = pendentes === 0 && feitos === 0;
+  const completo = pendentes === 0 && feitos > 0;
+  const sugestoesVisiveis = visiveis.filter((l) => l.sugerido && l.sugestao_codigo).length;
 
   return (
     <div className="space-y-4">
       <DeParaArquivoCard tenantId={tenantId} companyId={companyId} sistemaId={sistemaId ?? null} />
-      <RegrasEmVolume tenantId={tenantId} companyId={companyId} contasPadrao={contasPadrao ?? []} readonly={readonly} />
-      <Card className={`p-4 ${pendentes === 0 ? "border-emerald-500/40 bg-emerald-500/5" : "border-amber-500/40 bg-amber-500/5"}`}>
+      <Card className={`p-4 ${completo ? "border-emerald-500/40 bg-emerald-500/5" : filaVazia ? "border-border" : "border-amber-500/40 bg-amber-500/5"}`}>
         <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
           <div className="flex items-center gap-2">
-            {pendentes === 0
+            {completo
               ? <CheckCircle2 className="h-5 w-5 text-emerald-600" />
-              : <AlertTriangle className="h-5 w-5 text-amber-600" />}
+              : <AlertTriangle className={`h-5 w-5 ${filaVazia ? "text-muted-foreground" : "text-amber-600"}`} />}
             <div>
               <div className="font-semibold">
-                {pendentes === 0
+                {completo
                   ? "De-para completo"
-                  : `${pendentes} conta(s) sem vínculo com o Plano Padrão`}
+                  : filaVazia
+                    ? "Fila vazia"
+                    : `${pendentes} conta(s) sem vínculo com o Plano Padrão`}
               </div>
               <div className="text-xs text-muted-foreground">
-                {jaFeitos?.length ?? 0} conta(s) já configurada(s). Só entram na fila contas com movimento.
+                {completo
+                  ? `${feitos} conta(s) gravada(s). Para corrigir um erro, abra Vinculadas, busque a conta e troque o destino — grava na hora.`
+                  : filaVazia
+                    ? "Importe o diário desta empresa ou carregue o arquivo do sistema acima — a fila usa o movimento e a origem do ERP, não o Plano Padrão."
+                    : `${feitos} já gravada(s). Escolher ou trocar o destino grava na hora.`}
               </div>
             </div>
           </div>
-          {pendentes > 0 && (
-            <Button className="ml-auto" size="sm" disabled={readonly || salvando || totalEscolhido === 0}
-              onClick={salvar}>
-              {salvando ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
-              Salvar {totalEscolhido} vínculo(s)
-            </Button>
+          {(salvando || isFetching) && (
+            <div className="ml-auto flex items-center gap-2 text-xs text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              {salvando ? "Gravando e conferindo…" : "Atualizando a fila…"}
+            </div>
           )}
         </div>
       </Card>
 
-      {pendentes > 0 && (
+      {erroFila && (pendencias?.length ?? 0) === 0 && (
+        <p className="text-sm text-destructive">
+          Não deu para montar a fila: {(erroFila as Error).message}
+        </p>
+      )}
+
+      {(pendentes > 0 || feitos > 0) && (
         <>
           <BarraDepara
             contagem={contagem}
@@ -323,32 +645,49 @@ export function DeParaPanel({ tenantId, companyId, sistemaId, readonly }: Props)
             onBusca={(b) => { setBusca(b); setLimite(150); }}
             visiveis={visiveis.length}
             selecionadas={marcadas}
-            onSelecionarVisiveis={() => setMarcadas(new Set(visiveis.map((l) => l.codigo)))}
+            onSelecionarVisiveis={() => {
+              const codigos = grupos
+                ? grupos.mostrando.flatMap((g) => g.linhas.map((l) => l.codigo))
+                : naTela.map((l) => l.codigo);
+              setMarcadas(new Set(codigos));
+            }}
             onLimparSelecao={() => setMarcadas(new Set())}
-            destinos={contasPadrao ?? []}
-            onVincularLote={(codigo) => { definir([...marcadas], codigo); setMarcadas(new Set()); }}
-            onIgnorarLote={() => { definir([...marcadas], IGNORAR); setMarcadas(new Set()); }}
-            onLimparLote={() => { definir([...marcadas], null); setMarcadas(new Set()); }}
-            nivelGrupo={nivelGrupo}
-            onNivelGrupo={(n) => { setNivelGrupo(n); setLimite(150); }}
+              destinos={contasPadrao ?? []}
+              origensSelecionadas={[...marcadas].map((codigo) => {
+                const l = linhas.find((x) => x.codigo === codigo);
+                return { codigo, descricao: l?.descricao };
+              })}
+              onVincularLote={(codigo) => vincularCodigos([...marcadas], codigo)}
+            onIgnorarLote={() => vincularCodigos([...marcadas], null, true)}
+            onLimparLote={() => vincularCodigos([...marcadas], null)}
+            sugestoesVisiveis={sugestoesVisiveis}
+            onAceitarSugestoes={aceitarSugestoes}
+            nivelGrupo={nivelUsado}
+            onNivelGrupo={escolherNivel}
             niveisDisponiveis={niveis}
+            opcoesGrupo={opcoesGrupo}
             disabled={readonly || salvando}
           />
 
           {(pendencias?.length ?? 0) >= LIMITE_FILA && (
             <div className="text-xs text-amber-600">
               A fila está no teto de {LIMITE_FILA} contas — pode haver mais atrás.
-              Salve estas e recarregue para ver o resto.
+              Grave estas e recarregue para ver o resto.
             </div>
           )}
 
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <Badge variant="outline" className="gap-1">
-              <Sparkles className="h-3 w-3" />
-              {contagem.sugerido} sugestão(ões) preenchida(s) — revise e salve
-            </Badge>
+            {contagem.sugerido > 0 && (
+              <Badge variant="outline" className="gap-1">
+                <Sparkles className="h-3 w-3" />
+                {contagem.sugerido} sugestão(ões) — aceite para gravar, ou troque o destino
+              </Badge>
+            )}
             {contagem.pendente > 0 && (
               <span>{contagem.pendente} sem sugestão, precisam de escolha</span>
+            )}
+            {contagem.vinculado > 0 && (
+              <span>{contagem.vinculado} já vinculadas — abra o destino para corrigir</span>
             )}
           </div>
 
@@ -373,6 +712,7 @@ export function DeParaPanel({ tenantId, companyId, sistemaId, readonly }: Props)
                         <Fragment key={g.prefixo || "(sem)"}>
                           <CabecalhoGrupo
                             prefixo={g.prefixo}
+                            rotuloNivel={rotuloGrupo}
                             quantidade={g.linhas.length}
                             pendentes={g.pendentes}
                             movimento={g.movimento}
@@ -380,9 +720,12 @@ export function DeParaPanel({ tenantId, companyId, sistemaId, readonly }: Props)
                             onAlternar={() => alternarGrupo(g.linhas.map((l) => l.codigo))}
                             destinos={contasPadrao ?? []}
                             carregandoDestinos={carregandoDestinos}
-                            onVincularGrupo={(cod) => definir(g.linhas.map((l) => l.codigo), cod)}
-                            onIgnorarGrupo={() => definir(g.linhas.map((l) => l.codigo), IGNORAR)}
-                            disabled={readonly}
+                            tipo={tipoUnico(g.linhas)}
+                            sugestaoGrupo={grupoMaisFrequente(g.linhas)}
+                            origens={g.linhas.map((l) => ({ codigo: l.codigo, descricao: l.descricao }))}
+                            onVincularGrupo={(cod) => vincularCodigos(g.linhas.map((l) => l.codigo), cod)}
+                            onIgnorarGrupo={() => vincularCodigos(g.linhas.map((l) => l.codigo), null, true)}
+                            disabled={readonly || salvando}
                             colSpan={3}
                           />
                           {g.linhas.map(linhaDaConta)}
@@ -392,7 +735,9 @@ export function DeParaPanel({ tenantId, companyId, sistemaId, readonly }: Props)
                   {naTela.length === 0 && (
                     <tr>
                       <td colSpan={4} className="px-3 py-8 text-center text-sm text-muted-foreground">
-                        Nenhuma conta neste filtro.
+                        {completo && filtro === "pendente"
+                          ? "Nada pendente. Abra Vinculadas se precisar corrigir um destino já gravado."
+                          : "Nenhuma conta neste filtro."}
                       </td>
                     </tr>
                   )}
@@ -411,151 +756,7 @@ export function DeParaPanel({ tenantId, companyId, sistemaId, readonly }: Props)
         </>
       )}
 
-      {(jaFeitos?.length ?? 0) > 0 && (
-        <details className="text-sm">
-          <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
-            Ver {jaFeitos!.length} vínculo(s) já configurado(s)
-          </summary>
-          <Card className="mt-2 overflow-hidden">
-            <table className="w-full text-sm">
-              <tbody>
-                {(jaFeitos ?? []).map((d: any) => (
-                  <tr key={d.conta_codigo} className="border-t">
-                    <td className="px-3 py-2 font-mono text-xs">{d.conta_codigo}</td>
-                    <td className="px-3 py-2">
-                      {d.ignorada
-                        ? <span className="text-muted-foreground italic">não usada em demonstrações</span>
-                        : <span className="font-mono text-xs">→ {d.conta_padrao_codigo}</span>}
-                    </td>
-                    <td className="px-3 py-2 text-xs text-muted-foreground">{d.observacao}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </Card>
-        </details>
-      )}
     </div>
   );
 }
 
-// ============================================================
-// Regras em volume
-//
-// O de-para conta a conta resolve a estrutura — algumas centenas de
-// linhas. Não resolve clientes e fornecedores: um plano de terceiro traz
-// dezenas de milhares deles, e ninguém vincula um a um.
-//
-// A regra diz "toda conta deste TIPO cai nesta conta do Padrão". O
-// vínculo conta a conta continua valendo e tem precedência, para as
-// exceções.
-// ============================================================
-const TIPOS_EM_VOLUME = [
-  { valor: "4-Cli. Nac.", rotulo: "Clientes nacionais" },
-  { valor: "5-For. Nac.", rotulo: "Fornecedores nacionais" },
-  { valor: "6-Cli. Ex.", rotulo: "Clientes no exterior" },
-  { valor: "7-For. Ex.", rotulo: "Fornecedores no exterior" },
-];
-
-function RegrasEmVolume({
-  tenantId,
-  companyId,
-  contasPadrao,
-  readonly,
-}: {
-  tenantId: string;
-  companyId: string;
-  contasPadrao: ContaDestino[];
-  readonly?: boolean;
-}) {
-  const qc = useQueryClient();
-  const [busy, setBusy] = useState<string | null>(null);
-
-  const { data: regras } = useQuery({
-    queryKey: ["depara-regras", companyId],
-    queryFn: async () => {
-      const { data, error } = await (supabase as any)
-        .from("depara_regras")
-        .select("id, tipo_conta, classificacao_prefixo, conta_padrao_codigo")
-        .eq("company_id", companyId);
-      if (error) throw error;
-      return (data ?? []) as {
-        id: string;
-        tipo_conta: string | null;
-        classificacao_prefixo: string | null;
-        conta_padrao_codigo: string;
-      }[];
-    },
-  });
-
-  // As agregadoras vêm primeiro: são o destino natural de uma regra.
-  const destinos = [
-    ...contasPadrao.filter((c) => c.codigo.startsWith("AGG-")),
-    ...contasPadrao.filter((c) => !c.codigo.startsWith("AGG-")),
-  ];
-
-  const definir = async (tipo: string, codigoDestino: string | null) => {
-    setBusy(tipo);
-    try {
-      const atual = (regras ?? []).find((r) => r.tipo_conta === tipo);
-      if (atual) {
-        const { error } = await (supabase as any)
-          .from("depara_regras").delete().eq("id", atual.id);
-        if (error) throw error;
-      }
-      if (codigoDestino) {
-        const { error } = await (supabase as any).from("depara_regras").insert({
-          tenant_id: tenantId,
-          company_id: companyId,
-          tipo_conta: tipo,
-          conta_padrao_codigo: codigoDestino,
-        });
-        if (error) throw error;
-      }
-      qc.invalidateQueries({ queryKey: ["depara-regras", companyId] });
-      qc.invalidateQueries({ queryKey: ["depara-pendencias", companyId] });
-      toast.success("Regra atualizada.");
-    } catch (e: any) {
-      toast.error(e.message);
-    } finally {
-      setBusy(null);
-    }
-  };
-
-  return (
-    <Card className="p-4">
-      <div className="mb-2">
-        <div className="font-semibold text-sm">Vínculo em volume</div>
-        <p className="text-xs text-muted-foreground leading-relaxed mt-0.5">
-          Clientes e fornecedores não se vinculam um a um — são dezenas de
-          milhares. Aponte a classe inteira para a conta consolidada do Plano
-          Padrão. O vínculo conta a conta abaixo continua valendo e tem
-          precedência, para as exceções.
-        </p>
-      </div>
-      <div className="grid gap-2 sm:grid-cols-2">
-        {TIPOS_EM_VOLUME.map((t) => {
-          const atual = (regras ?? []).find((r) => r.tipo_conta === t.valor);
-          return (
-            <label key={t.valor} className="flex items-center gap-2 text-xs">
-              <span className="w-44 shrink-0 text-muted-foreground">{t.rotulo}</span>
-              <select
-                className="h-8 flex-1 min-w-0 px-2 rounded-md border border-border bg-background text-foreground"
-                value={atual?.conta_padrao_codigo ?? ""}
-                disabled={readonly || busy === t.valor}
-                onChange={(e) => definir(t.valor, e.target.value || null)}
-              >
-                <option value="">— sem regra —</option>
-                {destinos.map((c) => (
-                  <option key={c.codigo} value={c.codigo}>
-                    {c.classificacao} · {c.descricao}
-                  </option>
-                ))}
-              </select>
-            </label>
-          );
-        })}
-      </div>
-    </Card>
-  );
-}

@@ -557,7 +557,7 @@ export function DfcAlocacaoPanel({
       ]);
       if (e1) throw e1;
       if (e2) throw e2;
-      const nomesV = new Map<string, string>((p ?? []).map((x: any) => [x.classificacao as string, x.descricao_referencia as string]));
+      const nomesV = new Map((p ?? []).map((x: any) => [x.classificacao, x.descricao_referencia]));
       return ((v ?? []) as { classificacao: string; codigo_dfc: string; origem: string }[])
         .map((row) => ({ ...row, descricao: nomesV.get(row.classificacao) ?? "" }));
     },

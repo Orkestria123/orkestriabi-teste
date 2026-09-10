@@ -14,6 +14,7 @@
 
 import * as XLSX from "xlsx";
 import { supabase } from "@/integrations/supabase/client";
+import { baixarArquivo, codepagePlanilha, textoDoArquivo } from "@/lib/importacao/encoding";
 
 export interface LinhaAlocacao {
   classificacao: string;
@@ -113,7 +114,13 @@ export function gerarPlanilhaDfc(
   catalogo: CodigoDfc[],
   nomeArquivo: string,
 ) {
-  XLSX.writeFile(montarWorkbookDfc(linhas, excecoes, catalogo), `${nomeArquivo}.xlsx`);
+  const wb = montarWorkbookDfc(linhas, excecoes, catalogo);
+  const buf = XLSX.write(wb, { bookType: "xlsx", type: "array", compression: true });
+  baixarArquivo(
+    `${nomeArquivo}.xlsx`,
+    new Uint8Array(buf),
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  );
 }
 
 /**
@@ -195,7 +202,19 @@ const ALIAS_CODIGO_ESTRITO = ["codigo dfc", "codigo_dfc"];
  * uma planilha montada à mão.
  */
 export async function lerPlanilhaDfc(arquivo: File): Promise<ResultadoLeitura> {
-  return lerWorkbookDfc(XLSX.read(await arquivo.arrayBuffer(), { type: "array" }));
+  const nome = arquivo.name.toLowerCase();
+  if (nome.endsWith(".csv") || nome.endsWith(".txt")) {
+    const { text, encoding } = await textoDoArquivo(arquivo);
+    return lerWorkbookDfc(XLSX.read(text, {
+      type: "string",
+      codepage: codepagePlanilha(encoding, arquivo.name),
+      raw: false,
+    }));
+  }
+  const opts: XLSX.ParsingOptions = { type: "array" };
+  const cp = codepagePlanilha(nome.endsWith(".xls") ? "windows-1252" : "utf-8", arquivo.name);
+  if (cp != null) opts.codepage = cp;
+  return lerWorkbookDfc(XLSX.read(await arquivo.arrayBuffer(), opts));
 }
 
 /** Mesma leitura, a partir do workbook já aberto (usado no teste). */

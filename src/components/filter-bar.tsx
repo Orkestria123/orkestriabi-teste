@@ -1,4 +1,4 @@
-import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
+import { createContext, useContext, useMemo, useRef, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -19,6 +19,12 @@ interface FilterCtx {
   availablePeriods: string[];
   setAvailablePeriods: (ps: string[]) => void;
   periodos: string[]; // actual DB periods filtered by selected years
+  /** Guarda a seleção atual uma vez (ao entrar no Balanço). */
+  preservarFiltro: (years: number[], months: number[]) => void;
+  /** Devolve a seleção guardada. `true` se havia backup. */
+  restaurarFiltro: () => boolean;
+  filtroPreservado: () => boolean;
+  pegarFiltroPreservado: () => { years: number[]; months: number[] } | null;
 }
 
 const Ctx = createContext<FilterCtx | null>(null);
@@ -31,6 +37,24 @@ export function FilterProvider({ children }: { children: ReactNode }) {
   );
   const [availableYears, setAvailableYears] = useState<number[]>([now.getFullYear()]);
   const [availablePeriods, setAvailablePeriods] = useState<string[]>([]);
+  const backupFiltro = useRef<{ years: number[]; months: number[] } | null>(null);
+
+  const preservarFiltro = (y: number[], m: number[]) => {
+    if (!backupFiltro.current) {
+      backupFiltro.current = { years: [...y], months: [...m] };
+    }
+  };
+  const restaurarFiltro = () => {
+    const s = backupFiltro.current;
+    if (!s) return false;
+    backupFiltro.current = null;
+    setYears(s.years);
+    setMonths(s.months);
+    return true;
+  };
+  const filtroPreservado = () => backupFiltro.current != null;
+  const pegarFiltroPreservado = () => backupFiltro.current;
+
   const periodos = useMemo(() => {
     if (availablePeriods.length > 0) {
       return availablePeriods
@@ -58,6 +82,10 @@ export function FilterProvider({ children }: { children: ReactNode }) {
         availableYears, setAvailableYears,
         availablePeriods, setAvailablePeriods,
         periodos,
+        preservarFiltro,
+        restaurarFiltro,
+        filtroPreservado,
+        pegarFiltroPreservado,
       }}
     >
       {children}

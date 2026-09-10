@@ -2250,6 +2250,7 @@ export type Database = {
       plano_contas: {
         Row: {
           ativo: boolean
+          classe_gasto: string | null
           classificacao: string
           codigo: string
           company_id: string | null
@@ -2271,6 +2272,7 @@ export type Database = {
         }
         Insert: {
           ativo?: boolean
+          classe_gasto?: string | null
           classificacao: string
           codigo: string
           company_id?: string | null
@@ -2292,6 +2294,7 @@ export type Database = {
         }
         Update: {
           ativo?: boolean
+          classe_gasto?: string | null
           classificacao?: string
           codigo?: string
           company_id?: string | null
@@ -2989,6 +2992,10 @@ export type Database = {
         }
         Returns: Json
       }
+      depara_carregar_origem: {
+        Args: { _company_id: string; _contas: Json }
+        Returns: Json
+      }
       depara_pendencias: {
         Args: { _company_id: string; _limite?: number }
         Returns: {
@@ -3405,6 +3412,7 @@ export type Database = {
         }
         Returns: Json
       }
+      saude_ocupacao: { Args: { _tenant_id: string }; Returns: Json }
       semear_dfc_padrao: { Args: { _tenant_id?: string }; Returns: Json }
       semear_indicadores_globais: {
         Args: { _substituir?: boolean; _tenant_id: string }

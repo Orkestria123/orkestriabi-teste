@@ -14,6 +14,7 @@
 
 import { supabase } from "@/integrations/supabase/client";
 import { getEstruturaPadrao, compararClassificacao } from "@/lib/plano/estrutura";
+import { lerTudo, countNaPrimeira } from "@/lib/supabase-paginado";
 
 export type Demonstracao = "DRE" | "BP_ATIVO" | "BP_PASSIVO";
 
@@ -44,20 +45,22 @@ export async function getMapaDeLinhas(
   modoGlobal: boolean,
   demonstracao: Demonstracao,
 ): Promise<MapaLinha[]> {
-  const q = supabase
-    .from("plano_contas")
-    .select("classificacao, descricao, nivel")
-    .eq("tenant_id", tenantId)
-    .eq("ativo", true)
-    .eq("is_participante", false)
-    .eq("is_sintetica", true)
-    .in("tipo", TIPOS[demonstracao]);
-  const { data, error } = modoGlobal
-    ? await q.is("company_id", null)
-    : await q.eq("company_id", companyId);
-  if (error) throw error;
-
-  const rows = (data ?? []) as { classificacao: string; descricao: string; nivel: number }[];
+  const rows = await lerTudo<{ classificacao: string; descricao: string; nivel: number }>(
+    (from, to) => {
+      const q = supabase
+        .from("plano_contas")
+        .select("classificacao, descricao, nivel", countNaPrimeira(from))
+        .eq("tenant_id", tenantId)
+        .eq("ativo", true)
+        .eq("is_participante", false)
+        .eq("is_sintetica", true)
+        .in("tipo", TIPOS[demonstracao])
+        .order("classificacao")
+        .range(from, to);
+      return modoGlobal ? q.is("company_id", null) : q.eq("company_id", companyId);
+    },
+    "mapa de linhas",
+  );
   const estrutura = await getEstruturaPadrao();
 
   const acumuladores = rows.filter((r) => ehApuracao(r.classificacao));

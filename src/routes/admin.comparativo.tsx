@@ -244,6 +244,18 @@ function Page() {
                 </Select>
               </div>
               <div>
+                <label className="text-xs text-muted-foreground">Grupo econômico</label>
+                <Select value={grupo} onValueChange={setGrupo}>
+                  <SelectTrigger className="h-9 mt-1"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todos">Todos os grupos</SelectItem>
+                    {(grupos ?? []).map((g: any) => (
+                      <SelectItem key={g.id} value={g.id}>{g.nome}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
                 <label className="text-xs text-muted-foreground">Porte</label>
                 <Select value={porte} onValueChange={setPorte}>
                   <SelectTrigger className="h-9 mt-1"><SelectValue /></SelectTrigger>

@@ -185,7 +185,7 @@ export function DashboardCharts({
                   strokeWidth={2.5}
                   dot={(props: any) => {
                     const { cx, cy, value, index } = props;
-                    if (cx == null || cy == null) return null;
+                    if (cx == null || cy == null) return <g key={index} />;
                     const color = (value ?? 0) >= 0 ? "var(--success)" : "var(--destructive)";
                     return <circle key={index} cx={cx} cy={cy} r={4} fill={color} stroke="var(--card)" strokeWidth={2} />;
                   }}

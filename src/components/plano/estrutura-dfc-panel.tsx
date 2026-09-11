@@ -680,8 +680,9 @@ export function DfcAlocacaoPanel({
               </thead>
               <tbody>
                 {vinculos!.map((v) => {
+                  const descricaoTexto = String((v as any).descricao ?? "");
                   const caixaDuvidoso = v.codigo_dfc === "C" &&
-                    !/caixa|banco|equivalen|aplicac|movimento|vinculad/i.test(v.descricao);
+                    !/caixa|banco|equivalen|aplicac|movimento|vinculad/i.test(descricaoTexto);
                   return (
                     <tr key={v.classificacao} className={`border-t ${caixaDuvidoso ? "bg-amber-500/10" : ""}`}>
                       <td className="px-3 py-1.5 font-mono text-xs">{v.classificacao}</td>

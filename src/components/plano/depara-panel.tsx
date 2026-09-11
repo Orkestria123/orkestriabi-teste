@@ -541,7 +541,12 @@ export function DeParaPanel({ tenantId, companyId, sistemaId, readonly }: Props)
               </>
             ) : (
               <DestinoDaLinha
-                linha={p}
+                linha={{
+                  ...p,
+                  descricao: p.descricao ?? "",
+                  classificacao: p.classificacao ?? "",
+                  tipo: (p as any).tipo ?? "",
+                }}
                 destinos={contasPadrao ?? []}
                 destinosPorCodigo={destinosPorCodigo}
                 carregando={carregandoDestinos}

@@ -3047,6 +3047,15 @@ export type Database = {
           origem: string
         }[]
       }
+      depara_traducao_pagina: {
+        Args: { _company_id: string; _depois?: string; _limite?: number }
+        Returns: {
+          conta_codigo: string
+          conta_padrao_codigo: string
+          ignorada: boolean
+          origem: string
+        }[]
+      }
       descartar_contas_novas: {
         Args: { _codigos: string[]; _motivo?: string; _tenant_id: string }
         Returns: Json
@@ -3338,6 +3347,14 @@ export type Database = {
       ecd_materializar_lote: {
         Args: { _depois?: number; _importacao_id: string; _limite?: number }
         Returns: Json
+      }
+      ecd_movimento_por_conta: {
+        Args: { _depois?: string; _importacao_id: string; _limite?: number }
+        Returns: {
+          codigo: string
+          fim: number
+          mov: number
+        }[]
       }
       ecd_normalizar_texto: { Args: { _s: string }; Returns: string }
       ecd_palavras: { Args: { _s: string }; Returns: string[] }

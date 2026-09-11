@@ -92,6 +92,13 @@
       "when": 1789089307185,
       "tag": "0012_ecd_ignorar_encerramento",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1789089376164,
+      "tag": "0013_performance_ecd_nuvem",
+      "breakpoints": true
     }
   ]
 }

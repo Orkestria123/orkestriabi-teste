@@ -64,6 +64,20 @@
       "when": 1789072831291,
       "tag": "0008_depara_outro_sistema",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1789088232619,
+      "tag": "0009_depara_fila_e_traducao_final",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1789088314577,
+      "tag": "0010_alocacao_gasto_e_estrutura_padrao_editavel",
+      "breakpoints": true
     }
   ]
 }

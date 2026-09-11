@@ -2937,6 +2937,10 @@ export type Database = {
         Args: { _upload_id: string }
         Returns: undefined
       }
+      apagar_estrutura_padrao: {
+        Args: { _classificacao: string; _papel: string }
+        Returns: undefined
+      }
       aplicar_depara_em_lote: {
         Args: { _company_id: string; _itens: Json }
         Returns: Json
@@ -2960,6 +2964,10 @@ export type Database = {
       atualizar_plano_padrao: {
         Args: { _company_id: string; _rows: Json; _tenant_id: string }
         Returns: Json
+      }
+      cls_no_prefixo: {
+        Args: { cls: string; prefixo: string }
+        Returns: boolean
       }
       contas_novas_do_diario: {
         Args: { _limite?: number; _tenant_id: string }
@@ -3346,11 +3354,19 @@ export type Database = {
           visibilidade: string
         }[]
       }
+      inferir_alocacao_gasto: {
+        Args: { _cls: string; _descricao: string }
+        Returns: {
+          classe: string
+          tipo: string
+        }[]
+      }
       is_orkestria_admin: { Args: never; Returns: boolean }
       limpar_plano_contas: {
         Args: { _company_id?: string; _limite?: number; _tenant_id: string }
         Returns: number
       }
+      norm_gasto: { Args: { s: string }; Returns: string }
       periodos_da_empresa: {
         Args: { _company_id: string }
         Returns: {
@@ -3411,6 +3427,18 @@ export type Database = {
           _todos_escopos?: boolean
         }
         Returns: Json
+      }
+      salvar_estrutura_padrao: {
+        Args: {
+          _classificacao: string
+          _demonstracao: string
+          _ordem: number
+          _papel: string
+          _papel_anterior?: string
+          _rotulo: string
+          _tipo_linha: string
+        }
+        Returns: undefined
       }
       saude_ocupacao: { Args: { _tenant_id: string }; Returns: Json }
       semear_dfc_padrao: { Args: { _tenant_id?: string }; Returns: Json }

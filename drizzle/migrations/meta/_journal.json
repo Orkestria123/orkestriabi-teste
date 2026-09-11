@@ -85,6 +85,13 @@
       "when": 1789089199275,
       "tag": "0011_nuvem_lotes_ecd_depara",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1789089307185,
+      "tag": "0012_ecd_ignorar_encerramento",
+      "breakpoints": true
     }
   ]
 }

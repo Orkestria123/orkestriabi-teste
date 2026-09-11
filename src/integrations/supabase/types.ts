@@ -1018,6 +1018,7 @@ export type Database = {
           credito: number
           data: string
           debito: number
+          encerramento: boolean
           historico: string | null
           importacao_id: string
           numero: string | null
@@ -1029,6 +1030,7 @@ export type Database = {
           credito?: number
           data: string
           debito?: number
+          encerramento?: boolean
           historico?: string | null
           importacao_id: string
           numero?: string | null
@@ -1040,6 +1042,7 @@ export type Database = {
           credito?: number
           data?: string
           debito?: number
+          encerramento?: boolean
           historico?: string | null
           importacao_id?: string
           numero?: string | null
@@ -3256,9 +3259,26 @@ export type Database = {
           tipo_esperado: string
         }[]
       }
+      ecd_conta_resultado: {
+        Args: { _classificacao: string; _codigo: string }
+        Returns: boolean
+      }
       ecd_contar_automaticas: {
         Args: { _importacao_id: string }
         Returns: number
+      }
+      ecd_debito_credito_dre: {
+        Args: {
+          _conta_resultado: boolean
+          _creditos: number
+          _debitos: number
+          _saldo_final: number
+          _saldo_inicial: number
+        }
+        Returns: {
+          credito: number
+          debito: number
+        }[]
       }
       ecd_desfazer: { Args: { _importacao_id: string }; Returns: Json }
       ecd_diagnostico: {
@@ -3307,8 +3327,16 @@ export type Database = {
         }
         Returns: Json
       }
+      ecd_marcar_encerramento: {
+        Args: { _importacao_id: string }
+        Returns: number
+      }
       ecd_materializar_lancamentos: {
         Args: { _importacao_id: string }
+        Returns: Json
+      }
+      ecd_materializar_lote: {
+        Args: { _depois?: number; _importacao_id: string; _limite?: number }
         Returns: Json
       }
       ecd_normalizar_texto: { Args: { _s: string }; Returns: string }

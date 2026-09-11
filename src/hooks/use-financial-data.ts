@@ -261,7 +261,7 @@ export function useMonthlyStatement(
 
       // Períodos sem saldos mensais (ex.: anuais do Bloco J) → usar valor de financial_statements como fallback.
       const periodsWithBalances = new Set<string>();
-      for (const b of balRes.data ?? []) periodsWithBalances.add(b.periodo);
+      for (const b of balRows) periodsWithBalances.add(b.periodo);
       const fallbackPeriods = periodos.filter((p) => !periodsWithBalances.has(p));
       // Map: periodo → linha_ordem → valor
       const stmtValMap = new Map<string, Map<number, number>>();

@@ -23,8 +23,18 @@ async function carregarTelefone(supabaseAdmin: any, userId: string) {
     .maybeSingle();
   const tipo = data?.tipo_usuario ?? null;
   if (tipo === "admin_escritorio" || tipo === "orkestria_admin") return null;
+
+  const { data: roles } = await supabaseAdmin
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", userId);
+  if ((roles ?? []).some((r: any) => r.role === "orkestria_admin" || r.role === "tenant_admin")) {
+    return null;
+  }
+
   return normalizarTelefone(data?.telefone ?? null);
 }
+
 
 
 /** Diz se a etapa de SMS é exigida e se a sessão atual já foi verificada. */

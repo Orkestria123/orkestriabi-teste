@@ -10,15 +10,22 @@ function sessionId(claims: unknown): string {
   return sid;
 }
 
+/**
+ * Telefone usado no MFA. Admins do escritório (admin_escritorio) e superadmins
+ * (orkestria_admin) são isentos da verificação em duas etapas: retornamos null.
+ */
 async function carregarTelefone(supabaseAdmin: any, userId: string) {
   const { normalizarTelefone } = await import("./mfa.server");
   const { data } = await supabaseAdmin
     .from("profiles")
-    .select("telefone")
+    .select("telefone, tipo_usuario")
     .eq("id", userId)
     .maybeSingle();
+  const tipo = data?.tipo_usuario ?? null;
+  if (tipo === "admin_escritorio" || tipo === "orkestria_admin") return null;
   return normalizarTelefone(data?.telefone ?? null);
 }
+
 
 /** Diz se a etapa de SMS é exigida e se a sessão atual já foi verificada. */
 export const mfaStatus = createServerFn({ method: "POST" })

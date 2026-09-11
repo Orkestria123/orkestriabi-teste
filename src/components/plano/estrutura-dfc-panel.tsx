@@ -687,7 +687,7 @@ export function DfcAlocacaoPanel({
                     <tr key={v.classificacao} className={`border-t ${caixaDuvidoso ? "bg-amber-500/10" : ""}`}>
                       <td className="px-3 py-1.5 font-mono text-xs">{v.classificacao}</td>
                       <td className="px-3 py-1.5">
-                        {v.descricao || "—"}
+                        {descricaoTexto || "—"}
                         {caixaDuvidoso && (
                           <div className="text-[11px] text-amber-700">
                             Marcada como Caixa, mas o nome não é caixa/banco — distorce a variação de caixa.

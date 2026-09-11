@@ -769,6 +769,7 @@ export type Database = {
           company_id: string
           competencia_fim: string | null
           competencia_inicio: string | null
+          competencias_agregadas: string[]
           contas_desconhecidas: number
           created_at: string
           erro_detalhe: string | null
@@ -788,6 +789,7 @@ export type Database = {
           company_id: string
           competencia_fim?: string | null
           competencia_inicio?: string | null
+          competencias_agregadas?: string[]
           contas_desconhecidas?: number
           created_at?: string
           erro_detalhe?: string | null
@@ -807,6 +809,7 @@ export type Database = {
           company_id?: string
           competencia_fim?: string | null
           competencia_inicio?: string | null
+          competencias_agregadas?: string[]
           contas_desconhecidas?: number
           created_at?: string
           erro_detalhe?: string | null
@@ -2933,6 +2936,10 @@ export type Database = {
       _op: { Args: { _v: string }; Returns: Json }
       _par: { Args: { _v: string }; Returns: Json }
       _termo: { Args: { _linha: string }; Returns: Json }
+      agregar_saldos_competencia: {
+        Args: { _competencia: string; _upload_id: string }
+        Returns: number
+      }
       agregar_saldos_mensais: {
         Args: { _upload_id: string }
         Returns: undefined
@@ -2940,6 +2947,14 @@ export type Database = {
       apagar_estrutura_padrao: {
         Args: { _classificacao: string; _papel: string }
         Returns: undefined
+      }
+      apagar_lote_lancamentos: {
+        Args: { _limite?: number; _upload_id: string }
+        Returns: number
+      }
+      apagar_lote_plano_contas: {
+        Args: { _company_id: string; _limite?: number; _tenant_id: string }
+        Returns: number
       }
       aplicar_depara_em_lote: {
         Args: { _company_id: string; _itens: Json }
@@ -2968,6 +2983,10 @@ export type Database = {
       cls_no_prefixo: {
         Args: { cls: string; prefixo: string }
         Returns: boolean
+      }
+      competencias_do_upload: {
+        Args: { _upload_id: string }
+        Returns: string[]
       }
       contas_novas_do_diario: {
         Args: { _limite?: number; _tenant_id: string }
@@ -3248,6 +3267,10 @@ export type Database = {
       }
       ecd_encerramento: { Args: { _importacao_id: string }; Returns: Json }
       ecd_estado_diario: { Args: { _importacao_id: string }; Returns: Json }
+      ecd_fechar_aplicacao: {
+        Args: { _importacao_id: string; _lancamentos?: number }
+        Returns: Json
+      }
       ecd_forma: { Args: { _importacao_id: string }; Returns: Json }
       ecd_gravar_lancamentos: {
         Args: {
@@ -3290,6 +3313,7 @@ export type Database = {
       }
       ecd_normalizar_texto: { Args: { _s: string }; Returns: string }
       ecd_palavras: { Args: { _s: string }; Returns: string[] }
+      ecd_preparar_diario: { Args: { _importacao_id: string }; Returns: Json }
       ecd_resumo_natureza: { Args: { _importacao_id: string }; Returns: Json }
       ecd_similaridade: { Args: { _a: string; _b: string }; Returns: number }
       ecd_sugerir_depara: {
@@ -3298,8 +3322,10 @@ export type Database = {
       }
       ecd_tipo_do_cod_nat: { Args: { _cod_nat: string }; Returns: string }
       ecd_titulo: { Args: { _s: string }; Returns: string }
+      ecd_upload_do_ecd: { Args: { _importacao_id: string }; Returns: string }
       ecd_vinculo_do_robo: { Args: { _observacao: string }; Returns: boolean }
       escopo_plano_empresa: { Args: { _company_id: string }; Returns: Json }
+      fechar_upload_diario: { Args: { _upload_id: string }; Returns: Json }
       finalizar_upload_diario: { Args: { _upload_id: string }; Returns: Json }
       garantir_contas_agregadoras: {
         Args: { _tenant_id: string }
@@ -3366,6 +3392,10 @@ export type Database = {
         Args: { _company_id?: string; _limite?: number; _tenant_id: string }
         Returns: number
       }
+      marcar_participantes_origem: {
+        Args: { _company_id: string }
+        Returns: number
+      }
       norm_gasto: { Args: { s: string }; Returns: string }
       periodos_da_empresa: {
         Args: { _company_id: string }
@@ -3415,6 +3445,10 @@ export type Database = {
       restaurar_conta_descartada: {
         Args: { _codigo: string; _tenant_id: string }
         Returns: Json
+      }
+      reverter_saldos_competencia: {
+        Args: { _competencia: string; _upload_id: string }
+        Returns: number
       }
       reverter_upload_diario: {
         Args: { _upload_id: string }

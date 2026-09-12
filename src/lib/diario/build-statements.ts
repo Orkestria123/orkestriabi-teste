@@ -236,24 +236,29 @@ function prefixoAteNivel(
 // e é lido várias vezes por tela (DRE + BP + DFC/DLPA/DVA, contábil e
 // gerencial). Com um plano padrão de centenas de milhares de linhas cada
 // leitura custava segundos; aqui ela acontece uma vez por sessão.
-const _planoCache = new Map<string, Promise<Plano[]>>();
+const _planoCache = new Map<string, Promise<(Plano & { tipo: string })[]>>();
 
-function getPlanoEstrutural(
+async function getPlanoEstrutural(
   companyId: string,
   tenantId: string,
   modoGlobal: boolean,
   tiposPlano: string[],
 ): Promise<Plano[]> {
-  const key = `${tenantId}|${modoGlobal ? "global" : companyId}|${[...tiposPlano].sort().join(",")}`;
+  // Uma leitura por empresa cobre todas as demonstrações: buscamos o
+  // plano estrutural inteiro (com o `tipo`) e filtramos em memória, em
+  // vez de repetir a paginação para cada combinação de tipos.
+  const key = `${tenantId}|${modoGlobal ? "global" : companyId}`;
   let p = _planoCache.get(key);
   if (!p) {
-    p = fetchAllPaginated<Plano>((from, to) => {
+    p = fetchAllPaginated<Plano & { tipo: string }>((from, to) => {
       const q = supabase
         .from("plano_contas")
-        .select("codigo, classificacao, descricao, nivel, is_participante, is_sintetica", countNaPrimeira(from))
+        .select(
+          "codigo, classificacao, descricao, nivel, is_participante, is_sintetica, tipo",
+          countNaPrimeira(from),
+        )
         .eq("tenant_id", tenantId)
         .eq("ativo", true)
-        .in("tipo", tiposPlano)
         .eq("is_participante", false)
         .order("codigo")
         .range(from, to);
@@ -263,7 +268,9 @@ function getPlanoEstrutural(
     p.catch(() => _planoCache.delete(key));
     _planoCache.set(key, p);
   }
-  return p;
+  const todas = await p;
+  const set = new Set(tiposPlano);
+  return todas.filter((r) => set.has(r.tipo));
 }
 
 /** Descarta o plano em memória (após importações/edições do plano). */

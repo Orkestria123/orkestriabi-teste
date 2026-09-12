@@ -14,6 +14,8 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useCarimboEmpresa } from "@/hooks/use-financial-data";
+import { carimboToken, lerCache, gravarCache } from "@/lib/cache-demonstracoes";
 import { getMascaraConfig, grupoDe, type MascaraConfig } from "@/lib/mascara/interpretar";
 import {
   buildContext,
@@ -47,6 +49,24 @@ export async function fetchSnapshot(companyId: string): Promise<SnapshotRaw> {
   if (error) throw new Error(error.message);
   return (data ?? {}) as SnapshotRaw;
 }
+
+/**
+ * Mesma leitura, mas reaproveitando o snapshot já guardado no navegador
+ * enquanto o "carimbo" dos dados da empresa não mudar. É a leitura mais
+ * pesada dos índices — sem isso ela era refeita a cada tela.
+ */
+export async function fetchSnapshotCache(
+  companyId: string,
+  token: string,
+): Promise<SnapshotRaw> {
+  const partes = ["snap", companyId, token];
+  const guardado = lerCache<SnapshotRaw>(partes);
+  if (guardado) return guardado;
+  const snap = await fetchSnapshot(companyId);
+  gravarCache(partes, snap);
+  return snap;
+}
+
 
 /**
  * Monta um EngineContext contábil OU gerencial a partir do snapshot bruto.
@@ -357,14 +377,18 @@ export function useIndicadorData(
   companyId: string | undefined,
   visao: Visao = "contabil",
 ) {
+  const { data: carimbo } = useCarimboEmpresa(companyId ?? null);
+  const token = carimboToken(carimbo);
   return useQuery({
-    queryKey: ["indic-engine-data", tenantId, companyId, visao],
-    enabled: !!tenantId && !!companyId,
-    staleTime: 30_000,
+    queryKey: ["indic-engine-data", tenantId, companyId, visao, token],
+    enabled: !!tenantId && !!companyId && !!carimbo,
+    // Só muda quando o carimbo muda — e o carimbo está na chave.
+    staleTime: 30 * 60_000,
+    gcTime: 60 * 60_000,
     retry: 1,
     queryFn: async (): Promise<IndicadorCtx> => {
       const mascara = await getMascaraConfig({ tenantId: tenantId!, companyId: companyId! });
-      const snap = await fetchSnapshot(companyId!);
+      const snap = await fetchSnapshotCache(companyId!, token);
       if (visao === "comparativo") {
         const [contabil, gerencial] = await Promise.all([
           buildCtxForVisao(companyId!, tenantId!, snap, mascara, "contabil"),
@@ -376,6 +400,7 @@ export function useIndicadorData(
     },
   });
 }
+
 
 /**
  * DRE por período (para termos com origem "demonstracao"). Em comparativo,
@@ -392,10 +417,13 @@ export function useDemoValues(
   visao: Visao = "contabil",
 ) {
   const key = periodos.slice().sort().join(",");
+  const { data: carimbo } = useCarimboEmpresa(companyId ?? null);
+  const token = carimboToken(carimbo);
   return useQuery({
-    queryKey: ["indic-demo-dre", tenantId, companyId, key, visao],
-    enabled: !!tenantId && !!companyId && periodos.length > 0,
-    staleTime: 30_000,
+    queryKey: ["indic-demo-dre", tenantId, companyId, key, visao, token],
+    enabled: !!tenantId && !!companyId && periodos.length > 0 && !!carimbo,
+    staleTime: 30 * 60_000,
+    gcTime: 60 * 60_000,
     retry: 2,
     queryFn: async (): Promise<DemoValues> => {
       if (!periodos || periodos.length === 0) {

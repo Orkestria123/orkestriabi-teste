@@ -377,14 +377,18 @@ export function useIndicadorData(
   companyId: string | undefined,
   visao: Visao = "contabil",
 ) {
+  const { data: carimbo } = useCarimboEmpresa(companyId ?? null);
+  const token = carimboToken(carimbo);
   return useQuery({
-    queryKey: ["indic-engine-data", tenantId, companyId, visao],
-    enabled: !!tenantId && !!companyId,
-    staleTime: 30_000,
+    queryKey: ["indic-engine-data", tenantId, companyId, visao, token],
+    enabled: !!tenantId && !!companyId && !!carimbo,
+    // Só muda quando o carimbo muda — e o carimbo está na chave.
+    staleTime: 30 * 60_000,
+    gcTime: 60 * 60_000,
     retry: 1,
     queryFn: async (): Promise<IndicadorCtx> => {
       const mascara = await getMascaraConfig({ tenantId: tenantId!, companyId: companyId! });
-      const snap = await fetchSnapshot(companyId!);
+      const snap = await fetchSnapshotCache(companyId!, token);
       if (visao === "comparativo") {
         const [contabil, gerencial] = await Promise.all([
           buildCtxForVisao(companyId!, tenantId!, snap, mascara, "contabil"),
@@ -396,6 +400,7 @@ export function useIndicadorData(
     },
   });
 }
+
 
 /**
  * DRE por período (para termos com origem "demonstracao"). Em comparativo,

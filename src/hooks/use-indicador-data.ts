@@ -49,6 +49,24 @@ export async function fetchSnapshot(companyId: string): Promise<SnapshotRaw> {
 }
 
 /**
+ * Mesma leitura, mas reaproveitando o snapshot já guardado no navegador
+ * enquanto o "carimbo" dos dados da empresa não mudar. É a leitura mais
+ * pesada dos índices — sem isso ela era refeita a cada tela.
+ */
+export async function fetchSnapshotCache(
+  companyId: string,
+  token: string,
+): Promise<SnapshotRaw> {
+  const partes = ["snap", companyId, token];
+  const guardado = lerCache<SnapshotRaw>(partes);
+  if (guardado) return guardado;
+  const snap = await fetchSnapshot(companyId);
+  gravarCache(partes, snap);
+  return snap;
+}
+
+
+/**
  * Monta um EngineContext contábil OU gerencial a partir do snapshot bruto.
  * O modo gerencial injeta contas gerenciais virtuais (como folhas dentro
  * dos grupos pais) e saldos virtuais derivados dos ajustes (débito/crédito

@@ -14,6 +14,8 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useCarimboEmpresa } from "@/hooks/use-financial-data";
+import { carimboToken, lerCache, gravarCache } from "@/lib/cache-demonstracoes";
 import { getMascaraConfig, grupoDe, type MascaraConfig } from "@/lib/mascara/interpretar";
 import {
   buildContext,

@@ -2983,6 +2983,13 @@ export type Database = {
         Args: { _company_id: string; _rows: Json; _tenant_id: string }
         Returns: Json
       }
+      carimbo_dados_empresa: {
+        Args: { _company_id: string }
+        Returns: {
+          atualizado_em: string
+          linhas: number
+        }[]
+      }
       cls_no_prefixo: {
         Args: { cls: string; prefixo: string }
         Returns: boolean
@@ -3001,6 +3008,15 @@ export type Database = {
           movimento: number
           primeira_competencia: string
           ultima_competencia: string
+        }[]
+      }
+      correcoes_encerramento: {
+        Args: { _company_id: string; _periodos: string[] }
+        Returns: {
+          competencia: string
+          conta_codigo: string
+          creditos: number
+          debitos: number
         }[]
       }
       definir_dfc_classificacao: {
@@ -3533,6 +3549,8 @@ export type Database = {
         Args: { _substituir?: boolean; _tenant_id: string }
         Returns: Json
       }
+      show_limit: { Args: never; Returns: number }
+      show_trgm: { Args: { "": string }; Returns: string[] }
       similarity_simples: { Args: { _a: string; _b: string }; Returns: number }
       sinteticas_do_plano_padrao: {
         Args: { _tenant_id: string }

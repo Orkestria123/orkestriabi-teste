@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useRouter } from "@tanstack/react-router";
 
@@ -44,7 +44,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [tenant, setTenant] = useState<Tenant | null>(null);
   const router = useRouter();
 
-  const load = async (uid: string | null) => {
+  // O provider era carregado 3x por abertura de tela: uma vez pelo
+  // getSession inicial e outra a cada INITIAL_SESSION/TOKEN_REFRESHED do
+  // Supabase. Perfil, papéis e logo do escritório não mudam entre esses
+  // eventos, então uma carga por usuário basta.
+  const carregadoRef = useRef<string | null>(null);
+  const inflightRef = useRef<Promise<void> | null>(null);
+
+  const load = async (uid: string | null, forcar = false) => {
+    if (uid && !forcar) {
+      if (carregadoRef.current === uid) return;
+      if (inflightRef.current) return inflightRef.current;
+    }
+    const p = carregar(uid);
+    if (uid) inflightRef.current = p;
+    try {
+      await p;
+      carregadoRef.current = uid;
+    } finally {
+      inflightRef.current = null;
+    }
+  };
+
+  const carregar = async (uid: string | null) => {
     if (!uid) {
       setProfile(null);
       setRole(null);
@@ -98,11 +120,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false);
     });
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
+      // TOKEN_REFRESHED e INITIAL_SESSION não mudam quem é o usuário.
+      if (event === "TOKEN_REFRESHED") return;
       const uid = session?.user.id ?? null;
       setUserId(uid);
       // Defer to avoid deadlocks
       setTimeout(() => {
-        load(uid);
+        load(uid, event === "USER_UPDATED");
         if (event === "SIGNED_OUT") router.invalidate();
       }, 0);
     });
@@ -116,7 +140,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const isCliente = profile?.tipo_usuario === "cliente" || (role === "client" && profile?.tipo_usuario == null);
 
   const refresh = async () => {
-    await load(userId);
+    await load(userId, true);
   };
 
   const signOut = async () => {

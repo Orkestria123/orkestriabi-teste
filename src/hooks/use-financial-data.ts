@@ -4,6 +4,12 @@ import { buildStatementFromDiario } from "@/lib/diario/build-statements";
 import { useVisaoGerencial } from "@/hooks/use-visao-gerencial";
 import { getModoGlobal } from "@/lib/plano/escopo";
 import { lerTudo, countNaPrimeira } from "@/lib/supabase-paginado";
+import {
+  carimboToken,
+  gravarCache,
+  lerCache,
+  type CarimboEmpresa,
+} from "@/lib/cache-demonstracoes";
 
 export interface Company {
   id: string;
@@ -120,18 +126,64 @@ export function useAvailablePeriods(companyId: string | null) {
  *   DRE: valor mensal = creditos - debitos. BP_ATIVO: saldo_final. BP_PASSIVO: -saldo_final.
  * - Subtotais: somam descendentes não-subtotais na estrutura.
  */
+/**
+ * "Carimbo" dos dados da empresa: quantidade de saldos e data da última
+ * atualização. É a resposta para "mudou algo desde a última vez?" — barato
+ * (uma linha) e suficiente para decidir se o cálculo pode ser reaproveitado.
+ */
+export function useCarimboEmpresa(companyId: string | null) {
+  return useQuery({
+    queryKey: ["carimbo-empresa", companyId],
+    enabled: !!companyId,
+    staleTime: 30_000,
+    queryFn: async (): Promise<CarimboEmpresa> => {
+      const { data, error } = await (supabase as any).rpc("carimbo_dados_empresa", {
+        _company_id: companyId,
+      });
+      if (error) throw error;
+      const r = (Array.isArray(data) ? data[0] : data) ?? {};
+      return {
+        linhas: Number(r.linhas) || 0,
+        atualizado_em: r.atualizado_em ? String(r.atualizado_em) : null,
+      };
+    },
+  });
+}
+
 export function useMonthlyStatement(
   companyId: string | null,
   tipo: string,
   periodos: string[],
 ) {
   const { visao } = useVisaoGerencial();
+  const { data: carimbo } = useCarimboEmpresa(companyId);
+  const token = carimboToken(carimbo);
   return useQuery({
-    queryKey: ["monthly-stmt", companyId, tipo, periodos.join(","), visao],
-    enabled: !!companyId && periodos.length > 0,
-    staleTime: 60_000,
+    queryKey: ["monthly-stmt", companyId, tipo, periodos.join(","), visao, token],
+    enabled: !!companyId && periodos.length > 0 && !!carimbo,
+    // O resultado só muda quando o carimbo muda — e o carimbo faz parte da
+    // chave. Por isso a demonstração não é recalculada ao trocar de tela.
+    staleTime: 30 * 60_000,
+    gcTime: 60 * 60_000,
     retry: 2,
     queryFn: async () => {
+      const partesCache = [companyId, tipo, periodos.join(","), visao, token];
+      const doCache = lerCache<any[]>(partesCache);
+      if (doCache) return doCache;
+      const calculado = await calcularMonthlyStatement(companyId!, tipo, periodos, visao);
+      gravarCache(partesCache, calculado);
+      return calculado;
+    },
+  });
+}
+
+async function calcularMonthlyStatement(
+  companyId: string,
+  tipo: string,
+  periodos: string[],
+  visao: string,
+) {
+  {
       // Roteamento por fonte_dados. Se a empresa já está no novo pipeline (diario),
       // monta DRE/BP a partir de saldos_mensais + plano_contas + mapeamento_demonstracao.
       const meta = await getCompanyMeta(companyId!);
@@ -171,7 +223,14 @@ export function useMonthlyStatement(
           }
           return merged;
         }
-        return buildStatementFromDiario(companyId!, meta.tenantId, meta.modoGlobal, t, periodos, visao);
+        return buildStatementFromDiario(
+          companyId!,
+          meta.tenantId,
+          meta.modoGlobal,
+          t,
+          periodos,
+          visao as "contabil" | "gerencial",
+        );
       }
       const [allStmt, chartRows, balRows] = await Promise.all([
         lerTudo<any>(
@@ -354,6 +413,5 @@ export function useMonthlyStatement(
         }
       }
       return flat;
-    },
-  });
+  }
 }

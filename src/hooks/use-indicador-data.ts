@@ -417,10 +417,13 @@ export function useDemoValues(
   visao: Visao = "contabil",
 ) {
   const key = periodos.slice().sort().join(",");
+  const { data: carimbo } = useCarimboEmpresa(companyId ?? null);
+  const token = carimboToken(carimbo);
   return useQuery({
-    queryKey: ["indic-demo-dre", tenantId, companyId, key, visao],
-    enabled: !!tenantId && !!companyId && periodos.length > 0,
-    staleTime: 30_000,
+    queryKey: ["indic-demo-dre", tenantId, companyId, key, visao, token],
+    enabled: !!tenantId && !!companyId && periodos.length > 0 && !!carimbo,
+    staleTime: 30 * 60_000,
+    gcTime: 60 * 60_000,
     retry: 2,
     queryFn: async (): Promise<DemoValues> => {
       if (!periodos || periodos.length === 0) {

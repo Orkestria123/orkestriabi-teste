@@ -1,7 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useQueryClient } from "@tanstack/react-query";
+import { RefreshCw } from "lucide-react";
 import { useDashboardCompany } from "@/components/dashboard-context";
 import { useFilters } from "@/components/filter-bar";
-import { useMonthlyStatement } from "@/hooks/use-financial-data";
+import { useMonthlyStatement, useAvailablePeriods } from "@/hooks/use-financial-data";
+import { limparCacheDemonstracoes } from "@/lib/cache-demonstracoes";
+import { limparCachePlano } from "@/lib/diario/build-statements";
 import { StatementTable, type StatementRow } from "@/components/statement-table";
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -41,6 +45,13 @@ function buildRows(data: any[]): { rows: StatementRow[]; periods: string[] } {
     rows: Array.from(map.values()).sort((a, b) => a.linha_ordem - b.linha_ordem),
     periods: Array.from(periodSet).sort(),
   };
+}
+
+/** "2026-07-01" -> "Jul/26" */
+function rotuloMes(competencia: string): string {
+  const meses = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+  const m = Number(competencia.slice(5, 7));
+  return `${meses[m - 1] ?? competencia.slice(5, 7)}/${competencia.slice(2, 4)}`;
 }
 
 function under(codigo: string, prefixo: string): boolean {
@@ -141,6 +152,17 @@ export function makeStatementPage(
       return filtrarArvoreDre(allRows, category);
     }, [allRows, category, opts?.categoryFilter]);
 
+    const queryClient = useQueryClient();
+    const { data: periodosDisponiveis } = useAvailablePeriods(companyId);
+    const recalcular = () => {
+      limparCacheDemonstracoes();
+      limparCachePlano();
+      void queryClient.invalidateQueries();
+    };
+    const semDados = !isLoading && allRows.length === 0;
+    const mesesDisponiveis = (periodosDisponiveis ?? []).slice(-6).map(rotuloMes);
+
+
     return (
       <div className="space-y-4">
         <div className="flex items-center justify-between flex-wrap gap-3">
@@ -210,10 +232,34 @@ export function makeStatementPage(
               title={title}
               subtitle={company?.razao_social ?? company?.name}
             />
+            <Button
+              size="sm"
+              variant="outline"
+              title="Recalcular a partir dos dados atuais"
+              onClick={recalcular}
+            >
+              <RefreshCw className="h-3.5 w-3.5" />
+            </Button>
           </div>
         </div>
         {isLoading ? (
           <div className="text-sm text-muted-foreground">Carregando…</div>
+        ) : semDados ? (
+          <div className="rounded-lg border border-border bg-card p-6">
+            <h3 className="text-sm font-semibold">
+              {company?.name ?? "Esta empresa"} não tem dados nos meses selecionados
+            </h3>
+            {mesesDisponiveis.length > 0 ? (
+              <p className="mt-2 text-sm text-muted-foreground">
+                Meses com dados: {mesesDisponiveis.join(", ")}. Ajuste o filtro de ano e
+                mês acima para ver a demonstração.
+              </p>
+            ) : (
+              <p className="mt-2 text-sm text-muted-foreground">
+                Ainda não há movimentação importada para esta empresa.
+              </p>
+            )}
+          </div>
         ) : (
           <StatementTable
             rows={rows}

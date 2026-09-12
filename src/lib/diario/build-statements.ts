@@ -232,6 +232,45 @@ function prefixoAteNivel(
   return juntar(partes.slice(0, nivelMax), mascara);
 }
 
+// O plano estrutural é o MESMO para todas as demonstrações de uma empresa
+// e é lido várias vezes por tela (DRE + BP + DFC/DLPA/DVA, contábil e
+// gerencial). Com um plano padrão de centenas de milhares de linhas cada
+// leitura custava segundos; aqui ela acontece uma vez por sessão.
+const _planoCache = new Map<string, Promise<Plano[]>>();
+
+function getPlanoEstrutural(
+  companyId: string,
+  tenantId: string,
+  modoGlobal: boolean,
+  tiposPlano: string[],
+): Promise<Plano[]> {
+  const key = `${tenantId}|${modoGlobal ? "global" : companyId}|${[...tiposPlano].sort().join(",")}`;
+  let p = _planoCache.get(key);
+  if (!p) {
+    p = fetchAllPaginated<Plano>((from, to) => {
+      const q = supabase
+        .from("plano_contas")
+        .select("codigo, classificacao, descricao, nivel, is_participante, is_sintetica", countNaPrimeira(from))
+        .eq("tenant_id", tenantId)
+        .eq("ativo", true)
+        .in("tipo", tiposPlano)
+        .eq("is_participante", false)
+        .order("codigo")
+        .range(from, to);
+      return modoGlobal ? q.is("company_id", null) : q.eq("company_id", companyId);
+    }, "plano estrutural");
+    // Erro não deve envenenar o cache.
+    p.catch(() => _planoCache.delete(key));
+    _planoCache.set(key, p);
+  }
+  return p;
+}
+
+/** Descarta o plano em memória (após importações/edições do plano). */
+export function limparCachePlano() {
+  _planoCache.clear();
+}
+
 async function getPlanoPorTipo(
   companyId: string,
   tenantId: string,
@@ -240,18 +279,7 @@ async function getPlanoPorTipo(
   opts: { incluirParticipantes?: boolean; codigosComSaldo?: string[] } = {},
 ): Promise<Plano[]> {
   // Contas estruturais (1-Ativo, 2-Passivo, 3-DRE, ...): trazer todas.
-  const estruturais = await fetchAllPaginated<Plano>((from, to) => {
-    const q = supabase
-      .from("plano_contas")
-      .select("codigo, classificacao, descricao, nivel, is_participante, is_sintetica", countNaPrimeira(from))
-      .eq("tenant_id", tenantId)
-      .eq("ativo", true)
-      .in("tipo", tiposPlano)
-      .eq("is_participante", false)
-      .order("codigo")
-      .range(from, to);
-    return modoGlobal ? q.is("company_id", null) : q.eq("company_id", companyId);
-  }, "plano estrutural");
+  const estruturais = await getPlanoEstrutural(companyId, tenantId, modoGlobal, tiposPlano);
 
   if (!opts.incluirParticipantes) return estruturais;
 
@@ -553,37 +581,23 @@ async function buscarCorrecoesEncerramento(
 ): Promise<Map<string, { debitos: number; creditos: number }>> {
   const out = new Map<string, { debitos: number; creditos: number }>();
   if (periodos.length === 0) return out;
-  // ILIKE '%x%' não usa índice — sem recortar histórico vazio o banco
-  // varre todos os lançamentos do período (centenas de milhares no ECD,
-  // todos com historico NULL).
-  const rows = await fetchAllPaginated<any>((from, to) =>
-    supabase
-      .from("lancamentos_diario")
-      .select("id, conta_codigo, competencia, debito, credito, historico", countNaPrimeira(from))
-      .eq("company_id", companyId)
-      .in("competencia", periodos)
-      .not("historico", "is", null)
-      .neq("historico", "")
-      .or(
-        [
-          "historico.ilike.%Transferido Para Conta%Resultado%",
-          "historico.ilike.%transfer%resultado%",
-          "historico.ilike.%encerramento%resultado%",
-          "historico.ilike.%apura%resultado%",
-          "historico.ilike.%resultado do exercicio%",
-          "historico.ilike.%resultado do exercício%",
-        ].join(","),
-      )
-      .order("id")
-      .range(from, to),
-    "encerramento de exercício",
-  );
-  for (const r of rows) {
-    const k = `${r.conta_codigo}|${r.competencia}`;
-    const cur = out.get(k) ?? { debitos: 0, creditos: 0 };
-    cur.debitos += Number(r.debito) || 0;
-    cur.creditos += Number(r.credito) || 0;
-    out.set(k, cur);
+  // Só dezembro pode conter encerramento — nos outros meses a varredura
+  // por histórico é trabalho puro (eram ~7s por requisição).
+  const alvo = periodos.filter((p) => p.slice(5, 7) === "12");
+  if (alvo.length === 0) return out;
+  // A agregação acontece no banco (função `correcoes_encerramento`): antes
+  // o navegador baixava os lançamentos linha a linha só para somá-los.
+  const { data, error } = await (supabase as any).rpc("correcoes_encerramento", {
+    _company_id: companyId,
+    _periodos: alvo,
+  });
+  if (error) throw error;
+  for (const r of (data ?? []) as any[]) {
+    const k = `${r.conta_codigo}|${String(r.competencia)}`;
+    out.set(k, {
+      debitos: Number(r.debitos) || 0,
+      creditos: Number(r.creditos) || 0,
+    });
   }
   return out;
 }

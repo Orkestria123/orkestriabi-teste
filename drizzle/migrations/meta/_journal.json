@@ -99,6 +99,13 @@
       "when": 1789089376164,
       "tag": "0013_performance_ecd_nuvem",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1789210816981,
+      "tag": "0014_perf_encerramento_e_carimbo",
+      "breakpoints": true
     }
   ]
 }

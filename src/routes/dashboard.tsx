@@ -1,4 +1,4 @@
-import { createFileRoute, Outlet } from "@tanstack/react-router";
+import { createFileRoute, Outlet, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { PortalShell } from "@/components/portal-shell";
 import { FilterProvider, FilterBar, useFilters } from "@/components/filter-bar";
@@ -41,11 +41,36 @@ function hexToOklchVar(hex?: string | null): string | undefined {
   // not used — we set raw CSS color below
 }
 
+/** Empresa escolhida por último, por usuário — sobrevive ao F5. */
+function chaveEmpresa(userId: string | null) {
+  return `bi:empresa:${userId ?? "anon"}`;
+}
+
+function lerEmpresaLembrada(userId: string | null): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return window.localStorage.getItem(chaveEmpresa(userId));
+  } catch {
+    return null;
+  }
+}
+
+function lembrarEmpresa(userId: string | null, id: string) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(chaveEmpresa(userId), id);
+  } catch {
+    /* modo privado / storage cheio: apenas não lembra */
+  }
+}
+
 function DashboardLayout() {
-  const { role, profile, tenant, isCliente } = useAuth();
+  const { role, profile, tenant, isCliente, userId } = useAuth();
   const { data: companies, isLoading: companiesLoading } = useMyCompanies();
   const { company: companyParam } = Route.useSearch();
-  const navigate = Route.useNavigate();
+  // `useNavigate` global (e não Route.useNavigate) para preservar a tela
+  // aberta: navegar pela rota-mãe voltava sempre para /dashboard.
+  const navigate = useNavigate();
   const [selectedCompany, setSelectedCompany] = useState<string | null>(null);
 
   useEffect(() => {
@@ -56,9 +81,18 @@ function DashboardLayout() {
       companies?.some((c) => c.id === companyParam)
     ) {
       setSelectedCompany(companyParam);
+      lembrarEmpresa(userId, companyParam);
       return;
     }
     if (selectedCompany) return;
+    // Empresa aberta por último: atualizar a página ou trocar de tela
+    // volta para ela, e não para a primeira da lista (que pode nem ter dados).
+    const lembrada = lerEmpresaLembrada(userId);
+    if (lembrada && companies?.some((c) => c.id === lembrada)) {
+      setSelectedCompany(lembrada);
+      navigate({ to: ".", search: (prev: any) => ({ ...prev, company: lembrada }), replace: true });
+      return;
+    }
     // Usuário vinculado a uma empresa (cliente) — independe de role já ter carregado
     if (profile?.company_id) {
       setSelectedCompany(profile.company_id);
@@ -68,12 +102,20 @@ function DashboardLayout() {
     // Cliente com várias empresas escolhe na tela inicial; com uma só, entra direto.
     if (isCliente && companies.length > 1) return;
     setSelectedCompany(companies[0].id);
-  }, [role, profile, companies, selectedCompany, companyParam, isCliente]);
+  }, [role, profile, companies, selectedCompany, companyParam, isCliente, userId, navigate]);
+
+  // Mantém a empresa na URL (útil para compartilhar e para o F5).
+  useEffect(() => {
+    if (!selectedCompany || companyParam === selectedCompany) return;
+    navigate({ to: ".", search: (prev: any) => ({ ...prev, company: selectedCompany }), replace: true });
+  }, [selectedCompany, companyParam, navigate]);
 
   const setCompany = (id: string) => {
     setSelectedCompany(id);
-    navigate({ search: { company: id } as any, replace: true });
+    lembrarEmpresa(userId, id);
+    navigate({ to: ".", search: (prev: any) => ({ ...prev, company: id }), replace: true });
   };
+
 
 
   const company = useMemo(

@@ -46,6 +46,13 @@ export const LINHAS_CATALOGO: LinhaCatalogo[] = [
   { key: "EBITDA", label: "EBITDA (DRE)", origem: "DRE", descricao: "Valor do indicador Ebitda" },
   { key: "RECEITAS_FINANCEIRAS", label: "Receitas Financeiras", origem: "DRE" },
   { key: "DESPESAS_FINANCEIRAS", label: "Despesas Financeiras", origem: "DRE" },
+  {
+    key: "RESULTADO_FINANCEIRO",
+    label: "Resultado Financeiro",
+    origem: "DRE",
+    descricao: "Receitas financeiras − despesas financeiras, conforme o plano de cada empresa",
+  },
+
   { key: "RESULTADO_ANTES_IR", label: "Resultado antes do IR/CSLL", origem: "DRE" },
   { key: "IRPJ_CSLL", label: "IRPJ + CSLL", origem: "DRE" },
   { key: "LUCRO_LIQUIDO", label: "Lucro Líquido", origem: "DRE" },

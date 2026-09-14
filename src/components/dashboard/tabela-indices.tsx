@@ -16,7 +16,10 @@ import type { DemoDre } from "@/lib/indicadores/linhas";
 import {
   INDICES_DASHBOARD,
   formatarIndice,
+  formulaIndice,
   rotuloMes,
+  ROTULO_BASE_RECEITA,
+  type BaseReceita,
   type BasesIndice,
   type DefIndice,
 } from "@/lib/dashboard/indices-financeiros";
@@ -37,7 +40,7 @@ function n(v: number | null | undefined): number {
   return Number(v) || 0;
 }
 
-function basesDe(resolver: ResolverLinha, p: string): BasesIndice {
+function basesDe(resolver: ResolverLinha, p: string, base: BaseReceita): BasesIndice {
   return {
     ac: n(resolver("ATIVO_CIRCULANTE", p)),
     pc: n(resolver("PASSIVO_CIRCULANTE", p)),
@@ -49,8 +52,11 @@ function basesDe(resolver: ResolverLinha, p: string): BasesIndice {
     ebitda: n(resolver("EBITDA", p)),
     lucroLiquido: n(resolver("LUCRO_LIQUIDO", p)),
     receitaLiquida: n(resolver("RECEITA_LIQUIDA", p)),
+    receitaBruta: n(resolver("RECEITA_BRUTA", p)),
+    baseReceita: base,
   };
 }
+
 
 export function TabelaIndices({ tenantId, companyId, periodos }: Props) {
   const { visao } = useVisaoGerencial();

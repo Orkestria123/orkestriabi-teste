@@ -38,9 +38,18 @@ function Page() {
   const { periodos } = useFilters();
   const [showAV, setShowAV] = useState(false);
   const [showAH, setShowAH] = useState(false);
+  // O balanço é uma foto da empresa numa data, não um acumulado do período.
+  // Por isso mostra só o mês mais recente selecionado; quem quiser ver a
+  // evolução liga "Todos os meses".
+  const [todosMeses, setTodosMeses] = useState(false);
 
-  const { data: ativo } = useMonthlyStatement(companyId, "BP_ATIVO", periodos);
-  const { data: passivo } = useMonthlyStatement(companyId, "BP_PASSIVO", periodos);
+  const periodosBp = useMemo(
+    () => (todosMeses ? periodos : periodos.slice(-1)),
+    [periodos, todosMeses],
+  );
+
+  const { data: ativo } = useMonthlyStatement(companyId, "BP_ATIVO", periodosBp);
+  const { data: passivo } = useMonthlyStatement(companyId, "BP_PASSIVO", periodosBp);
   const ativoRows = useMemo(() => buildRows(ativo ?? []), [ativo]);
   const passivoRows = useMemo(() => buildRows(passivo ?? []), [passivo]);
   const bpRows = useMemo(() => {
@@ -50,6 +59,7 @@ function Page() {
       ...passivoRows.map((r) => ({ ...r, linha_ordem: r.linha_ordem + desloc })),
     ];
   }, [ativoRows, passivoRows]);
+
 
   return (
     <div className="space-y-4">

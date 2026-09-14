@@ -554,13 +554,32 @@ function paiClassificacao(classificacao: string, mascara: MascaraConfig): string
 /** Resolução por código reduzido (preferido) ou classificação (fórmulas antigas). */
 function valorRef(ref: string, periodo: string, ctx: EngineContext): number {
   const p = ctx.planoByCodigo.get(ref) ?? ctx.planoByClass.get(ref);
+
+  // Conta ANALÍTICA escolhida na fórmula: vale o movimento DELA, nunca o
+  // total do grupo.
+  //
+  // Vários planos usam a MESMA classificação para dezenas de contas
+  // analíticas (ex.: 3.05.01.03.01 reúne aluguéis, alimentação, datacenter
+  // … e a depreciação). Como a resolução começava pela classificação, a
+  // depreciação citada na fórmula do EBITDA trazia o grupo inteiro — o
+  // EBITDA somava centenas de milhares a mais. Quando a conta não tem
+  // movimento no período o valor é 0; cair no grupo é sempre errado.
+  if (p?.codigo && p.is_sintetica !== true) {
+    const porCod = ctx.saldosByCodigo.get(p.codigo);
+    if (porCod) return valorContaAnalitica(p.classificacao, periodo, ctx, porCod);
+    // Sem índice por código: só é seguro usar a classificação quando ela
+    // pertence a uma única conta analítica.
+    const irmas = ctx.plano.filter(
+      (o) => o.classificacao === p.classificacao && o.is_sintetica !== true,
+    ).length;
+    if (irmas > 1) return 0;
+  }
+
   const cls = p?.classificacao ?? ref;
   const acum = valorAcumuladorDre(cls, periodo, ctx);
   if (acum != null) return acum;
   if (p?.codigo) {
     if (p.is_sintetica === true) return valorConta(p.classificacao, periodo, ctx);
-    const porCod = ctx.saldosByCodigo.get(p.codigo);
-    if (porCod) return valorContaAnalitica(p.classificacao, periodo, ctx, porCod);
     return valorContaAnalitica(p.classificacao, periodo, ctx);
   }
   return valorConta(ref, periodo, ctx);

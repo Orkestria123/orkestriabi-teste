@@ -30,7 +30,26 @@ function chave(partes: (string | number | null | undefined)[]): string {
 }
 
 function disponivel(): boolean {
-  return typeof window !== "undefined" && !!window.localStorage;
+  if (typeof window === "undefined" || !window.localStorage) return false;
+  limparVersoesAntigas();
+  return true;
+}
+
+/** Descarta uma única vez o que ficou de versões anteriores do cálculo. */
+let jaLimpou = false;
+function limparVersoesAntigas() {
+  if (jaLimpou) return;
+  jaLimpou = true;
+  try {
+    const remover: string[] = [];
+    for (let i = 0; i < window.localStorage.length; i++) {
+      const k = window.localStorage.key(i);
+      if (k?.startsWith(PREFIXO_ANTIGO) && !k.startsWith(PREFIXO)) remover.push(k);
+    }
+    for (const k of remover) window.localStorage.removeItem(k);
+  } catch {
+    /* segue sem cache */
+  }
 }
 
 export function lerCache<T>(partes: (string | number | null | undefined)[]): T | null {

@@ -428,27 +428,25 @@ function ContaSelect({
   const [busca, setBusca] = useState("");
   const termo = termoBuscaSeguro(busca);
 
+  // Clientes e fornecedores (contas participantes) vivem em centenas de
+  // milhares de linhas. A busca vai por RPC indexada e insensível a
+  // acento — o ilike direto na tabela não usava índice e não achava
+  // nome com acento, então na prática só aparecia o plano estrutural.
   const { data: participantes } = useQuery({
     queryKey: ["gerencial-conta-part", companyId, termo],
     enabled: open && termo.length >= 2,
     queryFn: async (): Promise<ContaOpt[]> => {
-      const escopo = await getEscopoConsulta(companyId);
-      const like = `%${termo}%`;
-      const { data, error } = await escoparPlano(
-        supabase.from("plano_contas").select("codigo, descricao, classificacao, is_participante"),
-        companyId,
-        escopo,
-      )
-        .eq("is_participante", true)
-        .or(`codigo.ilike."${like}",descricao.ilike."${like}",classificacao.ilike."${like}"`)
-        .order("classificacao", { ascending: true })
-        .limit(80);
+      const { data, error } = await supabase.rpc("plano_buscar_contas", {
+        _company_id: companyId,
+        _termo: termo,
+        _limite: 120,
+      });
       if (error) throw error;
-      return (data ?? []).map((r: any) => ({
+      return ((data ?? []) as any[]).map((r) => ({
         codigo: r.codigo,
         descricao: r.descricao,
         classificacao: r.classificacao,
-        origem: "participante" as const,
+        origem: r.is_participante ? ("participante" as const) : ("plano" as const),
       }));
     },
   });
@@ -475,6 +473,7 @@ function ContaSelect({
       };
     },
   });
+
 
   const pool = useMemo(() => {
     const m = new Map<string, ContaOpt>();

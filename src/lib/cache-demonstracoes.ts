@@ -109,7 +109,7 @@ export function limparCacheDemonstracoes() {
   const remover: string[] = [];
   for (let i = 0; i < window.localStorage.length; i++) {
     const k = window.localStorage.key(i);
-    if (k?.startsWith(PREFIXO)) remover.push(k);
+    if (k?.startsWith(PREFIXO_ANTIGO)) remover.push(k);
   }
   for (const k of remover) window.localStorage.removeItem(k);
 }

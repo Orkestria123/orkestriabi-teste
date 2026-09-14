@@ -379,6 +379,7 @@ function LinhaIndice({
   colSpan,
   destaque,
   multiAno,
+  baseReceita,
 }: {
   def: DefIndice;
   i: number;
@@ -388,7 +389,9 @@ function LinhaIndice({
   colSpan: number;
   destaque?: boolean;
   multiAno?: boolean;
+  baseReceita: BaseReceita;
 }) {
+
   const [verFormula, setVerFormula] = useState(false);
   const zebra = !destaque && i % 2 === 1;
   return (

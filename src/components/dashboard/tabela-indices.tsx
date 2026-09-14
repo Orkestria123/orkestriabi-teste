@@ -61,6 +61,9 @@ function basesDe(resolver: ResolverLinha, p: string, base: BaseReceita): BasesIn
 export function TabelaIndices({ tenantId, companyId, periodos }: Props) {
   const { visao } = useVisaoGerencial();
   const comparativo = visao === "comparativo";
+  // Base das margens — mesma escolha RB/RL da análise vertical da DRE.
+  const [baseReceita, setBaseReceita] = useState<BaseReceita>("RL");
+
   const { data: ctxRaw, isLoading: loadCtx } = useIndicadorData(
     tenantId,
     companyId,

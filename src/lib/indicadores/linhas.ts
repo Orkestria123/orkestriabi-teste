@@ -473,6 +473,10 @@ function resolverDerivado(
       return somaPapeisSobPrefixo(est, PAPEIS_CUSTO_ESTOQUE, "3.02", periodo, ctx);
     case "IRPJ_CSLL":
       return v("PROVISAO_IRPJ") + v("PROVISAO_CSLL");
+    case "RESULTADO_FINANCEIRO":
+      // Convenção da DRE: receitas positivas, despesas negativas.
+      return v("RECEITAS_FINANCEIRAS") + v("DESPESAS_FINANCEIRAS");
+
     case "EBITDA": {
       const ebit = resolverPorPapel(est, "EBIT", periodo, ctx);
       if (ebit === null) return null;

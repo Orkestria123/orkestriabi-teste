@@ -346,6 +346,8 @@ export function TabelaIndices({ tenantId, companyId, periodos }: Props) {
                   colSpan={colSpan}
                   destaque={def.key === "resultado"}
                   multiAno={multiAno}
+                  baseReceita={baseReceita}
+
                 />
               ))}
           </tbody>

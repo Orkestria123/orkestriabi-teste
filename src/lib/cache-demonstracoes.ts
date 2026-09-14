@@ -6,7 +6,12 @@
 // marcado com um "carimbo" (quantidade de saldos + data da última
 // atualização). Muda o carimbo, o cálculo é refeito automaticamente.
 
-const PREFIXO = "bi:dem:";
+// A versão entra na chave: quando o CÁLCULO muda (nova linha na DRE, ajuste
+// de fórmula), o carimbo dos dados continua igual e o navegador serviria a
+// demonstração antiga para sempre. Basta subir o número aqui.
+const VERSAO_CALCULO = 2;
+const PREFIXO = `bi:dem:v${VERSAO_CALCULO}:`;
+const PREFIXO_ANTIGO = "bi:dem:";
 const MAX_ENTRADAS = 12;
 const MAX_BYTES = 1_500_000;
 
@@ -25,7 +30,26 @@ function chave(partes: (string | number | null | undefined)[]): string {
 }
 
 function disponivel(): boolean {
-  return typeof window !== "undefined" && !!window.localStorage;
+  if (typeof window === "undefined" || !window.localStorage) return false;
+  limparVersoesAntigas();
+  return true;
+}
+
+/** Descarta uma única vez o que ficou de versões anteriores do cálculo. */
+let jaLimpou = false;
+function limparVersoesAntigas() {
+  if (jaLimpou) return;
+  jaLimpou = true;
+  try {
+    const remover: string[] = [];
+    for (let i = 0; i < window.localStorage.length; i++) {
+      const k = window.localStorage.key(i);
+      if (k?.startsWith(PREFIXO_ANTIGO) && !k.startsWith(PREFIXO)) remover.push(k);
+    }
+    for (const k of remover) window.localStorage.removeItem(k);
+  } catch {
+    /* segue sem cache */
+  }
 }
 
 export function lerCache<T>(partes: (string | number | null | undefined)[]): T | null {
@@ -85,7 +109,7 @@ export function limparCacheDemonstracoes() {
   const remover: string[] = [];
   for (let i = 0; i < window.localStorage.length; i++) {
     const k = window.localStorage.key(i);
-    if (k?.startsWith(PREFIXO)) remover.push(k);
+    if (k?.startsWith(PREFIXO_ANTIGO)) remover.push(k);
   }
   for (const k of remover) window.localStorage.removeItem(k);
 }

@@ -196,6 +196,8 @@ export function IndicadoresClienteGrid({
             valor: c.valor,
             faixa: classificarFaixa(c.valor, ind.faixas),
             termos: c.termos,
+            contasFaltantes: c.contasFaltantes,
+
             serieGerencial: g.serie,
             valorGerencial: g.valor,
             faixaGerencial: classificarFaixa(g.valor, ind.faixas),

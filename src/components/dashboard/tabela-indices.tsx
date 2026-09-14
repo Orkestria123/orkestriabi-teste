@@ -463,7 +463,7 @@ function LinhaIndice({
             )}
           >
             <span className="font-medium text-foreground/80">Fórmula: </span>
-            {def.formula}
+            {formulaIndice(def, baseReceita)}
           </td>
         </tr>
       )}

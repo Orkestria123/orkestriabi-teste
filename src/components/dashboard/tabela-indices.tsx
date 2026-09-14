@@ -148,19 +148,20 @@ export function TabelaIndices({ tenantId, companyId, periodos }: Props) {
     >();
     if (!ctxC) return map;
     for (const p of ordenados) {
-      const bc = basesDe(resolverC, p);
+      const bc = basesDe(resolverC, p, baseReceita);
       const c: Record<string, number | null> = {};
       for (const def of INDICES_DASHBOARD) c[def.key] = def.compute(bc);
       let g: Record<string, number | null> | undefined;
       if (comparativo && resolverG) {
-        const bg = basesDe(resolverG, p);
+        const bg = basesDe(resolverG, p, baseReceita);
         g = {};
         for (const def of INDICES_DASHBOARD) g[def.key] = def.compute(bg);
       }
       map.set(p, { c, g });
     }
     return map;
-  }, [ctxC, resolverC, resolverG, ordenados, comparativo]);
+  }, [ctxC, resolverC, resolverG, ordenados, comparativo, baseReceita]);
+
 
   const loading = loadCtx || loadDemo || loadCfg;
   const colunasDados = comparativo ? ordenados.length * 2 : ordenados.length;

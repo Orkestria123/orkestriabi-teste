@@ -169,16 +169,41 @@ export function TabelaIndices({ tenantId, companyId, periodos }: Props) {
 
   return (
     <div className="rounded-lg border overflow-hidden">
-      <div className="px-4 py-3 border-b bg-muted/20">
-        <h3 className="text-base font-semibold leading-tight">Índices financeiros</h3>
-        {comparativo && (
+      <div className="px-4 py-3 border-b bg-muted/20 flex items-start justify-between gap-3 flex-wrap">
+        <div>
+          <h3 className="text-base font-semibold leading-tight">Índices financeiros</h3>
           <p className="text-xs text-muted-foreground mt-1">
-            Em cada mês: <span className="text-muted-foreground">Cont.</span> = contábil
-            {" · "}
-            <span className="font-medium text-foreground">Ger.</span> = gerencial
+            Margens calculadas sobre a {ROTULO_BASE_RECEITA[baseReceita]}.
+            {comparativo && (
+              <>
+                {" · "}
+                <span className="text-muted-foreground">Cont.</span> = contábil
+                {" · "}
+                <span className="font-medium text-foreground">Ger.</span> = gerencial
+              </>
+            )}
           </p>
-        )}
+        </div>
+        <div className="flex items-center gap-1 rounded-md border p-0.5">
+          {(["RB", "RL"] as BaseReceita[]).map((b) => (
+            <button
+              key={b}
+              type="button"
+              onClick={() => setBaseReceita(b)}
+              title={`Margens sobre a ${ROTULO_BASE_RECEITA[b]}`}
+              className={cn(
+                "px-2.5 py-1 rounded text-xs font-medium transition-colors",
+                baseReceita === b
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:bg-accent hover:text-foreground",
+              )}
+            >
+              {b}
+            </button>
+          ))}
+        </div>
       </div>
+
 
       <div className="overflow-x-auto">
         <table className="w-max text-sm border-collapse">

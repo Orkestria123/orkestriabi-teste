@@ -3457,6 +3457,7 @@ export type Database = {
         Args: { _company_id: string }
         Returns: number
       }
+      norm_busca: { Args: { _t: string }; Returns: string }
       norm_gasto: { Args: { s: string }; Returns: string }
       periodos_da_empresa: {
         Args: { _company_id: string }
@@ -3470,6 +3471,15 @@ export type Database = {
         Returns: {
           classificacao: string
           participantes: number
+        }[]
+      }
+      plano_buscar_contas: {
+        Args: { _company_id: string; _limite?: number; _termo: string }
+        Returns: {
+          classificacao: string
+          codigo: string
+          descricao: string
+          is_participante: boolean
         }[]
       }
       plano_cobertura: { Args: { _company_id: string }; Returns: Json }

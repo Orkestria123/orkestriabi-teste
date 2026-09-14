@@ -130,7 +130,7 @@ export const INDICES_DASHBOARD: DefIndice[] = [
     formato: "percent",
     formula: "Lucro Bruto / Receita Líquida × 100",
     compute: (b) => {
-      const d = div(b.lucroBruto, b.receitaLiquida);
+      const d = div(b.lucroBruto, receita(b));
       return d == null ? null : d * 100;
     },
   },
@@ -140,7 +140,7 @@ export const INDICES_DASHBOARD: DefIndice[] = [
     formato: "percent",
     formula: "EBITDA / Receita Líquida × 100",
     compute: (b) => {
-      const d = div(b.ebitda, b.receitaLiquida);
+      const d = div(b.ebitda, receita(b));
       return d == null ? null : d * 100;
     },
   },
@@ -150,7 +150,7 @@ export const INDICES_DASHBOARD: DefIndice[] = [
     formato: "percent",
     formula: "Lucro Líquido / Receita Líquida × 100",
     compute: (b) => {
-      const d = div(b.lucroLiquido, b.receitaLiquida);
+      const d = div(b.lucroLiquido, receita(b));
       return d == null ? null : d * 100;
     },
   },

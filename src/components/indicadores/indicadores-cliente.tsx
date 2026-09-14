@@ -82,7 +82,12 @@ function computeOne(
     });
     const { serie: serieMostrar, valorPrincipal } = aplicarModo(serie, ind.modo_analise);
     const valor = valorPrincipal == null || !isFinite(valorPrincipal) ? null : valorPrincipal;
-    return { serie: serieMostrar, valor, termos: [] };
+    return {
+      serie: serieMostrar,
+      valor,
+      termos: [],
+      contasFaltantes: contasFaltantesNaEmpresa(tokensDaFormula(ind.formula), ctx),
+    };
   }
   const resolver = criarResolverLinha(ctx, demoDre, estruturaPadrao);
   let tokens = tokensComBaseReceita(tokensDaFormula(ind.formula), baseAV);
@@ -98,7 +103,13 @@ function computeOne(
   const termos = periodo
     ? valoresTermosFormula(tokens, periodo, ctx, resolver, labelLinha)
     : [];
-  return { serie: serieMostrar, valor, termos };
+  return {
+    serie: serieMostrar,
+    valor,
+    termos,
+    contasFaltantes: contasFaltantesNaEmpresa(tokens, ctx),
+  };
+
 }
 
 export function IndicadoresClienteGrid({

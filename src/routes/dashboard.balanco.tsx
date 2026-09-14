@@ -38,9 +38,18 @@ function Page() {
   const { periodos } = useFilters();
   const [showAV, setShowAV] = useState(false);
   const [showAH, setShowAH] = useState(false);
+  // O balanço é uma foto da empresa numa data, não um acumulado do período.
+  // Por isso mostra só o mês mais recente selecionado; quem quiser ver a
+  // evolução liga "Todos os meses".
+  const [todosMeses, setTodosMeses] = useState(false);
 
-  const { data: ativo } = useMonthlyStatement(companyId, "BP_ATIVO", periodos);
-  const { data: passivo } = useMonthlyStatement(companyId, "BP_PASSIVO", periodos);
+  const periodosBp = useMemo(
+    () => (todosMeses ? periodos : periodos.slice(-1)),
+    [periodos, todosMeses],
+  );
+
+  const { data: ativo } = useMonthlyStatement(companyId, "BP_ATIVO", periodosBp);
+  const { data: passivo } = useMonthlyStatement(companyId, "BP_PASSIVO", periodosBp);
   const ativoRows = useMemo(() => buildRows(ativo ?? []), [ativo]);
   const passivoRows = useMemo(() => buildRows(passivo ?? []), [passivo]);
   const bpRows = useMemo(() => {
@@ -51,6 +60,7 @@ function Page() {
     ];
   }, [ativoRows, passivoRows]);
 
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-3">
@@ -59,21 +69,34 @@ function Page() {
           <VisaoBadge />
         </div>
         <div className="flex items-center gap-2 flex-wrap">
+          <Button
+            size="sm"
+            variant={todosMeses ? "default" : "outline"}
+            disabled={periodos.length < 2}
+            title={
+              periodos.length < 2
+                ? "Selecione mais de um mês no filtro para ver a evolução."
+                : "O balanço mostra o mês mais recente; ative para ver todos os meses selecionados."
+            }
+            onClick={() => setTodosMeses((v) => !v)}
+          >
+            Todos os meses
+          </Button>
           <Button size="sm" variant={showAV ? "default" : "outline"} onClick={() => setShowAV((v) => !v)}>AV%</Button>
           <Button
             size="sm"
             variant={showAH ? "default" : "outline"}
-            disabled={periodos.length < 2}
+            disabled={periodosBp.length < 2}
             title={
-              periodos.length < 2
-                ? "A análise horizontal compara períodos — selecione pelo menos dois meses no filtro."
+              periodosBp.length < 2
+                ? "A análise horizontal compara períodos — ative 'Todos os meses' e selecione pelo menos dois meses."
                 : "Variação por coluna (período anterior ou base fixa, selecionável na tabela)"
             }
             onClick={() => setShowAH((v) => !v)}
           >AH%</Button>
           <ExportMenu
             rows={bpRows}
-            periods={periodos}
+            periods={periodosBp}
             filename={`BP-${company?.name ?? "empresa"}`}
             title="Balanço Patrimonial"
             subtitle={company?.razao_social ?? company?.name}
@@ -83,15 +106,16 @@ function Page() {
 
       <StatementTable
         rows={bpRows}
-        periods={periodos}
+        periods={periodosBp}
         showAV={showAV}
-        showAH={showAH}
-        basePeriod={periodos[0]}
+        showAH={showAH && periodosBp.length > 1}
+        basePeriod={periodosBp[0]}
         avBaseCodigo="Total do Ativo"
         variante="bp"
         padraoMaxNivel={3}
         lados
       />
+
     </div>
   );
 }

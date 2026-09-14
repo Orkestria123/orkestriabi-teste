@@ -1463,6 +1463,13 @@ function addAcumuladores(
     if (papel === "IRPJ_CSLL") {
       return (valorPapel("PROVISAO_IRPJ", periodo) ?? 0) + (valorPapel("PROVISAO_CSLL", periodo) ?? 0);
     }
+    if (papel === "RESULTADO_FINANCEIRO") {
+      return (
+        (valorPapel("RECEITAS_FINANCEIRAS", periodo) ?? 0) +
+        (valorPapel("DESPESAS_FINANCEIRAS", periodo) ?? 0)
+      );
+    }
+
     if (papel === "RESULTADO_OPERACIONAL") return valorPapel("EBIT", periodo);
     return valorPapel(papel, periodo);
   };

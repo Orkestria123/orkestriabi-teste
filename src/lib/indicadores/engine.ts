@@ -352,7 +352,17 @@ export function valorContaAnalitica(
   // Usamos o GRUPO da classificação como fonte de verdade:
   //   ativo, despesa  → devedor (D)
   //   passivo, pl, receita, resultado → credor (C)
-  const naturezaRaw = (p.natureza ?? "").toUpperCase();
+  //
+  // CONTAS DE RESULTADO seguem SEMPRE a convenção da DRE (crédito − débito:
+  // receita positiva, custo/despesa negativo). No plano da maioria dos
+  // escritórios TODO o resultado fica no grupo 3, que a máscara rotula
+  // "despesa" — então uma receita escolhida na fórmula vinha com o sinal
+  // trocado, e uma despesa vinha com o sinal oposto ao que a DRE mostra
+  // (e ao que as linhas .98/.99 da própria fórmula devolvem). Duas
+  // convenções na mesma expressão davam EBITDA e margens erradas.
+  const ehResultado = grupo === "receita" || grupo === "despesa" || grupo === "resultado";
+  const naturezaRaw = ehResultado ? "C" : (p.natureza ?? "").toUpperCase();
+
   const natureza: "C" | "D" =
     naturezaRaw === "C" || naturezaRaw === "D"
       ? (naturezaRaw as "C" | "D")
@@ -671,6 +681,33 @@ export function valoresTermosFormula(
   }
   return out;
 }
+
+/**
+ * Contas citadas na fórmula que NÃO existem no plano da empresa. Um termo
+ * assim valia zero silenciosamente — a fórmula do escritório aponta um
+ * código do plano padrão que a empresa não usa e o indicador parecia
+ * certo. A UI usa esta lista para avisar.
+ */
+export function contasFaltantesNaEmpresa(
+  tokens: Token[],
+  ctx: EngineContext,
+): string[] {
+  const out = new Set<string>();
+  for (const t of tokens) {
+    if (t.tipo !== "termo") continue;
+    const origem: "demonstracao" | "conta" =
+      t.origem === "demonstracao" || !!t.linha ? "demonstracao" : "conta";
+    if (origem !== "conta") continue;
+    for (const ref of t.contas ?? []) {
+      if (!ref) continue;
+      if (ctx.planoByCodigo.has(ref) || ctx.planoByClass.has(ref)) continue;
+      out.add(ref);
+    }
+  }
+  return Array.from(out);
+}
+
+
 
 // ------------------------------------------------------------
 // Cálculo por indicador × períodos

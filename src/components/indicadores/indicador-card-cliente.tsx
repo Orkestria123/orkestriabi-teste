@@ -32,7 +32,7 @@ import {
 } from "@/lib/indicadores/engine";
 import { labelLinha } from "@/lib/indicadores/linhas";
 import { explicarIndicador } from "@/lib/api/indicador-explicacao.functions";
-import { Sparkles, ChevronDown, ChevronRight, Eye, EyeOff } from "lucide-react";
+import { Sparkles, ChevronDown, ChevronRight, Eye, EyeOff, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface Props {
@@ -48,6 +48,10 @@ interface Props {
   valorGerencial?: number | null;
   faixaGerencial?: FaixaChave;
   termos?: { label: string; valor: number | null; origem: string }[];
+  /** Contas citadas na fórmula que não existem no plano desta empresa —
+   *  valiam zero em silêncio e distorciam o indicador. */
+  contasFaltantes?: string[];
+
 }
 
 const FAIXA_COLOR: Record<FaixaChave, string> = {
@@ -105,6 +109,8 @@ export function IndicadorCardCliente({
   valorGerencial,
   faixaGerencial,
   termos: termosProp,
+  contasFaltantes,
+
 }: Props) {
   const uid = useId().replace(/:/g, "");
   const isComparativo = visao === "comparativo" && !!serieGerencial;
@@ -433,6 +439,20 @@ export function IndicadorCardCliente({
           </div>
         </div>
       )}
+
+      {contasFaltantes && contasFaltantes.length > 0 && (
+        <div className="mt-2 flex items-start gap-1.5 rounded-md border border-[var(--warning,#f59e0b)]/40 bg-[var(--warning,#f59e0b)]/10 p-2">
+          <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0 text-[var(--warning,#f59e0b)]" />
+          <p className="text-[11px] leading-snug text-muted-foreground">
+            A fórmula usa conta{contasFaltantes.length > 1 ? "s" : ""} que esta empresa
+            não possui ({contasFaltantes.slice(0, 4).join(", ")}
+            {contasFaltantes.length > 4 ? "…" : ""}), então entrou como zero no
+            cálculo. Ajuste a fórmula do indicador para esta empresa.
+          </p>
+        </div>
+      )}
+
+
 
       <div className="mt-2 flex items-start gap-1.5 rounded-md border border-border/60 bg-muted/30 p-2">
         <Sparkles className="mt-0.5 h-3 w-3 shrink-0 text-primary" />

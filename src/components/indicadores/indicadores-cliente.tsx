@@ -25,7 +25,9 @@ import {
   calcularSerieComBase,
   classificarFaixa,
   valoresTermosFormula,
+  contasFaltantesNaEmpresa,
   tokensDaFormula,
+
   tokensComBaseReceita,
   tokensComLucroYtd,
   indicadorUsaLucroYtd,
@@ -80,7 +82,12 @@ function computeOne(
     });
     const { serie: serieMostrar, valorPrincipal } = aplicarModo(serie, ind.modo_analise);
     const valor = valorPrincipal == null || !isFinite(valorPrincipal) ? null : valorPrincipal;
-    return { serie: serieMostrar, valor, termos: [] };
+    return {
+      serie: serieMostrar,
+      valor,
+      termos: [],
+      contasFaltantes: contasFaltantesNaEmpresa(tokensDaFormula(ind.formula), ctx),
+    };
   }
   const resolver = criarResolverLinha(ctx, demoDre, estruturaPadrao);
   let tokens = tokensComBaseReceita(tokensDaFormula(ind.formula), baseAV);
@@ -96,7 +103,13 @@ function computeOne(
   const termos = periodo
     ? valoresTermosFormula(tokens, periodo, ctx, resolver, labelLinha)
     : [];
-  return { serie: serieMostrar, valor, termos };
+  return {
+    serie: serieMostrar,
+    valor,
+    termos,
+    contasFaltantes: contasFaltantesNaEmpresa(tokens, ctx),
+  };
+
 }
 
 export function IndicadoresClienteGrid({
@@ -156,6 +169,8 @@ export function IndicadoresClienteGrid({
       valor: number | null;
       faixa: ReturnType<typeof classificarFaixa>;
       termos: { label: string; valor: number | null; origem: string }[];
+      contasFaltantes?: string[];
+
       serieGerencial?: SeriePonto[];
       valorGerencial?: number | null;
       faixaGerencial?: ReturnType<typeof classificarFaixa>;
@@ -181,6 +196,8 @@ export function IndicadoresClienteGrid({
             valor: c.valor,
             faixa: classificarFaixa(c.valor, ind.faixas),
             termos: c.termos,
+            contasFaltantes: c.contasFaltantes,
+
             serieGerencial: g.serie,
             valorGerencial: g.valor,
             faixaGerencial: classificarFaixa(g.valor, ind.faixas),
@@ -196,7 +213,9 @@ export function IndicadoresClienteGrid({
           valor: r.valor,
           faixa: classificarFaixa(r.valor, ind.faixas),
           termos: r.termos,
+          contasFaltantes: r.contasFaltantes,
         };
+
       });
       return { lista: out, erro: null };
     } catch (e: any) {
@@ -258,6 +277,8 @@ export function IndicadoresClienteGrid({
                 valorGerencial={c.valorGerencial}
                 faixaGerencial={c.faixaGerencial}
                 termos={c.termos}
+                contasFaltantes={c.contasFaltantes}
+
               />
             ))}
           </div>

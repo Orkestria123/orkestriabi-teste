@@ -73,36 +73,46 @@ function DashboardLayout() {
   const navigate = useNavigate();
   const [selectedCompany, setSelectedCompany] = useState<string | null>(null);
 
+  // O ?company= da URL só vale na primeira montagem. Se ele continuasse
+  // tendo prioridade, trocar de empresa no seletor entrava em loop: o
+  // efeito voltava para a empresa da URL antiga e a URL voltava para a
+  // escolhida, sem parar.
+  const paramAplicado = useRef(false);
+
   useEffect(() => {
-    // Deep-link via ?company= tem prioridade para admins
+    if (selectedCompany) return;
+    // Deep-link via ?company= tem prioridade na abertura da tela
     if (
+      !paramAplicado.current &&
       companyParam &&
-      companyParam !== selectedCompany &&
       companies?.some((c) => c.id === companyParam)
     ) {
+      paramAplicado.current = true;
       setSelectedCompany(companyParam);
       lembrarEmpresa(userId, companyParam);
       return;
     }
-    if (selectedCompany) return;
     // Empresa aberta por último: atualizar a página ou trocar de tela
     // volta para ela, e não para a primeira da lista (que pode nem ter dados).
     const lembrada = lerEmpresaLembrada(userId);
     if (lembrada && companies?.some((c) => c.id === lembrada)) {
+      paramAplicado.current = true;
       setSelectedCompany(lembrada);
-      navigate({ to: ".", search: (prev: any) => ({ ...prev, company: lembrada }), replace: true });
       return;
     }
     // Usuário vinculado a uma empresa (cliente) — independe de role já ter carregado
     if (profile?.company_id) {
+      paramAplicado.current = true;
       setSelectedCompany(profile.company_id);
       return;
     }
     if (!companies || companies.length === 0) return;
     // Cliente com várias empresas escolhe na tela inicial; com uma só, entra direto.
     if (isCliente && companies.length > 1) return;
+    paramAplicado.current = true;
     setSelectedCompany(companies[0].id);
-  }, [role, profile, companies, selectedCompany, companyParam, isCliente, userId, navigate]);
+  }, [role, profile, companies, selectedCompany, companyParam, isCliente, userId]);
+
 
   // Mantém a empresa na URL (útil para compartilhar e para o F5).
   useEffect(() => {

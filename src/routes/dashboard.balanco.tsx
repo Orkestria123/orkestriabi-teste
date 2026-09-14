@@ -69,21 +69,34 @@ function Page() {
           <VisaoBadge />
         </div>
         <div className="flex items-center gap-2 flex-wrap">
+          <Button
+            size="sm"
+            variant={todosMeses ? "default" : "outline"}
+            disabled={periodos.length < 2}
+            title={
+              periodos.length < 2
+                ? "Selecione mais de um mês no filtro para ver a evolução."
+                : "O balanço mostra o mês mais recente; ative para ver todos os meses selecionados."
+            }
+            onClick={() => setTodosMeses((v) => !v)}
+          >
+            Todos os meses
+          </Button>
           <Button size="sm" variant={showAV ? "default" : "outline"} onClick={() => setShowAV((v) => !v)}>AV%</Button>
           <Button
             size="sm"
             variant={showAH ? "default" : "outline"}
-            disabled={periodos.length < 2}
+            disabled={periodosBp.length < 2}
             title={
-              periodos.length < 2
-                ? "A análise horizontal compara períodos — selecione pelo menos dois meses no filtro."
+              periodosBp.length < 2
+                ? "A análise horizontal compara períodos — ative 'Todos os meses' e selecione pelo menos dois meses."
                 : "Variação por coluna (período anterior ou base fixa, selecionável na tabela)"
             }
             onClick={() => setShowAH((v) => !v)}
           >AH%</Button>
           <ExportMenu
             rows={bpRows}
-            periods={periodos}
+            periods={periodosBp}
             filename={`BP-${company?.name ?? "empresa"}`}
             title="Balanço Patrimonial"
             subtitle={company?.razao_social ?? company?.name}
@@ -93,15 +106,16 @@ function Page() {
 
       <StatementTable
         rows={bpRows}
-        periods={periodos}
+        periods={periodosBp}
         showAV={showAV}
-        showAH={showAH}
-        basePeriod={periodos[0]}
+        showAH={showAH && periodosBp.length > 1}
+        basePeriod={periodosBp[0]}
         avBaseCodigo="Total do Ativo"
         variante="bp"
         padraoMaxNivel={3}
         lados
       />
+
     </div>
   );
 }

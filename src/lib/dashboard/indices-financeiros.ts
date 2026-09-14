@@ -2,6 +2,15 @@
 
 export type FormatoIndice = "ratio" | "percent" | "money_mil";
 
+/** Base das margens: Receita Líquida (padrão) ou Receita Bruta — mesma
+ *  lógica dos botões RL/RB da análise vertical da DRE. */
+export type BaseReceita = "RL" | "RB";
+
+export const ROTULO_BASE_RECEITA: Record<BaseReceita, string> = {
+  RL: "Receita Líquida",
+  RB: "Receita Bruta",
+};
+
 export interface BasesIndice {
   ac: number;
   pc: number;
@@ -13,6 +22,14 @@ export interface BasesIndice {
   ebitda: number;
   lucroLiquido: number;
   receitaLiquida: number;
+  receitaBruta?: number;
+  baseReceita?: BaseReceita;
+}
+
+/** Receita usada nas margens, conforme a base escolhida. */
+function receita(b: BasesIndice): number {
+  if (b.baseReceita === "RB") return Number(b.receitaBruta) || 0;
+  return b.receitaLiquida;
 }
 
 export interface DefIndice {
@@ -28,6 +45,13 @@ function div(a: number, b: number): number | null {
   const v = a / b;
   return isFinite(v) ? v : null;
 }
+
+/** Texto da fórmula ajustado à base de receita escolhida. */
+export function formulaIndice(def: DefIndice, base: BaseReceita = "RL"): string {
+  if (base === "RL") return def.formula;
+  return def.formula.replace(/Receita Líquida/g, "Receita Bruta");
+}
+
 
 export const INDICES_DASHBOARD: DefIndice[] = [
   {
@@ -106,7 +130,7 @@ export const INDICES_DASHBOARD: DefIndice[] = [
     formato: "percent",
     formula: "Lucro Bruto / Receita Líquida × 100",
     compute: (b) => {
-      const d = div(b.lucroBruto, b.receitaLiquida);
+      const d = div(b.lucroBruto, receita(b));
       return d == null ? null : d * 100;
     },
   },
@@ -116,7 +140,7 @@ export const INDICES_DASHBOARD: DefIndice[] = [
     formato: "percent",
     formula: "EBITDA / Receita Líquida × 100",
     compute: (b) => {
-      const d = div(b.ebitda, b.receitaLiquida);
+      const d = div(b.ebitda, receita(b));
       return d == null ? null : d * 100;
     },
   },
@@ -126,7 +150,7 @@ export const INDICES_DASHBOARD: DefIndice[] = [
     formato: "percent",
     formula: "Lucro Líquido / Receita Líquida × 100",
     compute: (b) => {
-      const d = div(b.lucroLiquido, b.receitaLiquida);
+      const d = div(b.lucroLiquido, receita(b));
       return d == null ? null : d * 100;
     },
   },

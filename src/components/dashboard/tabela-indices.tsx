@@ -16,7 +16,10 @@ import type { DemoDre } from "@/lib/indicadores/linhas";
 import {
   INDICES_DASHBOARD,
   formatarIndice,
+  formulaIndice,
   rotuloMes,
+  ROTULO_BASE_RECEITA,
+  type BaseReceita,
   type BasesIndice,
   type DefIndice,
 } from "@/lib/dashboard/indices-financeiros";
@@ -37,7 +40,7 @@ function n(v: number | null | undefined): number {
   return Number(v) || 0;
 }
 
-function basesDe(resolver: ResolverLinha, p: string): BasesIndice {
+function basesDe(resolver: ResolverLinha, p: string, base: BaseReceita): BasesIndice {
   return {
     ac: n(resolver("ATIVO_CIRCULANTE", p)),
     pc: n(resolver("PASSIVO_CIRCULANTE", p)),
@@ -49,12 +52,18 @@ function basesDe(resolver: ResolverLinha, p: string): BasesIndice {
     ebitda: n(resolver("EBITDA", p)),
     lucroLiquido: n(resolver("LUCRO_LIQUIDO", p)),
     receitaLiquida: n(resolver("RECEITA_LIQUIDA", p)),
+    receitaBruta: n(resolver("RECEITA_BRUTA", p)),
+    baseReceita: base,
   };
 }
+
 
 export function TabelaIndices({ tenantId, companyId, periodos }: Props) {
   const { visao } = useVisaoGerencial();
   const comparativo = visao === "comparativo";
+  // Base das margens — mesma escolha RB/RL da análise vertical da DRE.
+  const [baseReceita, setBaseReceita] = useState<BaseReceita>("RL");
+
   const { data: ctxRaw, isLoading: loadCtx } = useIndicadorData(
     tenantId,
     companyId,
@@ -139,19 +148,20 @@ export function TabelaIndices({ tenantId, companyId, periodos }: Props) {
     >();
     if (!ctxC) return map;
     for (const p of ordenados) {
-      const bc = basesDe(resolverC, p);
+      const bc = basesDe(resolverC, p, baseReceita);
       const c: Record<string, number | null> = {};
       for (const def of INDICES_DASHBOARD) c[def.key] = def.compute(bc);
       let g: Record<string, number | null> | undefined;
       if (comparativo && resolverG) {
-        const bg = basesDe(resolverG, p);
+        const bg = basesDe(resolverG, p, baseReceita);
         g = {};
         for (const def of INDICES_DASHBOARD) g[def.key] = def.compute(bg);
       }
       map.set(p, { c, g });
     }
     return map;
-  }, [ctxC, resolverC, resolverG, ordenados, comparativo]);
+  }, [ctxC, resolverC, resolverG, ordenados, comparativo, baseReceita]);
+
 
   const loading = loadCtx || loadDemo || loadCfg;
   const colunasDados = comparativo ? ordenados.length * 2 : ordenados.length;
@@ -159,16 +169,41 @@ export function TabelaIndices({ tenantId, companyId, periodos }: Props) {
 
   return (
     <div className="rounded-lg border overflow-hidden">
-      <div className="px-4 py-3 border-b bg-muted/20">
-        <h3 className="text-base font-semibold leading-tight">Índices financeiros</h3>
-        {comparativo && (
+      <div className="px-4 py-3 border-b bg-muted/20 flex items-start justify-between gap-3 flex-wrap">
+        <div>
+          <h3 className="text-base font-semibold leading-tight">Índices financeiros</h3>
           <p className="text-xs text-muted-foreground mt-1">
-            Em cada mês: <span className="text-muted-foreground">Cont.</span> = contábil
-            {" · "}
-            <span className="font-medium text-foreground">Ger.</span> = gerencial
+            Margens calculadas sobre a {ROTULO_BASE_RECEITA[baseReceita]}.
+            {comparativo && (
+              <>
+                {" · "}
+                <span className="text-muted-foreground">Cont.</span> = contábil
+                {" · "}
+                <span className="font-medium text-foreground">Ger.</span> = gerencial
+              </>
+            )}
           </p>
-        )}
+        </div>
+        <div className="flex items-center gap-1 rounded-md border p-0.5">
+          {(["RB", "RL"] as BaseReceita[]).map((b) => (
+            <button
+              key={b}
+              type="button"
+              onClick={() => setBaseReceita(b)}
+              title={`Margens sobre a ${ROTULO_BASE_RECEITA[b]}`}
+              className={cn(
+                "px-2.5 py-1 rounded text-xs font-medium transition-colors",
+                baseReceita === b
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:bg-accent hover:text-foreground",
+              )}
+            >
+              {b}
+            </button>
+          ))}
+        </div>
       </div>
+
 
       <div className="overflow-x-auto">
         <table className="w-max text-sm border-collapse">
@@ -311,6 +346,8 @@ export function TabelaIndices({ tenantId, companyId, periodos }: Props) {
                   colSpan={colSpan}
                   destaque={def.key === "resultado"}
                   multiAno={multiAno}
+                  baseReceita={baseReceita}
+
                 />
               ))}
           </tbody>
@@ -342,6 +379,7 @@ function LinhaIndice({
   colSpan,
   destaque,
   multiAno,
+  baseReceita,
 }: {
   def: DefIndice;
   i: number;
@@ -351,7 +389,9 @@ function LinhaIndice({
   colSpan: number;
   destaque?: boolean;
   multiAno?: boolean;
+  baseReceita: BaseReceita;
 }) {
+
   const [verFormula, setVerFormula] = useState(false);
   const zebra = !destaque && i % 2 === 1;
   return (
@@ -423,7 +463,7 @@ function LinhaIndice({
             )}
           >
             <span className="font-medium text-foreground/80">Fórmula: </span>
-            {def.formula}
+            {formulaIndice(def, baseReceita)}
           </td>
         </tr>
       )}

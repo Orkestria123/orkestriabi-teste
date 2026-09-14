@@ -682,6 +682,33 @@ export function valoresTermosFormula(
   return out;
 }
 
+/**
+ * Contas citadas na fórmula que NÃO existem no plano da empresa. Um termo
+ * assim valia zero silenciosamente — a fórmula do escritório aponta um
+ * código do plano padrão que a empresa não usa e o indicador parecia
+ * certo. A UI usa esta lista para avisar.
+ */
+export function contasFaltantesNaEmpresa(
+  tokens: Token[],
+  ctx: EngineContext,
+): string[] {
+  const out = new Set<string>();
+  for (const t of tokens) {
+    if (t.tipo !== "termo") continue;
+    const origem: "demonstracao" | "conta" =
+      t.origem === "demonstracao" || !!t.linha ? "demonstracao" : "conta";
+    if (origem !== "conta") continue;
+    for (const ref of t.contas ?? []) {
+      if (!ref) continue;
+      if (ctx.planoByCodigo.has(ref) || ctx.planoByClass.has(ref)) continue;
+      out.add(ref);
+    }
+  }
+  return Array.from(out);
+}
+
+
+
 // ------------------------------------------------------------
 // Cálculo por indicador × períodos
 // ------------------------------------------------------------

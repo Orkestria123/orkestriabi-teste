@@ -48,6 +48,10 @@ interface Props {
   valorGerencial?: number | null;
   faixaGerencial?: FaixaChave;
   termos?: { label: string; valor: number | null; origem: string }[];
+  /** Contas citadas na fórmula que não existem no plano desta empresa —
+   *  valiam zero em silêncio e distorciam o indicador. */
+  contasFaltantes?: string[];
+
 }
 
 const FAIXA_COLOR: Record<FaixaChave, string> = {

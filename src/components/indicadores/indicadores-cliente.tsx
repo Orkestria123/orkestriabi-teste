@@ -277,6 +277,8 @@ export function IndicadoresClienteGrid({
                 valorGerencial={c.valorGerencial}
                 faixaGerencial={c.faixaGerencial}
                 termos={c.termos}
+                contasFaltantes={c.contasFaltantes}
+
               />
             ))}
           </div>

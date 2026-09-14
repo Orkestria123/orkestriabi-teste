@@ -109,6 +109,8 @@ export function IndicadorCardCliente({
   valorGerencial,
   faixaGerencial,
   termos: termosProp,
+  contasFaltantes,
+
 }: Props) {
   const uid = useId().replace(/:/g, "");
   const isComparativo = visao === "comparativo" && !!serieGerencial;

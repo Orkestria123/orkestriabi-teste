@@ -1,5 +1,5 @@
 import { createFileRoute, Outlet, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { PortalShell } from "@/components/portal-shell";
 import { FilterProvider, FilterBar, useFilters } from "@/components/filter-bar";
 import { useAuth } from "@/hooks/use-auth";

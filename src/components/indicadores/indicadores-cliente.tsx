@@ -169,6 +169,8 @@ export function IndicadoresClienteGrid({
       valor: number | null;
       faixa: ReturnType<typeof classificarFaixa>;
       termos: { label: string; valor: number | null; origem: string }[];
+      contasFaltantes?: string[];
+
       serieGerencial?: SeriePonto[];
       valorGerencial?: number | null;
       faixaGerencial?: ReturnType<typeof classificarFaixa>;

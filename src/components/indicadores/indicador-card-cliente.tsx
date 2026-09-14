@@ -32,7 +32,7 @@ import {
 } from "@/lib/indicadores/engine";
 import { labelLinha } from "@/lib/indicadores/linhas";
 import { explicarIndicador } from "@/lib/api/indicador-explicacao.functions";
-import { Sparkles, ChevronDown, ChevronRight, Eye, EyeOff } from "lucide-react";
+import { Sparkles, ChevronDown, ChevronRight, Eye, EyeOff, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface Props {

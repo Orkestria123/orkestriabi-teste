@@ -213,7 +213,9 @@ export function IndicadoresClienteGrid({
           valor: r.valor,
           faixa: classificarFaixa(r.valor, ind.faixas),
           termos: r.termos,
+          contasFaltantes: r.contasFaltantes,
         };
+
       });
       return { lista: out, erro: null };
     } catch (e: any) {

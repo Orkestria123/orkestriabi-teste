@@ -25,7 +25,9 @@ import {
   calcularSerieComBase,
   classificarFaixa,
   valoresTermosFormula,
+  contasFaltantesNaEmpresa,
   tokensDaFormula,
+
   tokensComBaseReceita,
   tokensComLucroYtd,
   indicadorUsaLucroYtd,

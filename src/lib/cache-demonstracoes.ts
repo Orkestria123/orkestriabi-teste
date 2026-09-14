@@ -6,7 +6,12 @@
 // marcado com um "carimbo" (quantidade de saldos + data da última
 // atualização). Muda o carimbo, o cálculo é refeito automaticamente.
 
-const PREFIXO = "bi:dem:";
+// A versão entra na chave: quando o CÁLCULO muda (nova linha na DRE, ajuste
+// de fórmula), o carimbo dos dados continua igual e o navegador serviria a
+// demonstração antiga para sempre. Basta subir o número aqui.
+const VERSAO_CALCULO = 2;
+const PREFIXO = `bi:dem:v${VERSAO_CALCULO}:`;
+const PREFIXO_ANTIGO = "bi:dem:";
 const MAX_ENTRADAS = 12;
 const MAX_BYTES = 1_500_000;
 

@@ -352,7 +352,17 @@ export function valorContaAnalitica(
   // Usamos o GRUPO da classificação como fonte de verdade:
   //   ativo, despesa  → devedor (D)
   //   passivo, pl, receita, resultado → credor (C)
-  const naturezaRaw = (p.natureza ?? "").toUpperCase();
+  //
+  // CONTAS DE RESULTADO seguem SEMPRE a convenção da DRE (crédito − débito:
+  // receita positiva, custo/despesa negativo). No plano da maioria dos
+  // escritórios TODO o resultado fica no grupo 3, que a máscara rotula
+  // "despesa" — então uma receita escolhida na fórmula vinha com o sinal
+  // trocado, e uma despesa vinha com o sinal oposto ao que a DRE mostra
+  // (e ao que as linhas .98/.99 da própria fórmula devolvem). Duas
+  // convenções na mesma expressão davam EBITDA e margens erradas.
+  const ehResultado = grupo === "receita" || grupo === "despesa" || grupo === "resultado";
+  const naturezaRaw = ehResultado ? "C" : (p.natureza ?? "").toUpperCase();
+
   const natureza: "C" | "D" =
     naturezaRaw === "C" || naturezaRaw === "D"
       ? (naturezaRaw as "C" | "D")

@@ -1506,7 +1506,9 @@ function addAcumuladores(
       if (linha === "EBIT" || linha === "EBITDA") return ebitEstrutura(periodo);
       return valorLinhaDre(linha, periodo);
     });
-    if (daFormula != null) return daFormula;
+    // Havendo fórmula global, ela é soberana. Não substituímos expressão
+    // inválida/incompleta por outro critério sem avisar o usuário.
+    if (formulasEbit.ebit.length > 0) return daFormula ?? 0;
     return ebitEstrutura(periodo);
   };
 
@@ -1516,7 +1518,9 @@ function addAcumuladores(
       if (linha === "EBITDA") return ebit - (valorPapel("DEPRECIACAO_AMORTIZACAO", periodo) ?? 0);
       return valorLinhaDre(linha, periodo);
     });
-    if (daFormula != null) return daFormula;
+    // Mesma regra hierárquica do EBIT: EBITDA usa exatamente a expressão
+    // global e a referência EBIT recebe o resultado calculado logo acima.
+    if (formulasEbit.ebitda.length > 0) return daFormula ?? 0;
     const dep = valorPapel("DEPRECIACAO_AMORTIZACAO", periodo) ?? 0;
     return ebit - dep;
   };

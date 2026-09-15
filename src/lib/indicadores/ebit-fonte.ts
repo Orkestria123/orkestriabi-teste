@@ -20,19 +20,16 @@ export interface FormulasEbitEbitda {
   ebitdaId: string | null;
 }
 
-const cache = new Map<string, FormulasEbitEbitda>();
 const inflight = new Map<string, Promise<FormulasEbitEbitda>>();
 
 export function limparCacheFormulasEbit(tenantId?: string) {
-  if (tenantId) cache.delete(tenantId);
-  else cache.clear();
+  if (tenantId) inflight.delete(tenantId);
+  else inflight.clear();
 }
 
 const VAZIO: FormulasEbitEbitda = { ebit: [], ebitda: [], ebitId: null, ebitdaId: null };
 
 export async function getFormulasEbitEbitda(tenantId: string): Promise<FormulasEbitEbitda> {
-  const hit = cache.get(tenantId);
-  if (hit) return hit;
   const pending = inflight.get(tenantId);
   if (pending) return pending;
 
@@ -58,7 +55,6 @@ export async function getFormulasEbitEbitda(tenantId: string): Promise<FormulasE
         out.ebitId = id;
       }
     }
-    cache.set(tenantId, out);
     return out;
   })();
 

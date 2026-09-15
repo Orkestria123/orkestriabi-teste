@@ -36,8 +36,7 @@ import {
   type SeriePonto,
   type Visibilidade,
 } from "@/lib/indicadores/engine";
-import { labelLinha, valorEbitEbitdaDaDre, type DemoDre } from "@/lib/indicadores/linhas";
-import { nomeBateIndicadorEbit } from "@/lib/indicadores/ebit-fonte";
+import { labelLinha, type DemoDre } from "@/lib/indicadores/linhas";
 import type { PapelEstrutura } from "@/lib/plano/estrutura";
 import { Card } from "@/components/ui/card";
 import { IndicadorCardCliente } from "./indicador-card-cliente";
@@ -65,30 +64,6 @@ function computeOne(
   estruturaPadrao: PapelEstrutura[] | undefined,
   baseAV?: BaseAV,
 ) {
-  const alvoEbit = nomeBateIndicadorEbit(ind.nome, "ebitda")
-    ? "EBITDA"
-    : nomeBateIndicadorEbit(ind.nome, "ebit")
-      ? "EBIT"
-      : null;
-  if (alvoEbit) {
-    const resolverEbit = criarResolverLinha(ctx, demoDre, estruturaPadrao);
-    const serie = periodos.map((p) => {
-      const daDre = valorEbitEbitdaDaDre(demoDre, alvoEbit, p);
-      const v =
-        daDre != null && Math.abs(daDre) > 0.005
-          ? daDre
-          : resolverEbit(alvoEbit, p);
-      return { periodo: p, valor: v };
-    });
-    const { serie: serieMostrar, valorPrincipal } = aplicarModo(serie, ind.modo_analise);
-    const valor = valorPrincipal == null || !isFinite(valorPrincipal) ? null : valorPrincipal;
-    return {
-      serie: serieMostrar,
-      valor,
-      termos: [],
-      contasFaltantes: contasFaltantesNaEmpresa(tokensDaFormula(ind.formula), ctx),
-    };
-  }
   const resolver = criarResolverLinha(ctx, demoDre, estruturaPadrao);
   let tokens = tokensComBaseReceita(tokensDaFormula(ind.formula), baseAV);
   if (indicadorUsaLucroYtd(ind.nome)) tokens = tokensComLucroYtd(tokens);

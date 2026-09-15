@@ -602,7 +602,9 @@ export function resolverLinha(
   // (isso era outro número e quebrava o termo "EBITDA (DRE)").
   if (key === "EBIT" || key === "EBITDA") {
     const daDre = valorEbitEbitdaDaDre(demoDre, key, periodo);
-    if (daDre != null && Math.abs(daDre) > 0.005) return daDre;
+    // Zero também é um resultado válido da fórmula global. Nunca o troque
+    // silenciosamente por um cálculo da estrutura padrão.
+    if (daDre != null) return daDre;
     if (!est || est.length === 0) return daDre;
     if (key === "EBITDA") return resolverDerivado(est, "EBITDA", periodo, ctx);
     return resolverPorPapel(est, "EBIT", periodo, ctx);

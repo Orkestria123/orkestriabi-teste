@@ -112,6 +112,13 @@ function findSubtotal(rows: FlatRow[], keywords: string[]): ValorComOrigem {
   return { valor: pickValor, contas };
 }
 
+/** Busca a linha calculada exata, sem confundir EBIT com Resultado Operacional. */
+function findSubtotalExact(rows: FlatRow[], descricao: string): ValorComOrigem {
+  const alvo = norm(descricao);
+  const row = rows.find((r) => r.is_subtotal && norm(r.descricao) === alvo);
+  return row ? { valor: row.valor, contas: [] } : { valor: 0, contas: [] };
+}
+
 /**
  * Soma rows (analíticas) cuja descricao contém a keyword.
  * Útil para extrair Estoques, Disponível, Imobilizado, etc.
@@ -203,7 +210,7 @@ function extrairBase(
   const receita_bruta = findSubtotal(dre, ["receita bruta"]);
   const receita_liquida = findSubtotal(dre, ["receita liquida"]);
   const lucro_bruto = findSubtotal(dre, ["lucro bruto"]);
-  const ebit = findSubtotal(dre, ["resultado operacional", "ebit"]);
+  const ebit = findSubtotalExact(dre, "(=) EBIT");
   const lucro_liquido = findSubtotal(dre, ["lucro liquido", "prejuizo"]);
   const custos = sumByKeyword(dre, ["custo"]);
   const depreciacao = sumByKeyword(dre, KW_DEP);
@@ -212,10 +219,9 @@ function extrairBase(
     (a, c) => a + Math.abs(c.valor),
     0,
   );
-  const ebitda: ValorComOrigem = {
-    valor: ebit.valor + depreciacao.valor,
-    contas: [...ebit.contas, ...depreciacao.contas],
-  };
+  // A linha já foi calculada pela fórmula global de Admin → Indicadores.
+  // Não some depreciação novamente neste consumidor.
+  const ebitda = findSubtotalExact(dre, "(=) EBITDA");
 
   const ativo_total = findSubtotal(bpAtivo, ["total do ativo"]);
   const ativo_circulante = findSubtotal(bpAtivo, ["ativo circulante"]);

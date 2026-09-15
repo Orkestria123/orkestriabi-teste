@@ -113,6 +113,13 @@
       "when": 1789410172611,
       "tag": "0015_busca_contas_participantes",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1789484589359,
+      "tag": "0016_include_indicator_formulas_in_company_stamp",
+      "breakpoints": true
     }
   ]
 }

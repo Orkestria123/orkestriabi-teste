@@ -29,6 +29,7 @@ import { formulaParaTexto } from "@/lib/indicadores/engine";
 import { labelLinha } from "@/lib/indicadores/linhas";
 import { tituloConta } from "@/lib/format";
 import { limparCacheFormulasEbit } from "@/lib/indicadores/ebit-fonte";
+import { limparCacheDemonstracoes } from "@/lib/cache-demonstracoes";
 import { compararCategoria } from "@/lib/indicadores/categorias";
 
 const MODO_LABEL: Record<string, string> = {
@@ -70,6 +71,7 @@ export function IndicadoresGlobaisPanel({ tenantId, onEditGlobal }: Props) {
     qc.invalidateQueries({ queryKey: ["indic-engine-data"] });
     qc.invalidateQueries({ queryKey: ["formulas-ebit-ebitda", tenantId] });
     limparCacheFormulasEbit(tenantId);
+    limparCacheDemonstracoes();
   };
 
   const { data: globais, isLoading } = useQuery({

@@ -173,14 +173,16 @@ export function DashboardKpisGrid({
               return hit ? total : null;
             }
           : null;
+        // EBIT/EBITDA vêm exclusivamente das linhas calculadas pela fórmula
+        // global. Não trocar ausência ou zero por um subtotal estrutural.
         const atual = daDre
-          ? (daDre(activePeriods) ?? somaPapel(demo, papel, activePeriods, estrutura))
+          ? (daDre(activePeriods) ?? 0)
           : somaPapel(demo, papel, activePeriods, estrutura);
         const prevMes = activePeriods.map((p) => shiftPeriod(p, -1));
         const prevAno = activePeriods.map((p) => shiftPeriod(p, -12));
         const somaPrev = (ps: string[]) =>
           daDre
-            ? (daDre(ps) ?? somaPapel(demo, papel, ps, estrutura))
+            ? (daDre(ps) ?? 0)
             : somaPapel(demo, papel, ps, estrutura);
 
         let anterior: number | null = null;

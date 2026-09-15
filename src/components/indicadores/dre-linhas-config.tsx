@@ -12,6 +12,7 @@ import {
   salvarFormulasEbitEbitda,
   limparCacheFormulasEbit,
 } from "@/lib/indicadores/ebit-fonte";
+import { limparCacheDemonstracoes } from "@/lib/cache-demonstracoes";
 
 interface Props {
   tenantId: string;
@@ -50,6 +51,7 @@ export function DreLinhasConfigCard({ tenantId, plano }: Props) {
     try {
       await salvarFormulasEbitEbitda(tenantId, ebit, ebitda);
       limparCacheFormulasEbit(tenantId);
+      limparCacheDemonstracoes();
       await qc.invalidateQueries({ queryKey: ["formulas-ebit-ebitda", tenantId] });
       await qc.invalidateQueries({ queryKey: ["indicadores-globais", tenantId] });
       await qc.invalidateQueries({ queryKey: ["indicadores-da-empresa"] });

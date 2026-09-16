@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { generateFinancialInsights } from "@/lib/api/insights.functions";
 import { Card } from "@/components/ui/card";
@@ -12,23 +12,33 @@ interface Props {
 
 export function InsightsCard({ companyId, periodos }: Props) {
   const fn = useServerFn(generateFinancialInsights);
-  const [insights, setInsights] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+
+  const chave = ["insights", companyId, periodos.join(",")] as const;
+
+  // A análise fica guardada por empresa + período: reabrir a tela (ou
+  // voltar dela) não paga o custo de reler a DRE e chamar a IA de novo.
+  // Só o botão "Atualizar" força o recálculo.
+  const { data, isFetching, error, refetch } = useQuery({
+    queryKey: chave,
+    enabled: false,
+    staleTime: 60 * 60 * 1000,
+    gcTime: 2 * 60 * 60 * 1000,
+    retry: false,
+    queryFn: async () => {
+      const res = await fn({ data: { companyId: companyId as string, periodos } });
+      return res.insights as string;
+    },
+  });
+
+  const insights = data ?? null;
+  const loading = isFetching;
 
   const run = async () => {
     if (!companyId || periodos.length === 0) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await fn({ data: { companyId, periodos } });
-      setInsights(res.insights);
-    } catch (e: any) {
-      setError(e?.message ?? "Falha ao gerar análise");
-    } finally {
-      setLoading(false);
-    }
+    await refetch();
   };
+
+
 
   return (
     <Card className="p-5 shadow-[var(--shadow-soft)] relative overflow-hidden">
@@ -68,11 +78,12 @@ export function InsightsCard({ companyId, periodos }: Props) {
           </div>
         )}
 
-        {error && (
+        {error && !loading && (
           <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
-            {error}
+            {(error as Error)?.message ?? "Falha ao gerar análise"}
           </div>
         )}
+
 
         {insights && !loading && (
           <div className="space-y-2.5 text-sm leading-relaxed whitespace-pre-wrap">

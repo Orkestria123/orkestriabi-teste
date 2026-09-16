@@ -38,25 +38,49 @@ export const generateFinancialInsights = createServerFn({ method: "POST" })
       .maybeSingle();
     if (!company) throw new Error("Empresa não encontrada");
 
-    const years = data.periodos
-      .map((p) => Number(p.slice(0, 4)))
-      .filter((n) => !isNaN(n));
-    const minYear = years.length ? Math.min(...years) : 1900;
-    const maxYear = years.length ? Math.max(...years) : 2999;
+    // Só os períodos selecionados, e só as linhas de TOTAL.
+    //
+    // Antes isto lia o ano inteiro de todas as linhas da DRE (centenas de
+    // linhas × 12 meses) para depois jogar quase tudo fora ao montar o
+    // texto. A análise fala de subtotais — receita, custo, margem,
+    // resultado —, então é isso que sai do banco.
+    const periodosValidos = data.periodos.filter((p) => /^\d{4}-\d{2}-\d{2}$/.test(p));
+    if (periodosValidos.length === 0) {
+      return { ok: true, insights: "Selecione ao menos um período para gerar a análise." };
+    }
 
     const { data: dre, error } = await supabase
       .from("financial_statements")
       .select("descricao, periodo, valor, linha_ordem, is_subtotal")
       .eq("company_id", data.companyId)
       .eq("tipo_demonstracao", "DRE")
-      .gte("periodo", `${minYear}-01-01`)
-      .lte("periodo", `${maxYear}-12-31`);
+      .in("periodo", periodosValidos)
+      .eq("is_subtotal", true)
+      .order("linha_ordem")
+      .limit(600);
     if (error) throw new Error(error.message);
+
+    // Nem toda empresa marca subtotal nas linhas. Quando não há nenhuma,
+    // a análise não pode ficar em branco — cai para as linhas comuns.
+    let linhas = dre ?? [];
+    if (linhas.length === 0) {
+      const { data: todas, error: e2 } = await supabase
+        .from("financial_statements")
+        .select("descricao, periodo, valor, linha_ordem, is_subtotal")
+        .eq("company_id", data.companyId)
+        .eq("tipo_demonstracao", "DRE")
+        .in("periodo", periodosValidos)
+        .order("linha_ordem")
+        .limit(600);
+      if (e2) throw new Error(e2.message);
+      linhas = todas ?? [];
+    }
+
 
     // Pivot into rows -> values by period
     const byRow = new Map<string, { descricao: string; values: Record<string, number>; ordem: number }>();
     const periodSet = new Set<string>();
-    for (const r of dre ?? []) {
+    for (const r of linhas) {
       const k = r.descricao;
       const periodo = r.periodo as string | null;
       if (!k || !periodo) continue;
@@ -82,6 +106,7 @@ export const generateFinancialInsights = createServerFn({ method: "POST" })
     const last = periods[periods.length - 1];
     const prev = periods[periods.length - 2];
     const linesPlain = rows
+      .slice(0, 40)
       .map((r) => {
         const v = r.values[last] ?? 0;
         const p = prev ? r.values[prev] ?? 0 : 0;

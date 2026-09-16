@@ -33,6 +33,8 @@ import { useContasDestino } from "@/hooks/use-contas-destino";
 import { SeletorConta } from "@/components/contas/seletor-conta";
 import { BarraDepara } from "@/components/contas/barra-depara";
 import { CabecalhoGrupo } from "@/components/contas/grupo-depara";
+import { PlanilhaDeparaBotoes } from "@/components/ecd/planilha-depara-botoes";
+
 import {
   filtrarLinhas, contarEstados, estadoDe, veioDeSugestaoAutomatica,
   agruparPorClassificacao, agruparPorChave, niveisDisponiveis,
@@ -1374,6 +1376,18 @@ export function EcdPanel({ tenantId, companyId }: Props) {
               </span>
             )}
           </div>
+
+          {/* ---------- o de-para em planilha ---------- */}
+          <div className="space-y-2">
+            <PlanilhaDeparaBotoes
+              importacaoId={atual.id}
+              companyId={companyId}
+              nomeEmpresa={atual.razao_social}
+              disabled={busy !== null}
+              onDone={invalidar}
+            />
+          </div>
+
 
           {/* ---------- de-para editável ---------- */}
           <div>

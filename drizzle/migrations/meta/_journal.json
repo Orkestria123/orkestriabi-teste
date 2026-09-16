@@ -120,6 +120,41 @@
       "when": 1789484589359,
       "tag": "0016_include_indicator_formulas_in_company_stamp",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1789576022396,
+      "tag": "0017_ecd_conferir_grupos_rapido",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1789576586972,
+      "tag": "0018_ecd_conferir_grupos_hash",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1789576735512,
+      "tag": "0019_ecd_diag_grupos_temp",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1789576787273,
+      "tag": "0020_ecd_diag_grupos_inline",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1789576861159,
+      "tag": "0021_indices_plano_sinteticas_e_folhas",
+      "breakpoints": true
     }
   ]
 }

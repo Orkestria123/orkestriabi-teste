@@ -3306,7 +3306,6 @@ export type Database = {
         }[]
       }
       ecd_desfazer: { Args: { _importacao_id: string }; Returns: Json }
-      ecd_diag_grupos: { Args: { _importacao_id: string }; Returns: Json }
       ecd_diagnostico: {
         Args: { _importacao_id: string; _limite?: number }
         Returns: Json

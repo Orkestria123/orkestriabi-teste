@@ -169,6 +169,13 @@
       "when": 1789577050673,
       "tag": "0023_ecd_conferir_grupos_indice_codigo",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1789577372805,
+      "tag": "0024_remover_ecd_diag_grupos",
+      "breakpoints": true
     }
   ]
 }

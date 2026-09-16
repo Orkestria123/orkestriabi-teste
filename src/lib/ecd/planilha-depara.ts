@@ -210,7 +210,7 @@ export function montarWorkbookDepara(dados: DadosPlanilhaDepara): XLSX.WorkBook 
     ["Código", "Classificação", "Descrição", "Tipo", "Natureza", "Nível", "Sintética"],
     ...dados.plano.map((p) => [
       p.codigo, p.classificacao, p.descricao, p.tipo ?? "", p.natureza ?? "",
-      p.nivel ?? "", p.is_sintetica ? "sim" : "",
+      p.nivel ?? "", p.is_sintetica ? "sim" : "não",
     ]),
   ]);
   wsPlano["!cols"] = [

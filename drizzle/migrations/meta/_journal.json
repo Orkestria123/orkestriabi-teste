@@ -162,6 +162,13 @@
       "when": 1789576983817,
       "tag": "0022_ecd_diag_grupos_escopo_padrao",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1789577050673,
+      "tag": "0023_ecd_conferir_grupos_indice_codigo",
+      "breakpoints": true
     }
   ]
 }

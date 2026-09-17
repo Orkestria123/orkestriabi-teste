@@ -659,7 +659,36 @@ async function getSaldosAteData(
 // achatava para "a mais recente de qualquer data" e o chamador somava
 // todo o movimento por cima — contando duas vezes o que já estava
 // embutido na abertura. Ver src/lib/diario/acumulador.ts.
+/** "2025-12" → "2026-01" */
+function mesSeguinte(ym: string): string {
+  const ano = Number(ym.slice(0, 4));
+  const mes = Number(ym.slice(5, 7));
+  return mes >= 12
+    ? `${ano + 1}-01`
+    : `${ano}-${String(mes + 1).padStart(2, "0")}`;
+}
+
+/**
+ * Competências em que a ECD zerou as contas de resultado.
+
+ *
+ * Importa para o Balanço: no zeramento a própria ECD transfere o resultado
+ * para a conta patrimonial. Se o Balanço continuasse acumulando a DRE desde
+ * janeiro, o resultado entraria DUAS vezes e o Ativo deixaria de fechar com
+ * o Passivo. A acumulação passa a começar depois do último zeramento.
+ */
+async function getEncerramentos(companyId: string): Promise<string[]> {
+  const { data, error } = await (supabase as any).rpc("encerramentos_da_empresa", {
+    _company_id: companyId,
+  });
+  if (error) return [];
+  return ((data ?? []) as any[])
+    .map((r) => String(r.competencia ?? r))
+    .sort();
+}
+
 async function getAberturas(companyId: string): Promise<AberturaConta[]> {
+
   const data = await fetchAllPaginated<any>((from, to) =>
     supabase
       .from("saldos_abertura")
@@ -1596,13 +1625,14 @@ async function buildBP(
   // realmente têm saldo. Em seguida usa esse set para restringir a busca
   // de contas participantes (clientes/fornecedores) — o cadastro completo
   // pode ter 100k+ linhas e estoura o fetch.
-  const [mapaInfo, abertura, saldosAcumContabil, planoDRE] = await Promise.all([
+  const [mapaInfo, abertura, saldosAcumContabil, planoDRE, encerramentos] = await Promise.all([
     getMapa(companyId, tenantId, modoGlobal, tipo, mascara),
     getAberturas(companyId),
     getSaldosAteData(companyId, ateData),
     tipo === "BP_PASSIVO"
       ? getPlanoPorTipo(companyId, tenantId, modoGlobal, ["3-DRE"])
       : Promise.resolve([] as Plano[]),
+    tipo === "BP_PASSIVO" ? getEncerramentos(companyId) : Promise.resolve([] as string[]),
   ]);
   const mapas = mapaInfo.mapas;
 
@@ -1623,17 +1653,27 @@ async function buildBP(
   for (const s of saldosAcum) codigosComSaldo.add(s.conta_codigo);
 
   // Resultado acumulado do exercício até cada período de referência (apenas BP_PASSIVO).
-  // resultado = -(Σ movimento contas grupo 3 do início do ano até ref).
+  // resultado = -(Σ movimento contas grupo 3 desde o último ZERAMENTO até ref).
   // Em meses de prejuízo o valor é negativo (reduz o PL); em lucro, positivo.
   // No modo gerencial os movimentos virtuais de ajustes em contas DRE (grupo 3)
   // já estão em saldosAcum e portanto propagam automaticamente para o resultado
   // — mantendo Ativo = Passivo + PL na visão gerencial.
+  //
+  // O início da acumulação NÃO é sempre janeiro: quando a ECD zerou as contas
+  // de resultado, ela transferiu o resultado para a conta patrimonial, que já
+  // vem nos saldos. Contar a DRE de janeiro de novo somaria o resultado duas
+  // vezes e o Ativo pararia de fechar com o Passivo. Por isso a soma começa
+  // no mês SEGUINTE ao último zeramento (no próprio mês do zeramento dá zero).
+  const encerramentosYm = encerramentos.map((c) => c.slice(0, 7)).sort();
   const dreCodigos = new Set<string>([...planoDRE, ...planoExtra].map((p) => p.codigo));
   const resultadoExercicioPorRef = new Map<string, number>();
   if (tipo === "BP_PASSIVO" && dreCodigos.size > 0) {
     for (const ref of periodos) {
       const refYm = ref.slice(0, 7);
-      const inicioExerc = `${refYm.slice(0, 4)}-01`;
+      const ultimoZeramento = encerramentosYm.filter((c) => c <= refYm).pop();
+      const inicioExerc = ultimoZeramento
+        ? mesSeguinte(ultimoZeramento)
+        : `${refYm.slice(0, 4)}-01`;
       let soma = 0;
       for (const s of saldosAcum) {
         const cYm = s.competencia.slice(0, 7);
@@ -1644,6 +1684,7 @@ async function buildBP(
       resultadoExercicioPorRef.set(ref, -soma);
     }
   }
+
 
   const planoContabil = await getPlanoPorTipo(companyId, tenantId, modoGlobal, tipoPlano, {
     incluirParticipantes: true,

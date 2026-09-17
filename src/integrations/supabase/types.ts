@@ -3292,6 +3292,20 @@ export type Database = {
         Args: { _importacao_id: string }
         Returns: number
       }
+      ecd_dc_movimento: {
+        Args: {
+          _creditos: number
+          _debitos: number
+          _resultado: boolean
+          _saldo_final: number
+          _saldo_inicial: number
+          _zerar?: string
+        }
+        Returns: {
+          credito: number
+          debito: number
+        }[]
+      }
       ecd_debito_credito_dre: {
         Args: {
           _conta_resultado: boolean
@@ -3385,6 +3399,12 @@ export type Database = {
       ecd_titulo: { Args: { _s: string }; Returns: string }
       ecd_upload_do_ecd: { Args: { _importacao_id: string }; Returns: string }
       ecd_vinculo_do_robo: { Args: { _observacao: string }; Returns: boolean }
+      encerramentos_da_empresa: {
+        Args: { _company_id: string }
+        Returns: {
+          competencia: string
+        }[]
+      }
       escopo_plano_empresa: { Args: { _company_id: string }; Returns: Json }
       fechar_upload_diario: { Args: { _upload_id: string }; Returns: Json }
       finalizar_upload_diario: { Args: { _upload_id: string }; Returns: Json }

@@ -183,6 +183,13 @@
       "when": 1789665833527,
       "tag": "0025_ecd_movimento_do_diario_e_encerramentos",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1789668255328,
+      "tag": "0026_ecd_aplicar_em_etapas_e_exclusoes",
+      "breakpoints": true
     }
   ]
 }

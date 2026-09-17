@@ -3258,12 +3258,33 @@ export type Database = {
         }
         Returns: Json
       }
+      ecd_apagar_diario_mes: {
+        Args: {
+          _competencia?: string
+          _importacao_id: string
+          _limite?: number
+        }
+        Returns: number
+      }
       ecd_aplicar: {
         Args: {
           _forcar?: boolean
           _importacao_id: string
           _substituir?: boolean
         }
+        Returns: Json
+      }
+      ecd_aplicar_abertura: { Args: { _importacao_id: string }; Returns: Json }
+      ecd_aplicar_mes: {
+        Args: {
+          _competencia: string
+          _importacao_id: string
+          _substituir?: boolean
+        }
+        Returns: Json
+      }
+      ecd_aplicar_preparar: {
+        Args: { _forcar?: boolean; _importacao_id: string }
         Returns: Json
       }
       ecd_classificar: { Args: { _importacao_id: string }; Returns: number }
@@ -3326,6 +3347,14 @@ export type Database = {
       }
       ecd_encerramento: { Args: { _importacao_id: string }; Returns: Json }
       ecd_estado_diario: { Args: { _importacao_id: string }; Returns: Json }
+      ecd_excluir_importacao: {
+        Args: { _importacao_id: string }
+        Returns: Json
+      }
+      ecd_excluir_mes: {
+        Args: { _competencia: string; _importacao_id: string }
+        Returns: Json
+      }
       ecd_fechar_aplicacao: {
         Args: { _importacao_id: string; _lancamentos?: number }
         Returns: Json

@@ -56,6 +56,9 @@ export interface LancamentoEcd {
   debito: number;
   credito: number;
   historico: string;
+  /** I250 COD_HIST_PAD — usado quando HIST vem em branco (tabela I075). */
+  cod_hist?: string;
+
   /** I200 IND_LCTO = E — transferência que zera conta de resultado. */
   encerramento?: boolean;
 }
@@ -215,6 +218,9 @@ export function parseSpedContabil(content: string): SpedParseResult {
   let lctoNumero = "";
   let lctoData = "";
   let lctoEncerramento = false;
+  // I075: código do histórico padronizado → descrição.
+  const historicoPadrao = new Map<string, string>();
+
   let currentDtIni = "";
   let currentDtFin = "";
 
@@ -307,17 +313,32 @@ export function parseSpedContabil(content: string): SpedParseResult {
         break;
       }
 
+      case "I075": {
+        // |I075|COD_HIST|DESCR_HIST|
+        // Tabela de histórico padronizado. Quando a partida traz só o
+        // código, a descrição do lançamento mora aqui.
+        const cod = (fields[2] || "").trim();
+        const descr = (fields[3] || "").trim();
+        if (cod && descr) historicoPadrao.set(cod, descr);
+        break;
+      }
+
       case "I250": {
-        // |I250|COD_CTA|COD_CCUS|VL_DC|IND_DC|NUM_ARQ|COD_PART|COD_HIST|HIST_COMPL|
+        // |I250|COD_CTA|COD_CCUS|VL_DC|IND_DC|NUM_ARQ|COD_HIST_PAD|HIST|COD_PART|
         //
         // `IND_DC` decide o lado; o valor vem sempre positivo. Guardar
         // como duas colunas (débito/crédito) em vez de um valor com sinal
         // é o que o resto do sistema usa — e é o que permite conferir
         // partida dobrada.
+        //
+        // ATENÇÃO ao campo do histórico: é o 8 (HIST). O 9 é COD_PART —
+        // ler ele deixava TODO lançamento de ECD sem histórico, e sem
+        // histórico o drill-down não explica nada.
         const cta = (fields[2] || "").trim();
         const valor = parseNumber(fields[4]);
         const dc = (fields[5] || "").trim().toUpperCase();
-        const hist = (fields[9] || "").trim();
+        const codHist = (fields[7] || "").trim();
+        const hist = (fields[8] || "").trim();
         if (cta && lctoData) {
           lancamentos.push({
             numero: lctoNumero,
@@ -326,11 +347,13 @@ export function parseSpedContabil(content: string): SpedParseResult {
             debito: dc === "D" ? valor : 0,
             credito: dc === "C" ? valor : 0,
             historico: hist,
+            cod_hist: codHist || undefined,
             encerramento: lctoEncerramento,
           });
         }
         break;
       }
+
 
       case "I150": {
         currentDtIni = parseSpedDate(fields[2]);

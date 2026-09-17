@@ -12,7 +12,8 @@ import {
   TabsTrigger,
 } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Upload, AlertTriangle, CheckCircle2, Trash2, ArrowLeft, Wand2, Save, BookOpen } from "lucide-react";
+import { Loader2, Upload, AlertTriangle, CheckCircle2, Trash2, ArrowLeft, Wand2, Save, BookOpen, HelpCircle } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -132,95 +133,81 @@ function Page() {
         </Link>
       </div>
 
-      {modoGlobal && !usaPlanoPadrao && (
-        <Card className="p-4 mb-4 border-blue-500/40 bg-blue-500/5 text-sm">
-          <strong>Modo de plano de contas: Global.</strong> Esta empresa usa o plano do escritório.
-          Para editar, vá em <Link to="/admin/plano-padrao" className="underline">Plano Padrão</Link>.
-        </Card>
-      )}
-
       {company && !ajusteAplicado && (
-        <Card className="p-4 mb-4 border-amber-500/40 bg-amber-500/5 text-sm">
-          <div className="flex items-start gap-3">
-            <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
-            <div>
-              <strong>Migrations do ajuste 01 ainda não aplicadas neste banco.</strong>
-              <p className="text-muted-foreground mt-1">
-                As abas <em>De-Para</em> e <em>Plano Padrão</em> dependem de colunas e funções que ainda
-                não existem. Rode <code className="px-1 py-0.5 rounded bg-muted font-mono text-xs">npx supabase db reset</code>{" "}
-                na pasta do projeto (com as 3 migrations copiadas para <code className="px-1 py-0.5 rounded bg-muted font-mono text-xs">supabase/migrations/</code>)
-                e recarregue esta página.
-              </p>
-            </div>
+        <Card className="p-3 mb-4 border-amber-500/40 bg-amber-500/5 text-sm">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
+            <span>Banco desatualizado: as abas De-Para e Plano Padrão dependem de colunas que ainda não existem.</span>
+            <Dica>
+              Rode <code>npx supabase db reset</code> na pasta do projeto (com as migrations
+              copiadas para <code>supabase/migrations/</code>) e recarregue esta página.
+            </Dica>
           </div>
         </Card>
       )}
 
-      {company && ajusteAplicado && <OrigemPlanoCard company={company} />}
+      {/* Uma linha só com o essencial: origem do plano, alocação da DFC e
+          os avisos que antes ocupavam quatro cartões. O detalhe fica no "?". */}
+      {company && ajusteAplicado && (
+        <Card className="p-3 mb-4">
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+            <OrigemPlanoCard company={company} />
 
-      {/* A alocação da DFC DESTA empresa, em planilha.
-          Existia só para o escritório. Exportar aqui é conferência —
-          por classificação, com a coluna que diz de onde cada uma herdou o
-          código — e é o único jeito de ver, para ESTA empresa, o que a
-          tela mostra agregado. Importar só aparece quando a alocação é
-          mesmo desta empresa: numa empresa de Plano Padrão ela é do
-          escritório, e gravar aqui criaria uma divergência silenciosa. */}
-      {company && ajusteAplicado && company.tenant_id && (
-        <Card className="p-4 mb-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex-1 min-w-[240px]">
-              <div className="text-sm font-medium">Alocação da DFC</div>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                {usaPlanoPadrao
-                  ? "A alocação vem do Plano Padrão do escritório. A planilha sai por classificação (não conta a conta), com o movimento desta empresa — para conferir sem sair daqui."
-                  : "A alocação é desta empresa. A planilha sai por classificação e volta como configuração."}
-              </p>
-            </div>
-            <PlanilhaDfcBotoes
-              tenantId={company.tenant_id}
-              companyId={id}
-              permitirImportar={!usaPlanoPadrao}
-              nomeArquivo={`alocacoes-dfc-${(company.name ?? "empresa").replace(/[^\w-]+/g, "-").toLowerCase()}`}
-              onDone={() => {}}
-              disabled={false}
-            />
-          </div>
-        </Card>
-      )}
+            {company.tenant_id && (
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium">Alocação da DFC</span>
+                <Dica>
+                  {usaPlanoPadrao
+                    ? "A alocação vem do Plano Padrão do escritório. A planilha sai por classificação, com o movimento desta empresa — para conferir sem sair daqui."
+                    : "A alocação é desta empresa. A planilha sai por classificação e volta como configuração."}
+                </Dica>
+                <PlanilhaDfcBotoes
+                  tenantId={company.tenant_id}
+                  companyId={id}
+                  permitirImportar={!usaPlanoPadrao}
+                  nomeArquivo={`alocacoes-dfc-${(company.name ?? "empresa").replace(/[^\w-]+/g, "-").toLowerCase()}`}
+                  onDone={() => {}}
+                  disabled={false}
+                />
+              </div>
+            )}
 
-      {company && ajusteAplicado && usaPlanoPadrao && (
-        <Card className="p-4 mb-4 border-blue-500/40 bg-blue-500/5 text-sm">
-          <div className="flex items-start gap-3">
-            <BookOpen className="h-4 w-4 text-blue-600 mt-0.5 shrink-0" />
-            <div className="flex-1">
-              <strong>Esta empresa usa o Plano Padrão do escritório.</strong>
-              <p className="text-muted-foreground mt-1">
-                O cadastro do plano e a alocação de DRE/Balanço/DFC não ficam aqui: são mantidos
-                uma única vez no escritório e valem para todas as empresas do sistema contábil.
-              </p>
-              <Button asChild size="sm" variant="outline" className="mt-3">
-                <Link to="/admin/plano-padrao">
-                  <BookOpen className="h-3.5 w-3.5 mr-1.5" />
-                  Abrir Plano Padrão
-                </Link>
-              </Button>
-            </div>
-          </div>
-        </Card>
-      )}
+            {usaPlanoPadrao && (
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className="gap-1 text-blue-600 border-blue-500/40">
+                  <BookOpen className="h-3 w-3" /> Plano Padrão do escritório
+                </Badge>
+                <Dica>
+                  O cadastro do plano e a alocação de DRE/Balanço/DFC são mantidos uma única vez
+                  no escritório e valem para todas as empresas do mesmo sistema contábil.
+                </Dica>
+                <Button asChild size="sm" variant="ghost" className="h-7 text-xs">
+                  <Link to="/admin/plano-padrao">Abrir Plano Padrão</Link>
+                </Button>
+              </div>
+            )}
 
-      {company && ajusteAplicado && fallbackPlanoProprio && (
-        <Card className="p-4 mb-4 border-amber-500/40 bg-amber-500/5 text-sm">
-          <div className="flex items-start gap-3">
-            <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
-            <div>
-              <strong>Empresa marcada como Plano Padrão, mas o escritório ainda não tem um.</strong>
-              <p className="text-muted-foreground mt-1">
-                Por isso ela segue lendo o plano próprio — nada quebrou. Monte o plano em{" "}
-                <Link to="/admin/plano-padrao" className="underline font-medium">Plano Padrão</Link>{" "}
-                (dá para promover o plano desta empresa lá) e a troca é automática.
-              </p>
-            </div>
+            {modoGlobal && !usaPlanoPadrao && (
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className="text-blue-600 border-blue-500/40">Plano global</Badge>
+                <Dica>
+                  Esta empresa usa o plano do escritório. Para editar, vá em Plano Padrão.
+                </Dica>
+              </div>
+            )}
+
+            {fallbackPlanoProprio && (
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className="gap-1 text-amber-600 border-amber-500/40">
+                  <AlertTriangle className="h-3 w-3" /> Sem Plano Padrão no escritório
+                </Badge>
+                <Dica>
+                  A empresa está marcada como Plano Padrão, mas o escritório ainda não tem um —
+                  por isso ela segue lendo o plano próprio. Monte o plano em Plano Padrão
+                  (dá para promover o plano desta empresa lá) e a troca é automática.
+                </Dica>
+              </div>
+            )}
           </div>
         </Card>
       )}
@@ -898,35 +885,50 @@ function OrigemPlanoCard({ company }: { company: any }) {
   };
 
   return (
-    <Card className="p-4 mb-4">
-      <div className="flex flex-wrap items-center gap-4">
-        <div className="flex-1 min-w-[240px]">
-          <div className="text-sm font-medium">Origem do plano de contas</div>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            {atual === "padrao"
-              ? "Usa o Plano Padrão do escritório — a alocação de DRE/Balanço/DFC vem pronta e é atualizada junto com o plano."
-              : "Plano de um sistema de terceiro — precisa do De-Para para as contas do Plano Padrão. O layout das colunas do arquivo é do sistema (engrenagem → Sistemas e layouts)."}
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Button
-            size="sm"
-            variant={atual === "padrao" ? "default" : "outline"}
-            disabled={salvando}
-            onClick={() => trocar("padrao")}
-          >
-            Plano Padrão
-          </Button>
-          <Button
-            size="sm"
-            variant={atual === "proprio" ? "default" : "outline"}
-            disabled={salvando}
-            onClick={() => trocar("proprio")}
-          >
-            Outro sistema
-          </Button>
-        </div>
+    <div className="flex items-center gap-2">
+      <span className="text-sm font-medium">Plano de contas</span>
+      <Dica>
+        {atual === "padrao"
+          ? "Usa o Plano Padrão do escritório — a alocação de DRE/Balanço/DFC vem pronta e é atualizada junto com o plano."
+          : "Plano de um sistema de terceiro — precisa do De-Para para as contas do Plano Padrão. O layout das colunas do arquivo é do sistema (engrenagem → Sistemas e layouts)."}
+      </Dica>
+      <div className="flex gap-1.5">
+        <Button
+          size="sm"
+          className="h-7 text-xs"
+          variant={atual === "padrao" ? "default" : "outline"}
+          disabled={salvando}
+          onClick={() => trocar("padrao")}
+        >
+          Plano Padrão
+        </Button>
+        <Button
+          size="sm"
+          className="h-7 text-xs"
+          variant={atual === "proprio" ? "default" : "outline"}
+          disabled={salvando}
+          onClick={() => trocar("proprio")}
+        >
+          Outro sistema
+        </Button>
       </div>
-    </Card>
+    </div>
+  );
+}
+
+/** O "?" que guarda a explicação longa: aparece ao passar o mouse. */
+function Dica({ children }: { children: React.ReactNode }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button type="button" aria-label="Mais informações"
+          className="text-muted-foreground hover:text-foreground">
+          <HelpCircle className="h-3.5 w-3.5" />
+        </button>
+      </TooltipTrigger>
+      <TooltipContent className="max-w-[320px] text-xs leading-relaxed">
+        {children}
+      </TooltipContent>
+    </Tooltip>
   );
 }

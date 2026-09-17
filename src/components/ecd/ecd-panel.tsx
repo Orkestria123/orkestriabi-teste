@@ -21,7 +21,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Loader2, Upload, CheckCircle2, AlertTriangle, XCircle, Undo2, Wand2, RefreshCw,
-  Search, FolderTree,
+  Search, FolderTree, Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { parseSpedContabil } from "@/lib/sped-parser";
@@ -150,6 +150,9 @@ export function EcdPanel({ tenantId, companyId }: Props) {
   // trava a rolagem. Mostra um bloco e cresce sob demanda.
   const [limite, setLimite] = useState(150);
   const [nivelGrupo, setNivelGrupo] = useState(0);
+  // Aplicar e excluir agora andam em passos (um mês por vez). Este texto é
+  // o único jeito de a tela dizer em qual passo está.
+  const [progresso, setProgresso] = useState("");
 
   const invalidar = () => {
     qc.invalidateQueries({ queryKey: ["ecd-importacoes", companyId] });
@@ -706,37 +709,57 @@ export function EcdPanel({ tenantId, companyId }: Props) {
     finally { setBusy(null); }
   };
 
+  /**
+   * Aplicar em ETAPAS. Antes era uma única chamada que fazia validação,
+   * limpeza, todos os meses e a abertura — num arquivo grande isso passa
+   * do tempo máximo do banco e voltava "canceling statement due to
+   * statement timeout". Agora cada mês é uma chamada curta, e a tela
+   * mostra em qual delas está.
+   */
   const aplicar = async (forcar = false) => {
     setBusy("aplicar");
+    setProgresso("Conferindo os vínculos…");
     try {
-      const data = await rpcEcd<any>("ecd_aplicar", {
-        _importacao_id: atual.id, _substituir: false, _forcar: forcar,
+      const prep = await rpcEcd<any>("ecd_aplicar_preparar", {
+        _importacao_id: atual.id, _forcar: forcar,
       });
-      if (!data.ok) {
+      if (!prep.ok) {
         toast.error(
-          `${data.contas_sem_vinculo} conta(s) com movimento e sem vínculo. ` +
+          `${prep.contas_sem_vinculo} conta(s) com movimento e sem vínculo. ` +
           "Vincule ou marque como ignorada antes de aplicar.",
           { duration: 12000 },
         );
         return;
       }
-      let nLctos = Number(data.lancamentos) || 0;
-      if (data.tem_lancamentos) {
+      const meses: string[] = Array.isArray(prep.competencias) ? prep.competencias : [];
+      let linhasSaldo = 0;
+      let pulados = 0;
+      for (let i = 0; i < meses.length; i++) {
+        setProgresso(`Gravando ${mes(meses[i])} (${i + 1} de ${meses.length})…`);
+        const r = await rpcEcd<any>("ecd_aplicar_mes", {
+          _importacao_id: atual.id, _competencia: meses[i], _substituir: false,
+        });
+        if (r?.pulado) pulados++;
+        linhasSaldo += Number(r?.linhas ?? 0);
+      }
+      setProgresso("Gravando a abertura…");
+      const ab = await rpcEcd<any>("ecd_aplicar_abertura", { _importacao_id: atual.id });
+
+      let nLctos = 0;
+      if (prep.tem_lancamentos) {
+        setProgresso("Gravando o diário (drill-down)…");
         nLctos = await materializarEcdEmLotes(atual.id);
       }
+      setProgresso("Fechando…");
       await rpcEcd("ecd_fechar_aplicacao", {
         _importacao_id: atual.id,
         _lancamentos: nLctos,
       });
-      // "0 linhas" com `ok: true` era indistinguível de sucesso. Agora a
-      // resposta diz QUANTOS meses o diário já ocupava — que é o motivo
-      // legítimo de não gravar nada — e quantas linhas velhas saíram
-      // porque o vínculo mudou.
-      const pulados = Number(data.meses_do_diario) || 0;
-      const removidas = Number(data.linhas_removidas) || 0;
-      const nada = Number(data.linhas_saldos) === 0 && removidas === 0;
+
+      const removidas = Number(prep.linhas_removidas) || 0;
+      const nada = linhasSaldo === 0 && removidas === 0;
       const msg =
-        `${data.linhas_saldos} linha(s) de saldo e ${data.linhas_abertura} abertura(s) gravadas` +
+        `${linhasSaldo} linha(s) de saldo e ${ab?.linhas_abertura ?? 0} abertura(s) gravadas` +
         (nLctos > 0 ? `, ${nLctos.toLocaleString("pt-BR")} lançamento(s) do diário` : "") +
         `. ` +
         (removidas > 0 ? `${removidas} linha(s) antiga(s) removida(s). ` : "") +
@@ -750,7 +773,63 @@ export function EcdPanel({ tenantId, companyId }: Props) {
       else toast.success(msg, { duration: 10000 });
       invalidar();
     } catch (e: any) { toast.error(e.message, { duration: 12000 }); }
-    finally { setBusy(null); }
+    finally { setBusy(null); setProgresso(""); }
+  };
+
+  /** Apaga o diário materializado (todo o arquivo ou só um mês), em lotes. */
+  const apagarDiarioEcd = async (competencia: string | null) => {
+    for (;;) {
+      const n = await rpcEcd<number>("ecd_apagar_diario_mes", {
+        _importacao_id: atual.id, _competencia: competencia, _limite: 2000,
+      });
+      if (!Number(n)) break;
+    }
+  };
+
+  /** Remove UM mês carregado: saldo aplicado, diário e as linhas do arquivo. */
+  const excluirMes = async (competencia: string) => {
+    if (!confirm(
+      `Excluir ${mes(competencia)} desta ECD?\n\n` +
+      "Saem os saldos aplicados, os lançamentos do drill-down e as linhas desse mês " +
+      "no arquivo carregado. Os outros meses ficam.")) return;
+    setBusy("excluir-mes");
+    setProgresso(`Removendo o diário de ${mes(competencia)}…`);
+    try {
+      await apagarDiarioEcd(competencia);
+      setProgresso(`Removendo os saldos de ${mes(competencia)}…`);
+      const r = await rpcEcd<any>("ecd_excluir_mes", {
+        _importacao_id: atual.id, _competencia: competencia,
+      });
+      toast.success(
+        `${mes(competencia)} removido — ${r.saldos_removidos} saldo(s) e ` +
+        `${Number(r.lancamentos_removidos).toLocaleString("pt-BR")} lançamento(s).`,
+        { duration: 10000 },
+      );
+      invalidar();
+    } catch (e: any) { toast.error(e.message, { duration: 12000 }); }
+    finally { setBusy(null); setProgresso(""); }
+  };
+
+  /** Remove o arquivo inteiro: nada dele fica no sistema. */
+  const excluirImportacao = async () => {
+    if (!confirm(
+      `Excluir o arquivo "${atual.arquivo_nome}" e tudo que veio dele?\n\n` +
+      "Saem os saldos aplicados, o diário, o de-para gravado neste arquivo e a própria " +
+      "importação. Isto não pode ser desfeito — só recarregando o arquivo.")) return;
+    setBusy("excluir-arquivo");
+    setProgresso("Removendo o diário…");
+    try {
+      await apagarDiarioEcd(null);
+      setProgresso("Removendo saldos e o arquivo…");
+      const r = await rpcEcd<any>("ecd_excluir_importacao", { _importacao_id: atual.id });
+      setSelecionada(null);
+      toast.success(
+        `Arquivo excluído — ${r.saldos_removidos} saldo(s) e ${r.aberturas_removidas} abertura(s) removidos.`,
+        { duration: 10000 },
+      );
+      invalidar();
+    } catch (e: any) { toast.error(e.message, { duration: 12000 }); }
+    finally { setBusy(null); setProgresso(""); }
   };
 
   /**
@@ -1370,12 +1449,27 @@ export function EcdPanel({ tenantId, companyId }: Props) {
                                 : <RefreshCw className="h-3.5 w-3.5 mr-1.5" />}
               Reler o arquivo (códigos e diário)
             </Button>
+            <Button size="sm" variant="ghost"
+              className="text-xs text-destructive hover:text-destructive"
+              disabled={busy !== null} onClick={excluirImportacao}
+              title="Remove este arquivo e tudo que veio dele: saldos, diário e a própria importação.">
+              {busy === "excluir-arquivo" ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                                          : <Trash2 className="h-3.5 w-3.5 mr-1.5" />}
+              Excluir este arquivo
+            </Button>
             {pendentesComMov > 0 && (
               <span className="text-xs text-amber-600">
                 {pendentesComMov} conta(s) com movimento sem vínculo
               </span>
             )}
           </div>
+
+          {progresso && (
+            <div className="text-xs text-primary flex items-center gap-2">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              {progresso}
+            </div>
+          )}
 
           {/* ---------- o de-para em planilha ---------- */}
           <div className="space-y-2">
@@ -1628,6 +1722,15 @@ export function EcdPanel({ tenantId, companyId }: Props) {
                               <CheckCircle2 className="h-3 w-3" /> tudo vinculado
                             </span>
                           )}
+                        </td>
+                        <td className="px-2 py-1.5 text-right w-[40px]">
+                          <Button variant="ghost" size="icon"
+                            className="h-7 w-7 text-destructive hover:text-destructive"
+                            disabled={busy !== null}
+                            title={`Excluir ${mes(p.competencia)} deste arquivo`}
+                            onClick={() => excluirMes(p.competencia)}>
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
                         </td>
                       </tr>
                     ))}

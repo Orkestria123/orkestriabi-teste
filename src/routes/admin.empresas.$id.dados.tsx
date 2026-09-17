@@ -884,35 +884,50 @@ function OrigemPlanoCard({ company }: { company: any }) {
   };
 
   return (
-    <Card className="p-4 mb-4">
-      <div className="flex flex-wrap items-center gap-4">
-        <div className="flex-1 min-w-[240px]">
-          <div className="text-sm font-medium">Origem do plano de contas</div>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            {atual === "padrao"
-              ? "Usa o Plano Padrão do escritório — a alocação de DRE/Balanço/DFC vem pronta e é atualizada junto com o plano."
-              : "Plano de um sistema de terceiro — precisa do De-Para para as contas do Plano Padrão. O layout das colunas do arquivo é do sistema (engrenagem → Sistemas e layouts)."}
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Button
-            size="sm"
-            variant={atual === "padrao" ? "default" : "outline"}
-            disabled={salvando}
-            onClick={() => trocar("padrao")}
-          >
-            Plano Padrão
-          </Button>
-          <Button
-            size="sm"
-            variant={atual === "proprio" ? "default" : "outline"}
-            disabled={salvando}
-            onClick={() => trocar("proprio")}
-          >
-            Outro sistema
-          </Button>
-        </div>
+    <div className="flex items-center gap-2">
+      <span className="text-sm font-medium">Plano de contas</span>
+      <Dica>
+        {atual === "padrao"
+          ? "Usa o Plano Padrão do escritório — a alocação de DRE/Balanço/DFC vem pronta e é atualizada junto com o plano."
+          : "Plano de um sistema de terceiro — precisa do De-Para para as contas do Plano Padrão. O layout das colunas do arquivo é do sistema (engrenagem → Sistemas e layouts)."}
+      </Dica>
+      <div className="flex gap-1.5">
+        <Button
+          size="sm"
+          className="h-7 text-xs"
+          variant={atual === "padrao" ? "default" : "outline"}
+          disabled={salvando}
+          onClick={() => trocar("padrao")}
+        >
+          Plano Padrão
+        </Button>
+        <Button
+          size="sm"
+          className="h-7 text-xs"
+          variant={atual === "proprio" ? "default" : "outline"}
+          disabled={salvando}
+          onClick={() => trocar("proprio")}
+        >
+          Outro sistema
+        </Button>
       </div>
-    </Card>
+    </div>
+  );
+}
+
+/** O "?" que guarda a explicação longa: aparece ao passar o mouse. */
+function Dica({ children }: { children: React.ReactNode }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button type="button" aria-label="Mais informações"
+          className="text-muted-foreground hover:text-foreground">
+          <HelpCircle className="h-3.5 w-3.5" />
+        </button>
+      </TooltipTrigger>
+      <TooltipContent className="max-w-[320px] text-xs leading-relaxed">
+        {children}
+      </TooltipContent>
+    </Tooltip>
   );
 }

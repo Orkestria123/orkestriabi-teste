@@ -669,8 +669,8 @@ function mesSeguinte(ym: string): string {
 }
 
 /**
-
  * Competências em que a ECD zerou as contas de resultado.
+
  *
  * Importa para o Balanço: no zeramento a própria ECD transfere o resultado
  * para a conta patrimonial. Se o Balanço continuasse acumulando a DRE desde

@@ -659,7 +659,26 @@ async function getSaldosAteData(
 // achatava para "a mais recente de qualquer data" e o chamador somava
 // todo o movimento por cima — contando duas vezes o que já estava
 // embutido na abertura. Ver src/lib/diario/acumulador.ts.
+/**
+ * Competências em que a ECD zerou as contas de resultado.
+ *
+ * Importa para o Balanço: no zeramento a própria ECD transfere o resultado
+ * para a conta patrimonial. Se o Balanço continuasse acumulando a DRE desde
+ * janeiro, o resultado entraria DUAS vezes e o Ativo deixaria de fechar com
+ * o Passivo. A acumulação passa a começar depois do último zeramento.
+ */
+async function getEncerramentos(companyId: string): Promise<string[]> {
+  const { data, error } = await (supabase as any).rpc("encerramentos_da_empresa", {
+    _company_id: companyId,
+  });
+  if (error) return [];
+  return ((data ?? []) as any[])
+    .map((r) => String(r.competencia ?? r))
+    .sort();
+}
+
 async function getAberturas(companyId: string): Promise<AberturaConta[]> {
+
   const data = await fetchAllPaginated<any>((from, to) =>
     supabase
       .from("saldos_abertura")

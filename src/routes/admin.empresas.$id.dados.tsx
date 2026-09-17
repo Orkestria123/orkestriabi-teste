@@ -12,7 +12,8 @@ import {
   TabsTrigger,
 } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Upload, AlertTriangle, CheckCircle2, Trash2, ArrowLeft, Wand2, Save, BookOpen } from "lucide-react";
+import { Loader2, Upload, AlertTriangle, CheckCircle2, Trash2, ArrowLeft, Wand2, Save, BookOpen, HelpCircle } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";

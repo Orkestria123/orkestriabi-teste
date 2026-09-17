@@ -659,7 +659,17 @@ async function getSaldosAteData(
 // achatava para "a mais recente de qualquer data" e o chamador somava
 // todo o movimento por cima — contando duas vezes o que já estava
 // embutido na abertura. Ver src/lib/diario/acumulador.ts.
+/** "2025-12" → "2026-01" */
+function mesSeguinte(ym: string): string {
+  const ano = Number(ym.slice(0, 4));
+  const mes = Number(ym.slice(5, 7));
+  return mes >= 12
+    ? `${ano + 1}-01`
+    : `${ano}-${String(mes + 1).padStart(2, "0")}`;
+}
+
 /**
+
  * Competências em que a ECD zerou as contas de resultado.
  *
  * Importa para o Balanço: no zeramento a própria ECD transfere o resultado

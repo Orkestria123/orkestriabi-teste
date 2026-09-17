@@ -538,6 +538,15 @@ export function parseSpedContabil(content: string): SpedParseResult {
   }
 
   if (!cnpj) warnings.push("CNPJ não encontrado no registro 0000.");
+  // Partida sem HIST próprio: cai no histórico padronizado (I075).
+  if (historicoPadrao.size > 0) {
+    for (const l of lancamentos) {
+      if (!l.historico && l.cod_hist) {
+        l.historico = historicoPadrao.get(l.cod_hist) ?? "";
+      }
+    }
+  }
+
   if (planoContas.length === 0) warnings.push("Nenhuma conta encontrada (I050).");
   if (demonstracoes.length === 0)
     warnings.push("Nenhuma demonstração encontrada nos blocos J100/J150.");

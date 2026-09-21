@@ -78,8 +78,6 @@ const CLIENT_NAV: NavItem[] = [
   { to: "/dashboard/fluxo-de-caixa", label: "Fluxo", icon: Wallet },
   { to: "/dashboard/indicadores", label: "Indicadores", icon: LineChart },
   { to: "/dashboard/orcamento", label: "Orçamento", icon: Target },
-  { to: "/dashboard/fornecedores", label: "Fornecedores", icon: Users },
-  { to: "/dashboard/notas-fiscais", label: "NF-e", icon: FileSpreadsheet },
   { to: "/dashboard/analise", label: "Análise", icon: FileSpreadsheet },
 ];
 

@@ -91,7 +91,7 @@ function Page() {
   const [periodoB, setPeriodoB] = useState<string>("");
   const [tipo, setTipo] = useState<Tipo>("DRE");
   const [presentation, setPresentation] = useState(false);
-  const [secao, setSecao] = useState<string>("resumo");
+  const [secao, setSecao] = useState<string>("comparativo");
 
   useEffect(() => {
     if (availablePeriods.length === 0) return;

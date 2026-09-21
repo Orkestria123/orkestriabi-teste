@@ -128,8 +128,8 @@ function Page() {
 
 
 
-  const labelA = granularidade === "ano" ? periodoA : periodoA ? periodoMesLabel(periodoA) : "—";
-  const labelB = granularidade === "ano" ? periodoB : periodoB ? periodoMesLabel(periodoB) : "—";
+  const labelA = rotuloSelecao(granularidade, selA);
+  const labelB = rotuloSelecao(granularidade, selB);
 
   // Receita × Despesa detalhado — usado apenas pelo Ponto de Equilíbrio.
   const { data: rdAtual } = useReceitaDespesaDetalhado(

@@ -59,8 +59,9 @@ import { Maximize2, Minimize2, Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import {
   PainelAnalisesConfiguraveis,
-  useNcgConfigurada,
+  useCapitalGiroEstrutura,
 } from "@/components/analise/analises-dinamicas";
+import { CapitalGiroEstrutural } from "@/components/analise/capital-giro-estrutural";
 
 export const Route = createFileRoute("/dashboard/analise")({ component: Page });
 

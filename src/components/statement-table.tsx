@@ -497,17 +497,23 @@ export function StatementTable({
                 <button
                   type="button"
                   onClick={() => {
-                    if (hasChild) toggleExpand(index);
+                    // Com a gaveta de lançamentos aberta, a seta FECHA a gaveta.
+                    // Antes ela recolhia os filhos e a gaveta ficava presa na
+                    // tela — parecia que "não recolhe".
+                    if (drilldownExp) toggleDrilldown(index);
+                    else if (hasChild) toggleExpand(index);
                     else toggleDrilldown(index);
                   }}
                   className="shrink-0 grid place-items-center h-4 w-4 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
                   aria-label={
-                    hasChild
-                      ? (expanded ? "Recolher" : "Expandir")
-                      : (drilldownExp ? "Fechar lançamentos" : "Ver lançamentos")
+                    drilldownExp
+                      ? "Fechar lançamentos"
+                      : hasChild
+                        ? (expanded ? "Recolher" : "Expandir")
+                        : "Ver lançamentos"
                   }
                 >
-                  {(hasChild ? expanded : drilldownExp) ? (
+                  {(drilldownExp || (hasChild && expanded)) ? (
                     <ChevronDown className="h-3 w-3" />
                   ) : (
                     <ChevronRight className="h-3 w-3" />

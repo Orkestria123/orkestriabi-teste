@@ -1,9 +1,9 @@
-import { useMemo } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { useDashboardCompany } from "@/components/dashboard-context";
 import { useFiltersOptional } from "@/components/filter-bar";
 import { useLancamentosDrilldown } from "@/hooks/use-drilldown";
 import { formatBRLPlain, tituloConta } from "@/lib/format";
-import { Loader2 } from "lucide-react";
+import { ChevronDown, ChevronRight, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -159,7 +159,7 @@ function DrilldownTable({
 }) {
   const totalDeb = entriesFiltradas.reduce((a, r) => a + r.debito, 0);
   const totalCre = entriesFiltradas.reduce((a, r) => a + r.credito, 0);
-  
+
   const saldoInicialTotal = data.saldoInicial.reduce((a, r) => a + r.saldo, 0);
   const ajustesDeb = ajustesFiltrados.reduce((a, r) => a + r.debito, 0);
   const ajustesCre = ajustesFiltrados.reduce((a, r) => a + r.credito, 0);
@@ -174,143 +174,295 @@ function DrilldownTable({
     (variante === "bp" ? saldoInicialTotal : 0) +
     (ajustesDeb - ajustesCre);
 
-  return (
-    <div className="overflow-x-auto rounded border bg-card">
-      <table className="w-full text-[11px]">
-        <thead>
-          <tr className="border-b bg-muted/40">
-            <th className="text-left font-medium text-[10px] uppercase tracking-wider text-muted-foreground px-2 py-1.5 whitespace-nowrap">
-              Data
-            </th>
-            {showConta && (
-              <th className="text-left font-medium text-[10px] uppercase tracking-wider text-muted-foreground px-2 py-1.5 whitespace-nowrap">
-                Conta
-              </th>
-            )}
-            <th className="text-left font-medium text-[10px] uppercase tracking-wider text-muted-foreground px-2 py-1.5">
-              Histórico
-            </th>
-            <th className="text-right font-medium text-[10px] uppercase tracking-wider text-muted-foreground px-2 py-1.5 whitespace-nowrap">
-              Débito
-            </th>
-            <th className="text-right font-medium text-[10px] uppercase tracking-wider text-muted-foreground px-2 py-1.5 whitespace-nowrap">
-              Crédito
-            </th>
-            <th className="text-right font-medium text-[10px] uppercase tracking-wider text-muted-foreground px-2 py-1.5 whitespace-nowrap">
-              Valor
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {variante === "bp" && data.saldoInicial.length > 0 && (
-            <tr className="border-b bg-muted/10 font-medium">
-              <td className="px-2 py-1 whitespace-nowrap text-muted-foreground">
-                {formatData(data.saldoInicial[0].data_referencia)}
-              </td>
-              {showConta && <td className="px-2 py-1">—</td>}
-              <td className="px-2 py-1 italic text-muted-foreground">
-                Saldo inicial
-              </td>
-              <td className="px-2 py-1 text-right tabular-nums text-muted-foreground">—</td>
-              <td className="px-2 py-1 text-right tabular-nums text-muted-foreground">—</td>
-              <td className="px-2 py-1 text-right tabular-nums font-medium">
-                {fmtValor(saldoInicialTotal)}
-              </td>
-            </tr>
-          )}
-          {variante === "bp" && ajustesAnteriores.length > 0 && (
-            <tr className="border-b bg-amber-500/5 font-medium">
-              <td className="px-2 py-1 whitespace-nowrap text-muted-foreground">
-                {formatData(ajustesAnteriores[ajustesAnteriores.length - 1].competencia)}
-              </td>
-              {showConta && <td className="px-2 py-1">—</td>}
-              <td className="px-2 py-1 italic text-muted-foreground">
-                <GerencialBadge /> Ajustes acumulados de competências anteriores ({ajustesAnteriores.length})
-              </td>
-              <td className="px-2 py-1 text-right tabular-nums text-muted-foreground">—</td>
-              <td className="px-2 py-1 text-right tabular-nums text-muted-foreground">—</td>
-              <td className="px-2 py-1 text-right tabular-nums font-medium">
-                {fmtValor(ajustesAntTotal)}
-              </td>
-            </tr>
-          )}
-          {entriesFiltradas.map((r) => {
-            const valor = r.debito - r.credito;
-            return (
-              <tr key={r.id} className="border-b last:border-0 hover:bg-accent/40">
-                <td className="px-2 py-1 whitespace-nowrap text-muted-foreground">
-                  {formatData(r.data)}
-                </td>
-                {showConta && (
-                  <td className="px-2 py-1 whitespace-nowrap font-mono text-[10px] text-muted-foreground">
-                    {r.conta_codigo}
-                    <span className="ml-1 font-sans text-muted-foreground/70">
-                      {tituloConta(data.contasMap[r.conta_codigo]?.descricao ?? "")}
-                    </span>
-                  </td>
-                )}
-                <td className="px-2 py-1">{r.historico ?? "—"}</td>
-                <td className={cn("px-2 py-1 text-right tabular-nums", r.debito === 0 && "text-muted-foreground/40")}>
-                  {fmt(r.debito)}
-                </td>
-                <td className={cn("px-2 py-1 text-right tabular-nums", r.credito === 0 && "text-muted-foreground/40")}>
-                  {fmt(r.credito)}
-                </td>
-                <td className={cn("px-2 py-1 text-right tabular-nums font-medium", valor < 0 && "text-destructive")}>
-                  {fmtValor(valor)}
-                </td>
-              </tr>
-            );
-          })}
-          {ajustesPeriodo.map((a) => {
-            const valor = a.debito - a.credito;
-            return (
-              <tr key={a.id} className="border-b last:border-0 bg-amber-500/5 hover:bg-amber-500/10">
-                <td className="px-2 py-1 whitespace-nowrap text-muted-foreground">
-                  {formatData(a.competencia)}
-                </td>
-                {showConta && (
-                  <td className="px-2 py-1 whitespace-nowrap font-mono text-[10px] text-muted-foreground">
-                    {a.conta_codigo}
-                    <span className="ml-1 font-sans text-muted-foreground/70">
-                      {tituloConta(data.contasMap[a.conta_codigo]?.descricao ?? "")}
-                    </span>
-                  </td>
-                )}
-                <td className="px-2 py-1">
-                  <GerencialBadge /> {a.descricao}
-                  <span className="ml-1 text-muted-foreground/70">
-                    (contrapartida: {a.contraconta})
-                  </span>
-                </td>
-                <td className={cn("px-2 py-1 text-right tabular-nums", a.debito === 0 && "text-muted-foreground/40")}>
-                  {fmt(a.debito)}
-                </td>
-                <td className={cn("px-2 py-1 text-right tabular-nums", a.credito === 0 && "text-muted-foreground/40")}>
-                  {fmt(a.credito)}
-                </td>
-                <td className={cn("px-2 py-1 text-right tabular-nums font-medium", valor < 0 && "text-destructive")}>
-                  {fmtValor(valor)}
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-        {(entriesFiltradas.length > 0 || ajustesPeriodo.length > 0) && (
-          <tfoot>
-            <tr className="border-t bg-muted/30 font-semibold">
-              <td className="px-2 py-1" colSpan={showConta ? 3 : 2}>
-                Total ({entriesFiltradas.length + ajustesPeriodo.length} lançamento{entriesFiltradas.length + ajustesPeriodo.length === 1 ? "" : "s"})
-              </td>
-              <td className="px-2 py-1 text-right tabular-nums">{fmtValor(totalDeb + ajustesDeb)}</td>
-              <td className="px-2 py-1 text-right tabular-nums">{fmtValor(totalCre + ajustesCre)}</td>
-              <td className="px-2 py-1 text-right tabular-nums">
-                {fmtValor(totalGeral)}
-              </td>
-            </tr>
-          </tfoot>
+  // Quando a linha reúne várias contas (clientes, fornecedores…), a lista
+  // corrida mistura todas elas. Por padrão agrupa por conta: uma linha por
+  // cliente/fornecedor, que abre os lançamentos daquela conta.
+  const [agrupar, setAgrupar] = useState(showConta);
+  const [abertas, setAbertas] = useState<Set<string>>(new Set());
+
+  const grupos = useMemo(() => {
+    const map = new Map<
+      string,
+      { codigo: string; entries: any[]; ajustes: any[]; debito: number; credito: number }
+    >();
+    const pega = (codigo: string) => {
+      let g = map.get(codigo);
+      if (!g) {
+        g = { codigo, entries: [], ajustes: [], debito: 0, credito: 0 };
+        map.set(codigo, g);
+      }
+      return g;
+    };
+    for (const e of entriesFiltradas) {
+      const g = pega(e.conta_codigo);
+      g.entries.push(e);
+      g.debito += e.debito;
+      g.credito += e.credito;
+    }
+    for (const a of ajustesPeriodo) {
+      const g = pega(a.conta_codigo);
+      g.ajustes.push(a);
+      g.debito += a.debito;
+      g.credito += a.credito;
+    }
+    return Array.from(map.values()).sort(
+      (a, b) =>
+        Math.abs(b.debito - b.credito) - Math.abs(a.debito - a.credito) ||
+        a.codigo.localeCompare(b.codigo),
+    );
+  }, [entriesFiltradas, ajustesPeriodo]);
+
+  const nomeConta = (codigo: string) =>
+    tituloConta(data.contasMap[codigo]?.descricao ?? "");
+
+  const toggleConta = (codigo: string) =>
+    setAbertas((prev) => {
+      const next = new Set(prev);
+      if (next.has(codigo)) next.delete(codigo);
+      else next.add(codigo);
+      return next;
+    });
+
+  const colunasDeConta = showConta && !agrupar;
+
+  const linhaLancamento = (r: any, indent = false) => {
+    const valor = r.debito - r.credito;
+    return (
+      <tr key={r.id} className="border-b last:border-0 hover:bg-accent/40">
+        <td
+          className="px-2 py-1 whitespace-nowrap text-muted-foreground"
+          style={indent ? { paddingLeft: 24 } : undefined}
+        >
+          {formatData(r.data)}
+        </td>
+        {colunasDeConta && (
+          <td className="px-2 py-1 whitespace-nowrap font-mono text-[10px] text-muted-foreground">
+            {r.conta_codigo}
+            <span className="ml-1 font-sans text-muted-foreground/70">
+              {nomeConta(r.conta_codigo)}
+            </span>
+          </td>
         )}
-      </table>
+        <td className="px-2 py-1">{r.historico ?? "—"}</td>
+        <td className={cn("px-2 py-1 text-right tabular-nums", r.debito === 0 && "text-muted-foreground/40")}>
+          {fmt(r.debito)}
+        </td>
+        <td className={cn("px-2 py-1 text-right tabular-nums", r.credito === 0 && "text-muted-foreground/40")}>
+          {fmt(r.credito)}
+        </td>
+        <td className={cn("px-2 py-1 text-right tabular-nums font-medium", valor < 0 && "text-destructive")}>
+          {fmtValor(valor)}
+        </td>
+      </tr>
+    );
+  };
+
+  const linhaAjuste = (a: any, indent = false) => {
+    const valor = a.debito - a.credito;
+    return (
+      <tr key={a.id} className="border-b last:border-0 bg-amber-500/5 hover:bg-amber-500/10">
+        <td
+          className="px-2 py-1 whitespace-nowrap text-muted-foreground"
+          style={indent ? { paddingLeft: 24 } : undefined}
+        >
+          {formatData(a.competencia)}
+        </td>
+        {colunasDeConta && (
+          <td className="px-2 py-1 whitespace-nowrap font-mono text-[10px] text-muted-foreground">
+            {a.conta_codigo}
+            <span className="ml-1 font-sans text-muted-foreground/70">
+              {nomeConta(a.conta_codigo)}
+            </span>
+          </td>
+        )}
+        <td className="px-2 py-1">
+          <GerencialBadge /> {a.descricao}
+          <span className="ml-1 text-muted-foreground/70">
+            (contrapartida: {a.contraconta})
+          </span>
+        </td>
+        <td className={cn("px-2 py-1 text-right tabular-nums", a.debito === 0 && "text-muted-foreground/40")}>
+          {fmt(a.debito)}
+        </td>
+        <td className={cn("px-2 py-1 text-right tabular-nums", a.credito === 0 && "text-muted-foreground/40")}>
+          {fmt(a.credito)}
+        </td>
+        <td className={cn("px-2 py-1 text-right tabular-nums font-medium", valor < 0 && "text-destructive")}>
+          {fmtValor(valor)}
+        </td>
+      </tr>
+    );
+  };
+
+  return (
+    <div className="rounded border bg-card">
+      {showConta && (
+        <div className="flex items-center justify-between gap-2 border-b px-2 py-1.5 text-[10px]">
+          <span className="text-muted-foreground">
+            {grupos.length} conta{grupos.length === 1 ? "" : "s"} com movimento
+          </span>
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => setAgrupar(true)}
+              className={cn(
+                "rounded px-2 py-0.5 font-medium uppercase tracking-wider",
+                agrupar ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent",
+              )}
+            >
+              Por conta
+            </button>
+            <button
+              type="button"
+              onClick={() => setAgrupar(false)}
+              className={cn(
+                "rounded px-2 py-0.5 font-medium uppercase tracking-wider",
+                !agrupar ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent",
+              )}
+            >
+              Lista
+            </button>
+            {agrupar && (
+              <button
+                type="button"
+                onClick={() =>
+                  setAbertas((prev) =>
+                    prev.size > 0 ? new Set() : new Set(grupos.map((g) => g.codigo)),
+                  )
+                }
+                className="rounded px-2 py-0.5 font-medium uppercase tracking-wider text-muted-foreground hover:bg-accent"
+              >
+                {abertas.size > 0 ? "Recolher" : "Expandir tudo"}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+      <div className="overflow-x-auto">
+        <table className="w-full text-[11px]">
+          <thead>
+            <tr className="border-b bg-muted/40">
+              <th className="text-left font-medium text-[10px] uppercase tracking-wider text-muted-foreground px-2 py-1.5 whitespace-nowrap">
+                {agrupar && showConta ? "Conta / Data" : "Data"}
+              </th>
+              {colunasDeConta && (
+                <th className="text-left font-medium text-[10px] uppercase tracking-wider text-muted-foreground px-2 py-1.5 whitespace-nowrap">
+                  Conta
+                </th>
+              )}
+              <th className="text-left font-medium text-[10px] uppercase tracking-wider text-muted-foreground px-2 py-1.5">
+                Histórico
+              </th>
+              <th className="text-right font-medium text-[10px] uppercase tracking-wider text-muted-foreground px-2 py-1.5 whitespace-nowrap">
+                Débito
+              </th>
+              <th className="text-right font-medium text-[10px] uppercase tracking-wider text-muted-foreground px-2 py-1.5 whitespace-nowrap">
+                Crédito
+              </th>
+              <th className="text-right font-medium text-[10px] uppercase tracking-wider text-muted-foreground px-2 py-1.5 whitespace-nowrap">
+                Valor
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {variante === "bp" && data.saldoInicial.length > 0 && (
+              <tr className="border-b bg-muted/10 font-medium">
+                <td className="px-2 py-1 whitespace-nowrap text-muted-foreground">
+                  {formatData(data.saldoInicial[0].data_referencia)}
+                </td>
+                {colunasDeConta && <td className="px-2 py-1">—</td>}
+                <td className="px-2 py-1 italic text-muted-foreground">
+                  Saldo inicial
+                </td>
+                <td className="px-2 py-1 text-right tabular-nums text-muted-foreground">—</td>
+                <td className="px-2 py-1 text-right tabular-nums text-muted-foreground">—</td>
+                <td className="px-2 py-1 text-right tabular-nums font-medium">
+                  {fmtValor(saldoInicialTotal)}
+                </td>
+              </tr>
+            )}
+            {variante === "bp" && ajustesAnteriores.length > 0 && (
+              <tr className="border-b bg-amber-500/5 font-medium">
+                <td className="px-2 py-1 whitespace-nowrap text-muted-foreground">
+                  {formatData(ajustesAnteriores[ajustesAnteriores.length - 1].competencia)}
+                </td>
+                {colunasDeConta && <td className="px-2 py-1">—</td>}
+                <td className="px-2 py-1 italic text-muted-foreground">
+                  <GerencialBadge /> Ajustes acumulados de competências anteriores ({ajustesAnteriores.length})
+                </td>
+                <td className="px-2 py-1 text-right tabular-nums text-muted-foreground">—</td>
+                <td className="px-2 py-1 text-right tabular-nums text-muted-foreground">—</td>
+                <td className="px-2 py-1 text-right tabular-nums font-medium">
+                  {fmtValor(ajustesAntTotal)}
+                </td>
+              </tr>
+            )}
+
+            {agrupar && showConta
+              ? grupos.map((g) => {
+                  const aberta = abertas.has(g.codigo);
+                  const qtd = g.entries.length + g.ajustes.length;
+                  return (
+                    <Fragment key={g.codigo}>
+                      <tr
+                        className="border-b bg-muted/20 font-medium hover:bg-accent/40 cursor-pointer"
+                        onClick={() => toggleConta(g.codigo)}
+                      >
+                        <td className="px-2 py-1 whitespace-nowrap" colSpan={2}>
+                          <span className="inline-flex items-center gap-1">
+                            {aberta ? (
+                              <ChevronDown className="h-3 w-3 shrink-0" />
+                            ) : (
+                              <ChevronRight className="h-3 w-3 shrink-0" />
+                            )}
+                            <span className="font-mono text-[10px] text-muted-foreground">
+                              {g.codigo}
+                            </span>
+                            <span>{nomeConta(g.codigo)}</span>
+                            <span className="text-muted-foreground/70">
+                              · {qtd} lançamento{qtd === 1 ? "" : "s"}
+                            </span>
+                          </span>
+                        </td>
+                        <td className="px-2 py-1 text-right tabular-nums">{fmt(g.debito)}</td>
+                        <td className="px-2 py-1 text-right tabular-nums">{fmt(g.credito)}</td>
+                        <td
+                          className={cn(
+                            "px-2 py-1 text-right tabular-nums font-semibold",
+                            g.debito - g.credito < 0 && "text-destructive",
+                          )}
+                        >
+                          {fmtValor(g.debito - g.credito)}
+                        </td>
+                      </tr>
+                      {aberta && g.entries.map((r) => linhaLancamento(r, true))}
+                      {aberta && g.ajustes.map((a) => linhaAjuste(a, true))}
+                    </Fragment>
+                  );
+                })
+              : (
+                  <>
+                    {entriesFiltradas.map((r) => linhaLancamento(r))}
+                    {ajustesPeriodo.map((a) => linhaAjuste(a))}
+                  </>
+                )}
+          </tbody>
+          {(entriesFiltradas.length > 0 || ajustesPeriodo.length > 0) && (
+            <tfoot>
+              <tr className="border-t bg-muted/30 font-semibold">
+                <td className="px-2 py-1" colSpan={colunasDeConta ? 3 : 2}>
+                  Total ({entriesFiltradas.length + ajustesPeriodo.length} lançamento{entriesFiltradas.length + ajustesPeriodo.length === 1 ? "" : "s"})
+                </td>
+                <td className="px-2 py-1 text-right tabular-nums">{fmtValor(totalDeb + ajustesDeb)}</td>
+                <td className="px-2 py-1 text-right tabular-nums">{fmtValor(totalCre + ajustesCre)}</td>
+                <td className="px-2 py-1 text-right tabular-nums">
+                  {fmtValor(totalGeral)}
+                </td>
+              </tr>
+            </tfoot>
+          )}
+        </table>
+      </div>
     </div>
   );
 }

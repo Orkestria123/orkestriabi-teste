@@ -42,6 +42,7 @@ const CONFIG_ITEMS: NavItem[] = [
   { to: "/admin/sistemas", label: "Sistemas e layouts", icon: Cable },
   { to: "/admin/empresas", label: "Cadastro de empresas", icon: Building2 },
   { to: "/admin/indicadores", label: "Indicadores", icon: LineChart },
+  { to: "/admin/analises", label: "Análises", icon: BarChart3 },
   { to: "/admin/diagnostico", label: "Diagnóstico", icon: Stethoscope },
 ];
 
@@ -53,6 +54,7 @@ const CONFIG_ITEMS_BI: NavItem[] = [
   { to: "/admin/plano-padrao", label: "Plano de Contas", icon: BookOpen },
   { to: "/admin/sistemas", label: "Sistemas e layouts", icon: Cable },
   { to: "/admin/indicadores", label: "Indicadores", icon: LineChart },
+  { to: "/admin/analises", label: "Análises", icon: BarChart3 },
 ];
 
 const ORK_NAV: NavItem[] = [

@@ -1,6 +1,7 @@
 import { Card } from "@/components/ui/card";
 import { formatBRL, formatBRLCompact } from "@/lib/format";
 import type { CapitalGiroResultado } from "@/lib/analise-capital-giro";
+import type { NcgConfigurada } from "@/components/analise/analises-dinamicas";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip, LabelList, Cell,
 } from "recharts";
@@ -8,6 +9,8 @@ import { AXIS_PROPS, GRID_PROPS, TOOLTIP_STYLE } from "@/lib/chart-config";
 
 interface Props {
   resultado: CapitalGiroResultado;
+  /** NCG calculada pela fórmula configurada pelo escritório (Admin → Análises). */
+  ncgConfig?: NcgConfigurada | null;
 }
 
 function Metric({
@@ -34,10 +37,12 @@ function diasFmt(v: number | null): string {
   return `${v.toFixed(0)} d`;
 }
 
-export function CapitalGiroPanel({ resultado: r }: Props) {
+export function CapitalGiroPanel({ resultado: r, ncgConfig = null }: Props) {
   const ciclo = r.cicloFinanceiro;
   const tomCiclo = ciclo == null ? "neutral" : ciclo < 30 ? "ok" : ciclo < 60 ? "warn" : "crit";
-  const tomNcg = r.ncg <= 0 ? "ok" : r.ncg > r.capitalGiroLiquido ? "crit" : "warn";
+  const usouFormula = !!(ncgConfig && ncgConfig.valor != null);
+  const ncgValor = usouFormula ? ncgConfig!.valor! : r.ncg;
+  const tomNcg = ncgValor <= 0 ? "ok" : ncgValor > r.capitalGiroLiquido ? "crit" : "warn";
   const tomTes = r.saldoTesouraria >= 0 ? "ok" : "crit";
   const tomDias = r.diasCaixa == null ? "neutral" : r.diasCaixa > 60 ? "ok" : r.diasCaixa > 30 ? "warn" : "crit";
 
@@ -48,10 +53,11 @@ export function CapitalGiroPanel({ resultado: r }: Props) {
       ? "Você recebe dos clientes ANTES de pagar fornecedores — caixa positivo no ciclo."
       : `Da venda ao recebimento líquido você espera ${ciclo.toFixed(0)} dias. Cada dia a mais consome caixa.`;
 
-  const ncgHint =
-    r.ncg <= 0
-      ? "Operação se autofinancia — fornecedores cobrem clientes + estoque."
-      : `Você precisa de ${formatBRLCompact(r.ncg)} de caixa para girar o negócio.`;
+  const ncgHint = usouFormula
+    ? "Fórmula configurada pelo escritório (Admin → Análises) — pode diferir da NCG clássica."
+    : r.ncg <= 0
+    ? "Operação se autofinancia — fornecedores cobrem clientes + estoque."
+    : `Você precisa de ${formatBRLCompact(r.ncg)} de caixa para girar o negócio.`;
 
   const tesHint =
     r.saldoTesouraria >= 0

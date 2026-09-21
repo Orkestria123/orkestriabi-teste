@@ -136,16 +136,18 @@ function Page() {
 
   const { data: rows = [], isLoading } = useMonthlyStatement(companyId, tipo, allPeriodos);
   const needBP = secao === "capitalGiro";
-  const { data: bpAtivoRows = [] } = useMonthlyStatement(
+  const { data: bpAtivoRows = [], isLoading: loadBpAtivo } = useMonthlyStatement(
     companyId,
     "BP_ATIVO",
     needBP ? allPeriodos : [],
   );
-  const { data: bpPassivoRows = [] } = useMonthlyStatement(
+  const { data: bpPassivoRows = [], isLoading: loadBpPassivo } = useMonthlyStatement(
     companyId,
     "BP_PASSIVO",
     needBP ? allPeriodos : [],
   );
+  const carregandoBP = needBP && (loadBpAtivo || loadBpPassivo);
+
 
   const labelA = granularidade === "ano" ? periodoA : periodoA ? periodoMesLabel(periodoA) : "—";
   const labelB = granularidade === "ano" ? periodoB : periodoB ? periodoMesLabel(periodoB) : "—";

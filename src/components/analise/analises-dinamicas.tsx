@@ -85,12 +85,12 @@ export function useAvaliacaoAnalises(
   const ativo = !!tenantId && !!companyId && !loadCfg && configs.length > 0 && periodos.length > 0;
 
   const { data: ctxPair, isLoading: l1 } = useIndicadorData(
-    ativo ? tenantId : null,
+    ativo ? (tenantId ?? undefined) : undefined,
     companyId,
     "contabil",
   );
   const { data: demoPair, isLoading: l2 } = useDemoValues(
-    ativo ? tenantId : null,
+    ativo ? (tenantId ?? undefined) : undefined,
     companyId,
     periodos,
     "contabil",
@@ -124,14 +124,23 @@ export function useNcgConfigurada(
     [configs],
   );
   const ativo = !!cfg && !!tenantId && !!companyId && periodos.length > 0;
-  const { data: ctxPair } = useIndicadorData(ativo ? tenantId : null, companyId, "contabil");
-  const { data: demoPair } = useDemoValues(ativo ? tenantId : null, companyId, periodos, "contabil");
+  const { data: ctxPair } = useIndicadorData(
+    ativo ? (tenantId ?? undefined) : undefined,
+    companyId,
+    "contabil",
+  );
+  const { data: demoPair } = useDemoValues(
+    ativo ? (tenantId ?? undefined) : undefined,
+    companyId,
+    periodos,
+    "contabil",
+  );
   const { data: estrutura } = useEstruturaPadrao();
 
   return useMemo(() => {
     if (!cfg || !ctxPair || !demoPair) return null;
     const ctx = (isCtxPair(ctxPair) ? ctxPair.contabil : ctxPair) as EngineContext;
-    const demo = isDemoPair(demoPair) ? demoPair.contabil : demoPair;
+    const demo = (isDemoPair(demoPair) ? demoPair.contabil : demoPair) as DemoDre | undefined;
     const resolver = criarResolverLinha(ctx, demo, estrutura);
     const tokens = tokensDaFormula(cfg.formula);
     const ultimo = periodos[periodos.length - 1];

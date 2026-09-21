@@ -471,6 +471,12 @@ async function carregar(
         }
       }
 
+      // Fora dos meses marcados, fora da gaveta: a faixa do banco pode ter
+      // trazido meses do meio que o usuário não marcou.
+      const entriesNoPeriodo = entries.filter((e) => noMes(e.data));
+      entries.length = 0;
+      entries.push(...entriesNoPeriodo);
+
       entries.sort((a, b) => {
         if (a.data === b.data) return a.id.localeCompare(b.id);
         return a.data.localeCompare(b.data);

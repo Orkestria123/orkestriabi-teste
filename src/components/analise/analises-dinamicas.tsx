@@ -170,6 +170,126 @@ export function useNcgConfigurada(
 }
 
 // ============================================================
+// Capital de Giro — visão estrutural (planilha) por período
+// ============================================================
+
+export interface LinhaEstrutural {
+  label: string;
+  sinal: "+" | "-";
+  valores: (number | null)[];
+}
+
+export interface CapitalGiroEstrutura {
+  carregando: boolean;
+  nome: string;
+  descricao: string | null;
+  periodos: string[];
+  linhas: LinhaEstrutural[];
+  total: (number | null)[];
+}
+
+/**
+ * Monta a fórmula de Capital de Giro configurada pelo escritório como uma
+ * planilha: uma linha por conta/linha da fórmula, uma coluna por período,
+ * e o total (resultado da fórmula) em cada período.
+ */
+export function useCapitalGiroEstrutura(
+  tenantId: string | null | undefined,
+  companyId: string,
+  periodos: string[],
+): CapitalGiroEstrutura | null {
+  const { data: configs, isLoading: loadCfg } = useAnaliseConfigs(tenantId, true);
+  const cfg = useMemo(
+    () => configs?.find((c) => c.secao === "capital_giro") ?? null,
+    [configs],
+  );
+  const ativo = !!cfg && !!tenantId && !!companyId && periodos.length > 0;
+  const { data: ctxPair, isLoading: l1 } = useIndicadorData(
+    ativo ? (tenantId ?? undefined) : undefined,
+    companyId,
+    "contabil",
+  );
+  const { data: demoPair, isLoading: l2 } = useDemoValues(
+    ativo ? (tenantId ?? undefined) : undefined,
+    companyId,
+    periodos,
+    "contabil",
+  );
+  const { data: estrutura, isLoading: l3 } = useEstruturaPadrao();
+
+  return useMemo(() => {
+    if (!cfg) return loadCfg ? null : null;
+    const carregando = loadCfg || l1 || l2 || l3 || !ctxPair || !demoPair;
+    if (carregando) {
+      return {
+        carregando: true,
+        nome: cfg.nome,
+        descricao: cfg.descricao,
+        periodos,
+        linhas: [],
+        total: [],
+      };
+    }
+    const ctx = (isCtxPair(ctxPair) ? ctxPair.contabil : ctxPair) as EngineContext;
+    const demo = (isDemoPair(demoPair) ? demoPair.contabil : demoPair) as DemoDre | undefined;
+    const resolver = criarResolverLinha(ctx, demo, estrutura);
+    const tokens = tokensDaFormula(cfg.formula);
+
+    // Sinal de cada termo (operador anterior) e rótulo — iguais em todo período.
+    const meta: { sinal: "+" | "-"; label: string }[] = [];
+    let pend: "+" | "-" = "+";
+    const termosRef = valoresTermosFormula(
+      tokens,
+      periodos[periodos.length - 1],
+      ctx,
+      resolver,
+      labelLinha,
+    );
+    let i = 0;
+    for (const t of tokens) {
+      if (t.tipo === "operador") pend = t.valor === "-" ? "-" : "+";
+      else if (t.tipo === "termo") {
+        const tt = termosRef[i++];
+        const refs = t.contas ?? [];
+        const label =
+          t.origem === "demonstracao" || t.linha
+            ? tt?.label ?? "linha"
+            : refs.map((r) => rotuloCtx(ctx, r)).join(" + ") || "(sem contas)";
+        meta.push({ sinal: pend, label });
+      }
+    }
+
+    const linhas: LinhaEstrutural[] = meta.map((m) => ({
+      label: m.label,
+      sinal: m.sinal,
+      valores: [],
+    }));
+    const total: (number | null)[] = [];
+
+    for (const p of periodos) {
+      const termos = valoresTermosFormula(tokens, p, ctx, resolver, labelLinha);
+      termos.forEach((t, idx) => {
+        const sinal = meta[idx]?.sinal ?? "+";
+        const v =
+          t.valor == null ? null : sinal === "-" ? -Math.abs(t.valor) : t.valor;
+        linhas[idx]?.valores.push(v);
+      });
+      total.push(avaliarExpressao(tokens, p, ctx, resolver));
+    }
+
+    return {
+      carregando: false,
+      nome: cfg.nome,
+      descricao: cfg.descricao,
+      periodos,
+      linhas,
+      total,
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cfg, ctxPair, demoPair, estrutura, loadCfg, l1, l2, l3, periodos.join(",")]);
+}
+
+// ============================================================
 // Painel da aba "Análises" no dashboard
 // ============================================================
 

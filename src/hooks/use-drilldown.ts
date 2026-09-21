@@ -122,16 +122,30 @@ export interface LancamentosDrilldownResult {
 }
 
 
-function competenciaRange(periodos: string[]): { min: string; max: string } {
+function mesesSelecionados(periodos: string[]): string[] {
+  return Array.from(
+    new Set(
+      periodos
+        .map((p) => p.slice(0, 7)) // YYYY-MM
+        .filter((p) => /^\d{4}-\d{2}$/.test(p)),
+    ),
+  ).sort();
+}
+
+function competenciaRange(periodos: string[]): {
+  min: string;
+  max: string;
+  meses: string[];
+} {
   // periodos: YYYY-MM ou YYYY-MM-01 (aceita ambos)
-  const norm = periodos
-    .map((p) => p.slice(0, 7)) // YYYY-MM
-    .filter((p) => /^\d{4}-\d{2}$/.test(p))
-    .sort();
+  const norm = mesesSelecionados(periodos);
   if (norm.length === 0) {
-    return { min: "1900-01-01", max: "2999-12-01" };
+    return { min: "1900-01-01", max: "2999-12-01", meses: [] };
   }
-  return { min: `${norm[0]}-01`, max: `${norm[norm.length - 1]}-01` };
+  // O filtro do banco é uma FAIXA [min, max]; quando os meses marcados não
+  // são contíguos (ex.: jan e mar), a faixa traz fevereiro de brinde. Por
+  // isso a lista exata dos meses viaja junto e filtra o resultado.
+  return { min: `${norm[0]}-01`, max: `${norm[norm.length - 1]}-01`, meses: norm };
 }
 
 /**

@@ -243,7 +243,11 @@ function DrilldownTable({
             </span>
           </td>
         )}
-        <td className="px-2 py-1">{r.historico ?? "—"}</td>
+        <td className="px-2 py-1">
+          {r.historico && r.historico.trim() !== ""
+            ? r.historico
+            : <span className="text-muted-foreground/60">Sem histórico no arquivo</span>}
+        </td>
         <td className={cn("px-2 py-1 text-right tabular-nums", r.debito === 0 && "text-muted-foreground/40")}>
           {fmt(r.debito)}
         </td>

@@ -122,16 +122,30 @@ export interface LancamentosDrilldownResult {
 }
 
 
-function competenciaRange(periodos: string[]): { min: string; max: string } {
+function mesesSelecionados(periodos: string[]): string[] {
+  return Array.from(
+    new Set(
+      periodos
+        .map((p) => p.slice(0, 7)) // YYYY-MM
+        .filter((p) => /^\d{4}-\d{2}$/.test(p)),
+    ),
+  ).sort();
+}
+
+function competenciaRange(periodos: string[]): {
+  min: string;
+  max: string;
+  meses: string[];
+} {
   // periodos: YYYY-MM ou YYYY-MM-01 (aceita ambos)
-  const norm = periodos
-    .map((p) => p.slice(0, 7)) // YYYY-MM
-    .filter((p) => /^\d{4}-\d{2}$/.test(p))
-    .sort();
+  const norm = mesesSelecionados(periodos);
   if (norm.length === 0) {
-    return { min: "1900-01-01", max: "2999-12-01" };
+    return { min: "1900-01-01", max: "2999-12-01", meses: [] };
   }
-  return { min: `${norm[0]}-01`, max: `${norm[norm.length - 1]}-01` };
+  // O filtro do banco é uma FAIXA [min, max]; quando os meses marcados não
+  // são contíguos (ex.: jan e mar), a faixa traz fevereiro de brinde. Por
+  // isso a lista exata dos meses viaja junto e filtra o resultado.
+  return { min: `${norm[0]}-01`, max: `${norm[norm.length - 1]}-01`, meses: norm };
 }
 
 /**
@@ -192,7 +206,7 @@ export async function carregarDrilldown(
   periodos: string[],
   opts: { incluirSaldoInicial: boolean; visao?: string; chaveDfc?: boolean },
 ): Promise<LancamentosDrilldownResult> {
-  const { min, max } = competenciaRange(periodos);
+  const { min, max, meses } = competenciaRange(periodos);
   const visao = opts.visao ?? "contabil";
   return carregar(
     companyId,
@@ -202,6 +216,7 @@ export async function carregarDrilldown(
     opts.incluirSaldoInicial,
     visao,
     opts.chaveDfc ?? false,
+    meses,
   );
 }
 
@@ -212,7 +227,7 @@ export function useLancamentosDrilldown(
   opts: { incluirSaldoInicial: boolean; chaveDfc?: boolean },
   enabled: boolean,
 ) {
-  const { min, max } = competenciaRange(periodos);
+  const { min, max, meses } = competenciaRange(periodos);
   const { visao } = useVisaoGerencial();
 
   return useQuery({
@@ -222,6 +237,7 @@ export function useLancamentosDrilldown(
       classificacao,
       min,
       max,
+      meses.join(","),
       opts.incluirSaldoInicial,
       visao,
       opts.chaveDfc ?? false,
@@ -236,6 +252,7 @@ export function useLancamentosDrilldown(
         opts.incluirSaldoInicial,
         visao,
         opts.chaveDfc ?? false,
+        meses,
       ),
   });
 }
@@ -263,8 +280,14 @@ async function carregar(
   incluirSaldoInicial: boolean,
   visao: string,
   chaveDfc = false,
+  meses: string[] = [],
 ): Promise<LancamentosDrilldownResult> {
   const opts = { incluirSaldoInicial };
+      // Só filtra por mês quando a seleção tem "buracos" — a faixa do banco
+      // já resolve o caso contíguo e não vale pagar filtro por linha.
+      const mesesSet = new Set(meses);
+      const noMes = (d: string) =>
+        mesesSet.size === 0 || mesesSet.has(String(d).slice(0, 7));
       const tenantId = await fetchTenantId(companyId!);
       const mascara = tenantId
         ? await getMascaraConfig({ tenantId, companyId })
@@ -448,6 +471,12 @@ async function carregar(
         }
       }
 
+      // Fora dos meses marcados, fora da gaveta: a faixa do banco pode ter
+      // trazido meses do meio que o usuário não marcou.
+      const entriesNoPeriodo = entries.filter((e) => noMes(e.data));
+      entries.length = 0;
+      entries.push(...entriesNoPeriodo);
+
       entries.sort((a, b) => {
         if (a.data === b.data) return a.id.localeCompare(b.id);
         return a.data.localeCompare(b.data);
@@ -525,6 +554,13 @@ async function carregar(
         }
         ajustes.sort((a, b) => a.competencia.localeCompare(b.competencia));
       }
+      // No fluxo do período (DRE) o ajuste também respeita os meses marcados;
+      // no Balanço a posição é acumulada e nada pode ser cortado.
+      const ajustesFinais = opts.incluirSaldoInicial
+        ? ajustes
+        : ajustes.filter((a) => a.isAnterior || noMes(a.competencia));
+      ajustes.length = 0;
+      ajustes.push(...ajustesFinais);
 
       return {
         entries,

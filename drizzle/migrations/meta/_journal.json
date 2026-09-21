@@ -218,6 +218,34 @@
       "when": 1790019607129,
       "tag": "0030_timeout_e_rls_leve_batch_ecd",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1790021591590,
+      "tag": "0031_corrigir_nomes_sinteticas_geradas",
+      "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1790021669187,
+      "tag": "0032_galho_destino_sem_nivel_repetido",
+      "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1790021807872,
+      "tag": "0033_historico_e_contas_do_diario_no_drilldown",
+      "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1790021884197,
+      "tag": "0034_historico_nulo_na_materializacao_ecd",
+      "breakpoints": true
     }
   ]
 }

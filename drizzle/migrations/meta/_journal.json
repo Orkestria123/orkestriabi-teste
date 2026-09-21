@@ -204,6 +204,13 @@
       "when": 1789982828295,
       "tag": "0028_create_analise_configs",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1789986030786,
+      "tag": "0029_index_plano_contas_resultado",
+      "breakpoints": true
     }
   ]
 }

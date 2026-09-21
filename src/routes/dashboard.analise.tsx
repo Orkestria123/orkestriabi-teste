@@ -8,10 +8,8 @@ import {
   useAvailablePeriods,
   useMonthlyStatement,
 } from "@/hooks/use-financial-data";
-import {
-  useReceitaDespesaDetalhado,
-  useReceitaDespesaPorPeriodo,
-} from "@/hooks/use-receita-despesa";
+import { useReceitaDespesaDetalhado } from "@/hooks/use-receita-despesa";
+
 import {
   agregarPorPeriodos,
   anosDisponiveis,
@@ -20,13 +18,7 @@ import {
   type Granularidade,
   type MonthlyRow,
 } from "@/lib/analise-helpers";
-import {
-  rankingDespesas,
-  paretoDespesas,
-  despesaPorCentro,
-  composicaoReceita,
-  type NoArvore,
-} from "@/lib/analise-receita-despesa";
+import { type NoArvore } from "@/lib/analise-receita-despesa";
 import { PeriodPicker } from "@/components/analise/period-picker";
 import { HighlightCard } from "@/components/analise/highlight-card";
 import {
@@ -34,17 +26,8 @@ import {
   type CompRow,
 } from "@/components/analise/comparativo-table";
 import { ComparativoBarChart } from "@/components/analise/comparativo-bar-chart";
-import { CascataResultado } from "@/components/analise/cascata-resultado";
-import { RankingDespesas } from "@/components/analise/ranking-despesas";
-import { ParetoDespesas } from "@/components/analise/pareto-despesas";
-import { DespesaPorCentro } from "@/components/analise/despesa-por-centro";
-import { ComposicaoReceita } from "@/components/analise/composicao-receita";
-import { EvolucaoReceitaDespesa } from "@/components/analise/evolucao-receita-despesa";
-import { ResumoExecutivo } from "@/components/analise/resumo-executivo";
-import { TendenciaPanel } from "@/components/analise/tendencia-panel";
 import { PontoEquilibrioPanel } from "@/components/analise/ponto-equilibrio-panel";
-import { ProjecaoPanel } from "@/components/analise/projecao-panel";
-import { SimuladorCorteDespesa } from "@/components/analise/simulador-corte-despesa";
+
 import {
   calcularPontoEquilibrio,
   type DespesaItem,
@@ -140,15 +123,13 @@ function Page() {
   const labelA = granularidade === "ano" ? periodoA : periodoA ? periodoMesLabel(periodoA) : "—";
   const labelB = granularidade === "ano" ? periodoB : periodoB ? periodoMesLabel(periodoB) : "—";
 
-  // Receita × Despesa detalhado para período B (atual) e A (anterior)
-  const { data: rdAtual } = useReceitaDespesaDetalhado(companyId, periodosB);
-  const { data: rdAnterior } = useReceitaDespesaDetalhado(companyId, periodosA);
-  // Evolução mensal (cada competência do período B)
-  const competenciasMensais = useMemo(
-    () => periodosB.map((c) => ({ periodo: c, competencias: [c] })),
-    [periodosB],
+  // Receita × Despesa detalhado — usado apenas pelo Ponto de Equilíbrio.
+  const { data: rdAtual } = useReceitaDespesaDetalhado(
+    companyId,
+    periodosB,
+    secao === "equilibrio",
   );
-  const { data: rdMensal } = useReceitaDespesaPorPeriodo(companyId, competenciasMensais);
+
 
   // Mapeamento tipo_custo (fixo/variavel) para Ponto de Equilíbrio
   const { data: tipoCustoPlano = [] } = useQuery({
@@ -167,6 +148,7 @@ function Page() {
         .from("plano_contas")
         .select("classificacao, tipo_custo, company_id")
         .eq("tenant_id", tenantId)
+        .or(`company_id.is.null,company_id.eq.${companyId}`)
         .not("tipo_custo", "is", null);
       if (error) throw error;
       const porCls = new Map<string, { classificacao: string; tipo_custo: string | null }>();
@@ -178,7 +160,10 @@ function Page() {
       }
       return Array.from(porCls.values());
     },
+    staleTime: 30 * 60 * 1000,
+    gcTime: 60 * 60 * 1000,
   });
+
 
 
   const compRows: CompRow[] = useMemo(() => {
@@ -225,33 +210,6 @@ function Page() {
     return () => document.body.classList.remove("presentation-mode");
   }, [presentation]);
 
-  // Derivados para Resumo e Receita × Despesa
-  const receitaB = rdAtual?.receita_total ?? 0;
-  const despesaB = rdAtual?.despesa_total ?? 0;
-  const receitaA = rdAnterior?.receita_total ?? 0;
-  const despesaA = rdAnterior?.despesa_total ?? 0;
-  const lucroB = highlights.lucB ?? receitaB - despesaB;
-  const lucroA = highlights.lucA ?? receitaA - despesaA;
-  const margemB = receitaB ? (lucroB / receitaB) * 100 : 0;
-  const varPct = (b: number, a: number) => (a ? ((b - a) / Math.abs(a)) * 100 : null);
-
-  const ranking = useMemo(() => (rdAtual ? rankingDespesas(rdAtual, 10) : []), [rdAtual]);
-  const pareto = useMemo(() => (rdAtual ? paretoDespesas(rdAtual) : []), [rdAtual]);
-  const centros = useMemo(() => (rdAtual ? despesaPorCentro(rdAtual) : []), [rdAtual]);
-  const origens = useMemo(() => (rdAtual ? composicaoReceita(rdAtual) : []), [rdAtual]);
-
-  const evolucao = useMemo(() => {
-    if (!rdMensal) return [];
-    return rdMensal.map((m) => {
-      const rec = m.dados.receita_total;
-      const desp = m.dados.despesa_total;
-      const d = new Date(m.periodo);
-      const mes = `${String(d.getUTCMonth() + 1).padStart(2, "0")}/${String(d.getUTCFullYear()).slice(2)}`;
-      return { mes, receita: rec, despesaTotal: desp, margem: rec - desp };
-    });
-  }, [rdMensal]);
-
-  const maiorDespesa = ranking[0];
 
   if (!companyId) {
     return (

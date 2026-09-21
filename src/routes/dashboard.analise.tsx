@@ -323,38 +323,25 @@ function Page() {
         </TabsList>
 
 
-        {/* ============ CAPITAL DE GIRO ============ */}
+        {/* ============ CAPITAL DE GIRO (estrutural) ============ */}
         <TabsContent value="capitalGiro" className="space-y-5 mt-5">
-          <p className="text-xs text-muted-foreground">
-            Quanto tempo seu dinheiro fica fora do caixa, e se a operação se autofinancia.
-          </p>
           {(() => {
-            const bpA = agregarPorPeriodos(bpAtivoRows as MonthlyRow[], "BP_ATIVO", periodosB).ordered;
-            const bpP = agregarPorPeriodos(bpPassivoRows as MonthlyRow[], "BP_PASSIVO", periodosB).ordered;
-            const dreB = agregarPorPeriodos(dreSource, "DRE", periodosB).ordered;
-            if (carregandoBP) {
-              return (
-                <Card className="p-8 flex items-center justify-center gap-2 text-sm text-muted-foreground">
-                  <Loader2 className="h-4 w-4 animate-spin" /> Carregando dados de balanço…
-                </Card>
-              );
-            }
-            if (bpA.length === 0 || bpP.length === 0) {
+            if (!cgEstrutura) {
               return (
                 <Card className="p-8 text-center text-sm text-muted-foreground">
-                  Não encontramos o balanço de {labelB} para esta empresa. Escolha outro período ou
-                  confira se os dados desse mês já foram importados.
+                  Nenhuma fórmula de Capital de Giro configurada. O escritório pode montá-la em
+                  Configurações → Análises.
                 </Card>
               );
             }
-            const resultado = calcularCapitalGiro({
-
-              bpAtivo: bpA.map((r) => ({ descricao: r.descricao, valor: r.valor, is_subtotal: r.is_subtotal })),
-              bpPassivo: bpP.map((r) => ({ descricao: r.descricao, valor: r.valor, is_subtotal: r.is_subtotal })),
-              dre: dreB.map((r) => ({ descricao: r.descricao, valor: r.valor })),
-              mesesNoRecorte: periodosB.length,
-            });
-            return <CapitalGiroPanel resultado={resultado} ncgConfig={ncgConfig} />;
+            if (cgEstrutura.carregando) {
+              return (
+                <Card className="p-8 flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" /> Carregando dados…
+                </Card>
+              );
+            }
+            return <CapitalGiroEstrutural dados={cgEstrutura} />;
           })()}
         </TabsContent>
 

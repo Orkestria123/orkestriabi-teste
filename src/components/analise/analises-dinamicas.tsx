@@ -41,7 +41,7 @@ import {
   type ModoAnalise,
   type SeriePonto,
 } from "@/lib/indicadores/engine";
-import { labelLinha } from "@/lib/indicadores/linhas";
+import { labelLinha, type DemoDre } from "@/lib/indicadores/linhas";
 import { formatBRLCompact } from "@/lib/format";
 import { AXIS_PROPS, GRID_PROPS, TOOLTIP_STYLE } from "@/lib/chart-config";
 
@@ -100,7 +100,7 @@ export function useAvaliacaoAnalises(
   const calc = useMemo<CalcAnalise[]>(() => {
     if (!ativo || !ctxPair || !demoPair) return [];
     const ctx = (isCtxPair(ctxPair) ? ctxPair.contabil : ctxPair) as EngineContext;
-    const demo = isDemoPair(demoPair) ? demoPair.contabil : demoPair;
+    const demo = (isDemoPair(demoPair) ? demoPair.contabil : demoPair) as DemoDre | undefined;
     const resolver = criarResolverLinha(ctx, demo, estrutura);
     return configs.map((cfg) => {
       const serieCrua = serieAnalise(cfg.formula, periodos, ctx, resolver);

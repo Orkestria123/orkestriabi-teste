@@ -273,6 +273,9 @@ export function makeStatementPage(
             initialExpandLevel={1}
             variante={tipo === "DFC" ? "dfc" : "dre"}
             padraoMaxNivel={tipo === "DRE" ? 1 : undefined}
+            padraoRecolherRotulos={
+              tipo === "DRE" ? ["Deduções da Receita Bruta"] : undefined
+            }
           />
         )}
       </div>

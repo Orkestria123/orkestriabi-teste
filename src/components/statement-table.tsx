@@ -52,6 +52,8 @@ interface StatementTableProps {
   variante?: 'dre' | 'bp' | 'dfc';
   /** Profundidade da visualização Padrão. BP usa 2 se omitido; Ativo pode passar 3. */
   padraoMaxNivel?: number;
+  /** Grupos que o Padrão mantém recolhidos (comparação sem acento, por parte do nome). */
+  padraoRecolherRotulos?: string[];
   onDrilldownClick?: (codigoConta: string, descricao: string) => void;
   emMilhares?: boolean;
   /** Balanço: Ativo à esquerda e Passivo+PL à direita, com a mesma barra de filtro/expandir. */
@@ -201,18 +203,36 @@ function isRowVisible(rows: StatementRow[], index: number, expanded: Set<string>
   return true;
 }
 
+function normalizaRotulo(s: string): string {
+  return s
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+}
+
 function expandPadrao(
   rows: StatementRow[],
   variante: "dre" | "bp" | "dfc" = "dre",
   padraoMaxNivel?: number,
+  padraoRecolherRotulos?: string[],
 ): Set<string> {
   const set = new Set<string>();
   // DRE/DFC: grupos da demonstração (nível 0) abertos.
   // BP: lado + grupos + primeiro nível de contas (2). Ativo pode ir a 3.
   const maxNivel = padraoMaxNivel ?? (variante === "bp" ? 2 : 0);
+  const recolher = padraoRecolherRotulos?.map(normalizaRotulo);
   rows.forEach((row, index) => {
     if (directChildren(rows, index).length === 0) return;
-    if (row.nivel <= maxNivel) set.add(rowId(row));
+    if (row.nivel > maxNivel) return;
+    // Grupos marcados para recolher ficam fechados no Padrão (ex.: Deduções da Receita Bruta).
+    if (
+      recolher?.some((rotulo) =>
+        normalizaRotulo(row.descricao).includes(rotulo),
+      )
+    )
+      return;
+    set.add(rowId(row));
   });
   return set;
 }
@@ -264,6 +284,7 @@ export function StatementTable({
   initialExpandLevel = 1,
   variante = 'dre',
   padraoMaxNivel,
+  padraoRecolherRotulos,
   onDrilldownClick,
   emMilhares = false,
   lados = false,
@@ -276,13 +297,14 @@ export function StatementTable({
       : (filterContext?.periodos ?? []);
 
   const estruturaKey = rows.map((r) => rowId(r)).join("|");
+  const recolherKey = padraoRecolherRotulos?.join("|") ?? "";
   const [expandedRows, setExpandedRows] = useState<Set<string>>(() =>
-    expandPadrao(rows, variante, padraoMaxNivel),
+    expandPadrao(rows, variante, padraoMaxNivel, padraoRecolherRotulos),
   );
   useEffect(() => {
-    setExpandedRows(expandPadrao(rows, variante, padraoMaxNivel));
+    setExpandedRows(expandPadrao(rows, variante, padraoMaxNivel, padraoRecolherRotulos));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [estruturaKey, variante, padraoMaxNivel]);
+  }, [estruturaKey, variante, padraoMaxNivel, recolherKey]);
 
   const [drilldownExpanded, setDrilldownExpanded] = useState<Set<number>>(new Set());
 
@@ -422,8 +444,9 @@ export function StatementTable({
   }, [rows]);
 
   const padrao = useMemo(
-    () => expandPadrao(rows, variante, padraoMaxNivel),
-    [rows, variante, padraoMaxNivel],
+    () => expandPadrao(rows, variante, padraoMaxNivel, padraoRecolherRotulos),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [rows, variante, padraoMaxNivel, recolherKey],
   );
   const ehPadrao = sameSet(expandedRows, padrao);
   const tudoExpandido =
@@ -439,7 +462,8 @@ export function StatementTable({
         ? "tudo"
         : "livre";
 
-  const aplicarPadrao = () => setExpandedRows(expandPadrao(rows, variante, padraoMaxNivel));
+  const aplicarPadrao = () =>
+    setExpandedRows(expandPadrao(rows, variante, padraoMaxNivel, padraoRecolherRotulos));
   const recolherTudo = () => setExpandedRows(new Set());
   const expandirTudo = () => setExpandedRows(new Set(idsComFilhos));
   const abertoMax = nivelAbertoMax(rows, expandedRows);

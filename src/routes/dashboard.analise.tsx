@@ -58,10 +58,15 @@ import { cn } from "@/lib/utils";
 import { Maximize2, Minimize2 } from "lucide-react";
 import { computeIndicators, formatIndicator } from "@/lib/indicators";
 import { formatPct } from "@/lib/format";
+import { useAuth } from "@/hooks/use-auth";
+import {
+  PainelAnalisesConfiguraveis,
+  useNcgConfigurada,
+} from "@/components/analise/analises-dinamicas";
 
 export const Route = createFileRoute("/dashboard/analise")({ component: Page });
 
-type Tipo = "DRE" | "BP_ATIVO" | "BP_PASSIVO" | "DFC" | "INDICADORES";
+type Tipo = "DRE" | "BP_ATIVO" | "BP_PASSIVO" | "DFC";
 
 const TABS: { id: Tipo; label: string }[] = [
   { id: "DRE", label: "DRE" },
@@ -127,14 +132,8 @@ function Page() {
     [periodosA, periodosB],
   );
 
-  const fetchTipo = tipo === "INDICADORES" ? "DRE" : tipo;
-  const { data: rows = [], isLoading } = useMonthlyStatement(companyId, fetchTipo, allPeriodos);
-  const { data: dreRows = [] } = useMonthlyStatement(
-    companyId,
-    "DRE",
-    tipo === "INDICADORES" ? allPeriodos : [],
-  );
-  const needBP = tipo === "INDICADORES" || secao === "capitalGiro";
+  const { data: rows = [], isLoading } = useMonthlyStatement(companyId, tipo, allPeriodos);
+  const needBP = secao === "capitalGiro";
   const { data: bpAtivoRows = [] } = useMonthlyStatement(
     companyId,
     "BP_ATIVO",

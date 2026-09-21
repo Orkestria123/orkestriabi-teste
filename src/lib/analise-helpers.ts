@@ -27,6 +27,31 @@ export function periodoMesLabel(p: string): string {
   return `${MES_ABBR[d.getUTCMonth()]}/${d.getUTCFullYear()}`;
 }
 
+/** Resolve uma seleção múltipla (vários anos ou vários meses) em períodos reais. */
+export function resolverPeriodosMulti(
+  granularidade: Granularidade,
+  valores: string[],
+  availablePeriods: string[],
+): string[] {
+  const set = new Set<string>();
+  for (const v of valores) {
+    for (const p of resolverPeriodos(granularidade, v, availablePeriods)) set.add(p);
+  }
+  return Array.from(set).sort();
+}
+
+/** Rótulo curto da seleção, para cartões e títulos. */
+export function rotuloSelecao(
+  granularidade: Granularidade,
+  valores: string[],
+): string {
+  if (valores.length === 0) return "—";
+  const ord = [...valores].sort();
+  if (granularidade === "ano") return ord.join(" + ");
+  if (ord.length === 1) return periodoMesLabel(ord[0]);
+  return `${periodoMesLabel(ord[0])} – ${periodoMesLabel(ord[ord.length - 1])} (${ord.length} meses)`;
+}
+
 export interface MonthlyRow {
   linha_ordem: number;
   descricao: string;

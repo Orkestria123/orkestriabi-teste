@@ -13,8 +13,8 @@ import { useReceitaDespesaDetalhado } from "@/hooks/use-receita-despesa";
 import {
   agregarPorPeriodos,
   anosDisponiveis,
-  periodoMesLabel,
-  resolverPeriodos,
+  resolverPeriodosMulti,
+  rotuloSelecao,
   type Granularidade,
   type MonthlyRow,
 } from "@/lib/analise-helpers";
@@ -72,8 +72,8 @@ function Page() {
   const { data: availablePeriods = [] } = useAvailablePeriods(companyId);
 
   const [granularidade, setGranularidade] = useState<Granularidade>("ano");
-  const [periodoA, setPeriodoA] = useState<string>("");
-  const [periodoB, setPeriodoB] = useState<string>("");
+  const [selA, setSelA] = useState<string[]>([]);
+  const [selB, setSelB] = useState<string[]>([]);
   const [tipo, setTipo] = useState<Tipo>("DRE");
   const [presentation, setPresentation] = useState(false);
   const [secao, setSecao] = useState<string>("comparativo");
@@ -81,31 +81,39 @@ function Page() {
   useEffect(() => {
     if (availablePeriods.length === 0) return;
     if (granularidade === "ano") {
-      const anos = anosDisponiveis(availablePeriods);
-      if (!periodoA || !anos.includes(parseInt(periodoA, 10))) {
-        setPeriodoA(String(anos[anos.length - 2] ?? anos[anos.length - 1] ?? ""));
-      }
-      if (!periodoB || !anos.includes(parseInt(periodoB, 10))) {
-        setPeriodoB(String(anos[anos.length - 1] ?? ""));
-      }
+      const anos = anosDisponiveis(availablePeriods).map(String);
+      const validos = (v: string[]) => v.filter((x) => anos.includes(x));
+      setSelA((prev) =>
+        validos(prev).length > 0
+          ? validos(prev)
+          : [anos[anos.length - 2] ?? anos[anos.length - 1]].filter(Boolean),
+      );
+      setSelB((prev) =>
+        validos(prev).length > 0 ? validos(prev) : [anos[anos.length - 1]].filter(Boolean),
+      );
     } else {
-      if (!periodoA || !availablePeriods.includes(periodoA)) {
-        setPeriodoA(availablePeriods[Math.max(0, availablePeriods.length - 13)]);
-      }
-      if (!periodoB || !availablePeriods.includes(periodoB)) {
-        setPeriodoB(availablePeriods[availablePeriods.length - 1]);
-      }
+      const validos = (v: string[]) => v.filter((x) => availablePeriods.includes(x));
+      setSelA((prev) =>
+        validos(prev).length > 0
+          ? validos(prev)
+          : [availablePeriods[Math.max(0, availablePeriods.length - 13)]].filter(Boolean),
+      );
+      setSelB((prev) =>
+        validos(prev).length > 0
+          ? validos(prev)
+          : [availablePeriods[availablePeriods.length - 1]].filter(Boolean),
+      );
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [availablePeriods, granularidade]);
 
   const periodosA = useMemo(
-    () => resolverPeriodos(granularidade, periodoA, availablePeriods),
-    [granularidade, periodoA, availablePeriods],
+    () => resolverPeriodosMulti(granularidade, selA, availablePeriods),
+    [granularidade, selA, availablePeriods],
   );
   const periodosB = useMemo(
-    () => resolverPeriodos(granularidade, periodoB, availablePeriods),
-    [granularidade, periodoB, availablePeriods],
+    () => resolverPeriodosMulti(granularidade, selB, availablePeriods),
+    [granularidade, selB, availablePeriods],
   );
   const allPeriodos = useMemo(
     () => Array.from(new Set([...periodosA, ...periodosB])).sort(),
@@ -120,8 +128,8 @@ function Page() {
 
 
 
-  const labelA = granularidade === "ano" ? periodoA : periodoA ? periodoMesLabel(periodoA) : "—";
-  const labelB = granularidade === "ano" ? periodoB : periodoB ? periodoMesLabel(periodoB) : "—";
+  const labelA = rotuloSelecao(granularidade, selA);
+  const labelB = rotuloSelecao(granularidade, selB);
 
   // Receita × Despesa detalhado — usado apenas pelo Ponto de Equilíbrio.
   const { data: rdAtual } = useReceitaDespesaDetalhado(
@@ -252,10 +260,10 @@ function Page() {
         <PeriodPicker
           granularidade={granularidade}
           setGranularidade={setGranularidade}
-          periodoA={periodoA}
-          periodoB={periodoB}
-          setPeriodoA={setPeriodoA}
-          setPeriodoB={setPeriodoB}
+          periodosA={selA}
+          periodosB={selB}
+          setPeriodosA={setSelA}
+          setPeriodosB={setSelB}
           availablePeriods={availablePeriods}
         />
       </Card>

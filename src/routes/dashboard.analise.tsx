@@ -8,10 +8,8 @@ import {
   useAvailablePeriods,
   useMonthlyStatement,
 } from "@/hooks/use-financial-data";
-import {
-  useReceitaDespesaDetalhado,
-  useReceitaDespesaPorPeriodo,
-} from "@/hooks/use-receita-despesa";
+import { useReceitaDespesaDetalhado } from "@/hooks/use-receita-despesa";
+
 import {
   agregarPorPeriodos,
   anosDisponiveis,

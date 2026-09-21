@@ -23,7 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { FormulaBuilder } from "@/components/indicadores/formula-builder";
-import { ContaPicker, type ContaPlanoItem } from "@/components/indicadores/conta-picker";
+import { type ContaPlanoItem } from "@/components/indicadores/conta-picker";
 import { lerTudo } from "@/lib/supabase-paginado";
 import {
   FORMATOS_ANALISE,
@@ -352,7 +352,12 @@ function AnaliseEditorDialog({
               />
             </div>
             <div className="col-span-2 md:col-span-2 flex items-end">
-              <ContasResumo tokens={tokens} />
+              {(() => {
+                const n = tokens.flatMap((t) => (t.tipo === "termo" ? t.contas ?? [] : [])).length;
+                return n > 0 ? (
+                  <p className="text-[11px] text-muted-foreground">{n} conta(s) citada(s) na fórmula.</p>
+                ) : null;
+              })()}
             </div>
           </div>
 

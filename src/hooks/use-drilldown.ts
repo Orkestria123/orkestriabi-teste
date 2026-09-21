@@ -206,7 +206,7 @@ export async function carregarDrilldown(
   periodos: string[],
   opts: { incluirSaldoInicial: boolean; visao?: string; chaveDfc?: boolean },
 ): Promise<LancamentosDrilldownResult> {
-  const { min, max } = competenciaRange(periodos);
+  const { min, max, meses } = competenciaRange(periodos);
   const visao = opts.visao ?? "contabil";
   return carregar(
     companyId,
@@ -216,6 +216,7 @@ export async function carregarDrilldown(
     opts.incluirSaldoInicial,
     visao,
     opts.chaveDfc ?? false,
+    meses,
   );
 }
 
@@ -226,7 +227,7 @@ export function useLancamentosDrilldown(
   opts: { incluirSaldoInicial: boolean; chaveDfc?: boolean },
   enabled: boolean,
 ) {
-  const { min, max } = competenciaRange(periodos);
+  const { min, max, meses } = competenciaRange(periodos);
   const { visao } = useVisaoGerencial();
 
   return useQuery({
@@ -236,6 +237,7 @@ export function useLancamentosDrilldown(
       classificacao,
       min,
       max,
+      meses.join(","),
       opts.incluirSaldoInicial,
       visao,
       opts.chaveDfc ?? false,
@@ -250,6 +252,7 @@ export function useLancamentosDrilldown(
         opts.incluirSaldoInicial,
         visao,
         opts.chaveDfc ?? false,
+        meses,
       ),
   });
 }

@@ -105,8 +105,16 @@ export function InsightsCard({ companyId, periodos }: Props) {
             <p className="text-sm text-muted-foreground">
               Gere uma análise automática da DRE: variações relevantes, alertas e oportunidades destacadas pela IA.
             </p>
-            <Button onClick={run} disabled={!companyId} className="gap-2">
-              <Sparkles className="h-4 w-4" /> Gerar análise
+            <Button onClick={run} disabled={!companyId || dreLoading} className="gap-2">
+              {dreLoading ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" /> Preparando dados…
+                </>
+              ) : (
+                <>
+                  <Sparkles className="h-4 w-4" /> Gerar análise
+                </>
+              )}
             </Button>
           </div>
         )}

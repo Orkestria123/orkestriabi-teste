@@ -239,6 +239,13 @@
       "when": 1790021807872,
       "tag": "0033_historico_e_contas_do_diario_no_drilldown",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1790021884197,
+      "tag": "0034_historico_nulo_na_materializacao_ecd",
+      "breakpoints": true
     }
   ]
 }

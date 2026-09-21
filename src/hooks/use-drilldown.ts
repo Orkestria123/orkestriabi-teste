@@ -554,6 +554,13 @@ async function carregar(
         }
         ajustes.sort((a, b) => a.competencia.localeCompare(b.competencia));
       }
+      // No fluxo do período (DRE) o ajuste também respeita os meses marcados;
+      // no Balanço a posição é acumulada e nada pode ser cortado.
+      const ajustesFinais = opts.incluirSaldoInicial
+        ? ajustes
+        : ajustes.filter((a) => a.isAnterior || noMes(a.competencia));
+      ajustes.length = 0;
+      ajustes.push(...ajustesFinais);
 
       return {
         entries,

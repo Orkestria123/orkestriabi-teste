@@ -1,6 +1,7 @@
 import { Card } from "@/components/ui/card";
 import { formatBRL, formatBRLCompact } from "@/lib/format";
 import type { CapitalGiroResultado } from "@/lib/analise-capital-giro";
+import type { NcgConfigurada } from "@/components/analise/analises-dinamicas";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip, LabelList, Cell,
 } from "recharts";
@@ -8,6 +9,8 @@ import { AXIS_PROPS, GRID_PROPS, TOOLTIP_STYLE } from "@/lib/chart-config";
 
 interface Props {
   resultado: CapitalGiroResultado;
+  /** NCG calculada pela fórmula configurada pelo escritório (Admin → Análises). */
+  ncgConfig?: NcgConfigurada | null;
 }
 
 function Metric({
@@ -34,10 +37,12 @@ function diasFmt(v: number | null): string {
   return `${v.toFixed(0)} d`;
 }
 
-export function CapitalGiroPanel({ resultado: r }: Props) {
+export function CapitalGiroPanel({ resultado: r, ncgConfig = null }: Props) {
   const ciclo = r.cicloFinanceiro;
   const tomCiclo = ciclo == null ? "neutral" : ciclo < 30 ? "ok" : ciclo < 60 ? "warn" : "crit";
-  const tomNcg = r.ncg <= 0 ? "ok" : r.ncg > r.capitalGiroLiquido ? "crit" : "warn";
+  const usouFormula = !!(ncgConfig && ncgConfig.valor != null);
+  const ncgValor = usouFormula ? ncgConfig!.valor! : r.ncg;
+  const tomNcg = ncgValor <= 0 ? "ok" : ncgValor > r.capitalGiroLiquido ? "crit" : "warn";
   const tomTes = r.saldoTesouraria >= 0 ? "ok" : "crit";
   const tomDias = r.diasCaixa == null ? "neutral" : r.diasCaixa > 60 ? "ok" : r.diasCaixa > 30 ? "warn" : "crit";
 
@@ -48,10 +53,11 @@ export function CapitalGiroPanel({ resultado: r }: Props) {
       ? "Você recebe dos clientes ANTES de pagar fornecedores — caixa positivo no ciclo."
       : `Da venda ao recebimento líquido você espera ${ciclo.toFixed(0)} dias. Cada dia a mais consome caixa.`;
 
-  const ncgHint =
-    r.ncg <= 0
-      ? "Operação se autofinancia — fornecedores cobrem clientes + estoque."
-      : `Você precisa de ${formatBRLCompact(r.ncg)} de caixa para girar o negócio.`;
+  const ncgHint = usouFormula
+    ? "Fórmula configurada pelo escritório (Admin → Análises) — pode diferir da NCG clássica."
+    : r.ncg <= 0
+    ? "Operação se autofinancia — fornecedores cobrem clientes + estoque."
+    : `Você precisa de ${formatBRLCompact(r.ncg)} de caixa para girar o negócio.`;
 
   const tesHint =
     r.saldoTesouraria >= 0
@@ -64,17 +70,25 @@ export function CapitalGiroPanel({ resultado: r }: Props) {
     { nome: "PMP (pagamento)", dias: -(r.pmp ?? 0), cor: "var(--chart-4)" },
   ];
 
-  const dadosComposicao = [
-    { nome: "Contas a Receber", valor: r.contasAReceber },
-    { nome: "Estoque", valor: r.estoque },
-    { nome: "Fornecedores (−)", valor: -r.fornecedores },
-  ];
+  const usandoComponentes = !!ncgConfig && ncgConfig.componentes.length > 0;
+  const dadosComposicao = usandoComponentes
+    ? ncgConfig!.componentes.map((c) => ({ nome: c.label, valor: c.valor ?? 0 }))
+    : [
+        { nome: "Contas a Receber", valor: r.contasAReceber },
+        { nome: "Estoque", valor: r.estoque },
+        { nome: "Fornecedores (−)", valor: -r.fornecedores },
+      ];
 
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <Metric label="Ciclo Financeiro" valor={diasFmt(r.cicloFinanceiro)} hint={cicloHint} tone={tomCiclo} />
-        <Metric label="NCG — Necessidade de Capital de Giro" valor={formatBRLCompact(r.ncg)} hint={ncgHint} tone={tomNcg} />
+        <Metric
+          label="NCG — Necessidade de Capital de Giro"
+          valor={formatBRLCompact(ncgValor)}
+          hint={ncgHint}
+          tone={tomNcg}
+        />
         <Metric label="Saldo de Tesouraria" valor={formatBRLCompact(r.saldoTesouraria)} hint={tesHint} tone={tomTes} />
         <Metric
           label="Dias de Caixa"
@@ -109,22 +123,46 @@ export function CapitalGiroPanel({ resultado: r }: Props) {
         </Card>
 
         <Card className="p-5">
-          <h3 className="text-sm font-semibold mb-1">Composição da Necessidade de Capital de Giro</h3>
+          <h3 className="text-sm font-semibold mb-1">
+            {usandoComponentes
+              ? "Composição da NCG — fórmula do escritório"
+              : "Composição da Necessidade de Capital de Giro"}
+          </h3>
           <p className="text-xs text-muted-foreground mb-4">
-            Clientes + estoque travam caixa; fornecedores liberam. NCG = Clientes + Estoque − Fornecedores.
+            {usandoComponentes
+              ? "Cada conta da fórmula configurada: barras para a direita somam, para a esquerda subtraem."
+              : "Clientes + estoque travam caixa; fornecedores liberam. NCG = Clientes + Estoque − Fornecedores."}
           </p>
-          <ResponsiveContainer width="100%" height={240}>
-            <BarChart data={dadosComposicao} margin={{ top: 8, right: 12, left: 12, bottom: 8 }}>
-              <CartesianGrid {...GRID_PROPS} />
-              <XAxis dataKey="nome" {...AXIS_PROPS} />
-              <YAxis {...AXIS_PROPS} tickFormatter={formatBRLCompact} />
-              <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v: any) => formatBRL(Number(v))} />
-              <Bar dataKey="valor" radius={[6, 6, 0, 0]}>
-                {dadosComposicao.map((d, i) => (
-                  <Cell key={i} fill={d.valor >= 0 ? "var(--chart-2)" : "var(--chart-4)"} fillOpacity={0.85} />
-                ))}
-              </Bar>
-            </BarChart>
+          <ResponsiveContainer width="100%" height={usandoComponentes ? 320 : 240}>
+            {usandoComponentes ? (
+              <BarChart
+                data={dadosComposicao}
+                layout="vertical"
+                margin={{ top: 8, right: 24, left: 8, bottom: 8 }}
+              >
+                <CartesianGrid {...GRID_PROPS} horizontal={false} />
+                <XAxis type="number" {...AXIS_PROPS} tickFormatter={formatBRLCompact} />
+                <YAxis type="category" dataKey="nome" {...AXIS_PROPS} width={260} />
+                <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v: any) => formatBRL(Number(v))} />
+                <Bar dataKey="valor" radius={[0, 6, 6, 0]}>
+                  {dadosComposicao.map((d, i) => (
+                    <Cell key={i} fill={d.valor >= 0 ? "var(--chart-2)" : "var(--chart-4)"} fillOpacity={0.85} />
+                  ))}
+                </Bar>
+              </BarChart>
+            ) : (
+              <BarChart data={dadosComposicao} margin={{ top: 8, right: 12, left: 12, bottom: 8 }}>
+                <CartesianGrid {...GRID_PROPS} />
+                <XAxis dataKey="nome" {...AXIS_PROPS} />
+                <YAxis {...AXIS_PROPS} tickFormatter={formatBRLCompact} />
+                <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v: any) => formatBRL(Number(v))} />
+                <Bar dataKey="valor" radius={[6, 6, 0, 0]}>
+                  {dadosComposicao.map((d, i) => (
+                    <Cell key={i} fill={d.valor >= 0 ? "var(--chart-2)" : "var(--chart-4)"} fillOpacity={0.85} />
+                  ))}
+                </Bar>
+              </BarChart>
+            )}
           </ResponsiveContainer>
         </Card>
       </div>

@@ -548,10 +548,14 @@ export function valorCustosPorTipo(
     }
     const s = saldoNoPeriodo(ctx.saldosByClass.get(p.classificacao), periodo);
     if (!s) continue;
-    // Despesa na DRE: crédito − débito é negativo; PE usa valor absoluto.
-    total += Math.abs(Number(s.total_creditos) - Number(s.total_debitos));
+    // Somar COM SINAL (crédito − débito) e tirar o absoluto só do total.
+    // Contas de movimento de estoque (inicial / compras / final) têm sinais
+    // opostos dentro do custo variável; em absoluto cada uma contaria em
+    // dobro/triplo (CMV viraria 4× o valor). Com sinal, a soma reproduz a
+    // própria DRE: estoque inicial + compras − estoque final = CMV líquido.
+    total += Number(s.total_creditos) - Number(s.total_debitos);
   }
-  return total;
+  return Math.abs(total);
 }
 
 export function resolverLinha(

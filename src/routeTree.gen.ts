@@ -37,6 +37,7 @@ import { Route as AdminGruposRouteImport } from './routes/admin.grupos'
 import { Route as AdminEmpresasRouteImport } from './routes/admin.empresas'
 import { Route as AdminDiagnosticoRouteImport } from './routes/admin.diagnostico'
 import { Route as AdminComparativoRouteImport } from './routes/admin.comparativo'
+import { Route as AdminAnalisesRouteImport } from './routes/admin.analises'
 import { Route as AdminEmpresasIndexRouteImport } from './routes/admin.empresas.index'
 import { Route as AdminEmpresasIdDadosRouteImport } from './routes/admin.empresas.$id.dados'
 
@@ -180,6 +181,11 @@ const AdminComparativoRoute = AdminComparativoRouteImport.update({
   path: '/admin/comparativo',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminAnalisesRoute = AdminAnalisesRouteImport.update({
+  id: '/admin/analises',
+  path: '/admin/analises',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminEmpresasIndexRoute = AdminEmpresasIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -196,6 +202,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/dashboard': typeof DashboardRouteWithChildren
   '/recuperar-senha': typeof RecuperarSenhaRoute
+  '/admin/analises': typeof AdminAnalisesRoute
   '/admin/comparativo': typeof AdminComparativoRoute
   '/admin/diagnostico': typeof AdminDiagnosticoRoute
   '/admin/empresas': typeof AdminEmpresasRouteWithChildren
@@ -227,6 +234,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/recuperar-senha': typeof RecuperarSenhaRoute
+  '/admin/analises': typeof AdminAnalisesRoute
   '/admin/comparativo': typeof AdminComparativoRoute
   '/admin/diagnostico': typeof AdminDiagnosticoRoute
   '/admin/grupos': typeof AdminGruposRoute
@@ -259,6 +267,7 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/dashboard': typeof DashboardRouteWithChildren
   '/recuperar-senha': typeof RecuperarSenhaRoute
+  '/admin/analises': typeof AdminAnalisesRoute
   '/admin/comparativo': typeof AdminComparativoRoute
   '/admin/diagnostico': typeof AdminDiagnosticoRoute
   '/admin/empresas': typeof AdminEmpresasRouteWithChildren
@@ -293,6 +302,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/dashboard'
     | '/recuperar-senha'
+    | '/admin/analises'
     | '/admin/comparativo'
     | '/admin/diagnostico'
     | '/admin/empresas'
@@ -324,6 +334,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/recuperar-senha'
+    | '/admin/analises'
     | '/admin/comparativo'
     | '/admin/diagnostico'
     | '/admin/grupos'
@@ -355,6 +366,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/dashboard'
     | '/recuperar-senha'
+    | '/admin/analises'
     | '/admin/comparativo'
     | '/admin/diagnostico'
     | '/admin/empresas'
@@ -388,6 +400,7 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   DashboardRoute: typeof DashboardRouteWithChildren
   RecuperarSenhaRoute: typeof RecuperarSenhaRoute
+  AdminAnalisesRoute: typeof AdminAnalisesRoute
   AdminComparativoRoute: typeof AdminComparativoRoute
   AdminDiagnosticoRoute: typeof AdminDiagnosticoRoute
   AdminEmpresasRoute: typeof AdminEmpresasRouteWithChildren
@@ -603,6 +616,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminComparativoRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/analises': {
+      id: '/admin/analises'
+      path: '/admin/analises'
+      fullPath: '/admin/analises'
+      preLoaderRoute: typeof AdminAnalisesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/empresas/': {
       id: '/admin/empresas/'
       path: '/'
@@ -667,6 +687,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRoute,
   DashboardRoute: DashboardRouteWithChildren,
   RecuperarSenhaRoute: RecuperarSenhaRoute,
+  AdminAnalisesRoute: AdminAnalisesRoute,
   AdminComparativoRoute: AdminComparativoRoute,
   AdminDiagnosticoRoute: AdminDiagnosticoRoute,
   AdminEmpresasRoute: AdminEmpresasRouteWithChildren,

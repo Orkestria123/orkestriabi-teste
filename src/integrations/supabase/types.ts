@@ -142,6 +142,69 @@ export type Database = {
           },
         ]
       }
+      analise_configs: {
+        Row: {
+          created_at: string
+          criado_por: string | null
+          descricao: string | null
+          formato: string
+          formula: Json
+          grafico: string
+          id: string
+          nome: string
+          ordem: number
+          secao: string
+          tenant_id: string
+          updated_at: string
+          visivel: boolean
+        }
+        Insert: {
+          created_at?: string
+          criado_por?: string | null
+          descricao?: string | null
+          formato?: string
+          formula?: Json
+          grafico?: string
+          id?: string
+          nome: string
+          ordem?: number
+          secao?: string
+          tenant_id: string
+          updated_at?: string
+          visivel?: boolean
+        }
+        Update: {
+          created_at?: string
+          criado_por?: string | null
+          descricao?: string | null
+          formato?: string
+          formula?: Json
+          grafico?: string
+          id?: string
+          nome?: string
+          ordem?: number
+          secao?: string
+          tenant_id?: string
+          updated_at?: string
+          visivel?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "analise_configs_criado_por_fkey"
+            columns: ["criado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "analise_configs_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       backup_alocacao_removida: {
         Row: {
           classificacao: string | null

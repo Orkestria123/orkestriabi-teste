@@ -55,7 +55,7 @@ import { tipoCustoEfetivo } from "@/lib/plano/tipo-custo";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
-import { Maximize2, Minimize2 } from "lucide-react";
+import { Maximize2, Minimize2, Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import {
   PainelAnalisesConfiguraveis,

@@ -1,6 +1,8 @@
+import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { generateFinancialInsights } from "@/lib/api/insights.functions";
+import { useMonthlyStatement } from "@/hooks/use-financial-data";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Sparkles, Loader2, RefreshCw } from "lucide-react";
@@ -13,7 +15,38 @@ interface Props {
 export function InsightsCard({ companyId, periodos }: Props) {
   const fn = useServerFn(generateFinancialInsights);
 
-  const chave = ["insights", companyId, periodos.join(",")] as const;
+  // A DRE da IA é a MESMA da tela (motor do diário/ECD). Antes a análise
+  // lia uma tabela que só as empresas do pipeline antigo preenchem, então
+  // quase sempre respondia "sem dados".
+  const { data: dre, isLoading: dreLoading } = useMonthlyStatement(
+    companyId,
+    "DRE",
+    periodos,
+  );
+
+  const linhas = useMemo(() => {
+    const byRow = new Map<
+      string,
+      { descricao: string; values: Record<string, number>; ordem: number }
+    >();
+    for (const r of (dre ?? []) as any[]) {
+      // Subtotais contam a história (receita, custo, margem, resultado).
+      if (!r?.is_subtotal) continue;
+      const k = String(r.descricao ?? "");
+      const periodo = String(r.periodo ?? "");
+      if (!k || !periodo) continue;
+      if (!byRow.has(k)) {
+        byRow.set(k, { descricao: k, values: {}, ordem: Number(r.linha_ordem) || 0 });
+      }
+      byRow.get(k)!.values[periodo] = Number(r.valor) || 0;
+    }
+    return Array.from(byRow.values())
+      .sort((a, b) => a.ordem - b.ordem)
+      .slice(0, 40)
+      .map((r) => ({ descricao: r.descricao, values: r.values }));
+  }, [dre]);
+
+  const chave = ["insights", companyId, periodos.join(","), linhas.length] as const;
 
   // A análise fica guardada por empresa + período: reabrir a tela (ou
   // voltar dela) não paga o custo de reler a DRE e chamar a IA de novo.
@@ -25,7 +58,13 @@ export function InsightsCard({ companyId, periodos }: Props) {
     gcTime: 2 * 60 * 60 * 1000,
     retry: false,
     queryFn: async () => {
-      const res = await fn({ data: { companyId: companyId as string, periodos } });
+      const res = await fn({
+        data: {
+          companyId: companyId as string,
+          periodos,
+          linhas: linhas.length > 0 ? linhas : undefined,
+        },
+      });
       return res.insights as string;
     },
   });
@@ -66,8 +105,16 @@ export function InsightsCard({ companyId, periodos }: Props) {
             <p className="text-sm text-muted-foreground">
               Gere uma análise automática da DRE: variações relevantes, alertas e oportunidades destacadas pela IA.
             </p>
-            <Button onClick={run} disabled={!companyId} className="gap-2">
-              <Sparkles className="h-4 w-4" /> Gerar análise
+            <Button onClick={run} disabled={!companyId || dreLoading} className="gap-2">
+              {dreLoading ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" /> Preparando dados…
+                </>
+              ) : (
+                <>
+                  <Sparkles className="h-4 w-4" /> Gerar análise
+                </>
+              )}
             </Button>
           </div>
         )}

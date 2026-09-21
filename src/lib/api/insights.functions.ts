@@ -24,6 +24,19 @@ export const generateFinancialInsights = createServerFn({ method: "POST" })
       .object({
         companyId: z.string().uuid(),
         periodos: z.array(z.string()).min(1),
+        // A DRE já vem montada pela tela — é o MESMO número que o gestor vê.
+        // Ler `financial_statements` aqui era o defeito: só as empresas do
+        // pipeline antigo (SPED) têm linhas gravadas lá; para todas as que
+        // vêm de diário/ECD a análise saía sempre "sem dados".
+        linhas: z
+          .array(
+            z.object({
+              descricao: z.string(),
+              values: z.record(z.string(), z.number()),
+            }),
+          )
+          .max(80)
+          .optional(),
       })
       .parse(input),
   )
@@ -38,33 +51,18 @@ export const generateFinancialInsights = createServerFn({ method: "POST" })
       .maybeSingle();
     if (!company) throw new Error("Empresa não encontrada");
 
-    // Só os períodos selecionados, e só as linhas de TOTAL.
-    //
-    // Antes isto lia o ano inteiro de todas as linhas da DRE (centenas de
-    // linhas × 12 meses) para depois jogar quase tudo fora ao montar o
-    // texto. A análise fala de subtotais — receita, custo, margem,
-    // resultado —, então é isso que sai do banco.
     const periodosValidos = data.periodos.filter((p) => /^\d{4}-\d{2}-\d{2}$/.test(p));
     if (periodosValidos.length === 0) {
       return { ok: true, insights: "Selecione ao menos um período para gerar a análise." };
     }
 
-    const { data: dre, error } = await supabase
-      .from("financial_statements")
-      .select("descricao, periodo, valor, linha_ordem, is_subtotal")
-      .eq("company_id", data.companyId)
-      .eq("tipo_demonstracao", "DRE")
-      .in("periodo", periodosValidos)
-      .eq("is_subtotal", true)
-      .order("linha_ordem")
-      .limit(600);
-    if (error) throw new Error(error.message);
+    let rows: Array<{ descricao: string; values: Record<string, number> }> =
+      data.linhas ?? [];
+    let periods: string[] = periodosValidos.slice().sort();
 
-    // Nem toda empresa marca subtotal nas linhas. Quando não há nenhuma,
-    // a análise não pode ficar em branco — cai para as linhas comuns.
-    let linhas = dre ?? [];
-    if (linhas.length === 0) {
-      const { data: todas, error: e2 } = await supabase
+    // Empresas do pipeline antigo (SPED) continuam atendidas pelo banco.
+    if (rows.length === 0) {
+      const { data: dre, error } = await supabase
         .from("financial_statements")
         .select("descricao, periodo, valor, linha_ordem, is_subtotal")
         .eq("company_id", data.companyId)
@@ -72,34 +70,35 @@ export const generateFinancialInsights = createServerFn({ method: "POST" })
         .in("periodo", periodosValidos)
         .order("linha_ordem")
         .limit(600);
-      if (e2) throw new Error(e2.message);
-      linhas = todas ?? [];
-    }
+      if (error) throw new Error(error.message);
 
-
-    // Pivot into rows -> values by period
-    const byRow = new Map<string, { descricao: string; values: Record<string, number>; ordem: number }>();
-    const periodSet = new Set<string>();
-    for (const r of linhas) {
-      const k = r.descricao;
-      const periodo = r.periodo as string | null;
-      if (!k || !periodo) continue;
-      periodSet.add(periodo);
-      if (!byRow.has(k)) byRow.set(k, { descricao: k, values: {}, ordem: r.linha_ordem ?? 0 });
-      byRow.get(k)!.values[periodo] = Number(r.valor) || 0;
+      const byRow = new Map<
+        string,
+        { descricao: string; values: Record<string, number>; ordem: number }
+      >();
+      const periodSet = new Set<string>();
+      for (const r of dre ?? []) {
+        const k = r.descricao;
+        const periodo = r.periodo as string | null;
+        if (!k || !periodo) continue;
+        periodSet.add(periodo);
+        if (!byRow.has(k)) byRow.set(k, { descricao: k, values: {}, ordem: r.linha_ordem ?? 0 });
+        byRow.get(k)!.values[periodo] = Number(r.valor) || 0;
+      }
+      periods = Array.from(periodSet).sort();
+      rows = Array.from(byRow.values())
+        .sort((a, b) => a.ordem - b.ordem)
+        .map((r) => ({ descricao: r.descricao, values: r.values }));
     }
-    const periods = Array.from(periodSet).sort();
-    const rows = Array.from(byRow.values()).sort((a, b) => a.ordem - b.ordem);
 
     if (rows.length === 0 || periods.length === 0) {
       return { ok: true, insights: "Sem dados suficientes para gerar análise nos períodos selecionados." };
     }
 
-    // Build compact snapshot for the model
     const snapshot: InsightPayload = {
       company: { name: company.razao_social ?? company.name },
       periods,
-      rows: rows.map((r) => ({ descricao: r.descricao, values: r.values })),
+      rows,
     };
 
     // Compose a deterministic textual summary as fallback + prompt to LLM

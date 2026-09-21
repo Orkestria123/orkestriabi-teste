@@ -378,16 +378,3 @@ function AnaliseEditorDialog({
   );
 }
 
-function ContasResumo({ tokens }: { tokens: Token[] }) {
-  const contas = tokens.flatMap((t) => (t.tipo === "termo" ? t.contas ?? [] : []));
-  if (contas.length === 0) return null;
-  return <ContasTotal n={contas.length} />;
-}
-
-function ContasTotal({ n }: { n: number }) {
-  return (
-    <p className="text-[11px] text-muted-foreground">
-      {n} conta(s) citada(s) na fórmula.
-    </p>
-  );
-}

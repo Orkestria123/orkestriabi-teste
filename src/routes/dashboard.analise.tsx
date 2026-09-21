@@ -343,60 +343,6 @@ function Page() {
           <TabsTrigger value="projecao">Projeção</TabsTrigger>
         </TabsList>
 
-        {/* ============ RESUMO ============ */}
-        <TabsContent value="resumo" className="space-y-5 mt-5">
-          <p className="text-xs text-muted-foreground">
-            Em 30 segundos, como sua empresa está em {labelB}.
-          </p>
-          <ResumoExecutivo
-            receita={receitaB}
-            despesa={despesaB}
-            lucro={lucroB}
-            margem={margemB}
-            varReceita={varPct(receitaB, receitaA)}
-            varDespesa={varPct(despesaB, despesaA)}
-            varLucro={varPct(lucroB, lucroA)}
-            maiorDespesaNome={maiorDespesa?.descricao}
-            maiorDespesaPct={maiorDespesa?.pct_receita}
-          />
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <EvolucaoReceitaDespesa data={evolucao} />
-            <ComposicaoReceita data={origens} />
-          </div>
-        </TabsContent>
-
-        {/* ============ RECEITA × DESPESA ============ */}
-        <TabsContent value="receitaDespesa" className="space-y-5 mt-5">
-          <p className="text-xs text-muted-foreground">
-            De onde vem seu dinheiro, para onde ele vai, e o que está pesando mais.
-          </p>
-          <CascataResultado data={rdAtual ?? emptyRd()} />
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <RankingDespesas ranking={ranking} />
-            <DespesaPorCentro data={centros} />
-          </div>
-          <ParetoDespesas data={pareto} />
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <EvolucaoReceitaDespesa data={evolucao} />
-            <ComposicaoReceita data={origens} />
-          </div>
-        </TabsContent>
-
-        {/* ============ TENDÊNCIA ============ */}
-        <TabsContent value="tendencia" className="space-y-5 mt-5">
-          <p className="text-xs text-muted-foreground">
-            Para onde a empresa está indo. Médias móveis suavizam o ruído e revelam a direção real.
-          </p>
-          <TendenciaPanel
-            serie={evolucao.map((e, i) => ({
-              periodo: periodosB[i] ?? "",
-              mes: e.mes,
-              receita: e.receita,
-              despesaTotal: e.despesaTotal,
-              margem: e.margem,
-            }))}
-          />
-        </TabsContent>
 
         {/* ============ CAPITAL DE GIRO ============ */}
         <TabsContent value="capitalGiro" className="space-y-5 mt-5">

@@ -457,22 +457,6 @@ function Page() {
           })()}
         </TabsContent>
 
-        {/* ============ PROJEÇÃO ============ */}
-        <TabsContent value="projecao" className="space-y-5 mt-5">
-          <p className="text-xs text-muted-foreground">
-            Para onde a empresa vai nos próximos meses se nada mudar — e o que muda se você cortar custos.
-          </p>
-          <ProjecaoPanel
-            serie={evolucao.map((e, i) => ({
-              periodo: periodosB[i] ?? "",
-              mes: e.mes,
-              receita: e.receita,
-              despesaTotal: e.despesaTotal,
-              margem: e.margem,
-            }))}
-          />
-          <SimuladorCorteDespesa ranking={ranking} receita={receitaB} lucroAtual={lucroB} />
-        </TabsContent>
 
 
         {/* ============ COMPARATIVO (preservado) ============ */}

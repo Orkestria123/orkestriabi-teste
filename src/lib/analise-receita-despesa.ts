@@ -95,6 +95,67 @@ function prefixosDe(classificacao: string): string[] {
   return out;
 }
 
+// Base da empresa (tenant + plano de resultado + prefixos da DRE) muda muito
+// pouco, mas era relida a cada período consultado. Cache curto em memória
+// evita repetir a leitura mais caro da análise.
+interface BaseEmpresa {
+  tenantId?: string;
+  plano: PlanoRow[];
+  prefixosMapeados: PrefixoMapeado[];
+}
+const BASE_TTL = 15 * 60 * 1000;
+const baseCache = new Map<string, { em: number; p: Promise<BaseEmpresa> }>();
+
+async function carregarBase(companyId: string): Promise<BaseEmpresa> {
+  const hit = baseCache.get(companyId);
+  if (hit && Date.now() - hit.em < BASE_TTL) return hit.p;
+
+  const p = (async (): Promise<BaseEmpresa> => {
+    const { data: company } = await supabase
+      .from("companies")
+      .select("tenant_id")
+      .eq("id", companyId)
+      .maybeSingle();
+    const tenantId = (company as any)?.tenant_id as string | undefined;
+
+    // Plano: empresa + global (tenant). Só contas de resultado (classif. "3.*")
+    // — o plano completo pode ter dezenas de milhares de contas analíticas
+    // (clientes/fornecedores) que não interessam para Receita × Despesa.
+    const [plano, mapeamento] = await Promise.all([
+      lerTudo<PlanoRow>((from, to) =>
+        supabase
+          .from("plano_contas")
+          .select("codigo,classificacao,descricao,nivel", countNaPrimeira(from))
+          .or(`company_id.eq.${companyId}${tenantId ? `,company_id.is.null` : ""}`)
+          .eq("ativo", true)
+          .like("classificacao", "3.%")
+          .order("codigo")
+          .range(from, to),
+        "plano receita/despesa",
+      ),
+      // Mapeamento DRE — derivado dos MARCOS do plano.
+      getMapaDeLinhas(companyId, tenantId ?? "", !!tenantId, "DRE"),
+    ]);
+
+    const prefixosMapeados: PrefixoMapeado[] = mapeamento.map((m) => ({
+      prefixo: m.classificacao_prefixo,
+      lado: ladoDaLinha(m.linha_demonstracao, !!m.inverter_sinal),
+      inverter: !!m.inverter_sinal,
+      linha: m.linha_demonstracao,
+    }));
+
+    return { tenantId, plano, prefixosMapeados };
+  })();
+
+  baseCache.set(companyId, { em: Date.now(), p });
+  p.catch(() => baseCache.delete(companyId));
+  return p;
+}
+
+export function limparCacheReceitaDespesa() {
+  baseCache.clear();
+}
+
 export async function montarReceitaDespesaDetalhado(
   companyId: string,
   competencias: string[],
@@ -103,52 +164,22 @@ export async function montarReceitaDespesaDetalhado(
     return emptyDetalhado(competencias);
   }
 
-  const { data: company } = await supabase
-    .from("companies")
-    .select("tenant_id")
-    .eq("id", companyId)
-    .maybeSingle();
-  const tenantId = (company as any)?.tenant_id as string | undefined;
+  // Base (cacheada) e saldos do período em paralelo.
+  const [{ plano, prefixosMapeados }, saldos] = await Promise.all([
+    carregarBase(companyId),
+    lerTudo<SaldoRow>((from, to) =>
+      supabase
+        .from("saldos_mensais")
+        .select("conta_codigo,competencia,movimento,total_debitos,total_creditos", countNaPrimeira(from))
+        .eq("company_id", companyId)
+        .in("competencia", competencias)
+        .order("conta_codigo")
+        .order("competencia")
+        .range(from, to),
+      "saldos receita/despesa",
+    ),
+  ]);
 
-  // Plano: empresa + global (tenant). Só contas de resultado (classif. "3.*")
-  // — o plano completo pode ter dezenas de milhares de contas analíticas
-  // (clientes/fornecedores) que não interessam para Receita × Despesa.
-  const plano = await lerTudo<PlanoRow>((from, to) =>
-    supabase
-      .from("plano_contas")
-      .select("codigo,classificacao,descricao,nivel", countNaPrimeira(from))
-      .or(`company_id.eq.${companyId}${tenantId ? `,company_id.is.null` : ""}`)
-      .eq("ativo", true)
-      .like("classificacao", "3.%")
-      .order("codigo")
-      .range(from, to),
-    "plano receita/despesa",
-  );
-
-  // Mapeamento DRE — agora derivado dos MARCOS do plano
-  // (mapeamento_demonstracao foi removida no ajuste 03).
-  const mapeamento = await getMapaDeLinhas(companyId, tenantId ?? "", !!tenantId, "DRE");
-
-  // Lista de prefixos mapeados, com lado e sinal.
-  const prefixosMapeados: PrefixoMapeado[] = mapeamento.map((m) => ({
-    prefixo: m.classificacao_prefixo,
-    lado: ladoDaLinha(m.linha_demonstracao, !!m.inverter_sinal),
-    inverter: !!m.inverter_sinal,
-    linha: m.linha_demonstracao,
-  }));
-
-  // Saldos do período
-  const saldos = await lerTudo<SaldoRow>((from, to) =>
-    supabase
-      .from("saldos_mensais")
-      .select("conta_codigo,competencia,movimento,total_debitos,total_creditos", countNaPrimeira(from))
-      .eq("company_id", companyId)
-      .in("competencia", competencias)
-      .order("conta_codigo")
-      .order("competencia")
-      .range(from, to),
-    "saldos receita/despesa",
-  );
 
 
   const planoPorCodigo = new Map<string, PlanoRow>();

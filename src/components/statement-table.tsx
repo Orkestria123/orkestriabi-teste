@@ -462,7 +462,8 @@ export function StatementTable({
         ? "tudo"
         : "livre";
 
-  const aplicarPadrao = () => setExpandedRows(expandPadrao(rows, variante, padraoMaxNivel));
+  const aplicarPadrao = () =>
+    setExpandedRows(expandPadrao(rows, variante, padraoMaxNivel, padraoRecolherRotulos));
   const recolherTudo = () => setExpandedRows(new Set());
   const expandirTudo = () => setExpandedRows(new Set(idsComFilhos));
   const abertoMax = nivelAbertoMax(rows, expandedRows);

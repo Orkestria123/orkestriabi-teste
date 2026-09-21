@@ -332,14 +332,23 @@ function Page() {
             const bpA = agregarPorPeriodos(bpAtivoRows as MonthlyRow[], "BP_ATIVO", periodosB).ordered;
             const bpP = agregarPorPeriodos(bpPassivoRows as MonthlyRow[], "BP_PASSIVO", periodosB).ordered;
             const dreB = agregarPorPeriodos(dreSource, "DRE", periodosB).ordered;
+            if (carregandoBP) {
+              return (
+                <Card className="p-8 flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" /> Carregando dados de balanço…
+                </Card>
+              );
+            }
             if (bpA.length === 0 || bpP.length === 0) {
               return (
                 <Card className="p-8 text-center text-sm text-muted-foreground">
-                  Sem dados de balanço para o período selecionado.
+                  Não encontramos o balanço de {labelB} para esta empresa. Escolha outro período ou
+                  confira se os dados desse mês já foram importados.
                 </Card>
               );
             }
             const resultado = calcularCapitalGiro({
+
               bpAtivo: bpA.map((r) => ({ descricao: r.descricao, valor: r.valor, is_subtotal: r.is_subtotal })),
               bpPassivo: bpP.map((r) => ({ descricao: r.descricao, valor: r.valor, is_subtotal: r.is_subtotal })),
               dre: dreB.map((r) => ({ descricao: r.descricao, valor: r.valor })),

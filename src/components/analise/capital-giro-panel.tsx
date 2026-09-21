@@ -123,22 +123,46 @@ export function CapitalGiroPanel({ resultado: r, ncgConfig = null }: Props) {
         </Card>
 
         <Card className="p-5">
-          <h3 className="text-sm font-semibold mb-1">Composição da Necessidade de Capital de Giro</h3>
+          <h3 className="text-sm font-semibold mb-1">
+            {usandoComponentes
+              ? "Composição da NCG — fórmula do escritório"
+              : "Composição da Necessidade de Capital de Giro"}
+          </h3>
           <p className="text-xs text-muted-foreground mb-4">
-            Clientes + estoque travam caixa; fornecedores liberam. NCG = Clientes + Estoque − Fornecedores.
+            {usandoComponentes
+              ? "Cada conta da fórmula configurada: barras para cima somam, para baixo subtraem."
+              : "Clientes + estoque travam caixa; fornecedores liberam. NCG = Clientes + Estoque − Fornecedores."}
           </p>
-          <ResponsiveContainer width="100%" height={240}>
-            <BarChart data={dadosComposicao} margin={{ top: 8, right: 12, left: 12, bottom: 8 }}>
-              <CartesianGrid {...GRID_PROPS} />
-              <XAxis dataKey="nome" {...AXIS_PROPS} />
-              <YAxis {...AXIS_PROPS} tickFormatter={formatBRLCompact} />
-              <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v: any) => formatBRL(Number(v))} />
-              <Bar dataKey="valor" radius={[6, 6, 0, 0]}>
-                {dadosComposicao.map((d, i) => (
-                  <Cell key={i} fill={d.valor >= 0 ? "var(--chart-2)" : "var(--chart-4)"} fillOpacity={0.85} />
-                ))}
-              </Bar>
-            </BarChart>
+          <ResponsiveContainer width="100%" height={usandoComponentes ? 320 : 240}>
+            {usandoComponentes ? (
+              <BarChart
+                data={dadosComposicao}
+                layout="vertical"
+                margin={{ top: 8, right: 24, left: 8, bottom: 8 }}
+              >
+                <CartesianGrid {...GRID_PROPS} horizontal={false} />
+                <XAxis type="number" {...AXIS_PROPS} tickFormatter={formatBRLCompact} />
+                <YAxis type="category" dataKey="nome" {...AXIS_PROPS} width={260} />
+                <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v: any) => formatBRL(Number(v))} />
+                <Bar dataKey="valor" radius={[0, 6, 6, 0]}>
+                  {dadosComposicao.map((d, i) => (
+                    <Cell key={i} fill={d.valor >= 0 ? "var(--chart-2)" : "var(--chart-4)"} fillOpacity={0.85} />
+                  ))}
+                </Bar>
+              </BarChart>
+            ) : (
+              <BarChart data={dadosComposicao} margin={{ top: 8, right: 12, left: 12, bottom: 8 }}>
+                <CartesianGrid {...GRID_PROPS} />
+                <XAxis dataKey="nome" {...AXIS_PROPS} />
+                <YAxis {...AXIS_PROPS} tickFormatter={formatBRLCompact} />
+                <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v: any) => formatBRL(Number(v))} />
+                <Bar dataKey="valor" radius={[6, 6, 0, 0]}>
+                  {dadosComposicao.map((d, i) => (
+                    <Cell key={i} fill={d.valor >= 0 ? "var(--chart-2)" : "var(--chart-4)"} fillOpacity={0.85} />
+                  ))}
+                </Bar>
+              </BarChart>
+            )}
           </ResponsiveContainer>
         </Card>
       </div>

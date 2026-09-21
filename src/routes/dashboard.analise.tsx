@@ -68,7 +68,6 @@ const TABS: { id: Tipo; label: string }[] = [
   { id: "BP_ATIVO", label: "Balanço · Ativo" },
   { id: "BP_PASSIVO", label: "Balanço · Passivo" },
   { id: "DFC", label: "DFC" },
-  { id: "INDICADORES", label: "Indicadores" },
 ];
 
 const RECEITA_KW = /receita líquida|receita liquida|receita bruta/i;

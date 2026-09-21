@@ -42,11 +42,9 @@ import { ComposicaoReceita } from "@/components/analise/composicao-receita";
 import { EvolucaoReceitaDespesa } from "@/components/analise/evolucao-receita-despesa";
 import { ResumoExecutivo } from "@/components/analise/resumo-executivo";
 import { TendenciaPanel } from "@/components/analise/tendencia-panel";
-import { CapitalGiroPanel } from "@/components/analise/capital-giro-panel";
 import { PontoEquilibrioPanel } from "@/components/analise/ponto-equilibrio-panel";
 import { ProjecaoPanel } from "@/components/analise/projecao-panel";
 import { SimuladorCorteDespesa } from "@/components/analise/simulador-corte-despesa";
-import { calcularCapitalGiro } from "@/lib/analise-capital-giro";
 import {
   calcularPontoEquilibrio,
   type DespesaItem,
@@ -136,18 +134,6 @@ function Page() {
   const cgEstrutura = useCapitalGiroEstrutura(tenantId, companyId ?? "", periodosB);
 
   const { data: rows = [], isLoading } = useMonthlyStatement(companyId, tipo, allPeriodos);
-  const needBP = secao === "capitalGiro";
-  const { data: bpAtivoRows = [], isLoading: loadBpAtivo } = useMonthlyStatement(
-    companyId,
-    "BP_ATIVO",
-    needBP ? allPeriodos : [],
-  );
-  const { data: bpPassivoRows = [], isLoading: loadBpPassivo } = useMonthlyStatement(
-    companyId,
-    "BP_PASSIVO",
-    needBP ? allPeriodos : [],
-  );
-  const carregandoBP = needBP && (loadBpAtivo || loadBpPassivo);
 
 
 

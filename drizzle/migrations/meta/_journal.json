@@ -218,6 +218,13 @@
       "when": 1790019607129,
       "tag": "0030_timeout_e_rls_leve_batch_ecd",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1790021591590,
+      "tag": "0031_corrigir_nomes_sinteticas_geradas",
+      "breakpoints": true
     }
   ]
 }

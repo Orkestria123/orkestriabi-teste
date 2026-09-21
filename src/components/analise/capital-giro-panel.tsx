@@ -70,17 +70,25 @@ export function CapitalGiroPanel({ resultado: r, ncgConfig = null }: Props) {
     { nome: "PMP (pagamento)", dias: -(r.pmp ?? 0), cor: "var(--chart-4)" },
   ];
 
-  const dadosComposicao = [
-    { nome: "Contas a Receber", valor: r.contasAReceber },
-    { nome: "Estoque", valor: r.estoque },
-    { nome: "Fornecedores (−)", valor: -r.fornecedores },
-  ];
+  const usandoComponentes = !!ncgConfig && ncgConfig.componentes.length > 0;
+  const dadosComposicao = usandoComponentes
+    ? ncgConfig!.componentes.map((c) => ({ nome: c.label, valor: c.valor ?? 0 }))
+    : [
+        { nome: "Contas a Receber", valor: r.contasAReceber },
+        { nome: "Estoque", valor: r.estoque },
+        { nome: "Fornecedores (−)", valor: -r.fornecedores },
+      ];
 
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <Metric label="Ciclo Financeiro" valor={diasFmt(r.cicloFinanceiro)} hint={cicloHint} tone={tomCiclo} />
-        <Metric label="NCG — Necessidade de Capital de Giro" valor={formatBRLCompact(r.ncg)} hint={ncgHint} tone={tomNcg} />
+        <Metric
+          label="NCG — Necessidade de Capital de Giro"
+          valor={formatBRLCompact(ncgValor)}
+          hint={ncgHint}
+          tone={tomNcg}
+        />
         <Metric label="Saldo de Tesouraria" valor={formatBRLCompact(r.saldoTesouraria)} hint={tesHint} tone={tomTes} />
         <Metric
           label="Dias de Caixa"

@@ -130,7 +130,7 @@ export function CapitalGiroPanel({ resultado: r, ncgConfig = null }: Props) {
           </h3>
           <p className="text-xs text-muted-foreground mb-4">
             {usandoComponentes
-              ? "Cada conta da fórmula configurada: barras para cima somam, para baixo subtraem."
+              ? "Cada conta da fórmula configurada: barras para a direita somam, para a esquerda subtraem."
               : "Clientes + estoque travam caixa; fornecedores liberam. NCG = Clientes + Estoque − Fornecedores."}
           </p>
           <ResponsiveContainer width="100%" height={usandoComponentes ? 320 : 240}>

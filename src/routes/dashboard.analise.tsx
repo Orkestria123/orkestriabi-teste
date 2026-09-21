@@ -334,13 +334,9 @@ function Page() {
 
       <Tabs value={secao} onValueChange={setSecao}>
         <TabsList className="flex flex-wrap h-auto gap-1">
-          <TabsTrigger value="resumo">Resumo</TabsTrigger>
-          <TabsTrigger value="receitaDespesa">Receita × Despesa</TabsTrigger>
           <TabsTrigger value="comparativo">Comparativo</TabsTrigger>
-          <TabsTrigger value="tendencia">Tendência</TabsTrigger>
           <TabsTrigger value="equilibrio">Ponto de Equilíbrio</TabsTrigger>
           <TabsTrigger value="capitalGiro">Capital de Giro</TabsTrigger>
-          <TabsTrigger value="projecao">Projeção</TabsTrigger>
         </TabsList>
 
 

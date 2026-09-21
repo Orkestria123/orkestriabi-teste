@@ -232,6 +232,13 @@
       "when": 1790021669187,
       "tag": "0032_galho_destino_sem_nivel_repetido",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1790021807872,
+      "tag": "0033_historico_e_contas_do_diario_no_drilldown",
+      "breakpoints": true
     }
   ]
 }

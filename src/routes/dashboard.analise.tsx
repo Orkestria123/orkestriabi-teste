@@ -42,11 +42,9 @@ import { ComposicaoReceita } from "@/components/analise/composicao-receita";
 import { EvolucaoReceitaDespesa } from "@/components/analise/evolucao-receita-despesa";
 import { ResumoExecutivo } from "@/components/analise/resumo-executivo";
 import { TendenciaPanel } from "@/components/analise/tendencia-panel";
-import { CapitalGiroPanel } from "@/components/analise/capital-giro-panel";
 import { PontoEquilibrioPanel } from "@/components/analise/ponto-equilibrio-panel";
 import { ProjecaoPanel } from "@/components/analise/projecao-panel";
 import { SimuladorCorteDespesa } from "@/components/analise/simulador-corte-despesa";
-import { calcularCapitalGiro } from "@/lib/analise-capital-giro";
 import {
   calcularPontoEquilibrio,
   type DespesaItem,
@@ -59,8 +57,9 @@ import { Maximize2, Minimize2, Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import {
   PainelAnalisesConfiguraveis,
-  useNcgConfigurada,
+  useCapitalGiroEstrutura,
 } from "@/components/analise/analises-dinamicas";
+import { CapitalGiroEstrutural } from "@/components/analise/capital-giro-estrutural";
 
 export const Route = createFileRoute("/dashboard/analise")({ component: Page });
 
@@ -132,21 +131,10 @@ function Page() {
 
   const { profile } = useAuth();
   const tenantId = profile?.tenant_id ?? null;
-  const ncgConfig = useNcgConfigurada(tenantId, companyId ?? "", periodosB);
+  const cgEstrutura = useCapitalGiroEstrutura(tenantId, companyId ?? "", periodosB);
 
   const { data: rows = [], isLoading } = useMonthlyStatement(companyId, tipo, allPeriodos);
-  const needBP = secao === "capitalGiro";
-  const { data: bpAtivoRows = [], isLoading: loadBpAtivo } = useMonthlyStatement(
-    companyId,
-    "BP_ATIVO",
-    needBP ? allPeriodos : [],
-  );
-  const { data: bpPassivoRows = [], isLoading: loadBpPassivo } = useMonthlyStatement(
-    companyId,
-    "BP_PASSIVO",
-    needBP ? allPeriodos : [],
-  );
-  const carregandoBP = needBP && (loadBpAtivo || loadBpPassivo);
+
 
 
   const labelA = granularidade === "ano" ? periodoA : periodoA ? periodoMesLabel(periodoA) : "—";
@@ -323,38 +311,25 @@ function Page() {
         </TabsList>
 
 
-        {/* ============ CAPITAL DE GIRO ============ */}
+        {/* ============ CAPITAL DE GIRO (estrutural) ============ */}
         <TabsContent value="capitalGiro" className="space-y-5 mt-5">
-          <p className="text-xs text-muted-foreground">
-            Quanto tempo seu dinheiro fica fora do caixa, e se a operação se autofinancia.
-          </p>
           {(() => {
-            const bpA = agregarPorPeriodos(bpAtivoRows as MonthlyRow[], "BP_ATIVO", periodosB).ordered;
-            const bpP = agregarPorPeriodos(bpPassivoRows as MonthlyRow[], "BP_PASSIVO", periodosB).ordered;
-            const dreB = agregarPorPeriodos(dreSource, "DRE", periodosB).ordered;
-            if (carregandoBP) {
-              return (
-                <Card className="p-8 flex items-center justify-center gap-2 text-sm text-muted-foreground">
-                  <Loader2 className="h-4 w-4 animate-spin" /> Carregando dados de balanço…
-                </Card>
-              );
-            }
-            if (bpA.length === 0 || bpP.length === 0) {
+            if (!cgEstrutura) {
               return (
                 <Card className="p-8 text-center text-sm text-muted-foreground">
-                  Não encontramos o balanço de {labelB} para esta empresa. Escolha outro período ou
-                  confira se os dados desse mês já foram importados.
+                  Nenhuma fórmula de Capital de Giro configurada. O escritório pode montá-la em
+                  Configurações → Análises.
                 </Card>
               );
             }
-            const resultado = calcularCapitalGiro({
-
-              bpAtivo: bpA.map((r) => ({ descricao: r.descricao, valor: r.valor, is_subtotal: r.is_subtotal })),
-              bpPassivo: bpP.map((r) => ({ descricao: r.descricao, valor: r.valor, is_subtotal: r.is_subtotal })),
-              dre: dreB.map((r) => ({ descricao: r.descricao, valor: r.valor })),
-              mesesNoRecorte: periodosB.length,
-            });
-            return <CapitalGiroPanel resultado={resultado} ncgConfig={ncgConfig} />;
+            if (cgEstrutura.carregando) {
+              return (
+                <Card className="p-8 flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" /> Carregando dados…
+                </Card>
+              );
+            }
+            return <CapitalGiroEstrutural dados={cgEstrutura} />;
           })()}
         </TabsContent>
 

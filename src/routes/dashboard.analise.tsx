@@ -194,9 +194,8 @@ function Page() {
 
 
   const compRows: CompRow[] = useMemo(() => {
-    if (tipo === "INDICADORES") return [];
-    const ar = agregarPorPeriodos(rows as MonthlyRow[], fetchTipo, periodosA).byLinha;
-    const br = agregarPorPeriodos(rows as MonthlyRow[], fetchTipo, periodosB).byLinha;
+    const ar = agregarPorPeriodos(rows as MonthlyRow[], tipo, periodosA).byLinha;
+    const br = agregarPorPeriodos(rows as MonthlyRow[], tipo, periodosB).byLinha;
     const allLinhas = new Set<number>([...ar.keys(), ...br.keys()]);
     const out: CompRow[] = [];
     for (const ln of allLinhas) {
@@ -211,14 +210,14 @@ function Page() {
       });
     }
     return out.sort((a, b) => a.linha_ordem - b.linha_ordem);
-  }, [rows, fetchTipo, periodosA, periodosB, tipo]);
+  }, [rows, periodosA, periodosB, tipo]);
 
   const { data: dreForHighlights = [] } = useMonthlyStatement(
     companyId,
     "DRE",
-    tipo === "DRE" || tipo === "INDICADORES" ? [] : allPeriodos,
+    tipo === "DRE" ? [] : allPeriodos,
   );
-  const dreSource = (tipo === "DRE" ? rows : tipo === "INDICADORES" ? dreRows : dreForHighlights) as MonthlyRow[];
+  const dreSource = (tipo === "DRE" ? rows : dreForHighlights) as MonthlyRow[];
 
   const highlights = useMemo(() => {
     const a = agregarPorPeriodos(dreSource, "DRE", periodosA).ordered;
@@ -231,25 +230,6 @@ function Page() {
     const margB = recB && recB !== 0 && lucB != null ? (lucB / recB) * 100 : null;
     return { recA, recB, lucA, lucB, margA, margB };
   }, [dreSource, periodosA, periodosB]);
-
-  const indicadoresAB = useMemo(() => {
-    if (tipo !== "INDICADORES") return null;
-    const aggA = [
-      ...agregarPorPeriodos(dreRows as MonthlyRow[], "DRE", periodosA).ordered.map((r) => ({ ...r, tipo_demonstracao: "DRE" })),
-      ...agregarPorPeriodos(bpAtivoRows as MonthlyRow[], "BP_ATIVO", periodosA).ordered.map((r) => ({ ...r, tipo_demonstracao: "BP_ATIVO" })),
-      ...agregarPorPeriodos(bpPassivoRows as MonthlyRow[], "BP_PASSIVO", periodosA).ordered.map((r) => ({ ...r, tipo_demonstracao: "BP_PASSIVO" })),
-    ];
-    const aggB = [
-      ...agregarPorPeriodos(dreRows as MonthlyRow[], "DRE", periodosB).ordered.map((r) => ({ ...r, tipo_demonstracao: "DRE" })),
-      ...agregarPorPeriodos(bpAtivoRows as MonthlyRow[], "BP_ATIVO", periodosB).ordered.map((r) => ({ ...r, tipo_demonstracao: "BP_ATIVO" })),
-      ...agregarPorPeriodos(bpPassivoRows as MonthlyRow[], "BP_PASSIVO", periodosB).ordered.map((r) => ({ ...r, tipo_demonstracao: "BP_PASSIVO" })),
-    ];
-    const rowsForIndicators = [
-      ...aggA.map((r) => ({ ...r, periodo: "A" })),
-      ...aggB.map((r) => ({ ...r, periodo: "B" })),
-    ];
-    return computeIndicators(rowsForIndicators as any, ["A", "B"]);
-  }, [tipo, dreRows, bpAtivoRows, bpPassivoRows, periodosA, periodosB]);
 
   useEffect(() => {
     if (presentation) document.body.classList.add("presentation-mode");

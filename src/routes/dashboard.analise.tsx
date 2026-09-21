@@ -260,10 +260,10 @@ function Page() {
         <PeriodPicker
           granularidade={granularidade}
           setGranularidade={setGranularidade}
-          periodoA={periodoA}
-          periodoB={periodoB}
-          setPeriodoA={setPeriodoA}
-          setPeriodoB={setPeriodoB}
+          periodosA={selA}
+          periodosB={selB}
+          setPeriodosA={setSelA}
+          setPeriodosB={setSelB}
           availablePeriods={availablePeriods}
         />
       </Card>

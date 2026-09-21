@@ -55,7 +55,7 @@ import { tipoCustoEfetivo } from "@/lib/plano/tipo-custo";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
-import { Maximize2, Minimize2 } from "lucide-react";
+import { Maximize2, Minimize2, Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import {
   PainelAnalisesConfiguraveis,
@@ -136,16 +136,18 @@ function Page() {
 
   const { data: rows = [], isLoading } = useMonthlyStatement(companyId, tipo, allPeriodos);
   const needBP = secao === "capitalGiro";
-  const { data: bpAtivoRows = [] } = useMonthlyStatement(
+  const { data: bpAtivoRows = [], isLoading: loadBpAtivo } = useMonthlyStatement(
     companyId,
     "BP_ATIVO",
     needBP ? allPeriodos : [],
   );
-  const { data: bpPassivoRows = [] } = useMonthlyStatement(
+  const { data: bpPassivoRows = [], isLoading: loadBpPassivo } = useMonthlyStatement(
     companyId,
     "BP_PASSIVO",
     needBP ? allPeriodos : [],
   );
+  const carregandoBP = needBP && (loadBpAtivo || loadBpPassivo);
+
 
   const labelA = granularidade === "ano" ? periodoA : periodoA ? periodoMesLabel(periodoA) : "—";
   const labelB = granularidade === "ano" ? periodoB : periodoB ? periodoMesLabel(periodoB) : "—";
@@ -330,14 +332,23 @@ function Page() {
             const bpA = agregarPorPeriodos(bpAtivoRows as MonthlyRow[], "BP_ATIVO", periodosB).ordered;
             const bpP = agregarPorPeriodos(bpPassivoRows as MonthlyRow[], "BP_PASSIVO", periodosB).ordered;
             const dreB = agregarPorPeriodos(dreSource, "DRE", periodosB).ordered;
+            if (carregandoBP) {
+              return (
+                <Card className="p-8 flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" /> Carregando dados de balanço…
+                </Card>
+              );
+            }
             if (bpA.length === 0 || bpP.length === 0) {
               return (
                 <Card className="p-8 text-center text-sm text-muted-foreground">
-                  Sem dados de balanço para o período selecionado.
+                  Não encontramos o balanço de {labelB} para esta empresa. Escolha outro período ou
+                  confira se os dados desse mês já foram importados.
                 </Card>
               );
             }
             const resultado = calcularCapitalGiro({
+
               bpAtivo: bpA.map((r) => ({ descricao: r.descricao, valor: r.valor, is_subtotal: r.is_subtotal })),
               bpPassivo: bpP.map((r) => ({ descricao: r.descricao, valor: r.valor, is_subtotal: r.is_subtotal })),
               dre: dreB.map((r) => ({ descricao: r.descricao, valor: r.valor })),

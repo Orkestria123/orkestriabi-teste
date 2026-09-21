@@ -148,6 +148,7 @@ function Page() {
         .from("plano_contas")
         .select("classificacao, tipo_custo, company_id")
         .eq("tenant_id", tenantId)
+        .or(`company_id.is.null,company_id.eq.${companyId}`)
         .not("tipo_custo", "is", null);
       if (error) throw error;
       const porCls = new Map<string, { classificacao: string; tipo_custo: string | null }>();
@@ -159,7 +160,10 @@ function Page() {
       }
       return Array.from(porCls.values());
     },
+    staleTime: 30 * 60 * 1000,
+    gcTime: 60 * 60 * 1000,
   });
+
 
 
   const compRows: CompRow[] = useMemo(() => {

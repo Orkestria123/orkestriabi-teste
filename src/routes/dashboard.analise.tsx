@@ -132,6 +132,10 @@ function Page() {
     [periodosA, periodosB],
   );
 
+  const { profile } = useAuth();
+  const tenantId = profile?.tenant_id ?? null;
+  const ncgConfig = useNcgConfigurada(tenantId, companyId ?? "", periodosB);
+
   const { data: rows = [], isLoading } = useMonthlyStatement(companyId, tipo, allPeriodos);
   const needBP = secao === "capitalGiro";
   const { data: bpAtivoRows = [] } = useMonthlyStatement(

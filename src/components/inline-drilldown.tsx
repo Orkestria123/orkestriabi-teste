@@ -1,9 +1,9 @@
-import { useMemo } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { useDashboardCompany } from "@/components/dashboard-context";
 import { useFiltersOptional } from "@/components/filter-bar";
 import { useLancamentosDrilldown } from "@/hooks/use-drilldown";
 import { formatBRLPlain, tituloConta } from "@/lib/format";
-import { Loader2 } from "lucide-react";
+import { ChevronDown, ChevronRight, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Props {

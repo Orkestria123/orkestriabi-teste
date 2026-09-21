@@ -132,7 +132,7 @@ function Page() {
 
   const { profile } = useAuth();
   const tenantId = profile?.tenant_id ?? null;
-  const ncgConfig = useNcgConfigurada(tenantId, companyId ?? "", periodosB);
+  const cgEstrutura = useCapitalGiroEstrutura(tenantId, companyId ?? "", periodosB);
 
   const { data: rows = [], isLoading } = useMonthlyStatement(companyId, tipo, allPeriodos);
   const needBP = secao === "capitalGiro";
@@ -147,6 +147,7 @@ function Page() {
     needBP ? allPeriodos : [],
   );
   const carregandoBP = needBP && (loadBpAtivo || loadBpPassivo);
+
 
 
   const labelA = granularidade === "ano" ? periodoA : periodoA ? periodoMesLabel(periodoA) : "—";

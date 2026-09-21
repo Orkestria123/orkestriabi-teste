@@ -18,13 +18,7 @@ import {
   type Granularidade,
   type MonthlyRow,
 } from "@/lib/analise-helpers";
-import {
-  rankingDespesas,
-  paretoDespesas,
-  despesaPorCentro,
-  composicaoReceita,
-  type NoArvore,
-} from "@/lib/analise-receita-despesa";
+import { type NoArvore } from "@/lib/analise-receita-despesa";
 import { PeriodPicker } from "@/components/analise/period-picker";
 import { HighlightCard } from "@/components/analise/highlight-card";
 import {
@@ -32,17 +26,8 @@ import {
   type CompRow,
 } from "@/components/analise/comparativo-table";
 import { ComparativoBarChart } from "@/components/analise/comparativo-bar-chart";
-import { CascataResultado } from "@/components/analise/cascata-resultado";
-import { RankingDespesas } from "@/components/analise/ranking-despesas";
-import { ParetoDespesas } from "@/components/analise/pareto-despesas";
-import { DespesaPorCentro } from "@/components/analise/despesa-por-centro";
-import { ComposicaoReceita } from "@/components/analise/composicao-receita";
-import { EvolucaoReceitaDespesa } from "@/components/analise/evolucao-receita-despesa";
-import { ResumoExecutivo } from "@/components/analise/resumo-executivo";
-import { TendenciaPanel } from "@/components/analise/tendencia-panel";
 import { PontoEquilibrioPanel } from "@/components/analise/ponto-equilibrio-panel";
-import { ProjecaoPanel } from "@/components/analise/projecao-panel";
-import { SimuladorCorteDespesa } from "@/components/analise/simulador-corte-despesa";
+
 import {
   calcularPontoEquilibrio,
   type DespesaItem,

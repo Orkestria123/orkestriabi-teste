@@ -319,6 +319,7 @@ function Page() {
           <TabsTrigger value="comparativo">Comparativo</TabsTrigger>
           <TabsTrigger value="equilibrio">Ponto de Equilíbrio</TabsTrigger>
           <TabsTrigger value="capitalGiro">Capital de Giro</TabsTrigger>
+          <TabsTrigger value="analises">Análises</TabsTrigger>
         </TabsList>
 
 
@@ -344,7 +345,7 @@ function Page() {
               dre: dreB.map((r) => ({ descricao: r.descricao, valor: r.valor })),
               mesesNoRecorte: periodosB.length,
             });
-            return <CapitalGiroPanel resultado={resultado} />;
+            return <CapitalGiroPanel resultado={resultado} ncgConfig={ncgConfig} />;
           })()}
         </TabsContent>
 
@@ -381,7 +382,19 @@ function Page() {
           })()}
         </TabsContent>
 
-
+        {/* ============ ANÁLISES CONFIGURÁVEIS ============ */}
+        <TabsContent value="analises" className="space-y-5 mt-5">
+          <p className="text-xs text-muted-foreground">
+            Análises montadas pelo escritório com a mesma lógica de fórmulas dos indicadores.
+          </p>
+          {companyId && (
+            <PainelAnalisesConfiguraveis
+              tenantId={tenantId}
+              companyId={companyId}
+              periodos={periodosB}
+            />
+          )}
+        </TabsContent>
 
         {/* ============ COMPARATIVO (preservado) ============ */}
         <TabsContent value="comparativo" className="space-y-5 mt-5">
@@ -408,52 +421,10 @@ function Page() {
             ))}
           </div>
 
-          {tipo !== "INDICADORES" ? (
-            <>
-              {!presentation && compRows.length > 0 && (
-                <ComparativoBarChart rows={compRows} labelA={labelA} labelB={labelB} />
-              )}
-              {isLoading ? (
-                <div className="text-sm text-muted-foreground">Carregando…</div>
-              ) : (
-                <ComparativoTable rows={compRows} labelA={labelA} labelB={labelB} presentation={presentation} />
-              )}
-            </>
+          {isLoading ? (
+            <div className="text-sm text-muted-foreground">Carregando…</div>
           ) : (
-            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
-              {(indicadoresAB ?? []).map((ind) => {
-                const va = ind.values["A"];
-                const vb = ind.values["B"];
-                const variacao =
-                  va != null && vb != null
-                    ? ind.format === "percent"
-                      ? vb - va
-                      : va !== 0 ? ((vb - va) / Math.abs(va)) * 100 : null
-                    : null;
-                return (
-                  <Card key={ind.key} className="p-4">
-                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{ind.category}</p>
-                    <p className="text-sm font-semibold mt-0.5">{ind.label}</p>
-                    <div className="mt-3 grid grid-cols-2 gap-3">
-                      <div>
-                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{labelA}</p>
-                        <p className="text-base font-semibold tabular-nums">{formatIndicator(va ?? null, ind.format)}</p>
-                      </div>
-                      <div>
-                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{labelB}</p>
-                        <p className="text-base font-semibold tabular-nums">{formatIndicator(vb ?? null, ind.format)}</p>
-                      </div>
-                    </div>
-                    {variacao != null && (
-                      <p className={cn("mt-2 text-xs font-medium", variacao > 0 ? "text-success" : variacao < 0 ? "text-destructive" : "text-muted-foreground")}>
-                        {variacao > 0 ? "▲" : variacao < 0 ? "▼" : ""} {ind.format === "percent" ? `${Math.abs(variacao).toFixed(2).replace(".", ",")} p.p.` : formatPct(Math.abs(variacao), 1)}
-                      </p>
-                    )}
-                    <p className="mt-2 text-[10px] text-muted-foreground">{ind.description}</p>
-                  </Card>
-                );
-              })}
-            </div>
+            <ComparativoTable rows={compRows} labelA={labelA} labelB={labelB} presentation={presentation} />
           )}
         </TabsContent>
       </Tabs>

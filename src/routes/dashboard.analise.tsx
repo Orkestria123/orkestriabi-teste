@@ -223,33 +223,6 @@ function Page() {
     return () => document.body.classList.remove("presentation-mode");
   }, [presentation]);
 
-  // Derivados para Resumo e Receita × Despesa
-  const receitaB = rdAtual?.receita_total ?? 0;
-  const despesaB = rdAtual?.despesa_total ?? 0;
-  const receitaA = rdAnterior?.receita_total ?? 0;
-  const despesaA = rdAnterior?.despesa_total ?? 0;
-  const lucroB = highlights.lucB ?? receitaB - despesaB;
-  const lucroA = highlights.lucA ?? receitaA - despesaA;
-  const margemB = receitaB ? (lucroB / receitaB) * 100 : 0;
-  const varPct = (b: number, a: number) => (a ? ((b - a) / Math.abs(a)) * 100 : null);
-
-  const ranking = useMemo(() => (rdAtual ? rankingDespesas(rdAtual, 10) : []), [rdAtual]);
-  const pareto = useMemo(() => (rdAtual ? paretoDespesas(rdAtual) : []), [rdAtual]);
-  const centros = useMemo(() => (rdAtual ? despesaPorCentro(rdAtual) : []), [rdAtual]);
-  const origens = useMemo(() => (rdAtual ? composicaoReceita(rdAtual) : []), [rdAtual]);
-
-  const evolucao = useMemo(() => {
-    if (!rdMensal) return [];
-    return rdMensal.map((m) => {
-      const rec = m.dados.receita_total;
-      const desp = m.dados.despesa_total;
-      const d = new Date(m.periodo);
-      const mes = `${String(d.getUTCMonth() + 1).padStart(2, "0")}/${String(d.getUTCFullYear()).slice(2)}`;
-      return { mes, receita: rec, despesaTotal: desp, margem: rec - desp };
-    });
-  }, [rdMensal]);
-
-  const maiorDespesa = ranking[0];
 
   if (!companyId) {
     return (

@@ -13,6 +13,7 @@ import {
   type Token,
 } from "@/lib/indicadores/engine";
 
+
 export type SecaoAnalise = "capital_giro" | "ponto_equilibrio" | "geral";
 export type FormatoAnalise = "reais" | "percentual" | "numero";
 export type GraficoAnalise = "linha" | "barra" | "area" | "valor";
@@ -81,7 +82,10 @@ export function useAnaliseConfigs(
       if (soVisiveis) q = q.eq("visivel", true);
       const { data, error } = await q;
       if (error) throw error;
-      return (data ?? []) as AnaliseConfigRow[];
+      return (data ?? []).map((r) => ({
+        ...(r as unknown as Omit<AnaliseConfigRow, "formula">),
+        formula: (r.formula ?? { expressao: [] }) as unknown as Formula,
+      }));
     },
     staleTime: 5 * 60_000,
   });

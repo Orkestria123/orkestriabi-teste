@@ -56,8 +56,6 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { Maximize2, Minimize2 } from "lucide-react";
-import { computeIndicators, formatIndicator } from "@/lib/indicators";
-import { formatPct } from "@/lib/format";
 import { useAuth } from "@/hooks/use-auth";
 import {
   PainelAnalisesConfiguraveis,
@@ -421,6 +419,9 @@ function Page() {
             ))}
           </div>
 
+          {!presentation && compRows.length > 0 && (
+            <ComparativoBarChart rows={compRows} labelA={labelA} labelB={labelB} />
+          )}
           {isLoading ? (
             <div className="text-sm text-muted-foreground">Carregando…</div>
           ) : (

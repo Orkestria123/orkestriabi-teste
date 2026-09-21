@@ -138,15 +138,13 @@ function Page() {
   const labelA = granularidade === "ano" ? periodoA : periodoA ? periodoMesLabel(periodoA) : "—";
   const labelB = granularidade === "ano" ? periodoB : periodoB ? periodoMesLabel(periodoB) : "—";
 
-  // Receita × Despesa detalhado para período B (atual) e A (anterior)
-  const { data: rdAtual } = useReceitaDespesaDetalhado(companyId, periodosB);
-  const { data: rdAnterior } = useReceitaDespesaDetalhado(companyId, periodosA);
-  // Evolução mensal (cada competência do período B)
-  const competenciasMensais = useMemo(
-    () => periodosB.map((c) => ({ periodo: c, competencias: [c] })),
-    [periodosB],
+  // Receita × Despesa detalhado — usado apenas pelo Ponto de Equilíbrio.
+  const { data: rdAtual } = useReceitaDespesaDetalhado(
+    companyId,
+    periodosB,
+    secao === "equilibrio",
   );
-  const { data: rdMensal } = useReceitaDespesaPorPeriodo(companyId, competenciasMensais);
+
 
   // Mapeamento tipo_custo (fixo/variavel) para Ponto de Equilíbrio
   const { data: tipoCustoPlano = [] } = useQuery({

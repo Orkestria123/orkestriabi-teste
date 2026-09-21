@@ -280,8 +280,14 @@ async function carregar(
   incluirSaldoInicial: boolean,
   visao: string,
   chaveDfc = false,
+  meses: string[] = [],
 ): Promise<LancamentosDrilldownResult> {
   const opts = { incluirSaldoInicial };
+      // Só filtra por mês quando a seleção tem "buracos" — a faixa do banco
+      // já resolve o caso contíguo e não vale pagar filtro por linha.
+      const mesesSet = new Set(meses);
+      const noMes = (d: string) =>
+        mesesSet.size === 0 || mesesSet.has(String(d).slice(0, 7));
       const tenantId = await fetchTenantId(companyId!);
       const mascara = tenantId
         ? await getMascaraConfig({ tenantId, companyId })

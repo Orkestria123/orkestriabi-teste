@@ -258,9 +258,14 @@ function PeriodSync({ companyId }: { companyId: string | null }) {
           .map((p) => new Date(p).getUTCMonth() + 1),
       ),
     ).sort((a, b) => a - b);
+    // A seleção segue os meses realmente carregados: meses sem dados saem
+    // da marcação (evita período "quebrado", ex.: ECD de jan a jun e o
+    // filtro marcando jan a set).
     const overlapMonths = months.filter((m) => monthsDoAno.includes(m));
-    if (overlapMonths.length === 0 && monthsDoAno.length > 0) {
-      setMonths(monthsDoAno);
+    if (overlapMonths.length === 0) {
+      if (monthsDoAno.length > 0) setMonths(monthsDoAno);
+    } else if (overlapMonths.length !== months.length) {
+      setMonths(overlapMonths);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data]);

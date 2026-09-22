@@ -267,6 +267,13 @@
       "when": 1790085512013,
       "tag": "0037_fix_natureza_participantes_ecd",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1790086239713,
+      "tag": "0038_fix_encerramento_saldos_mensais_e_correcoes",
+      "breakpoints": true
     }
   ]
 }

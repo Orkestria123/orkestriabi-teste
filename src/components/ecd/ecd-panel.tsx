@@ -12,7 +12,7 @@
 // ECD no último mês tem que bater com o saldo de abertura que já está no
 // sistema, vindo do diário já validado. São dois documentos
 // independentes — se batem, o de-para está certo.
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
@@ -146,6 +146,10 @@ export function EcdPanel({ tenantId, companyId }: Props) {
   const [busca, setBusca] = useState("");
   const [filtro, setFiltro] = useState<FiltroEstado>("todas");
   const [marcadas, setMarcadas] = useState<Set<string>>(new Set());
+  // Meses escolhidos para o "Aplicar". O arquivo traz todos os períodos;
+  // a marcação decide quais entram no sistema (mesma lógica do
+  // carregamento via diário, que mostra o período disponível).
+  const [mesesAplicar, setMesesAplicar] = useState<Set<string>>(new Set());
   // Um ECD de verdade traz centenas de contas; desenhar todas de uma vez
   // trava a rolagem. Mostra um bloco e cresce sob demanda.
   const [limite, setLimite] = useState(150);
@@ -273,6 +277,20 @@ export function EcdPanel({ tenantId, companyId }: Props) {
       return data as any;
     },
   });
+
+  // Por padrão todo mês do arquivo fica marcado; trocar de arquivo refaz
+  // a marcação, mas refetch da conferência não pode apagar o que o
+  // usuário escolheu.
+  const mesesDoArquivo = useMemo(
+    () => (conferencia?.periodos ?? []).map((p: any) => p.competencia as string),
+    [conferencia],
+  );
+  const chaveMeses = mesesDoArquivo.join("|");
+  useEffect(() => {
+    setMesesAplicar(new Set(mesesDoArquivo));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [atual?.id, chaveMeses.length]);
+
 
   // Quantas sugestões automáticas ainda estão de pé. É o que decide se
   // o botão "Refazer" aparece — e quantas linhas ele vai jogar fora.
@@ -731,7 +749,16 @@ export function EcdPanel({ tenantId, companyId }: Props) {
         );
         return;
       }
-      const meses: string[] = Array.isArray(prep.competencias) ? prep.competencias : [];
+      // Só os meses marcados na lista "Períodos no arquivo" entram.
+      const meses: string[] = (Array.isArray(prep.competencias) ? prep.competencias : [])
+        .filter((m: string) => mesesAplicar.has(m));
+      if (meses.length === 0) {
+        toast.warning(
+          'Nenhum mês marcado — use as caixinhas em "Períodos no arquivo" para escolher o que aplicar.',
+          { duration: 12000 },
+        );
+        return;
+      }
       let linhasSaldo = 0;
       let pulados = 0;
       for (let i = 0; i < meses.length; i++) {
@@ -1424,7 +1451,7 @@ export function EcdPanel({ tenantId, companyId }: Props) {
               <Button size="sm" disabled={busy !== null || pendentesComMov > 0}
                 title={pendentesComMov > 0
                   ? `${pendentesComMov} conta(s) com movimento ainda sem vínculo`
-                  : "Materializa os saldos no sistema"}
+                  : "Materializa no sistema só os meses marcados em \"Períodos no arquivo\""}
                 onClick={() => aplicar(false)}>
                 {busy === "aplicar" && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                 Aplicar ao sistema
@@ -1696,14 +1723,41 @@ export function EcdPanel({ tenantId, companyId }: Props) {
           {/* ---------- períodos ---------- */}
           {(conferencia?.periodos ?? []).length > 0 && (
             <div>
-              <h3 className="text-xs font-medium mb-2 text-muted-foreground uppercase tracking-wider">
-                Períodos no arquivo
-              </h3>
+              <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
+                <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                  Períodos no arquivo — marque os meses para aplicar
+                </h3>
+                <div className="flex gap-1">
+                  <Button size="sm" variant="ghost" className="h-6 text-[11px]"
+                    disabled={busy !== null}
+                    onClick={() => setMesesAplicar(new Set((conferencia?.periodos ?? []).map((p: any) => p.competencia)))}>
+                    Marcar todos
+                  </Button>
+                  <Button size="sm" variant="ghost" className="h-6 text-[11px]"
+                    disabled={busy !== null}
+                    onClick={() => setMesesAplicar(new Set())}>
+                    Limpar
+                  </Button>
+                </div>
+              </div>
               <Card className="overflow-hidden">
                 <table className="w-full text-sm">
                   <tbody>
                     {(conferencia.periodos ?? []).map((p: any) => (
                       <tr key={p.competencia} className="border-t first:border-t-0">
+                        <td className="px-3 py-1.5 w-[36px]">
+                          <Checkbox
+                            checked={mesesAplicar.has(p.competencia)}
+                            disabled={busy !== null}
+                            onCheckedChange={(v) => {
+                              const novo = new Set(mesesAplicar);
+                              if (v) novo.add(p.competencia);
+                              else novo.delete(p.competencia);
+                              setMesesAplicar(novo);
+                            }}
+                            aria-label={`Aplicar ${mes(p.competencia)}`}
+                          />
+                        </td>
                         <td className="px-3 py-1.5">{mes(p.competencia)}</td>
                         <td className="px-3 py-1.5 text-xs text-muted-foreground">
                           {p.vinculadas} de {p.contas} contas vinculadas

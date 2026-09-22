@@ -3376,6 +3376,10 @@ export type Database = {
         Args: { _importacao_id: string }
         Returns: number
       }
+      ecd_criar_participantes: {
+        Args: { _importacao_id: string }
+        Returns: number
+      }
       ecd_dc_movimento: {
         Args: {
           _creditos: number

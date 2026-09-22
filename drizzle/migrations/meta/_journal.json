@@ -253,6 +253,13 @@
       "when": 1790084990452,
       "tag": "0035_0035_ignorar_encerramento_total_e_participantes_ecd",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1790085436586,
+      "tag": "0036_fix_split_part_participantes_ecd",
+      "breakpoints": true
     }
   ]
 }

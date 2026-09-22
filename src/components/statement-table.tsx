@@ -13,7 +13,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { resolverBasesAV, percentualAV } from '@/lib/av-base';
-import { tituloConta as formatarTituloConta } from '@/lib/format';
+import { tituloConta as formatarTituloConta, variacaoPct } from '@/lib/format';
 import {
   AGRUPADOR_LABEL,
   AGRUPADORES,

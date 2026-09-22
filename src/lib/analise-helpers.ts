@@ -102,7 +102,27 @@ export function agregarPorPeriodos(
   return { byLinha, ordered };
 }
 
-const CUSTO_RE = /custo|despesa|deduç|imposto|tribut|cmv|cpv|provis|perda|amortizaç|depreciaç/i;
+const CUSTO_RE = /custo|despesa|deduç|imposto|tribut|cmv|cpv|provis|perda|amortizaç|depreciaç|gasto/i;
+
+function contaSob(codigo: string, prefixo: string): boolean {
+  return codigo === prefixo || codigo.startsWith(`${prefixo}.`);
+}
+
+/** Identifica linhas de custo/despesa da DRE pelo plano padrão e, como apoio, pelo rótulo. */
+export function isCustoDespesaDre(
+  descricao: string | null | undefined,
+  codigoConta?: string | null,
+): boolean {
+  const codigo = (codigoConta ?? "").trim();
+  if (
+    codigo &&
+    ["3.02", "3.03", "3.04", "3.05.01", "3.05.98", "3.06", "3.15", "3.17", "3.18", "3.19"]
+      .some((prefixo) => contaSob(codigo, prefixo))
+  ) {
+    return true;
+  }
+  return isCustoDespesa(descricao);
+}
 
 export function isCustoDespesa(descricao: string | null | undefined): boolean {
   if (!descricao) return false;

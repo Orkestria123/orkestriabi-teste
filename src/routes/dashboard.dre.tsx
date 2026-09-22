@@ -5,6 +5,7 @@ import { useDashboardCompany } from "@/components/dashboard-context";
 import { useFilters } from "@/components/filter-bar";
 import { useMonthlyStatement, useAvailablePeriods } from "@/hooks/use-financial-data";
 import { limparCacheDemonstracoes } from "@/lib/cache-demonstracoes";
+import { isCustoDespesaDre } from "@/lib/analise-helpers";
 import { limparCachePlano } from "@/lib/diario/build-statements";
 import { StatementTable, type StatementRow } from "@/components/statement-table";
 import { useMemo, useState } from "react";
@@ -76,20 +77,7 @@ function categoriaDre(row: StatementRow): "receita" | "despesa" | null {
   const c = (row.codigo_conta ?? "").trim();
   if (!c) return null;
   if (under(c, "3.01") || under(c, "3.10.01")) return "receita";
-  if (
-    under(c, "3.02") ||
-    under(c, "3.03") ||
-    under(c, "3.04") ||
-    under(c, "3.05.01") ||
-    under(c, "3.05.98") ||
-    under(c, "3.06") ||
-    under(c, "3.15") ||
-    under(c, "3.17") ||
-    under(c, "3.18") ||
-    under(c, "3.19")
-  ) {
-    return "despesa";
-  }
+  if (isCustoDespesaDre(desc, c)) return "despesa";
   return null;
 }
 

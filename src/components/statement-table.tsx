@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { resolverBasesAV, percentualAV } from '@/lib/av-base';
 import { tituloConta as formatarTituloConta, variacaoPct } from '@/lib/format';
+import { isCustoDespesaDre } from '@/lib/analise-helpers';
 import {
   AGRUPADOR_LABEL,
   AGRUPADORES,
@@ -172,6 +173,19 @@ function calcularAH(
 
 function rowId(row: StatementRow) {
   return `${row.linha_ordem}::${row.codigo_conta ?? row.descricao}`;
+}
+
+function classeVariacao(
+  row: StatementRow,
+  variante: 'dre' | 'bp' | 'dfc',
+  variacao: number,
+): string | undefined {
+  if (variacao === 0) return undefined;
+  const aumento = variacao > 0;
+  const desfavoravel = variante === 'dre' && isCustoDespesaDre(row.descricao, row.codigo_conta)
+    ? aumento
+    : !aumento;
+  return desfavoravel ? 'text-destructive' : 'text-success';
 }
 
 function directChildren(rows: StatementRow[], index: number): number[] {
@@ -611,10 +625,7 @@ export function StatementTable({
                         const pct = variacaoPct(valorCol, anterior);
                         if (pct === null || !isFinite(pct)) return "—";
                         return (
-                          <span className={cn(
-                            valorCol - anterior > 0 && "text-success",
-                            valorCol - anterior < 0 && "text-destructive",
-                          )}>
+                          <span className={classeVariacao(row, variante, pct)}>
                             {formatarPercentual(pct)}
                           </span>
                         );
@@ -672,10 +683,7 @@ export function StatementTable({
                       );
                       if (pct === null) return '—';
                       return (
-                        <span className={cn(
-                          pct > 0 && 'text-success',
-                          pct < 0 && 'text-destructive',
-                        )}>
+                        <span className={classeVariacao(row, variante, pct)}>
                           {formatarPercentual(pct)}
                         </span>
                       );

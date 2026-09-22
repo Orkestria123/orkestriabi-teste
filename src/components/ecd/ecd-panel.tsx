@@ -1723,9 +1723,23 @@ export function EcdPanel({ tenantId, companyId }: Props) {
           {/* ---------- períodos ---------- */}
           {(conferencia?.periodos ?? []).length > 0 && (
             <div>
-              <h3 className="text-xs font-medium mb-2 text-muted-foreground uppercase tracking-wider">
-                Períodos no arquivo
-              </h3>
+              <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
+                <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                  Períodos no arquivo — marque os meses para aplicar
+                </h3>
+                <div className="flex gap-1">
+                  <Button size="sm" variant="ghost" className="h-6 text-[11px]"
+                    disabled={busy !== null}
+                    onClick={() => setMesesAplicar(new Set((conferencia?.periodos ?? []).map((p: any) => p.competencia)))}>
+                    Marcar todos
+                  </Button>
+                  <Button size="sm" variant="ghost" className="h-6 text-[11px]"
+                    disabled={busy !== null}
+                    onClick={() => setMesesAplicar(new Set())}>
+                    Limpar
+                  </Button>
+                </div>
+              </div>
               <Card className="overflow-hidden">
                 <table className="w-full text-sm">
                   <tbody>

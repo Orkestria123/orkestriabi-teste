@@ -105,7 +105,8 @@ export function useFiltersOptional() {
 }
 
 export function FilterBar() {
-  const { years, months, setYears, setMonths, availableYears } = useFilters();
+  const { years, months, setYears, setMonths, availableYears, availablePeriods } =
+    useFilters();
   const toggle = <T,>(arr: T[], v: T) =>
     arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v].sort();
 
@@ -113,6 +114,18 @@ export function FilterBar() {
     availableYears.length > 0
       ? availableYears
       : [new Date().getFullYear() - 1, new Date().getFullYear()];
+
+  // Só os meses que realmente têm dados nos anos marcados ficam clicáveis —
+  // sem isso dava para selecionar um período que o arquivo não cobre.
+  const mesesComDados = useMemo(() => {
+    if (availablePeriods.length === 0) return new Set(MONTHS.map((m) => m.m));
+    const s = new Set<number>();
+    for (const p of availablePeriods) {
+      const d = new Date(p);
+      if (years.includes(d.getUTCFullYear())) s.add(d.getUTCMonth() + 1);
+    }
+    return s;
+  }, [availablePeriods, years]);
 
   const allYearsSelected = yearOptions.every((y) => years.includes(y));
   const allMonthsSelected = MONTHS.every((mo) => months.includes(mo.m));

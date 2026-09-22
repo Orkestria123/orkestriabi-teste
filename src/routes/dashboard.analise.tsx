@@ -184,6 +184,7 @@ function Page() {
       out.push({
         linha_ordem: ln,
         descricao: ref.descricao,
+        codigo_conta: ref.codigo_conta,
         nivel: ref.nivel ?? 0,
         is_subtotal: ref.is_subtotal ?? false,
         valorA: ar.get(ln)?.valor ?? 0,

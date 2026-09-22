@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { formatBRL, formatBRLCompact, formatPct, variacaoPct } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { isCustoDespesa } from "@/lib/analise-helpers";
+import { isCustoDespesaDre } from "@/lib/analise-helpers";
 import { ChevronDown, ChevronRight, Zap } from "lucide-react";
 import { ExpandirControles } from "@/components/expandir-controles";
 import {
@@ -21,6 +21,7 @@ export interface CompRow {
   descricao: string;
   nivel: number;
   is_subtotal: boolean;
+  codigo_conta?: string | null;
   valorA: number;
   valorB: number;
 }
@@ -112,7 +113,7 @@ export function ComparativoTable({ rows, labelA, labelB, presentation }: Props) 
               const r = rows[i];
               const delta = r.valorB - r.valorA;
               const variacao = variacaoPct(r.valorB, r.valorA);
-              const inverter = !r.is_subtotal && isCustoDespesa(r.descricao);
+               const inverter = isCustoDespesaDre(r.descricao, r.codigo_conta);
               const rawPos = variacao != null && variacao > 0;
               const rawNeg = variacao != null && variacao < 0;
               const positive = inverter ? rawNeg : rawPos;

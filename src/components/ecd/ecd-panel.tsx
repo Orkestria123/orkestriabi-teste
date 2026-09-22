@@ -1745,6 +1745,19 @@ export function EcdPanel({ tenantId, companyId }: Props) {
                   <tbody>
                     {(conferencia.periodos ?? []).map((p: any) => (
                       <tr key={p.competencia} className="border-t first:border-t-0">
+                        <td className="px-3 py-1.5 w-[36px]">
+                          <Checkbox
+                            checked={mesesAplicar.has(p.competencia)}
+                            disabled={busy !== null}
+                            onCheckedChange={(v) => {
+                              const novo = new Set(mesesAplicar);
+                              if (v) novo.add(p.competencia);
+                              else novo.delete(p.competencia);
+                              setMesesAplicar(novo);
+                            }}
+                            aria-label={`Aplicar ${mes(p.competencia)}`}
+                          />
+                        </td>
                         <td className="px-3 py-1.5">{mes(p.competencia)}</td>
                         <td className="px-3 py-1.5 text-xs text-muted-foreground">
                           {p.vinculadas} de {p.contas} contas vinculadas

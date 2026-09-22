@@ -278,6 +278,20 @@ export function EcdPanel({ tenantId, companyId }: Props) {
     },
   });
 
+  // Por padrão todo mês do arquivo fica marcado; trocar de arquivo refaz
+  // a marcação, mas refetch da conferência não pode apagar o que o
+  // usuário escolheu.
+  const mesesDoArquivo = useMemo(
+    () => (conferencia?.periodos ?? []).map((p: any) => p.competencia as string),
+    [conferencia],
+  );
+  const chaveMeses = mesesDoArquivo.join("|");
+  useEffect(() => {
+    setMesesAplicar(new Set(mesesDoArquivo));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [atual?.id, chaveMeses.length]);
+
+
   // Quantas sugestões automáticas ainda estão de pé. É o que decide se
   // o botão "Refazer" aparece — e quantas linhas ele vai jogar fora.
   const { data: automaticas } = useQuery({

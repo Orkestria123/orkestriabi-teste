@@ -12,7 +12,7 @@
 // ECD no último mês tem que bater com o saldo de abertura que já está no
 // sistema, vindo do diário já validado. São dois documentos
 // independentes — se batem, o de-para está certo.
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
@@ -731,7 +731,16 @@ export function EcdPanel({ tenantId, companyId }: Props) {
         );
         return;
       }
-      const meses: string[] = Array.isArray(prep.competencias) ? prep.competencias : [];
+      // Só os meses marcados na lista "Períodos no arquivo" entram.
+      const meses: string[] = (Array.isArray(prep.competencias) ? prep.competencias : [])
+        .filter((m: string) => mesesAplicar.has(m));
+      if (meses.length === 0) {
+        toast.warning(
+          'Nenhum mês marcado — use as caixinhas em "Períodos no arquivo" para escolher o que aplicar.',
+          { duration: 12000 },
+        );
+        return;
+      }
       let linhasSaldo = 0;
       let pulados = 0;
       for (let i = 0; i < meses.length; i++) {

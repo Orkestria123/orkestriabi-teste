@@ -146,6 +146,10 @@ export function EcdPanel({ tenantId, companyId }: Props) {
   const [busca, setBusca] = useState("");
   const [filtro, setFiltro] = useState<FiltroEstado>("todas");
   const [marcadas, setMarcadas] = useState<Set<string>>(new Set());
+  // Meses escolhidos para o "Aplicar". O arquivo traz todos os períodos;
+  // a marcação decide quais entram no sistema (mesma lógica do
+  // carregamento via diário, que mostra o período disponível).
+  const [mesesAplicar, setMesesAplicar] = useState<Set<string>>(new Set());
   // Um ECD de verdade traz centenas de contas; desenhar todas de uma vez
   // trava a rolagem. Mostra um bloco e cresce sob demanda.
   const [limite, setLimite] = useState(150);

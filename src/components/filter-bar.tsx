@@ -174,7 +174,9 @@ export function FilterBar() {
               Mês
             </span>
             <button
-              onClick={() => setMonths(MONTHS.map((m) => m.m))}
+              onClick={() =>
+                setMonths(MONTHS.map((m) => m.m).filter((m) => mesesComDados.has(m)))
+              }
               className="text-[10px] uppercase tracking-wider text-primary hover:underline"
             >
               Marcar todos
@@ -187,20 +189,27 @@ export function FilterBar() {
             </button>
           </div>
           <div className="flex flex-wrap gap-1">
-            {MONTHS.map((mo) => (
-              <button
-                key={mo.m}
-                onClick={() => setMonths(toggle(months, mo.m))}
-                className={cn(
-                  "h-8 w-11 rounded-md text-xs font-medium border transition-colors",
-                  months.includes(mo.m)
-                    ? "bg-primary text-primary-foreground border-primary"
-                    : "bg-background border-border hover:bg-accent",
-                )}
-              >
-                {mo.label}
-              </button>
-            ))}
+            {MONTHS.map((mo) => {
+              const temDados = mesesComDados.has(mo.m);
+              return (
+                <button
+                  key={mo.m}
+                  disabled={!temDados}
+                  title={temDados ? undefined : "Sem dados importados neste mês"}
+                  onClick={() => temDados && setMonths(toggle(months, mo.m))}
+                  className={cn(
+                    "h-8 w-11 rounded-md text-xs font-medium border transition-colors",
+                    !temDados
+                      ? "bg-muted text-muted-foreground/50 border-border cursor-not-allowed"
+                      : months.includes(mo.m)
+                        ? "bg-primary text-primary-foreground border-primary"
+                        : "bg-background border-border hover:bg-accent",
+                  )}
+                >
+                  {mo.label}
+                </button>
+              );
+            })}
           </div>
         </div>
         <div className="flex items-center gap-2">

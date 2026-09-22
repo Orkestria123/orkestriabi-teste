@@ -25,7 +25,7 @@ export function KpiCard({
 }: Props) {
   const variation =
     previousValue != null && previousValue !== 0 && value != null
-      ? ((value - previousValue) / Math.abs(previousValue)) * 100
+      ? variacaoPct(value, previousValue)
       : null;
   const positive = variation != null && variation > 0;
   const negative = variation != null && variation < 0;

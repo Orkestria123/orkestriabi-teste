@@ -254,9 +254,7 @@ function KpiConfigCard({
 }) {
   const isSigned = blocoKey === "kpi_lucro_liquido" || blocoKey === "kpi_ebit";
   const variation =
-    prev != null && prev !== 0 && value != null
-      ? ((value - prev) / Math.abs(prev)) * 100
-      : null;
+    prev != null && prev !== 0 && value != null ? variacaoPct(value, prev) : null;
 
   let tone: "positive" | "negative" | "neutral" = "neutral";
   if (isSigned && value != null) {

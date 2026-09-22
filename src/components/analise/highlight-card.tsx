@@ -26,8 +26,8 @@ export function HighlightCard({ label, valorA, valorB, labelA, labelB, format = 
     if (format === "percent") {
       variacao = valorB - valorA;
       varSuffix = " p.p.";
-    } else if (valorA !== 0) {
-      variacao = ((valorB - valorA) / Math.abs(valorA)) * 100;
+    } else {
+      variacao = variacaoPct(valorB, valorA);
       varSuffix = "%";
     }
   }

@@ -694,7 +694,7 @@ export function computeIndicadoresCompletos(
     const valor_anterior = serie.length > 1 ? serie[serie.length - 2].valor : null;
     const variacao_pct =
       valor_atual != null && valor_anterior != null && valor_anterior !== 0
-        ? ((valor_atual - valor_anterior) / Math.abs(valor_anterior)) * 100
+        ? ((valor_atual - valor_anterior) / valor_anterior) * 100
         : null;
 
     const baseUlt = baseMap.get(periodosOrd[periodosOrd.length - 1]) ?? baseVazia();

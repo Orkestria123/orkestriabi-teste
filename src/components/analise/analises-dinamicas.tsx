@@ -417,7 +417,7 @@ function MiniSerie({ serie, formato }: { serie: SeriePonto[]; formato: string })
   const penultimo = pontos[pontos.length - 2].valor;
   const ultimo = pontos[pontos.length - 1].valor!;
   const variacao = penultimo != null && penultimo !== 0
-    ? ((ultimo - penultimo) / Math.abs(penultimo)) * 100
+    ? ((ultimo - penultimo) / penultimo) * 100
     : null;
   return (
     <div className="flex items-center gap-4">

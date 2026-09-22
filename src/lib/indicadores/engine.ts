@@ -766,7 +766,7 @@ export function aplicarModo(
     const fim = validos[validos.length - 1].valor;
     if (modo === "ah_valor") return { serie, valorPrincipal: fim - ini };
     if (ini === 0) return { serie, valorPrincipal: null };
-    return { serie, valorPrincipal: ((fim - ini) / Math.abs(ini)) * 100 };
+    return { serie, valorPrincipal: ((fim - ini) / ini) * 100 };
   }
   if (modo === "percentual") {
     const s = serie.map((p) => ({ periodo: p.periodo, valor: p.valor == null ? null : p.valor * 100 }));

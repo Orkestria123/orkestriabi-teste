@@ -109,7 +109,7 @@ export const generateFinancialInsights = createServerFn({ method: "POST" })
       .map((r) => {
         const v = r.values[last] ?? 0;
         const p = prev ? r.values[prev] ?? 0 : 0;
-        const delta = prev && p !== 0 ? ((v - p) / Math.abs(p)) * 100 : null;
+        const delta = prev && p !== 0 ? ((v - p) / p) * 100 : null;
         return `${r.descricao}: ${brl(v)}${delta != null ? ` (${delta > 0 ? "+" : ""}${delta.toFixed(1)}% vs período anterior)` : ""}`;
       })
       .join("\n");
@@ -227,7 +227,7 @@ export const getConsolidatedDashboard = createServerFn({ method: "GET" })
       const margem = receita && receita !== 0 && lucro != null ? (lucro / receita) * 100 : null;
       const variacaoReceita =
         receita != null && receitaPrev != null && receitaPrev !== 0
-          ? ((receita - receitaPrev) / Math.abs(receitaPrev)) * 100
+          ? ((receita - receitaPrev) / receitaPrev) * 100
           : null;
       return {
         id: c.id,

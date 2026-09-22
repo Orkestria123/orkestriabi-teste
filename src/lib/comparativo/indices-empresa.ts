@@ -92,7 +92,7 @@ function div(a: number, b: number): number | null {
 
 function variacao(atual: number, anterior: number): number | null {
   if (!isFinite(atual) || !isFinite(anterior) || Math.abs(anterior) < 0.005) return null;
-  return ((atual - anterior) / Math.abs(anterior)) * 100;
+  return ((atual - anterior) / anterior) * 100;
 }
 
 /**

@@ -34,9 +34,9 @@ export function EvolucaoReceitaDespesa({ data }: { data: SerieItem[] }) {
 
   const first = data[0];
   const last = data[data.length - 1];
-  const ahReceita = first.receita ? ((last.receita - first.receita) / Math.abs(first.receita)) * 100 : 0;
+  const ahReceita = first.receita ? ((last.receita - first.receita) / first.receita) * 100 : 0;
   const ahDespesa = first.despesaTotal
-    ? ((last.despesaTotal - first.despesaTotal) / Math.abs(first.despesaTotal)) * 100
+    ? ((last.despesaTotal - first.despesaTotal) / first.despesaTotal) * 100
     : 0;
   const tesoura = ahDespesa > ahReceita;
   const insight = tesoura

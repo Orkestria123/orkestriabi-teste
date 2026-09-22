@@ -81,7 +81,7 @@ export const compareCompanies = createServerFn({ method: "POST" })
       const pct = (a: number | null, b: number | null) =>
         a != null && b != null && b !== 0 ? (a / Math.abs(b)) * 100 : null;
       const variac = (a: number | null, b: number | null) =>
-        a != null && b != null && b !== 0 ? ((a - b) / Math.abs(b)) * 100 : null;
+        a != null && b != null && b !== 0 ? ((a - b) / b) * 100 : null;
 
       return {
         id: c.id,

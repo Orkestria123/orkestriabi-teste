@@ -1,6 +1,6 @@
 import { ArrowDownRight, ArrowUpRight, Minus } from "lucide-react";
 import { Card } from "@/components/ui/card";
-import { formatBRLCompact, formatPct } from "@/lib/format";
+import { formatBRLCompact, formatPct, variacaoPct } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { useId } from "react";
 

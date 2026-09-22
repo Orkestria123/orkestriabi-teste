@@ -8,7 +8,7 @@ import {
   BLOCOS_CATALOGO, KPI_DESTAQUE, KPI_LABEL, KPI_PAPEL, KPI_VIA_INDICADOR,
 } from "@/lib/dashboard/catalogo";
 import { Card } from "@/components/ui/card";
-import { formatBRLCompact, formatPct, periodoLabel } from "@/lib/format";
+import { formatBRLCompact, formatPct, periodoLabel, variacaoPct } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { ArrowDownRight, ArrowUpRight, Minus } from "lucide-react";
 import { indexarDemoDre, valorPapelDemo, valorCustosDemo, valorEbitEbitdaDaDre } from "@/lib/indicadores/linhas";

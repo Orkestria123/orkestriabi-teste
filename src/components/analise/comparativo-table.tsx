@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
-import { formatBRL, formatBRLCompact, formatPct } from "@/lib/format";
+import { formatBRL, formatBRLCompact, formatPct, variacaoPct } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { isCustoDespesa } from "@/lib/analise-helpers";
 import { ChevronDown, ChevronRight, Zap } from "lucide-react";

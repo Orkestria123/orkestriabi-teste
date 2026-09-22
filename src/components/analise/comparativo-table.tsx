@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
-import { formatBRL, formatBRLCompact, formatPct } from "@/lib/format";
+import { formatBRL, formatBRLCompact, formatPct, variacaoPct } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { isCustoDespesa } from "@/lib/analise-helpers";
 import { ChevronDown, ChevronRight, Zap } from "lucide-react";
@@ -111,7 +111,7 @@ export function ComparativoTable({ rows, labelA, labelB, presentation }: Props) 
             {visiveis.map((i) => {
               const r = rows[i];
               const delta = r.valorB - r.valorA;
-              const variacao = r.valorA !== 0 ? (delta / Math.abs(r.valorA)) * 100 : null;
+              const variacao = variacaoPct(r.valorB, r.valorA);
               const inverter = !r.is_subtotal && isCustoDespesa(r.descricao);
               const rawPos = variacao != null && variacao > 0;
               const rawNeg = variacao != null && variacao < 0;

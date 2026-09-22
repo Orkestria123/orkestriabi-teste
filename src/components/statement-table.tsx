@@ -13,7 +13,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { resolverBasesAV, percentualAV } from '@/lib/av-base';
-import { tituloConta as formatarTituloConta } from '@/lib/format';
+import { tituloConta as formatarTituloConta, variacaoPct } from '@/lib/format';
 import {
   AGRUPADOR_LABEL,
   AGRUPADORES,
@@ -167,7 +167,7 @@ function calcularAH(
     valorBase = ler(basePeriod);
   }
   if (valorBase === 0 || Math.abs(valorBase) < 0.001) return null;
-  return ((valorAtual - valorBase) / Math.abs(valorBase)) * 100;
+  return variacaoPct(valorAtual, valorBase);
 }
 
 function rowId(row: StatementRow) {
@@ -608,12 +608,12 @@ export function StatementTable({
                           ? valorSubtotal(row.valuesGer, ref.periodos, variante)
                           : valorSubtotal(row.values, ref.periodos, variante);
                         if (Math.abs(anterior) < 0.001) return "—";
-                        const pct = ((valorCol - anterior) / Math.abs(anterior)) * 100;
-                        if (!isFinite(pct)) return "—";
+                        const pct = variacaoPct(valorCol, anterior);
+                        if (pct === null || !isFinite(pct)) return "—";
                         return (
                           <span className={cn(
-                            pct > 0 && "text-success",
-                            pct < 0 && "text-destructive",
+                            valorCol - anterior > 0 && "text-success",
+                            valorCol - anterior < 0 && "text-destructive",
                           )}>
                             {formatarPercentual(pct)}
                           </span>

@@ -8,7 +8,7 @@ import {
   BLOCOS_CATALOGO, KPI_DESTAQUE, KPI_LABEL, KPI_PAPEL, KPI_VIA_INDICADOR,
 } from "@/lib/dashboard/catalogo";
 import { Card } from "@/components/ui/card";
-import { formatBRLCompact, formatPct, periodoLabel } from "@/lib/format";
+import { formatBRLCompact, formatPct, periodoLabel, variacaoPct } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { ArrowDownRight, ArrowUpRight, Minus } from "lucide-react";
 import { indexarDemoDre, valorPapelDemo, valorCustosDemo, valorEbitEbitdaDaDre } from "@/lib/indicadores/linhas";
@@ -254,9 +254,7 @@ function KpiConfigCard({
 }) {
   const isSigned = blocoKey === "kpi_lucro_liquido" || blocoKey === "kpi_ebit";
   const variation =
-    prev != null && prev !== 0 && value != null
-      ? ((value - prev) / Math.abs(prev)) * 100
-      : null;
+    prev != null && prev !== 0 && value != null ? variacaoPct(value, prev) : null;
 
   let tone: "positive" | "negative" | "neutral" = "neutral";
   if (isSigned && value != null) {

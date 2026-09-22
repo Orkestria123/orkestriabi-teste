@@ -1,6 +1,6 @@
 import { ArrowDownRight, ArrowUpRight, Minus } from "lucide-react";
 import { Card } from "@/components/ui/card";
-import { formatBRLCompact, formatPct } from "@/lib/format";
+import { formatBRLCompact, formatPct, variacaoPct } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { useId } from "react";
 
@@ -25,7 +25,7 @@ export function KpiCard({
 }: Props) {
   const variation =
     previousValue != null && previousValue !== 0 && value != null
-      ? ((value - previousValue) / Math.abs(previousValue)) * 100
+      ? variacaoPct(value, previousValue)
       : null;
   const positive = variation != null && variation > 0;
   const negative = variation != null && variation < 0;

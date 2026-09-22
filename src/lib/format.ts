@@ -36,6 +36,28 @@ export function formatBRLCompact(value: number | null | undefined): string {
   return `R$ ${formatted}`;
 }
 
+/**
+ * Variação percentual entre um valor atual e uma base, respeitando o SINAL
+ * contábil da base.
+ *
+ * Contas de despesa/custo aparecem negativas no BI. Dividir por |base|
+ * invertia a leitura: uma despesa que foi de (889.434) para (1.009.525)
+ * aparecia como -13,5% (queda) quando na verdade a despesa CRESCEU 13,5%.
+ * Dividindo pela base com sinal, o percentual passa a medir a variação da
+ * grandeza: +13,5% = gastou mais; -13,5% = gastou menos.
+ */
+export function variacaoPct(
+  atual: number | null | undefined,
+  base: number | null | undefined,
+): number | null {
+  if (atual == null || base == null) return null;
+  const a = Number(atual);
+  const b = Number(base);
+  if (!isFinite(a) || !isFinite(b) || Math.abs(b) < 1e-9) return null;
+  const v = ((a - b) / b) * 100;
+  return isFinite(v) ? v : null;
+}
+
 export function formatPct(value: number | null | undefined, digits = 2): string {
   if (value == null || isNaN(value as number)) return "—";
   return `${Number(value).toFixed(digits).replace(".", ",")}%`;

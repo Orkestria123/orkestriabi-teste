@@ -1,5 +1,5 @@
 import { Card } from "@/components/ui/card";
-import { formatBRLCompact, formatPct } from "@/lib/format";
+import { formatBRLCompact, formatPct, variacaoPct } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { ArrowDownRight, ArrowUpRight, Minus } from "lucide-react";
 
@@ -26,8 +26,8 @@ export function HighlightCard({ label, valorA, valorB, labelA, labelB, format = 
     if (format === "percent") {
       variacao = valorB - valorA;
       varSuffix = " p.p.";
-    } else if (valorA !== 0) {
-      variacao = ((valorB - valorA) / Math.abs(valorA)) * 100;
+    } else {
+      variacao = variacaoPct(valorB, valorA);
       varSuffix = "%";
     }
   }

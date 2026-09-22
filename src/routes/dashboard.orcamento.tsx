@@ -121,7 +121,7 @@ function calcStatus(
 ): "verde" | "amarelo" | "vermelho" | "neutro" {
   if (orcado === 0 && realizado === 0) return "neutro";
   if (orcado === 0) return ehReceita(tipo) ? "verde" : "amarelo";
-  const desvioPct = ((realizado - orcado) / Math.abs(orcado)) * 100;
+  const desvioPct = ((realizado - orcado) / orcado) * 100;
   const desvioRuim = ehReceita(tipo) ? -desvioPct : desvioPct;
   if (desvioRuim <= tolAmarelo) return "verde";
   if (desvioRuim <= tolVermelho) return "amarelo";
@@ -640,7 +640,7 @@ function OrcamentoAnalise() {
       tVar: houveReal && houveOrc ? tReal - tOrc : null,
       tVarP:
         houveReal && houveOrc && tOrc !== 0
-          ? ((tReal - tOrc) / Math.abs(tOrc)) * 100
+          ? ((tReal - tOrc) / tOrc) * 100
           : null,
     };
   }, [grid]);
@@ -1579,7 +1579,7 @@ function CellTrio({
     cell.realizado !== null && cell.orcado !== null ? cell.realizado - cell.orcado : null;
   const varP =
     cell.realizado !== null && cell.orcado !== null && cell.orcado !== 0
-      ? ((cell.realizado - cell.orcado) / Math.abs(cell.orcado)) * 100
+      ? ((cell.realizado - cell.orcado) / cell.orcado) * 100
       : null;
   const status =
     cell.realizado === null || cell.orcado === null

@@ -199,7 +199,7 @@ function calcStatusReceita(
   if (orc === null || real === null) return "neutro";
   if (orc === 0 && real === 0) return "neutro";
   if (orc === 0) return "amarelo";
-  const desvioPct = ((real - orc) / Math.abs(orc)) * 100;
+  const desvioPct = ((real - orc) / orc) * 100;
   // Convenção da DRE: receita positiva quer subir; despesa/custo/dedução
   // (linhas "(-)") positiva quer descer. Lucros: querem subir.
   const querSubir =
@@ -715,7 +715,7 @@ export default function DREOrcada({
                   const tReal = totalReal(info.linha);
                   const tVarP =
                     tOrc !== null && tOrc !== 0
-                      ? ((tReal - tOrc) / Math.abs(tOrc)) * 100
+                      ? ((tReal - tOrc) / tOrc) * 100
                       : null;
                   const tStatus = calcStatusReceita(
                     info.linha,
@@ -751,7 +751,7 @@ export default function DREOrcada({
                         const varR = orc !== null ? real - orc : null;
                         const varP =
                           orc !== null && orc !== 0
-                            ? ((real - orc) / Math.abs(orc)) * 100
+                            ? ((real - orc) / orc) * 100
                             : null;
                         const status = calcStatusReceita(
                           info.linha,

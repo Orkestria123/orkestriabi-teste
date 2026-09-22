@@ -208,7 +208,7 @@ export function GraficoNatureza({
     totalOrcado !== null && totalRealizado !== null ? totalRealizado - totalOrcado : null;
   const varPct =
     varAbs !== null && totalOrcado !== null && totalOrcado !== 0
-      ? (varAbs / Math.abs(totalOrcado)) * 100
+      ? (varAbs / totalOrcado) * 100
       : null;
   const status = statusDeVariacao(def.key, varPct);
   const corVar = corDeStatus(status);
@@ -249,7 +249,7 @@ export function GraficoNatureza({
                 p.orcado !== null && p.realizado !== null ? p.realizado - p.orcado : null;
               const difPct =
                 dif !== null && p.orcado !== null && p.orcado !== 0
-                  ? (dif / Math.abs(p.orcado)) * 100
+                  ? (dif / p.orcado) * 100
                   : null;
               const s = statusDeVariacao(def.key, difPct);
               return (

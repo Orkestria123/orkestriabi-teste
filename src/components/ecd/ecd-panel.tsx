@@ -1451,7 +1451,7 @@ export function EcdPanel({ tenantId, companyId }: Props) {
               <Button size="sm" disabled={busy !== null || pendentesComMov > 0}
                 title={pendentesComMov > 0
                   ? `${pendentesComMov} conta(s) com movimento ainda sem vínculo`
-                  : "Materializa os saldos no sistema"}
+                  : "Materializa no sistema só os meses marcados em \"Períodos no arquivo\""}
                 onClick={() => aplicar(false)}>
                 {busy === "aplicar" && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                 Aplicar ao sistema

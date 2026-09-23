@@ -281,6 +281,13 @@
       "when": 1790103639490,
       "tag": "0039_ecd_i250_como_fonte_e_encerramento",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1790193863961,
+      "tag": "0040_fix_ecd_materializar_lote_upload",
+      "breakpoints": true
     }
   ]
 }

@@ -3082,6 +3082,15 @@ export type Database = {
           debitos: number
         }[]
       }
+      criar_conta_empresa: {
+        Args: {
+          _codigo_origem: string
+          _company_id: string
+          _conta_padrao: string
+          _descricao: string
+        }
+        Returns: string
+      }
       definir_dfc_classificacao: {
         Args: {
           _classificacao: string
@@ -3628,6 +3637,7 @@ export type Database = {
       pode_ler_empresa: { Args: { _company_id: string }; Returns: boolean }
       pode_ler_tenant: { Args: { _tenant_id: string }; Returns: boolean }
       pode_tenant: { Args: { _tenant_id: string }; Returns: boolean }
+      prefixo_empresa: { Args: { _company_id: string }; Returns: string }
       promover_plano_empresa: { Args: { _company_id: string }; Returns: Json }
       restaurar_conta_descartada: {
         Args: { _codigo: string; _tenant_id: string }

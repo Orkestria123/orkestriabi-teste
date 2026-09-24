@@ -247,7 +247,7 @@ async function getPlanoEstrutural(
   // Uma leitura por empresa cobre todas as demonstrações: buscamos o
   // plano estrutural inteiro (com o `tipo`) e filtramos em memória, em
   // vez de repetir a paginação para cada combinação de tipos.
-  const key = `${tenantId}|${modoGlobal ? "global" : companyId}`;
+  const key = `${tenantId}|${companyId}|${modoGlobal ? "global" : "proprio"}`;
   let p = _planoCache.get(key);
   if (!p) {
     p = fetchAllPaginated<Plano & { tipo: string }>((from, to) => {
@@ -262,7 +262,8 @@ async function getPlanoEstrutural(
         .eq("is_participante", false)
         .order("codigo")
         .range(from, to);
-      return modoGlobal ? q.is("company_id", null) : q.eq("company_id", companyId);
+      // Plano Padrão + contas específicas desta empresa (prefixadas).
+      return modoGlobal ? q.or(`company_id.is.null,company_id.eq.${companyId}`) : q.eq("company_id", companyId);
     }, "plano estrutural");
     // Erro não deve envenenar o cache.
     p.catch(() => _planoCache.delete(key));
@@ -322,7 +323,7 @@ async function getPlanoPorTipo(
         .in("codigo", lote)
         .order("codigo")
         .range(from, to);
-      return modoGlobal ? q.is("company_id", null) : q.eq("company_id", companyId);
+      return modoGlobal ? q.or(`company_id.is.null,company_id.eq.${companyId}`) : q.eq("company_id", companyId);
     }, "plano participantes");
     participantes.push(...rows);
   }

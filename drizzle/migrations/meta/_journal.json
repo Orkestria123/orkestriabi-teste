@@ -288,6 +288,13 @@
       "when": 1790193863961,
       "tag": "0040_fix_ecd_materializar_lote_upload",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1790268335007,
+      "tag": "0041_ecd_encerramento_so_i200_e_participantes_prefixados",
+      "breakpoints": true
     }
   ]
 }

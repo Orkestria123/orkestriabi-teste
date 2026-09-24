@@ -302,6 +302,13 @@
       "when": 1790278895968,
       "tag": "0042_ecd_participantes_codigo_cli_for",
       "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1790279200743,
+      "tag": "0043_idx_plano_contas_tenant_codigo",
+      "breakpoints": true
     }
   ]
 }

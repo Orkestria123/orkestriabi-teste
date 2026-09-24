@@ -1,0 +1,1 @@
+CREATE INDEX IF NOT EXISTS idx_plano_contas_tenant_codigo ON public.plano_contas USING btree (tenant_id, codigo) INCLUDE (tipo, classificacao, company_id);

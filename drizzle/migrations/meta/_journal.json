@@ -295,6 +295,13 @@
       "when": 1790268335007,
       "tag": "0041_ecd_encerramento_so_i200_e_participantes_prefixados",
       "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1790278895968,
+      "tag": "0042_ecd_participantes_codigo_cli_for",
+      "breakpoints": true
     }
   ]
 }

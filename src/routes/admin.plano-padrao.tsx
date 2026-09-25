@@ -20,6 +20,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { ContasPlanoPadrao } from "@/components/plano/contas-plano-padrao";
 import { DfcAlocacaoPanel, EstruturaDemonstracaoPanel } from "@/components/plano/estrutura-dfc-panel";
+import { ContasEspecificasEmpresa } from "@/components/plano/contas-especificas-empresa";
 
 export const Route = createFileRoute("/admin/plano-padrao")({ component: Page });
 
@@ -113,6 +114,7 @@ function Page() {
             <TabsContent value="contas">
               <div className="space-y-4">
                 <ContasPlanoPadrao tenantId={tenantId} podeEditar={podeEditar} />
+                <ContasEspecificasEmpresa tenantId={tenantId} podeEditar={podeEditar} />
                 <PromoverPlanoCard tenantId={tenantId} podeEditar={podeEditar} />
               </div>
             </TabsContent>

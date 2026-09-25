@@ -309,6 +309,13 @@
       "when": 1790279200743,
       "tag": "0043_idx_plano_contas_tenant_codigo",
       "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "7",
+      "when": 1790298762140,
+      "tag": "0044_ecd_aplicar_mes_limpa_e_confere_i155",
+      "breakpoints": true
     }
   ]
 }

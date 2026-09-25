@@ -12,20 +12,26 @@ const espera = (ms: number) => new Promise((r) => setTimeout(r, ms));
 async function chunkedInsert<T>(table: string, rows: T[], onProgress?: (n: number) => void) {
   for (let i = 0; i < rows.length; i += BATCH) {
     const slice = rows.slice(i, i + BATCH);
-    let ultimo: string | null = null;
     // Arquivo grande: um lote que cai no timeout é refeito em fatias menores.
-    for (let t = 0; t < 4; t++) {
-      const partes = t === 0 ? [slice] : [slice.slice(0, slice.length / 2), slice.slice(slice.length / 2)];
-      ultimo = null;
-      for (const p of partes) {
-        if (p.length === 0) continue;
+    // Cada fatia é um INSERT atômico; só as que falharam voltam para a fila.
+    let pendentes: T[][] = [slice];
+    let ultimo: string | null = null;
+    for (let t = 0; t < 5 && pendentes.length; t++) {
+      const falhas: T[][] = [];
+      for (const p of pendentes) {
         const { error } = await supabase.from(table as any).insert(p as any);
-        if (error) { ultimo = error.message; break; }
+        if (error) {
+          ultimo = error.message;
+          if (p.length > 50) {
+            const m = Math.ceil(p.length / 2);
+            falhas.push(p.slice(0, m), p.slice(m));
+          } else falhas.push(p);
+        }
       }
-      if (!ultimo) break;
-      await espera(1500 * (t + 1));
+      pendentes = falhas;
+      if (pendentes.length) await espera(1500 * (t + 1));
     }
-    if (ultimo) throw new Error(`Falha ao inserir em ${table}: ${ultimo}`);
+    if (pendentes.length) throw new Error(`Falha ao inserir em ${table}: ${ultimo}`);
     onProgress?.(Math.min(i + slice.length, rows.length));
   }
 }

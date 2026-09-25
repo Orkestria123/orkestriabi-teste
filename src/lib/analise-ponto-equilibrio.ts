@@ -49,8 +49,6 @@ export function calcularPontoEquilibrio(
   fixos = Math.max(0, fixos);
   variaveis = Math.max(0, variaveis);
   semClass = Math.max(0, semClass);
-  {
-  }
   const totalDesp = fixos + variaveis + semClass;
   const cobertura_pct = totalDesp > 0 ? (fixos + variaveis) / totalDesp : 0;
 

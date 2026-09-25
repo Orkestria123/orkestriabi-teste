@@ -1,9 +1,9 @@
 # Roadmap — ajustes BI (25/09/2026)
 
-- [ ] ECD: DRE em meses com encerramento considera lançamentos "E" parcialmente
-- [ ] ECD: histórico não lido (principalmente 2025)
-- [ ] Renomear aba "3. ECD (períodos anteriores)" para "3. ECD"
-- [ ] Revisar alocação custos/despesas fixas; PE em Análises (Mackerduz 01/2026 ≈ R$ 2,3 mi)
-- [ ] Testar encerramento e histórico: Mackerduz e Dal Mobile 2025
-- [ ] Voltou a sumir a opção de alocação de contas do diário
-- [ ] Upload .xlsx grande de diário → statement timeout
+- [x] ECD: DRE em meses com encerramento (causa: diário da ECD gravado pela metade → mês caía no saldo I155)
+- [x] ECD: histórico (drill-down agora acha contas específicas da empresa; envio do diário com repetição)
+- [x] Renomear aba para "ECD"
+- [x] PE: valores líquidos com sinal + fixo/variável inferido quando não marcado
+- [ ] Reaplicar ECD jan–set/2025 da Mackerduz ("Reler arquivo" + "Aplicar") — depende do usuário
+- [x] Alocação de contas do diário (quadro volta, só da empresa, sem ECD)
+- [x] Upload .xlsx grande de diário (lotes com repetição, prazos maiores, índice)

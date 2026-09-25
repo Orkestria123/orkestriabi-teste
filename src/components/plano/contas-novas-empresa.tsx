@@ -64,8 +64,8 @@ export function ContasNovasEmpresaPanel({
   const { data: novas, isLoading } = useQuery({
     queryKey: ["contas-novas-empresa", tenantId, companyId],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("contas_novas_do_diario", {
-        _tenant_id: tenantId, _limite: 500,
+      const { data, error } = await (supabase as any).rpc("contas_novas_da_empresa", {
+        _tenant_id: tenantId, _company_id: companyId ?? null, _limite: 500,
       });
       if (error) throw error;
       return (data ?? []) as ContaNova[];

@@ -316,6 +316,13 @@
       "when": 1790298762140,
       "tag": "0044_ecd_aplicar_mes_limpa_e_confere_i155",
       "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "7",
+      "when": 1790326792903,
+      "tag": "0045_ecd_aplicar_abertura_regrava_limpo",
+      "breakpoints": true
     }
   ]
 }

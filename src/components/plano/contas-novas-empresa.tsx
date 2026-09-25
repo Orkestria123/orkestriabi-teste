@@ -61,7 +61,7 @@ export function ContasNovasEmpresaPanel({
   const [nomes, setNomes] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
 
-  const { data: novas, isLoading } = useQuery({
+  const { data: novas, isLoading, error: erroNovas } = useQuery({
     queryKey: ["contas-novas-empresa", tenantId, companyId],
     queryFn: async () => {
       const { data, error } = await (supabase as any).rpc("contas_novas_da_empresa", {
@@ -164,7 +164,21 @@ export function ContasNovasEmpresaPanel({
     finally { setBusy(false); }
   };
 
-  if (isLoading) return null;
+  if (isLoading) {
+    return (
+      <Card className="p-4 mb-4 text-sm text-muted-foreground">
+        Conferindo contas novas dos diários…
+      </Card>
+    );
+  }
+
+  if (erroNovas) {
+    return (
+      <Card className="p-4 mb-4 border-destructive/40 bg-destructive/5 text-sm">
+        Não foi possível conferir as contas novas do diário: {(erroNovas as any)?.message ?? String(erroNovas)}
+      </Card>
+    );
+  }
 
   if ((novas ?? []).length === 0) {
     return (

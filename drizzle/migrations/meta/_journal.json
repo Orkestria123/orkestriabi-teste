@@ -323,6 +323,20 @@
       "when": 1790326792903,
       "tag": "0045_ecd_aplicar_abertura_regrava_limpo",
       "breakpoints": true
+    },
+    {
+      "idx": 46,
+      "version": "7",
+      "when": 1790346933124,
+      "tag": "0046_ecd_diario_timeouts_drilldown_contas_novas",
+      "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1790347007214,
+      "tag": "0047_ecd_aplicar_mes_sobra_sem_origem",
+      "breakpoints": true
     }
   ]
 }

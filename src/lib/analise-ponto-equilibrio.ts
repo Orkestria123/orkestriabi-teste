@@ -41,11 +41,14 @@ export function calcularPontoEquilibrio(
   let variaveis = 0;
   let semClass = 0;
   for (const d of despesas) {
-    const v = Math.abs(d.valor);
+    const v = d.valor; // com sinal: créditos/estornos reduzem
     if (d.tipo_custo === "fixo") fixos += v;
     else if (d.tipo_custo === "variavel") variaveis += v;
     else semClass += v;
   }
+  fixos = Math.max(0, fixos);
+  variaveis = Math.max(0, variaveis);
+  semClass = Math.max(0, semClass);
   const totalDesp = fixos + variaveis + semClass;
   const cobertura_pct = totalDesp > 0 ? (fixos + variaveis) / totalDesp : 0;
 

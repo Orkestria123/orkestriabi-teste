@@ -109,7 +109,7 @@ function Page() {
     if (mostraDePara) lista.push({ value: "depara", label: "De-Para" });
     lista.push({ value: "saldo-inicial", label: "Saldo Inicial" });
     lista.push({ value: "diarios", label: "Diários" });
-    lista.push({ value: "ecd", label: "ECD (períodos anteriores)" });
+    lista.push({ value: "ecd", label: "ECD" });
     lista.push({ value: "mascara", label: "Máscara" });
     lista.push({ value: "indicadores", label: "Indicadores" });
     lista.push({ value: "gerencial", label: "Ajustes Gerenciais" });

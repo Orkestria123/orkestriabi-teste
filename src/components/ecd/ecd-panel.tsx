@@ -72,21 +72,37 @@ async function enviarLancamentos(importacaoId: string, lancamentos: any[]) {
   if (lancamentos.length === 0) return 0;
   let total = 0;
   for (let i = 0; i < lancamentos.length; i += BLOCO) {
-    const { data, error } = await (supabase as any).rpc("ecd_gravar_lancamentos", {
+    const args = {
       _importacao_id: importacaoId,
-      // O parser chama de `codigo_conta` (como o resto dele); a função do
-      // banco espera `codigo`. A tradução acontece AQUI, na fronteira —
-      // sem isto o `jsonb_to_recordset` lê NULL e grava zero linhas, em
-      // silêncio, e o sintoma reaparece como "o drill-down não abre".
+      // O parser chama de `codigo_conta`; a função do banco espera `codigo`.
       _linhas: lancamentos.slice(i, i + BLOCO).map((l: any) => ({
         numero: l.numero, data: l.data, codigo: l.codigo_conta,
         debito: l.debito, credito: l.credito, historico: l.historico,
         encerramento: !!l.encerramento,
       })),
       _primeiro_bloco: i === 0,
-    });
-    if (error) throw new Error(error.message);
-    total = Number(data?.total ?? 0);
+    };
+    // Um bloco que falha (rede, timeout) não pode deixar o diário pela
+    // metade em silêncio: tenta de novo e, se não der, avisa quanto entrou.
+    let ultimoErro: string | null = null;
+    for (let tentativa = 0; tentativa < 4; tentativa++) {
+      const { data, error } = await (supabase as any).rpc("ecd_gravar_lancamentos", args);
+      if (!error) { total = Number(data?.total ?? 0); ultimoErro = null; break; }
+      ultimoErro = error.message;
+      await new Promise((r) => setTimeout(r, 1500 * (tentativa + 1)));
+    }
+    if (ultimoErro) {
+      throw new Error(
+        `Diário incompleto: ${i.toLocaleString("pt-BR")} de ${lancamentos.length.toLocaleString("pt-BR")} ` +
+        `lançamentos gravados (${ultimoErro}). Use "Reler arquivo" para enviar de novo.`,
+      );
+    }
+  }
+  if (total < lancamentos.length * 0.99) {
+    throw new Error(
+      `Diário incompleto: ${total.toLocaleString("pt-BR")} de ${lancamentos.length.toLocaleString("pt-BR")} ` +
+      `lançamentos gravados. Use "Reler arquivo" para enviar de novo.`,
+    );
   }
   return total;
 }

@@ -30,6 +30,9 @@ import { apagarLancamentosEmLotes } from "@/lib/diario/uploader";
 import { lerTudo, lerRpcKeyset } from "@/lib/supabase-paginado";
 import { tituloConta } from "@/lib/format";
 import { useContasDestino } from "@/hooks/use-contas-destino";
+import { limparCacheDepara } from "@/lib/plano/depara";
+import { limparCachePlano } from "@/lib/diario/build-statements";
+import { limparCacheDemonstracoes } from "@/lib/cache-demonstracoes";
 import { SeletorConta } from "@/components/contas/seletor-conta";
 import { BarraDepara } from "@/components/contas/barra-depara";
 import { CabecalhoGrupo } from "@/components/contas/grupo-depara";
@@ -174,7 +177,13 @@ export function EcdPanel({ tenantId, companyId }: Props) {
   // o único jeito de a tela dizer em qual passo está.
   const [progresso, setProgresso] = useState("");
 
+  const [deparaAlterado, setDeparaAlterado] = useState(false);
   const invalidar = () => {
+    limparCacheDepara(companyId);
+    limparCachePlano();
+    limparCacheDemonstracoes();
+    qc.invalidateQueries({ queryKey: ["monthly-stmt"] });
+    qc.invalidateQueries({ queryKey: ["indic-engine-data"] });
     qc.invalidateQueries({ queryKey: ["ecd-importacoes", companyId] });
     qc.invalidateQueries({ queryKey: ["ecd-contas", selecionada] });
     qc.invalidateQueries({ queryKey: ["ecd-conferencia", selecionada] });
@@ -701,6 +710,7 @@ export function EcdPanel({ tenantId, companyId }: Props) {
         }],
       });
       if (error) throw new Error(error.message);
+      setDeparaAlterado(true);
       invalidar();
     } catch (e: any) { toast.error(e.message, { duration: 10000 }); }
     finally { setBusy(null); }
@@ -738,6 +748,7 @@ export function EcdPanel({ tenantId, companyId }: Props) {
           ? `${limpas} vínculo(s) removido(s) — essas contas voltaram para pendentes.`
           : `${data?.gravadas ?? codigos.length} conta(s) atualizada(s).`);
       setMarcadas(new Set());
+      setDeparaAlterado(true);
       invalidar();
     } catch (e: any) { toast.error(e.message, { duration: 10000 }); }
     finally { setBusy(null); }
@@ -814,6 +825,7 @@ export function EcdPanel({ tenantId, companyId }: Props) {
           : "O Balanço já mostra os períodos antigos.");
       if (nada && pulados > 0) toast.warning(msg, { duration: 12000 });
       else toast.success(msg, { duration: 10000 });
+      setDeparaAlterado(false);
       invalidar();
     } catch (e: any) { toast.error(e.message, { duration: 12000 }); }
     finally { setBusy(null); setProgresso(""); }
@@ -1542,50 +1554,15 @@ export function EcdPanel({ tenantId, companyId }: Props) {
             {/* O que ESTE arquivo traz, dito antes de você procurar. A
                 conta estrutural aparece quando existe; quando não existe,
                 a tela diz que não existe em vez de inventar uma. */}
-            {/* O caso em que o número sai estranho e NÃO é alocação
-                errada: o ECD traz o encerramento do exercício. */}
-            {encerramento?.tem_encerramento && (
-              <Card className="p-3 mb-2 border-amber-500/40 bg-amber-500/5 text-[11px] leading-relaxed">
-                <div className="flex gap-2">
-                  <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
-                  <div>
-                    <strong>Este ECD traz o encerramento do exercício.</strong>{" "}
-                    Em{" "}
-                    {(encerramento.meses ?? []).map((m: any) => mes(m.competencia)).join(", ")}
-                    {" "}o sistema contábil zerou{" "}
-                    {(encerramento.meses ?? [])[0]?.contas_zeradas} conta(s) de resultado,
-                    transferindo o acumulado para o PL. Esse lançamento está no I155 como
-                    Esse lançamento entra no I155 como movimento. Sem isolá-lo,{" "}
-                    <strong>a DRE desse mês sai com o negativo do acumulado</strong>{" "}
-                    e o ano some perto de zero. O BI ignora a transferência nas
-                    contas de resultado — o mês mostra só o movimento do período.
-                    <div className="mt-1 text-muted-foreground">
-                      {encerramento.corrigido_automaticamente ? (
-                        <>
-                          <strong className="text-emerald-700 dark:text-emerald-400">
-                            Isto já está corrigido.
-                          </strong>{" "}
-                          A transferência de resultado não entra na DRE nem no drill-down
-                          dessas contas. O Balanço (PL) continua com o encerramento.
-                        </>
-                      ) : encerramento.tem_lancamentos ? (
-                        <>
-                          O diário foi lido. Se a DRE do mês ainda parecer o negativo do
-                          acumulado, recarregue a demonstração — a correção vale para
-                          ECD já aplicado.
-                        </>
-                      ) : (
-                        <>
-                          Este arquivo não trouxe o diário (I200/I250), então não dá para
-                          separar o encerramento do movimento genuíno do mês — só com saldos as
-                          duas incógnitas satisfazem a mesma equação. Use{" "}
-                          <strong>Reler o arquivo (códigos e diário)</strong> para trazer o diário: com
-                          ele, a correção passa a ser automática.
-                        </>
-                      )}
-                    </div>
-                  </div>
-                </div>
+            {deparaAlterado && (
+              <Card className="p-3 mb-2 border-primary/40 bg-primary/5 text-xs flex flex-wrap items-center gap-2">
+                <span className="flex-1">
+                  Você mudou vínculos do de-para. As demonstrações (DRE, Balanço, DFC) só passam a usar
+                  os vínculos novos depois de reaplicar os meses marcados.
+                </span>
+                <Button size="sm" disabled={busy !== null} onClick={() => void aplicar()}>
+                  Atualizar demonstrações
+                </Button>
               </Card>
             )}
 
@@ -1668,6 +1645,7 @@ export function EcdPanel({ tenantId, companyId }: Props) {
                     });
                     if (error) throw new Error(error.message);
                     toast.success(`${sug.length} sugestão(ões) conferida(s).`);
+                    setDeparaAlterado(true);
                     invalidar();
                   } catch (e: any) { toast.error(e.message); }
                   finally { setBusy(null); }

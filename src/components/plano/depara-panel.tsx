@@ -27,6 +27,8 @@ import {
 } from "@/lib/contas/filtro-depara";
 import { getMascaraConfig, MASCARA_DEFAULT, opcoesLotePorMascara, rotuloNivelMascara } from "@/lib/mascara/interpretar";
 import { aplicarDeparaConfirmado, limparCacheDepara } from "@/lib/plano/depara";
+import { limparCachePlano } from "@/lib/diario/build-statements";
+import { limparCacheDemonstracoes } from "@/lib/cache-demonstracoes";
 import { Fragment } from "react";
 
 import { DeParaArquivoCard } from "./depara-arquivo-card";
@@ -386,6 +388,8 @@ export function DeParaPanel({ tenantId, companyId, sistemaId, readonly }: Props)
 
   const aposGravar = () => {
     limparCacheDepara(companyId);
+    limparCachePlano();
+    limparCacheDemonstracoes();
     // Não espera a fila: se o refetch atrasar ou der timeout, o vínculo
     // já está no banco e a lista local já tirou as contas gravadas.
     void qc.invalidateQueries({ queryKey: ["depara-feitos", companyId] });

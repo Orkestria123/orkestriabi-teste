@@ -3061,6 +3061,18 @@ export type Database = {
         Args: { _upload_id: string }
         Returns: string[]
       }
+      contas_novas_da_empresa: {
+        Args: { _company_id: string; _limite?: number; _tenant_id: string }
+        Returns: {
+          codigo: string
+          empresas: string
+          historico_exemplo: string
+          lancamentos: number
+          movimento: number
+          primeira_competencia: string
+          ultima_competencia: string
+        }[]
+      }
       contas_novas_do_diario: {
         Args: { _limite?: number; _tenant_id: string }
         Returns: {

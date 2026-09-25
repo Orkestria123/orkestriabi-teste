@@ -249,7 +249,7 @@ export function DeParaPanel({ tenantId, companyId, sistemaId, readonly }: Props)
     },
   });
 
-  const { data: contasPadrao, isLoading: carregandoDestinos } = useContasDestino(tenantId);
+  const { data: contasPadrao, isLoading: carregandoDestinos } = useContasDestino(tenantId, companyId);
 
   const destinosPorClassif = useMemo(() => {
     const m = new Map<string, ContaDestino>();

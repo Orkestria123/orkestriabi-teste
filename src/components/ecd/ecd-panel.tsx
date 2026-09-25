@@ -373,7 +373,7 @@ export function EcdPanel({ tenantId, companyId }: Props) {
 
   // Contas de destino: uma consulta só, cache compartilhado com o
   // de-para do plano. A busca acontece na memória, a cada tecla.
-  const { data: destinos, isLoading: carregandoDestinos } = useContasDestino(tenantId);
+  const { data: destinos, isLoading: carregandoDestinos } = useContasDestino(tenantId, companyId);
 
   // ---------- ações ----------
   /**

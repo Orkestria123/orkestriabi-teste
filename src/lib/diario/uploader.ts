@@ -7,19 +7,39 @@ import type { DiarioRow, DiarioParseResult } from "./diario-parser";
 
 const BATCH = 400;
 
+const espera = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
 async function chunkedInsert<T>(table: string, rows: T[], onProgress?: (n: number) => void) {
   for (let i = 0; i < rows.length; i += BATCH) {
     const slice = rows.slice(i, i + BATCH);
-    const { error } = await supabase.from(table as any).insert(slice as any);
-    if (error) throw new Error(`Falha ao inserir em ${table}: ${error.message}`);
+    let ultimo: string | null = null;
+    // Arquivo grande: um lote que cai no timeout é refeito em fatias menores.
+    for (let t = 0; t < 4; t++) {
+      const partes = t === 0 ? [slice] : [slice.slice(0, slice.length / 2), slice.slice(slice.length / 2)];
+      ultimo = null;
+      for (const p of partes) {
+        if (p.length === 0) continue;
+        const { error } = await supabase.from(table as any).insert(p as any);
+        if (error) { ultimo = error.message; break; }
+      }
+      if (!ultimo) break;
+      await espera(1500 * (t + 1));
+    }
+    if (ultimo) throw new Error(`Falha ao inserir em ${table}: ${ultimo}`);
     onProgress?.(Math.min(i + slice.length, rows.length));
   }
 }
 
 async function rpc<T = any>(nome: string, args: Record<string, unknown>): Promise<T> {
-  const { data, error } = await (supabase as any).rpc(nome, args);
-  if (error) throw new Error(error.message);
-  return data as T;
+  let ultimo: any = null;
+  for (let t = 0; t < 3; t++) {
+    const { data, error } = await (supabase as any).rpc(nome, args);
+    if (!error) return data as T;
+    ultimo = error;
+    if (!/timeout|canceling statement|fetch/i.test(error.message ?? "")) break;
+    await espera(2000 * (t + 1));
+  }
+  throw new Error(ultimo.message);
 }
 
 /** Na nuvem um DELETE único do plano estoura o statement_timeout (~8s). */

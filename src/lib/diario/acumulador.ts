@@ -107,25 +107,31 @@ export function criarAcumulador(
   for (const s of series.values()) {
     s.aberturas.sort((x, y) => x.data.localeCompare(y.data));
   }
+  // Datas de abertura da EMPRESA. A abertura é uma fotografia do balanço
+  // inteiro: conta sem linha na data mais recente tinha saldo zero nela.
+  // Decidir por conta fazia uma conta que deixou de existir na abertura
+  // nova (ex.: destino trocado no de-para) voltar à abertura antiga e
+  // somar o ano anterior inteiro.
+  const datasAbertura = Array.from(new Set(aberturas.map((a) => a.data_referencia))).sort();
 
   return {
     saldoAte(conta: string, ateData: string): number {
       const s = series.get(conta);
       if (!s) return 0;
 
-      // abertura aplicável = a mais recente com data <= ateData
-      let ab: { data: string; saldo: number } | null = null;
-      for (const a of s.aberturas) {
-        if (a.data <= ateData) ab = a;
+      let dataAb: string | null = null;
+      for (const d of datasAbertura) {
+        if (d <= ateData) dataAb = d;
         else break;
       }
 
-      if (!ab) {
+      if (!dataAb) {
         // sem abertura aplicável: só o movimento até a data
         return somaAte(s, ateData);
       }
+      const ab = s.aberturas.find((a) => a.data === dataAb);
       // abertura + movimento estritamente POSTERIOR à data dela
-      return ab.saldo + (somaAte(s, ateData) - somaAte(s, ab.data));
+      return (ab?.saldo ?? 0) + (somaAte(s, ateData) - somaAte(s, dataAb));
     },
     contas(): string[] {
       return Array.from(series.keys());

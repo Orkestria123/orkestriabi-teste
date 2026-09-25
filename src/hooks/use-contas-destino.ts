@@ -14,11 +14,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { grupoDoDestino, type ContaDestino } from "@/lib/contas/busca";
 import { countNaPrimeira, lerTudo } from "@/lib/supabase-paginado";
 
-export function useContasDestino(tenantId: string | null | undefined) {
+export function useContasDestino(tenantId: string | null | undefined, companyId?: string | null) {
   return useQuery({
     // Mesma chave usada pelo painel de de-para do plano: as duas telas
     // dividem uma única ida ao servidor.
-    queryKey: ["plano-padrao-destinos", tenantId],
+    queryKey: ["plano-padrao-destinos", tenantId, companyId ?? null],
     enabled: !!tenantId,
     // O plano padrão do escritório muda raramente; não vale refazer a
     // consulta a cada foco de janela no meio de um de-para longo.
@@ -83,6 +83,32 @@ export function useContasDestino(tenantId: string | null | undefined) {
         }
       } catch {
         /* sem galho, o seletor continua funcionando como antes */
+      }
+      // Contas criadas só para esta empresa (prefixo da empresa + número)
+      // também são destino do de-para.
+      if (companyId) {
+        try {
+          const { data: pref } = await (supabase as any).rpc("prefixo_empresa", { _company_id: companyId });
+          if (pref) {
+            const esp = await lerTudo<ContaDestino>(
+              (de, ate) =>
+                supabase
+                  .from("plano_contas")
+                  .select("codigo, classificacao, descricao, tipo", countNaPrimeira(de))
+                  .eq("tenant_id", tenantId!)
+                  .eq("company_id", companyId)
+                  .eq("is_sintetica", false)
+                  .eq("ativo", true)
+                  .like("codigo", `${pref}-%`)
+                  .order("codigo")
+                  .range(de, ate),
+              "contas-especificas-destino",
+            );
+            out.push(...esp);
+          }
+        } catch {
+          /* sem as específicas, o seletor continua com o Padrão */
+        }
       }
       for (const c of out) {
         c.grupoPlano = grupoDoDestino(c);

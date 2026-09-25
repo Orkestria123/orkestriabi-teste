@@ -9,7 +9,7 @@ export function useReceitaDespesaDetalhado(
   ativo = true,
 ) {
   return useQuery<ReceitaDespesaDetalhado>({
-    queryKey: ["receita-despesa", companyId, competencias.join(",")],
+    queryKey: ["receita-despesa", 2, companyId, competencias.join(",")],
     enabled: ativo && !!companyId && competencias.length > 0,
     queryFn: () => montarReceitaDespesaDetalhado(companyId!, competencias),
     ...CACHE,

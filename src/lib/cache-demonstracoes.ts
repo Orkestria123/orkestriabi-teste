@@ -9,7 +9,7 @@
 // A versão entra na chave: quando o CÁLCULO muda (nova linha na DRE, ajuste
 // de fórmula), o carimbo dos dados continua igual e o navegador serviria a
 // demonstração antiga para sempre. Basta subir o número aqui.
-const VERSAO_CALCULO = 9;
+const VERSAO_CALCULO = 10;
 const PREFIXO = `bi:dem:v${VERSAO_CALCULO}:`;
 const PREFIXO_ANTIGO = "bi:dem:";
 const MAX_ENTRADAS = 12;

@@ -235,14 +235,13 @@ export async function montarReceitaDespesaDetalhado(
       } else continue;
     }
 
-    // Valor mensal "limpo": usa SOMENTE o lado natural da conta. A
-    // contrapartida da apuração (encerramento de dez) bate no lado oposto
-    // (debita receita, credita despesa) e seria contabilizada como
-    // movimento real se subtraíssemos os dois lados — em dezembro isso
-    // zera o mês inteiro. Receita = créditos do mês; despesa = débitos.
+    // Movimento líquido do mês (mesmo sinal da DRE). O encerramento do
+    // exercício já sai na origem (lançamentos "E" da ECD e correção do
+    // diário), então usar só um lado inflava a receita (sem deduções) e
+    // a despesa (sem estornos/créditos de estoque).
     const d = Number(s.total_debitos) || 0;
     const c = Number(s.total_creditos) || 0;
-    const valor = lado === "receita" ? c : d;
+    const valor = lado === "receita" ? c - d : d - c;
     const target = lado === "receita" ? acumReceita : acumDespesa;
     for (const pref of prefixosDe(cls)) {
       target.set(pref, (target.get(pref) ?? 0) + valor);

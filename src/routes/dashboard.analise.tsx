@@ -320,8 +320,12 @@ function Page() {
                 folhas.push({
                   classificacao: n.classificacao,
                   descricao: n.descricao,
-                  valor: Math.abs(n.valor),
-                  tipo_custo: tipoCustoEfetivo(n.classificacao, tipoCustoPlano),
+                  // Com sinal: estorno/crédito de estoque reduz o custo.
+                  valor: n.valor,
+                  tipo_custo:
+                    tipoCustoEfetivo(n.classificacao, tipoCustoPlano) ??
+                    inferirAlocacaoGasto(n.classificacao, n.descricao)?.tipo ??
+                    null,
                 });
               } else {
                 n.filhos.forEach(walk);

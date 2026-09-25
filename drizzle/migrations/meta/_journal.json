@@ -337,6 +337,13 @@
       "when": 1790347007214,
       "tag": "0047_ecd_aplicar_mes_sobra_sem_origem",
       "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "7",
+      "when": 1790366784297,
+      "tag": "0048_contas_especificas_sinteticas_e_timeouts",
+      "breakpoints": true
     }
   ]
 }

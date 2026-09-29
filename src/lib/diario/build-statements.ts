@@ -26,6 +26,8 @@ import {
   getAjustesGerenciais,
   ajustesToSaldosVirtuais,
   contasGerenciaisToPlanoVirtual,
+  ehContaAjustesGerenciais,
+  CONTA_AJUSTES_GERENCIAIS,
   type AjustesGerenciaisData,
 } from "@/lib/gerencial/ajustes";
 import { getEstruturaPadrao, getEstruturaPadraoSync, compararClassificacao } from "@/lib/plano/estrutura";
@@ -1974,6 +1976,29 @@ async function buildBP(
       periodo: ref,
       valor: totalLado,
     });
+
+    // Transitória "Ajustes Gerenciais": fora do Passivo+PL (não entra em
+    // total nem índice). Só visão gerencial e só com saldo.
+    if (tipo === "BP_PASSIVO" && modo === "gerencial") {
+      const refYm = ref.slice(0, 7);
+      let saldoAjg = 0;
+      for (const s of saldosAcum) {
+        if (ehContaAjustesGerenciais(s.conta_codigo) && s.competencia.slice(0, 7) <= refYm) {
+          saldoAjg += s.movimento;
+        }
+      }
+      if (Math.abs(saldoAjg) >= 0.005) {
+        out.push({
+          linha_ordem: 9_999_500,
+          descricao: CONTA_AJUSTES_GERENCIAIS.descricao,
+          codigo_conta: CONTA_AJUSTES_GERENCIAIS.codigo,
+          nivel: 0,
+          is_subtotal: false,
+          periodo: ref,
+          valor: -saldoAjg,
+        });
+      }
+    }
   }
 
 
@@ -2218,7 +2243,11 @@ async function buildDFC(
         .in("codigo", lote)
         .order("codigo")
         .range(from, to);
-      return modoGlobal ? q.is("company_id", null) : q.eq("company_id", companyId);
+      // No plano padrão, as contas criadas só para a empresa (MAC-0001…)
+      // também movimentam: sem elas a DFC perdia o movimento e quebrava.
+      return modoGlobal
+        ? q.or(`company_id.is.null,company_id.eq.${companyId}`)
+        : q.eq("company_id", companyId);
     }, "flags DFC");
     flagsBrutas.push(...parte);
   }
@@ -2233,6 +2262,19 @@ async function buildDFC(
     for (const a of ger.ajustes) {
       for (const lado of [a.debito, a.credito]) {
         if (!lado || jaTem.has(lado.codigo)) continue;
+        if (ehContaAjustesGerenciais(lado.codigo)) {
+          // Transitória: fora dos blocos, entra como ajuste não-caixa.
+          flagsBrutas.push({
+            codigo: lado.codigo,
+            classificacao: CONTA_AJUSTES_GERENCIAIS.classificacao,
+            dfc_codigo: null,
+            dfc_atividade: null,
+            dfc_nao_caixa: true,
+            tipo: "9-Transitoria",
+          });
+          jaTem.add(lado.codigo);
+          continue;
+        }
         const vp = byCod.get(lado.codigo);
         const cls = vp?.classificacao ?? lado.classificacao;
         flagsBrutas.push({

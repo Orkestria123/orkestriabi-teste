@@ -25,6 +25,20 @@ export function competenciaPadrao(c: string): string {
   return m ? `${m[1]}-01` : String(c ?? "").slice(0, 10);
 }
 
+/**
+ * Conta transitória "Ajustes Gerenciais": existe para toda empresa, fica
+ * FORA de Ativo, Passivo, PL e DRE (classificação "9"), então não entra
+ * em fórmula nem índice. Só aparece no Balanço gerencial/comparativo, e
+ * só quando tem saldo.
+ */
+export const CONTA_AJUSTES_GERENCIAIS = {
+  codigo: "AJG",
+  descricao: "Ajustes Gerenciais (transitória)",
+  classificacao: "9",
+};
+export const ehContaAjustesGerenciais = (codigo: string | null | undefined) =>
+  codigo === CONTA_AJUSTES_GERENCIAIS.codigo;
+
 export interface AjusteResolvido {
   id: string;
   competencia: string;         // YYYY-MM-01
@@ -94,8 +108,8 @@ export async function getAjustesGerenciais(
   // Descobrir contas contábeis referenciadas (todo código que não é gerencial)
   const codigosContabeis = new Set<string>();
   for (const a of rows) {
-    if (!gerMap.has(a.conta_debito)) codigosContabeis.add(a.conta_debito);
-    if (!gerMap.has(a.conta_credito)) codigosContabeis.add(a.conta_credito);
+    if (!gerMap.has(a.conta_debito) && !ehContaAjustesGerenciais(a.conta_debito)) codigosContabeis.add(a.conta_debito);
+    if (!gerMap.has(a.conta_credito) && !ehContaAjustesGerenciais(a.conta_credito)) codigosContabeis.add(a.conta_credito);
   }
 
   const trad = await getTradutor(companyId);
@@ -129,6 +143,9 @@ export async function getAjustesGerenciais(
   }
 
   const resolver = (codigo: string): ContaResolvida | null => {
+    if (ehContaAjustesGerenciais(codigo)) {
+      return { ...CONTA_AJUSTES_GERENCIAIS, origem: "gerencial" };
+    }
     const g = gerMap.get(codigo);
     if (g) {
       return {

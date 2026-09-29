@@ -15,3 +15,9 @@
 - [x] Revinculação atualiza demonstrações (cache + botão "Atualizar demonstrações" na ECD)
 - [x] Aviso de encerramento removido da ECD
 - [x] Mais tempo para cargas grandes (120s geral, 300s nas etapas da ECD/diário)
+
+## Rodada 29/09
+- [x] Atualizar demonstrações após revincular (só refaz diário das contas tocadas)
+- [x] DFC com contas criadas por empresa (Mackerduz MAC-0001 a partir de 06/2026)
+- [x] Duplicar ajuste gerencial
+- [x] Conta transitória "Ajustes Gerenciais" (AJG) fora de BP/DRE, só na visão gerencial

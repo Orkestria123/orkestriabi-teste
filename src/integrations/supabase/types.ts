@@ -3042,6 +3042,17 @@ export type Database = {
         Args: { _itens: Json; _tenant_id: string }
         Returns: Json
       }
+      atualizar_conta_empresa: {
+        Args: {
+          _classe_gasto: string
+          _codigo: string
+          _company_id: string
+          _descricao: string
+          _dfc_codigo: string
+          _tipo_custo: string
+        }
+        Returns: undefined
+      }
       atualizar_plano_padrao: {
         Args: { _company_id: string; _rows: Json; _tenant_id: string }
         Returns: Json
@@ -3100,6 +3111,17 @@ export type Database = {
           _company_id: string
           _conta_padrao: string
           _descricao: string
+        }
+        Returns: string
+      }
+      criar_conta_empresa_sintetica: {
+        Args: {
+          _classe_gasto?: string
+          _company_id: string
+          _descricao: string
+          _dfc_codigo?: string
+          _sintetica: string
+          _tipo_custo?: string
         }
         Returns: string
       }
@@ -3523,6 +3545,10 @@ export type Database = {
         }[]
       }
       escopo_plano_empresa: { Args: { _company_id: string }; Returns: Json }
+      excluir_conta_empresa: {
+        Args: { _codigo: string; _company_id: string }
+        Returns: Json
+      }
       fechar_upload_diario: { Args: { _upload_id: string }; Returns: Json }
       finalizar_upload_diario: { Args: { _upload_id: string }; Returns: Json }
       garantir_contas_agregadoras: {

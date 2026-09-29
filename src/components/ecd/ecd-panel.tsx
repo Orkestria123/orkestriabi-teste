@@ -697,8 +697,21 @@ export function EcdPanel({ tenantId, companyId }: Props) {
    * quem apaga é a própria `aplicar_depara_em_lote`, que agora trata os
    * três casos, para a linha, o lote e o grupo seguirem a mesma regra.
    */
+  // Destinos (contas do plano) tocados por revinculação: só o diário
+  // delas é refeito no "Atualizar demonstrações", em vez do arquivo inteiro
+  // — que era o que estourava o tempo e obrigava a "Reler arquivo".
+  const destinosAlterados = useRef<Set<string>>(new Set());
+  const marcarDestinos = (codigosEcd: string[], novo: string | null) => {
+    for (const c of codigosEcd) {
+      const antigo = listaContas.find((l) => l.codigo === c)?.destino;
+      if (antigo) destinosAlterados.current.add(antigo);
+    }
+    if (novo) destinosAlterados.current.add(novo);
+  };
+
   const vincular = async (ecdCodigo: string, planoCodigo: string | null, ignorar = false) => {
     setBusy(ecdCodigo);
+    marcarDestinos([ecdCodigo], ignorar ? null : planoCodigo);
     try {
       const { error } = await (supabase as any).rpc("aplicar_depara_em_lote", {
         _company_id: companyId,
@@ -731,6 +744,7 @@ export function EcdPanel({ tenantId, companyId }: Props) {
   ) => {
     if (codigos.length === 0) return;
     setBusy("lote");
+    marcarDestinos(codigos, ignorar ? null : destino);
     try {
       const itens = codigos.map((c) => ({
         conta_codigo: c,
@@ -761,7 +775,7 @@ export function EcdPanel({ tenantId, companyId }: Props) {
    * statement timeout". Agora cada mês é uma chamada curta, e a tela
    * mostra em qual delas está.
    */
-  const aplicar = async (forcar = false) => {
+  const aplicar = async (forcar = false, soVinculos = false) => {
     setBusy("aplicar");
     setProgresso("Conferindo os vínculos…");
     try {
@@ -800,7 +814,14 @@ export function EcdPanel({ tenantId, companyId }: Props) {
       const ab = await rpcEcd<any>("ecd_aplicar_abertura", { _importacao_id: atual.id });
 
       let nLctos = 0;
-      if (prep.tem_lancamentos) {
+      const destinos = Array.from(destinosAlterados.current);
+      if (prep.tem_lancamentos && soVinculos && destinos.length > 0) {
+        setProgresso("Atualizando o diário das contas revinculadas…");
+        const r = await rpcEcd<any>("ecd_rematerializar_destinos", {
+          _importacao_id: atual.id, _destinos: destinos,
+        });
+        nLctos = Number(r?.total ?? 0);
+      } else if (prep.tem_lancamentos) {
         setProgresso("Gravando o diário (drill-down)…");
         nLctos = await materializarEcdEmLotes(atual.id);
       }
@@ -826,6 +847,8 @@ export function EcdPanel({ tenantId, companyId }: Props) {
       if (nada && pulados > 0) toast.warning(msg, { duration: 12000 });
       else toast.success(msg, { duration: 10000 });
       setDeparaAlterado(false);
+      destinosAlterados.current = new Set();
+      limparCacheDemonstracoes();
       invalidar();
     } catch (e: any) { toast.error(e.message, { duration: 12000 }); }
     finally { setBusy(null); setProgresso(""); }
@@ -1560,7 +1583,7 @@ export function EcdPanel({ tenantId, companyId }: Props) {
                   Você mudou vínculos do de-para. As demonstrações (DRE, Balanço, DFC) só passam a usar
                   os vínculos novos depois de reaplicar os meses marcados.
                 </span>
-                <Button size="sm" disabled={busy !== null} onClick={() => void aplicar()}>
+                <Button size="sm" disabled={busy !== null} onClick={() => void aplicar(false, true)}>
                   Atualizar demonstrações
                 </Button>
               </Card>

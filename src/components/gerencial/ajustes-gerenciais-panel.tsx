@@ -6,12 +6,13 @@
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Loader2, Plus, Pencil, Trash2, Sparkles } from "lucide-react";
+import { Loader2, Plus, Pencil, Trash2, Sparkles, Copy } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
 import { escoparPlano, getEscopoConsulta } from "@/lib/plano/consulta";
 import { useAuth } from "@/hooks/use-auth";
 import { formatBRL } from "@/lib/format";
+import { CONTA_AJUSTES_GERENCIAIS } from "@/lib/gerencial/ajustes";
 
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -134,6 +135,7 @@ export function AjustesGerenciaisPanel({ tenantId, companyId }: Props) {
 
   const [openAjuste, setOpenAjuste] = useState(false);
   const [editando, setEditando] = useState<AjusteRow | null>(null);
+  const [duplicando, setDuplicando] = useState(false);
   const [openConta, setOpenConta] = useState(false);
 
   // ------- Contas do plano (estruturais) + contas gerenciais -------
@@ -172,7 +174,8 @@ export function AjustesGerenciaisPanel({ tenantId, companyId }: Props) {
         classificacao: r.classificacao,
         origem: "gerencial" as const,
       }));
-      return [...ger, ...plano];
+      const transitoria: ContaOpt = { ...CONTA_AJUSTES_GERENCIAIS, origem: "gerencial" };
+      return [transitoria, ...ger, ...plano];
     },
   });
 
@@ -267,6 +270,7 @@ export function AjustesGerenciaisPanel({ tenantId, companyId }: Props) {
             size="sm"
             onClick={() => {
               setEditando(null);
+              setDuplicando(false);
               setOpenAjuste(true);
             }}
           >
@@ -335,8 +339,24 @@ export function AjustesGerenciaisPanel({ tenantId, companyId }: Props) {
                       size="icon"
                       variant="ghost"
                       className="h-7 w-7"
+                      title="Duplicar"
+                      aria-label="Duplicar ajuste"
                       onClick={() => {
                         setEditando(a);
+                        setDuplicando(true);
+                        setOpenAjuste(true);
+                      }}
+                    >
+                      <Copy className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-7 w-7"
+                      title="Editar"
+                      onClick={() => {
+                        setEditando(a);
+                        setDuplicando(false);
                         setOpenAjuste(true);
                       }}
                     >
@@ -369,6 +389,7 @@ export function AjustesGerenciaisPanel({ tenantId, companyId }: Props) {
         companyId={companyId}
         userId={userId}
         editando={editando}
+        duplicar={duplicando}
         onNovaConta={() => setOpenConta(true)}
         onSaved={() => {
           invalidarDemonstracoes(qc, companyId);
@@ -594,6 +615,7 @@ function AjusteDialog({
   companyId,
   userId,
   editando,
+  duplicar = false,
   onNovaConta,
   onSaved,
 }: {
@@ -606,6 +628,7 @@ function AjusteDialog({
   companyId: string;
   userId: string | null;
   editando: AjusteRow | null;
+  duplicar?: boolean;
   onNovaConta: () => void;
   onSaved: () => void;
 }) {
@@ -665,7 +688,7 @@ function AjusteDialog({
         conta_credito: contaCredito,
         valor: valorNum,
       };
-      if (editando) {
+      if (editando && !duplicar) {
         const { error } = await supabase.from("ajustes_gerenciais").update(payload).eq("id", editando.id);
         if (error) throw error;
         toast.success("Ajuste atualizado");
@@ -674,7 +697,7 @@ function AjusteDialog({
           .from("ajustes_gerenciais")
           .insert({ ...payload, criado_por: userId });
         if (error) throw error;
-        toast.success("Ajuste lançado");
+        toast.success(duplicar ? "Ajuste duplicado" : "Ajuste lançado");
       }
       onOpenChange(false);
       onSaved();
@@ -689,7 +712,13 @@ function AjusteDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>{editando ? "Editar ajuste gerencial" : "Novo ajuste gerencial"}</DialogTitle>
+          <DialogTitle>
+            {duplicar && editando
+              ? "Duplicar ajuste gerencial"
+              : editando
+                ? "Editar ajuste gerencial"
+                : "Novo ajuste gerencial"}
+          </DialogTitle>
           <DialogDescription>
             Partida dobrada: o mesmo valor é aplicado a débito e a crédito. Não altera a contabilidade — grava apenas em ajustes gerenciais.
           </DialogDescription>

@@ -3528,6 +3528,10 @@ export type Database = {
       ecd_normalizar_texto: { Args: { _s: string }; Returns: string }
       ecd_palavras: { Args: { _s: string }; Returns: string[] }
       ecd_preparar_diario: { Args: { _importacao_id: string }; Returns: Json }
+      ecd_rematerializar_destinos: {
+        Args: { _destinos: string[]; _importacao_id: string }
+        Returns: Json
+      }
       ecd_resumo_natureza: { Args: { _importacao_id: string }; Returns: Json }
       ecd_similaridade: { Args: { _a: string; _b: string }; Returns: number }
       ecd_sugerir_depara: {

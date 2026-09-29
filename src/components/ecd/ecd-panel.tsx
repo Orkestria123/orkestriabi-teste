@@ -192,6 +192,7 @@ export function EcdPanel({ tenantId, companyId }: Props) {
     qc.invalidateQueries({ queryKey: ["ecd-encerramento", selecionada] });
     qc.invalidateQueries({ queryKey: ["ecd-diario", selecionada] });
     qc.invalidateQueries({ queryKey: ["ecd-natureza", selecionada] });
+    qc.invalidateQueries({ queryKey: ["carimbo-empresa", companyId] });
   };
 
   const { data: mascara = MASCARA_DEFAULT } = useQuery({

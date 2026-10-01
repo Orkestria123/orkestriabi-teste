@@ -152,7 +152,9 @@ export function ContasEspecificasEmpresa({ tenantId, podeEditar }: { tenantId: s
     } catch (e: any) { toast.error(e.message); }
   };
 
-  const mostraAlocacao = sintSel ? ehContaDeCustoDespesa(sintSel.classificacao + ".1") : false;
+  const mostraAlocacao = editando
+    ? ehContaDeCustoDespesa(editando.classificacao ?? "")
+    : sintSel ? ehContaDeCustoDespesa(sintSel.classificacao + ".1") : false;
 
   return (
     <Card className="p-5">
@@ -180,9 +182,24 @@ export function ContasEspecificasEmpresa({ tenantId, podeEditar }: { tenantId: s
 
       {companyId && podeEditar && (
         <div className="grid gap-2 mb-3 rounded-md border border-border p-3 md:grid-cols-2">
-          <div className="md:col-span-2">
-            <Label className="text-xs">Conta sintética do Plano Padrão</Label>
-            <div className="flex gap-2">
+          <div className="md:col-span-2 flex items-center justify-between">
+            <Label className="text-xs">
+              {editando ? `Editando a conta ${editando.codigo}` : "Conta sintética do Plano Padrão"}
+            </Label>
+            {editando && (
+              <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={limparForm}>
+                Cancelar edição
+              </Button>
+            )}
+          </div>
+          {editando ? (
+            <div className="md:col-span-2 text-xs text-muted-foreground">
+              A conta editada continua pendurada em{" "}
+              <span className="font-mono">{editando.conta_pai_classificacao ?? editando.classificacao}</span> — a
+              sintética não muda na edição.
+            </div>
+          ) : (
+            <div className="md:col-span-2 flex gap-2">
               <Input className="h-9 w-56" value={buscaSint} onChange={(e) => setBuscaSint(e.target.value)}
                 placeholder="Buscar sintética" />
               <Select value={sint} onValueChange={(v) => {
@@ -200,7 +217,7 @@ export function ContasEspecificasEmpresa({ tenantId, podeEditar }: { tenantId: s
                 </SelectContent>
               </Select>
             </div>
-          </div>
+          )}
           <div>
             <Label className="text-xs">Código</Label>
             <Input className="h-9 font-mono" disabled value={prefixo ? `${prefixo}-automático` : "automático"} />

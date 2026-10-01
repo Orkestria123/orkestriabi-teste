@@ -184,8 +184,16 @@ export function AjustesGerenciaisPanel({ tenantId, companyId }: Props) {
         classificacao: r.classificacao,
         origem: "gerencial" as const,
       }));
+      // Específicas da empresa primeiro: é a tabela que o escritório
+      // quer alcançar nos lançamentos gerenciais.
+      const esp: ContaOpt[] = ((gerR.data ?? []), (espR.data ?? []) as any[]).map((r: any) => ({
+        codigo: r.codigo,
+        descricao: r.descricao,
+        classificacao: r.classificacao,
+        origem: r.is_participante ? ("participante" as const) : ("plano" as const),
+      }));
       const transitoria: ContaOpt = { ...CONTA_AJUSTES_GERENCIAIS, origem: "gerencial" };
-      return [transitoria, ...ger, ...plano];
+      return [transitoria, ...ger, ...esp, ...plano];
     },
   });
 

@@ -24,4 +24,4 @@
 - [x] Lançamentos gerenciais: contas criadas da empresa no seletor (lista + busca RPC)
 - [x] Editar contas criadas (Pencil em Contas específicas de empresa)
 - [x] DFC Casa do Vidro: fechamento conferido no banco (Σ movimento = 0 em todos os meses)
-- [ ] DRE: mover "Custo de Materiais dos Produtos" abaixo de "Custo dos Produtos Vendidos" — aguardando definição do usuário
+- [x] DRE: "Custo de Materiais dos Produtos" logo abaixo de "Custo dos Produtos Vendidos" (e equivalente p/ mercadorias)

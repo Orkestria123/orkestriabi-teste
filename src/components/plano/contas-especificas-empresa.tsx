@@ -273,10 +273,16 @@ export function ContasEspecificasEmpresa({ tenantId, podeEditar }: { tenantId: s
                     <td className="p-2">{al?.label ?? "—"}</td>
                     <td className="p-2 text-right">
                       {podeEditar && (
-                        <Button size="icon" variant="ghost" className="h-7 w-7" aria-label="Excluir conta"
-                          onClick={() => excluir(c.codigo)}>
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
+                        <>
+                          <Button size="icon" variant="ghost" className="h-7 w-7" aria-label="Editar conta"
+                            title="Editar conta" onClick={() => editar(c)}>
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button size="icon" variant="ghost" className="h-7 w-7" aria-label="Excluir conta"
+                            onClick={() => excluir(c.codigo)}>
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </>
                       )}
                     </td>
                   </tr>

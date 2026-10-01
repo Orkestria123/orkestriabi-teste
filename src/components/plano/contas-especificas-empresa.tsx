@@ -96,21 +96,45 @@ export function ContasEspecificasEmpresa({ tenantId, podeEditar }: { tenantId: s
     qc.invalidateQueries({ queryKey: ["ecd-depara", companyId] });
   };
 
+  const limparForm = () => {
+    setDescricao(""); setAlocacao(SEM); setDfc(""); setSint(""); setEditando(null);
+  };
+
   const criar = async () => {
     setBusy(true);
     try {
       const [classe, tipo] = alocacao === SEM ? ["", ""] : alocacao.split(":");
+      if (editando) {
+        const { error } = await (supabase as any).rpc("atualizar_conta_empresa", {
+          _company_id: companyId, _codigo: editando.codigo,
+          _descricao: descricao.trim(), _tipo_custo: tipo || null,
+          _classe_gasto: classe || null, _dfc_codigo: dfc.trim() || null,
+        });
+        if (error) throw error;
+        toast.success(`Conta ${editando.codigo} atualizada.`);
+        limparForm();
+        aposMudar();
+        return;
+      }
       const { data, error } = await (supabase as any).rpc("criar_conta_empresa_sintetica", {
         _company_id: companyId, _sintetica: sint, _descricao: descricao.trim(),
         _tipo_custo: tipo || null, _classe_gasto: classe || null, _dfc_codigo: dfc.trim() || null,
       });
       if (error) throw error;
       toast.success(`Conta ${data} criada.`);
-      setDescricao(""); setAlocacao(SEM); setDfc("");
+      limparForm();
       aposMudar();
     } catch (e: any) {
       toast.error(e.message);
     } finally { setBusy(false); }
+  };
+
+  const editar = (c: any) => {
+    setEditando(c);
+    setDescricao(c.descricao ?? "");
+    setDfc(c.dfc_codigo ?? "");
+    setAlocacao(chaveAlocacao(c.classe_gasto, c.tipo_custo) || SEM);
+    setSint("");
   };
 
   const excluir = async (codigo: string) => {

@@ -21,3 +21,7 @@
 - [x] DFC com contas criadas por empresa (Mackerduz MAC-0001 a partir de 06/2026)
 - [x] Duplicar ajuste gerencial
 - [x] Conta transitória "Ajustes Gerenciais" (AJG) fora de BP/DRE, só na visão gerencial
+- [x] Lançamentos gerenciais: contas criadas da empresa no seletor (lista + busca RPC)
+- [x] Editar contas criadas (Pencil em Contas específicas de empresa)
+- [x] DFC Casa do Vidro: fechamento conferido no banco (Σ movimento = 0 em todos os meses)
+- [ ] DRE: mover "Custo de Materiais dos Produtos" abaixo de "Custo dos Produtos Vendidos" — aguardando definição do usuário

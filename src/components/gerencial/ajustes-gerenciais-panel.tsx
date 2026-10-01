@@ -186,7 +186,7 @@ export function AjustesGerenciaisPanel({ tenantId, companyId }: Props) {
       }));
       // Específicas da empresa primeiro: é a tabela que o escritório
       // quer alcançar nos lançamentos gerenciais.
-      const esp: ContaOpt[] = ((gerR.data ?? []), (espR.data ?? []) as any[]).map((r: any) => ({
+      const esp: ContaOpt[] = ((espR.data ?? []) as any[]).map((r) => ({
         codigo: r.codigo,
         descricao: r.descricao,
         classificacao: r.classificacao,

@@ -30,6 +30,8 @@ export function ContasEspecificasEmpresa({ tenantId, podeEditar }: { tenantId: s
   const [alocacao, setAlocacao] = useState<string>(SEM);
   const [dfc, setDfc] = useState("");
   const [busy, setBusy] = useState(false);
+  // null = criando; objeto = editando uma conta existente.
+  const [editando, setEditando] = useState<any | null>(null);
 
   const { data: empresas } = useQuery({
     queryKey: ["empresas-tenant", tenantId],

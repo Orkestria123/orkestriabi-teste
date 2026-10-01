@@ -1456,16 +1456,19 @@ function addAcumuladores(
       0,
     );
 
-  const ordemAntesDoPapel = (papel: string, fallback: number): number => {
+  // "Custo de materiais dos produtos" (e o de mercadorias) ficam logo
+  // ABAIXO do subtotal CPV/CMV (+10), não acima (-20). Os filhos do CPV
+  // usam base + 20, +40…, então +10 cai entre o subtotal e o primeiro filho.
+  const ordemDepoisDoPapel = (papel: string, fallback: number): number => {
     const ac = ordenados.find((a) => a.papel === papel);
     const est = estrutura.find((e) => e.papel === papel && e.demonstracao === "DRE");
     const ordem = ac?.ordem ?? est?.ordem ?? fallback;
-    return ordem * 1000 - 20;
+    return ordem * 1000 + 10;
   };
 
   for (const p of periodos) {
     rows.push({
-      linha_ordem: ordemAntesDoPapel("CPV", 50),
+      linha_ordem: ordemDepoisDoPapel("CPV", 50),
       descricao: ROTULO_CUSTO_PRODUTOS_SEM_MOD,
       codigo_conta: null,
       nivel: 0,
@@ -1474,7 +1477,7 @@ function addAcumuladores(
       valor: custoEstoqueSemMod("3.02", p),
     });
     rows.push({
-      linha_ordem: ordemAntesDoPapel("CMV", 70),
+      linha_ordem: ordemDepoisDoPapel("CMV", 70),
       descricao: ROTULO_CUSTO_MERCADORIAS_SEM_MOD,
       codigo_conta: null,
       nivel: 0,

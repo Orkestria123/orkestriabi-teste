@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Loader2, Plus, Trash2 } from "lucide-react";
+import { Loader2, Pencil, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { limparCachePlano } from "@/lib/diario/build-statements";
@@ -30,6 +30,8 @@ export function ContasEspecificasEmpresa({ tenantId, podeEditar }: { tenantId: s
   const [alocacao, setAlocacao] = useState<string>(SEM);
   const [dfc, setDfc] = useState("");
   const [busy, setBusy] = useState(false);
+  // null = criando; objeto = editando uma conta existente.
+  const [editando, setEditando] = useState<any | null>(null);
 
   const { data: empresas } = useQuery({
     queryKey: ["empresas-tenant", tenantId],
@@ -94,21 +96,45 @@ export function ContasEspecificasEmpresa({ tenantId, podeEditar }: { tenantId: s
     qc.invalidateQueries({ queryKey: ["ecd-depara", companyId] });
   };
 
+  const limparForm = () => {
+    setDescricao(""); setAlocacao(SEM); setDfc(""); setSint(""); setEditando(null);
+  };
+
   const criar = async () => {
     setBusy(true);
     try {
       const [classe, tipo] = alocacao === SEM ? ["", ""] : alocacao.split(":");
+      if (editando) {
+        const { error } = await (supabase as any).rpc("atualizar_conta_empresa", {
+          _company_id: companyId, _codigo: editando.codigo,
+          _descricao: descricao.trim(), _tipo_custo: tipo || null,
+          _classe_gasto: classe || null, _dfc_codigo: dfc.trim() || null,
+        });
+        if (error) throw error;
+        toast.success(`Conta ${editando.codigo} atualizada.`);
+        limparForm();
+        aposMudar();
+        return;
+      }
       const { data, error } = await (supabase as any).rpc("criar_conta_empresa_sintetica", {
         _company_id: companyId, _sintetica: sint, _descricao: descricao.trim(),
         _tipo_custo: tipo || null, _classe_gasto: classe || null, _dfc_codigo: dfc.trim() || null,
       });
       if (error) throw error;
       toast.success(`Conta ${data} criada.`);
-      setDescricao(""); setAlocacao(SEM); setDfc("");
+      limparForm();
       aposMudar();
     } catch (e: any) {
       toast.error(e.message);
     } finally { setBusy(false); }
+  };
+
+  const editar = (c: any) => {
+    setEditando(c);
+    setDescricao(c.descricao ?? "");
+    setDfc(c.dfc_codigo ?? "");
+    setAlocacao(chaveAlocacao(c.classe_gasto, c.tipo_custo) || SEM);
+    setSint("");
   };
 
   const excluir = async (codigo: string) => {
@@ -126,7 +152,9 @@ export function ContasEspecificasEmpresa({ tenantId, podeEditar }: { tenantId: s
     } catch (e: any) { toast.error(e.message); }
   };
 
-  const mostraAlocacao = sintSel ? ehContaDeCustoDespesa(sintSel.classificacao + ".1") : false;
+  const mostraAlocacao = editando
+    ? ehContaDeCustoDespesa(editando.classificacao ?? "")
+    : sintSel ? ehContaDeCustoDespesa(sintSel.classificacao + ".1") : false;
 
   return (
     <Card className="p-5">
@@ -154,9 +182,24 @@ export function ContasEspecificasEmpresa({ tenantId, podeEditar }: { tenantId: s
 
       {companyId && podeEditar && (
         <div className="grid gap-2 mb-3 rounded-md border border-border p-3 md:grid-cols-2">
-          <div className="md:col-span-2">
-            <Label className="text-xs">Conta sintética do Plano Padrão</Label>
-            <div className="flex gap-2">
+          <div className="md:col-span-2 flex items-center justify-between">
+            <Label className="text-xs">
+              {editando ? `Editando a conta ${editando.codigo}` : "Conta sintética do Plano Padrão"}
+            </Label>
+            {editando && (
+              <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={limparForm}>
+                Cancelar edição
+              </Button>
+            )}
+          </div>
+          {editando ? (
+            <div className="md:col-span-2 text-xs text-muted-foreground">
+              A conta editada continua pendurada em{" "}
+              <span className="font-mono">{editando.conta_pai_classificacao ?? editando.classificacao}</span> — a
+              sintética não muda na edição.
+            </div>
+          ) : (
+            <div className="md:col-span-2 flex gap-2">
               <Input className="h-9 w-56" value={buscaSint} onChange={(e) => setBuscaSint(e.target.value)}
                 placeholder="Buscar sintética" />
               <Select value={sint} onValueChange={(v) => {
@@ -174,7 +217,7 @@ export function ContasEspecificasEmpresa({ tenantId, podeEditar }: { tenantId: s
                 </SelectContent>
               </Select>
             </div>
-          </div>
+          )}
           <div>
             <Label className="text-xs">Código</Label>
             <Input className="h-9 font-mono" disabled value={prefixo ? `${prefixo}-automático` : "automático"} />
@@ -201,9 +244,10 @@ export function ContasEspecificasEmpresa({ tenantId, podeEditar }: { tenantId: s
             </div>
           )}
           <div className="md:col-span-2">
-            <Button onClick={criar} disabled={busy || !sint || !descricao.trim()}>
-              {busy ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Plus className="h-4 w-4 mr-2" />}
-              Criar conta
+            <Button onClick={criar} disabled={busy || (!editando && !sint) || !descricao.trim()}>
+              {busy ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : editando
+                ? <Pencil className="h-4 w-4 mr-2" /> : <Plus className="h-4 w-4 mr-2" />}
+              {editando ? "Salvar alterações" : "Criar conta"}
             </Button>
           </div>
         </div>
@@ -230,10 +274,16 @@ export function ContasEspecificasEmpresa({ tenantId, podeEditar }: { tenantId: s
                     <td className="p-2">{al?.label ?? "—"}</td>
                     <td className="p-2 text-right">
                       {podeEditar && (
-                        <Button size="icon" variant="ghost" className="h-7 w-7" aria-label="Excluir conta"
-                          onClick={() => excluir(c.codigo)}>
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
+                        <>
+                          <Button size="icon" variant="ghost" className="h-7 w-7" aria-label="Editar conta"
+                            title="Editar conta" onClick={() => editar(c)}>
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button size="icon" variant="ghost" className="h-7 w-7" aria-label="Excluir conta"
+                            onClick={() => excluir(c.codigo)}>
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </>
                       )}
                     </td>
                   </tr>

@@ -351,6 +351,13 @@
       "when": 1790692888805,
       "tag": "0049_ecd_rematerializar_destinos",
       "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "7",
+      "when": 1790872069723,
+      "tag": "0050_plano_buscar_contas_inclui_especificas",
+      "breakpoints": true
     }
   ]
 }

@@ -144,7 +144,7 @@ export function AjustesGerenciaisPanel({ tenantId, companyId }: Props) {
     queryFn: async (): Promise<ContaOpt[]> => {
       // escopo do plano resolvido em um lugar só (Plano Padrão x próprio)
       const escopo = await getEscopoConsulta(companyId);
-      const [planoR, gerR] = await Promise.all([
+      const [planoR, gerR, espR] = await Promise.all([
         escoparPlano(
           supabase.from("plano_contas").select("codigo, descricao, classificacao, is_participante"),
           companyId,
@@ -159,9 +159,20 @@ export function AjustesGerenciaisPanel({ tenantId, companyId }: Props) {
           .eq("tenant_id", tenantId)
           .eq("company_id", companyId)
           .order("codigo", { ascending: true }),
+        // Contas criadas só para esta empresa (específicas e as de
+        // cliente/fornecedor criadas pela ECD) — o plano padrão não as tem.
+        supabase
+          .from("plano_contas")
+          .select("codigo, descricao, classificacao, is_participante")
+          .eq("tenant_id", tenantId)
+          .eq("company_id", companyId)
+          .eq("ativo", true)
+          .order("codigo", { ascending: true })
+          .limit(3000),
       ]);
       if (planoR.error) throw planoR.error;
       if (gerR.error) throw gerR.error;
+      if (espR.error) throw espR.error;
       const plano: ContaOpt[] = (planoR.data ?? []).map((r: any) => ({
         codigo: r.codigo,
         descricao: r.descricao,
@@ -174,8 +185,16 @@ export function AjustesGerenciaisPanel({ tenantId, companyId }: Props) {
         classificacao: r.classificacao,
         origem: "gerencial" as const,
       }));
+      // Específicas da empresa primeiro: é a tabela que o escritório
+      // quer alcançar nos lançamentos gerenciais.
+      const esp: ContaOpt[] = ((espR.data ?? []) as any[]).map((r) => ({
+        codigo: r.codigo,
+        descricao: r.descricao,
+        classificacao: r.classificacao,
+        origem: r.is_participante ? ("participante" as const) : ("plano" as const),
+      }));
       const transitoria: ContaOpt = { ...CONTA_AJUSTES_GERENCIAIS, origem: "gerencial" };
-      return [transitoria, ...ger, ...plano];
+      return [transitoria, ...ger, ...esp, ...plano];
     },
   });
 

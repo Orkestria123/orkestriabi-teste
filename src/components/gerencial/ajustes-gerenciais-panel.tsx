@@ -172,6 +172,7 @@ export function AjustesGerenciaisPanel({ tenantId, companyId }: Props) {
       ]);
       if (planoR.error) throw planoR.error;
       if (gerR.error) throw gerR.error;
+      if (espR.error) throw espR.error;
       const plano: ContaOpt[] = (planoR.data ?? []).map((r: any) => ({
         codigo: r.codigo,
         descricao: r.descricao,

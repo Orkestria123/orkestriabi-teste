@@ -244,9 +244,10 @@ export function ContasEspecificasEmpresa({ tenantId, podeEditar }: { tenantId: s
             </div>
           )}
           <div className="md:col-span-2">
-            <Button onClick={criar} disabled={busy || !sint || !descricao.trim()}>
-              {busy ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Plus className="h-4 w-4 mr-2" />}
-              Criar conta
+            <Button onClick={criar} disabled={busy || (!editando && !sint) || !descricao.trim()}>
+              {busy ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : editando
+                ? <Pencil className="h-4 w-4 mr-2" /> : <Plus className="h-4 w-4 mr-2" />}
+              {editando ? "Salvar alterações" : "Criar conta"}
             </Button>
           </div>
         </div>

@@ -10,7 +10,7 @@ import { registrarAcesso } from "@/lib/api/auditoria.functions";
 import { useAuth } from "@/hooks/use-auth";
 import { ArrowRight, Loader2 } from "lucide-react";
 import { claimOrkestriaAdmin } from "@/lib/api/orkestria.functions";
-import appIcon from "@/assets/orkestria-icon.png.asset.json";
+import logoAsset from "@/assets/orkestria-logo.png.asset.json";
 
 export const Route = createFileRoute("/auth")({
   component: AuthPage,
@@ -71,29 +71,31 @@ function AuthPage() {
           backgroundImage: "radial-gradient(circle at 20% 30%, rgba(255,255,255,0.15) 0px, transparent 50%), radial-gradient(circle at 80% 70%, rgba(255,255,255,0.1) 0px, transparent 50%)"
         }} />
         <div className="relative max-w-md">
-          <div className="flex items-center gap-2 mb-12">
-            <img src={appIcon.url} alt="Orkestria BI" className="h-10 w-10 rounded-lg" />
-            <span className="text-xl font-bold">Orkestria BI</span>
+          <div className="flex items-center gap-3 mb-12">
+            <div className="bg-white rounded-xl px-4 py-2">
+              <img src={logoAsset.url} alt="Orkestria" className="h-8" />
+            </div>
+            <span className="text-2xl font-bold leading-none">BI</span>
           </div>
           <h1 className="text-5xl font-bold leading-[1.05] tracking-tight">
             BI contábil que fala<br />a língua do cliente.
           </h1>
           <p className="mt-6 text-white/80 text-lg leading-relaxed">
-            Importe o SPED Contábil e entregue dashboards interativos de DRE,
-            Balanço e indicadores em minutos.
+            Acompanhe os resultados e a saúde financeira do seu negócio em uma
+            linguagem simples.
           </p>
           <ul className="mt-10 space-y-3 text-sm text-white/90">
-            <li className="flex items-center gap-3">
-              <div className="h-1.5 w-1.5 rounded-full bg-white" />
-              Multi-tenant para escritórios contábeis
+            <li className="flex items-start gap-3">
+              <div className="h-1.5 w-1.5 rounded-full bg-white shrink-0 mt-1.5" />
+              Veja seu resultado mês a mês, sem planilhas e com poucos cliques.
             </li>
-            <li className="flex items-center gap-3">
-              <div className="h-1.5 w-1.5 rounded-full bg-white" />
-              Análise vertical e horizontal automáticas
+            <li className="flex items-start gap-3">
+              <div className="h-1.5 w-1.5 rounded-full bg-white shrink-0 mt-1.5" />
+              KPIs, gráficos e insights por IA para entender seu negócio a qualquer momento.
             </li>
-            <li className="flex items-center gap-3">
-              <div className="h-1.5 w-1.5 rounded-full bg-white" />
-              Branding personalizado por escritório
+            <li className="flex items-start gap-3">
+              <div className="h-1.5 w-1.5 rounded-full bg-white shrink-0 mt-1.5" />
+              Acompanhe de onde estiver, pelo celular ou computador, com segurança.
             </li>
           </ul>
         </div>
@@ -102,9 +104,9 @@ function AuthPage() {
       {/* Form side */}
       <div className="flex-1 flex items-center justify-center p-6 bg-background">
         <div className="w-full max-w-sm">
-          <div className="lg:hidden flex items-center gap-2 mb-8">
-            <img src={appIcon.url} alt="Orkestria BI" className="h-9 w-9 rounded-lg" />
-            <span className="font-bold text-lg">Orkestria BI</span>
+          <div className="lg:hidden flex items-center gap-3 mb-8">
+            <img src={logoAsset.url} alt="Orkestria" className="h-8" />
+            <span className="font-bold text-lg leading-none">BI</span>
           </div>
           <h2 className="text-2xl font-bold tracking-tight">Bem-vindo de volta</h2>
           <p className="mt-1 text-sm text-muted-foreground">

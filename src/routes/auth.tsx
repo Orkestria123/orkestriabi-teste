@@ -8,8 +8,9 @@ import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
 import { registrarAcesso } from "@/lib/api/auditoria.functions";
 import { useAuth } from "@/hooks/use-auth";
-import { ArrowRight, Loader2, BarChart3 } from "lucide-react";
+import { ArrowRight, Loader2 } from "lucide-react";
 import { claimOrkestriaAdmin } from "@/lib/api/orkestria.functions";
+import appIcon from "@/assets/orkestria-icon.png.asset.json";
 
 export const Route = createFileRoute("/auth")({
   component: AuthPage,
@@ -71,9 +72,7 @@ function AuthPage() {
         }} />
         <div className="relative max-w-md">
           <div className="flex items-center gap-2 mb-12">
-            <div className="h-10 w-10 rounded-lg bg-white/15 backdrop-blur flex items-center justify-center">
-              <BarChart3 className="h-5 w-5" />
-            </div>
+            <img src={appIcon.url} alt="Orkestria BI" className="h-10 w-10 rounded-lg" />
             <span className="text-xl font-bold">Orkestria BI</span>
           </div>
           <h1 className="text-5xl font-bold leading-[1.05] tracking-tight">
@@ -104,10 +103,7 @@ function AuthPage() {
       <div className="flex-1 flex items-center justify-center p-6 bg-background">
         <div className="w-full max-w-sm">
           <div className="lg:hidden flex items-center gap-2 mb-8">
-            <div className="h-9 w-9 rounded-lg flex items-center justify-center text-white"
-              style={{ background: "linear-gradient(135deg, oklch(0.45 0.22 280), oklch(0.55 0.20 320))" }}>
-              <BarChart3 className="h-5 w-5" />
-            </div>
+            <img src={appIcon.url} alt="Orkestria BI" className="h-9 w-9 rounded-lg" />
             <span className="font-bold text-lg">Orkestria BI</span>
           </div>
           <h2 className="text-2xl font-bold tracking-tight">Bem-vindo de volta</h2>

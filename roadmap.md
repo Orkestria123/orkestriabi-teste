@@ -25,3 +25,9 @@
 - [x] Editar contas criadas (Pencil em Contas específicas de empresa)
 - [x] DFC Casa do Vidro: fechamento conferido no banco (Σ movimento = 0 em todos os meses)
 - [x] DRE: "Custo de Materiais dos Produtos" logo abaixo de "Custo dos Produtos Vendidos" (e equivalente p/ mercadorias)
+
+## Rodada 02/10
+- [x] Capital de Giro: fornecedores/clientes próprios da empresa entram no cálculo (e cliente com várias empresas lê os dados)
+- [x] DRE: Deduções exibidas dentro da Receita Bruta (só visual)
+- [x] DRE: Custo de Materiais logo após o bloco do CPV/CMV também quando o bloco tem uma linha só
+- [x] DFC Casa do Vidro: depreciação contada duas vezes (DRE + Balanço) — agora fecha

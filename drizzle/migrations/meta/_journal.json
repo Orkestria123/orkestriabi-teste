@@ -365,6 +365,20 @@
       "when": 1790902797268,
       "tag": "0051_cliente_multiempresa_leitura",
       "breakpoints": true
+    },
+    {
+      "idx": 52,
+      "version": "7",
+      "when": 1790960434334,
+      "tag": "0052_indicador_snapshot_contas_empresa",
+      "breakpoints": true
+    },
+    {
+      "idx": 53,
+      "version": "7",
+      "when": 1790960490630,
+      "tag": "0053_indicador_snapshot_sem_duplicar",
+      "breakpoints": true
     }
   ]
 }

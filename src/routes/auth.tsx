@@ -31,40 +31,14 @@ function AuthPage() {
     e.preventDefault();
     setLoading(true);
     try {
-      if (mode === "signup") {
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: { data: { full_name: fullName }, emailRedirectTo: window.location.origin },
-        });
-        if (error) throw error;
-        toast.success("Conta criada!");
-      } else {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
-        void registrarAcesso({ data: { acao: "login" } }).catch(() => {});
-        toast.success("Bem-vindo!");
-      }
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+      void registrarAcesso({ data: { acao: "login" } }).catch(() => {});
+      toast.success("Bem-vindo!");
       navigate({ to: "/", replace: true });
     } catch (e: any) {
       toast.error(e.message || "Erro ao autenticar");
     } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleGoogle = async () => {
-    setLoading(true);
-    try {
-      const result = await lovable.auth.signInWithOAuth("google", {
-        redirect_uri: window.location.origin,
-      });
-      if (result.error) throw result.error;
-      if (result.redirected) return;
-      void registrarAcesso({ data: { acao: "login" } }).catch(() => {});
-      navigate({ to: "/", replace: true });
-    } catch (e: any) {
-      toast.error(e.message || "Erro Google");
       setLoading(false);
     }
   };

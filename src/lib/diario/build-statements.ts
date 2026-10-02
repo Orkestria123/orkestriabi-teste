@@ -2372,6 +2372,16 @@ async function buildDFC(
     somaPorPeriodo.set(p, { caixa: 0, naoCaixa: 0, semFlag: 0, porCodigo: new Map() });
   }
 
+  // Depreciação marcada dos DOIS lados (despesa na DRE e depreciação
+  // acumulada no Balanço) entrava duas vezes nos ajustes: a diferença da
+  // conferência era exatamente EBITDA − EBIT. Quando o Balanço já tem a
+  // contrapartida marcada como "não afeta o caixa", o estorno vem só dele.
+  const naoCaixaNoBalanco = flags.some(
+    (f) =>
+      f.tipo !== "3-DRE" &&
+      (blocoDoCodigo(f.dfc_codigo) === "nao_caixa" || f.dfc_nao_caixa),
+  );
+
   for (const s of saldos) {
     const acc = somaPorPeriodo.get(s.competencia);
     if (!acc) continue;
@@ -2383,6 +2393,7 @@ async function buildDFC(
     if (f.tipo === "3-DRE") {
       // O resultado já entra pelo Lucro Líquido da DRE. Aqui só
       // interessa estornar o que não passou por caixa.
+      if (naoCaixaNoBalanco) continue;
       if (bloco === "nao_caixa" || f.dfc_nao_caixa) {
         acc.naoCaixa += mov;
         if (f.dfc_codigo) somaCodigo(acc, f.dfc_codigo, mov);

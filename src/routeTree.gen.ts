@@ -9,46 +9,41 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as RecuperarSenhaRouteImport } from './routes/recuperar-senha'
-import { Route as DashboardRouteImport } from './routes/dashboard'
-import { Route as AuthRouteImport } from './routes/auth'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as OrkestriaAdminIndexRouteImport } from './routes/orkestria-admin.index'
-import { Route as DashboardIndexRouteImport } from './routes/dashboard.index'
+import { Route as AuthRouteImport } from './routes/auth'
+import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as RecuperarSenhaRouteImport } from './routes/recuperar-senha'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
-import { Route as OrkestriaAdminTenantsRouteImport } from './routes/orkestria-admin.tenants'
-import { Route as DashboardOrcamentoRouteImport } from './routes/dashboard.orcamento'
-import { Route as DashboardNotasFiscaisRouteImport } from './routes/dashboard.notas-fiscais'
-import { Route as DashboardIndicadoresRouteImport } from './routes/dashboard.indicadores'
-import { Route as DashboardFornecedoresRouteImport } from './routes/dashboard.fornecedores'
-import { Route as DashboardFluxoDeCaixaRouteImport } from './routes/dashboard.fluxo-de-caixa'
-import { Route as DashboardDreRouteImport } from './routes/dashboard.dre'
-import { Route as DashboardBalancoRouteImport } from './routes/dashboard.balanco'
-import { Route as DashboardAnaliseRouteImport } from './routes/dashboard.analise'
-import { Route as AdminUsuariosRouteImport } from './routes/admin.usuarios'
-import { Route as AdminUploadRouteImport } from './routes/admin.upload'
-import { Route as AdminSistemasRouteImport } from './routes/admin.sistemas'
-import { Route as AdminSegmentosRouteImport } from './routes/admin.segmentos'
-import { Route as AdminSaudeRouteImport } from './routes/admin.saude'
-import { Route as AdminPlanoPadraoRouteImport } from './routes/admin.plano-padrao'
-import { Route as AdminLogsRouteImport } from './routes/admin.logs'
-import { Route as AdminIndicadoresRouteImport } from './routes/admin.indicadores'
-import { Route as AdminGruposRouteImport } from './routes/admin.grupos'
-import { Route as AdminEmpresasRouteImport } from './routes/admin.empresas'
-import { Route as AdminDiagnosticoRouteImport } from './routes/admin.diagnostico'
-import { Route as AdminComparativoRouteImport } from './routes/admin.comparativo'
 import { Route as AdminAnalisesRouteImport } from './routes/admin.analises'
+import { Route as AdminComparativoRouteImport } from './routes/admin.comparativo'
+import { Route as AdminDiagnosticoRouteImport } from './routes/admin.diagnostico'
+import { Route as AdminEmpresasRouteImport } from './routes/admin.empresas'
+import { Route as AdminGruposRouteImport } from './routes/admin.grupos'
+import { Route as AdminIndicadoresRouteImport } from './routes/admin.indicadores'
+import { Route as AdminLogsRouteImport } from './routes/admin.logs'
+import { Route as AdminPlanoPadraoRouteImport } from './routes/admin.plano-padrao'
+import { Route as AdminSaudeRouteImport } from './routes/admin.saude'
+import { Route as AdminSegmentosRouteImport } from './routes/admin.segmentos'
+import { Route as AdminSistemasRouteImport } from './routes/admin.sistemas'
+import { Route as AdminUploadRouteImport } from './routes/admin.upload'
+import { Route as AdminUsuariosRouteImport } from './routes/admin.usuarios'
+import { Route as DashboardIndexRouteImport } from './routes/dashboard.index'
+import { Route as DashboardAnaliseRouteImport } from './routes/dashboard.analise'
+import { Route as DashboardBalancoRouteImport } from './routes/dashboard.balanco'
+import { Route as DashboardDreRouteImport } from './routes/dashboard.dre'
+import { Route as DashboardFluxoDeCaixaRouteImport } from './routes/dashboard.fluxo-de-caixa'
+import { Route as DashboardFornecedoresRouteImport } from './routes/dashboard.fornecedores'
+import { Route as DashboardIndicadoresRouteImport } from './routes/dashboard.indicadores'
+import { Route as DashboardNotasFiscaisRouteImport } from './routes/dashboard.notas-fiscais'
+import { Route as DashboardOrcamentoRouteImport } from './routes/dashboard.orcamento'
+import { Route as OrkestriaAdminIndexRouteImport } from './routes/orkestria-admin.index'
+import { Route as OrkestriaAdminTenantsRouteImport } from './routes/orkestria-admin.tenants'
 import { Route as AdminEmpresasIndexRouteImport } from './routes/admin.empresas.index'
 import { Route as AdminEmpresasIdDadosRouteImport } from './routes/admin.empresas.$id.dados'
 
-const RecuperarSenhaRoute = RecuperarSenhaRouteImport.update({
-  id: '/recuperar-senha',
-  path: '/recuperar-senha',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DashboardRoute = DashboardRouteImport.update({
-  id: '/dashboard',
-  path: '/dashboard',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthRoute = AuthRouteImport.update({
@@ -56,124 +51,24 @@ const AuthRoute = AuthRouteImport.update({
   path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const DashboardRoute = DashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
-const OrkestriaAdminIndexRoute = OrkestriaAdminIndexRouteImport.update({
-  id: '/orkestria-admin/',
-  path: '/orkestria-admin/',
+const RecuperarSenhaRoute = RecuperarSenhaRouteImport.update({
+  id: '/recuperar-senha',
+  path: '/recuperar-senha',
   getParentRoute: () => rootRouteImport,
-} as any)
-const DashboardIndexRoute = DashboardIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => DashboardRoute,
 } as any)
 const AdminIndexRoute = AdminIndexRouteImport.update({
   id: '/admin/',
   path: '/admin/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const OrkestriaAdminTenantsRoute = OrkestriaAdminTenantsRouteImport.update({
-  id: '/orkestria-admin/tenants',
-  path: '/orkestria-admin/tenants',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DashboardOrcamentoRoute = DashboardOrcamentoRouteImport.update({
-  id: '/orcamento',
-  path: '/orcamento',
-  getParentRoute: () => DashboardRoute,
-} as any)
-const DashboardNotasFiscaisRoute = DashboardNotasFiscaisRouteImport.update({
-  id: '/notas-fiscais',
-  path: '/notas-fiscais',
-  getParentRoute: () => DashboardRoute,
-} as any)
-const DashboardIndicadoresRoute = DashboardIndicadoresRouteImport.update({
-  id: '/indicadores',
-  path: '/indicadores',
-  getParentRoute: () => DashboardRoute,
-} as any)
-const DashboardFornecedoresRoute = DashboardFornecedoresRouteImport.update({
-  id: '/fornecedores',
-  path: '/fornecedores',
-  getParentRoute: () => DashboardRoute,
-} as any)
-const DashboardFluxoDeCaixaRoute = DashboardFluxoDeCaixaRouteImport.update({
-  id: '/fluxo-de-caixa',
-  path: '/fluxo-de-caixa',
-  getParentRoute: () => DashboardRoute,
-} as any)
-const DashboardDreRoute = DashboardDreRouteImport.update({
-  id: '/dre',
-  path: '/dre',
-  getParentRoute: () => DashboardRoute,
-} as any)
-const DashboardBalancoRoute = DashboardBalancoRouteImport.update({
-  id: '/balanco',
-  path: '/balanco',
-  getParentRoute: () => DashboardRoute,
-} as any)
-const DashboardAnaliseRoute = DashboardAnaliseRouteImport.update({
-  id: '/analise',
-  path: '/analise',
-  getParentRoute: () => DashboardRoute,
-} as any)
-const AdminUsuariosRoute = AdminUsuariosRouteImport.update({
-  id: '/admin/usuarios',
-  path: '/admin/usuarios',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AdminUploadRoute = AdminUploadRouteImport.update({
-  id: '/admin/upload',
-  path: '/admin/upload',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AdminSistemasRoute = AdminSistemasRouteImport.update({
-  id: '/admin/sistemas',
-  path: '/admin/sistemas',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AdminSegmentosRoute = AdminSegmentosRouteImport.update({
-  id: '/admin/segmentos',
-  path: '/admin/segmentos',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AdminSaudeRoute = AdminSaudeRouteImport.update({
-  id: '/admin/saude',
-  path: '/admin/saude',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AdminPlanoPadraoRoute = AdminPlanoPadraoRouteImport.update({
-  id: '/admin/plano-padrao',
-  path: '/admin/plano-padrao',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AdminLogsRoute = AdminLogsRouteImport.update({
-  id: '/admin/logs',
-  path: '/admin/logs',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AdminIndicadoresRoute = AdminIndicadoresRouteImport.update({
-  id: '/admin/indicadores',
-  path: '/admin/indicadores',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AdminGruposRoute = AdminGruposRouteImport.update({
-  id: '/admin/grupos',
-  path: '/admin/grupos',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AdminEmpresasRoute = AdminEmpresasRouteImport.update({
-  id: '/admin/empresas',
-  path: '/admin/empresas',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AdminDiagnosticoRoute = AdminDiagnosticoRouteImport.update({
-  id: '/admin/diagnostico',
-  path: '/admin/diagnostico',
+const AdminAnalisesRoute = AdminAnalisesRouteImport.update({
+  id: '/admin/analises',
+  path: '/admin/analises',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminComparativoRoute = AdminComparativoRouteImport.update({
@@ -181,9 +76,114 @@ const AdminComparativoRoute = AdminComparativoRouteImport.update({
   path: '/admin/comparativo',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AdminAnalisesRoute = AdminAnalisesRouteImport.update({
-  id: '/admin/analises',
-  path: '/admin/analises',
+const AdminDiagnosticoRoute = AdminDiagnosticoRouteImport.update({
+  id: '/admin/diagnostico',
+  path: '/admin/diagnostico',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminEmpresasRoute = AdminEmpresasRouteImport.update({
+  id: '/admin/empresas',
+  path: '/admin/empresas',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminGruposRoute = AdminGruposRouteImport.update({
+  id: '/admin/grupos',
+  path: '/admin/grupos',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminIndicadoresRoute = AdminIndicadoresRouteImport.update({
+  id: '/admin/indicadores',
+  path: '/admin/indicadores',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminLogsRoute = AdminLogsRouteImport.update({
+  id: '/admin/logs',
+  path: '/admin/logs',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminPlanoPadraoRoute = AdminPlanoPadraoRouteImport.update({
+  id: '/admin/plano-padrao',
+  path: '/admin/plano-padrao',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminSaudeRoute = AdminSaudeRouteImport.update({
+  id: '/admin/saude',
+  path: '/admin/saude',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminSegmentosRoute = AdminSegmentosRouteImport.update({
+  id: '/admin/segmentos',
+  path: '/admin/segmentos',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminSistemasRoute = AdminSistemasRouteImport.update({
+  id: '/admin/sistemas',
+  path: '/admin/sistemas',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminUploadRoute = AdminUploadRouteImport.update({
+  id: '/admin/upload',
+  path: '/admin/upload',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminUsuariosRoute = AdminUsuariosRouteImport.update({
+  id: '/admin/usuarios',
+  path: '/admin/usuarios',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DashboardIndexRoute = DashboardIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardAnaliseRoute = DashboardAnaliseRouteImport.update({
+  id: '/analise',
+  path: '/analise',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardBalancoRoute = DashboardBalancoRouteImport.update({
+  id: '/balanco',
+  path: '/balanco',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardDreRoute = DashboardDreRouteImport.update({
+  id: '/dre',
+  path: '/dre',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardFluxoDeCaixaRoute = DashboardFluxoDeCaixaRouteImport.update({
+  id: '/fluxo-de-caixa',
+  path: '/fluxo-de-caixa',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardFornecedoresRoute = DashboardFornecedoresRouteImport.update({
+  id: '/fornecedores',
+  path: '/fornecedores',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardIndicadoresRoute = DashboardIndicadoresRouteImport.update({
+  id: '/indicadores',
+  path: '/indicadores',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardNotasFiscaisRoute = DashboardNotasFiscaisRouteImport.update({
+  id: '/notas-fiscais',
+  path: '/notas-fiscais',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardOrcamentoRoute = DashboardOrcamentoRouteImport.update({
+  id: '/orcamento',
+  path: '/orcamento',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const OrkestriaAdminIndexRoute = OrkestriaAdminIndexRouteImport.update({
+  id: '/orkestria-admin/',
+  path: '/orkestria-admin/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OrkestriaAdminTenantsRoute = OrkestriaAdminTenantsRouteImport.update({
+  id: '/orkestria-admin/tenants',
+  path: '/orkestria-admin/tenants',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminEmpresasIndexRoute = AdminEmpresasIndexRouteImport.update({
@@ -420,18 +420,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/recuperar-senha': {
-      id: '/recuperar-senha'
-      path: '/recuperar-senha'
-      fullPath: '/recuperar-senha'
-      preLoaderRoute: typeof RecuperarSenhaRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/dashboard': {
-      id: '/dashboard'
-      path: '/dashboard'
-      fullPath: '/dashboard'
-      preLoaderRoute: typeof DashboardRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth': {
@@ -441,26 +434,19 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/dashboard': {
+      id: '/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof DashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/orkestria-admin/': {
-      id: '/orkestria-admin/'
-      path: '/orkestria-admin'
-      fullPath: '/orkestria-admin/'
-      preLoaderRoute: typeof OrkestriaAdminIndexRouteImport
+    '/recuperar-senha': {
+      id: '/recuperar-senha'
+      path: '/recuperar-senha'
+      fullPath: '/recuperar-senha'
+      preLoaderRoute: typeof RecuperarSenhaRouteImport
       parentRoute: typeof rootRouteImport
-    }
-    '/dashboard/': {
-      id: '/dashboard/'
-      path: '/'
-      fullPath: '/dashboard/'
-      preLoaderRoute: typeof DashboardIndexRouteImport
-      parentRoute: typeof DashboardRoute
     }
     '/admin/': {
       id: '/admin/'
@@ -469,144 +455,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/orkestria-admin/tenants': {
-      id: '/orkestria-admin/tenants'
-      path: '/orkestria-admin/tenants'
-      fullPath: '/orkestria-admin/tenants'
-      preLoaderRoute: typeof OrkestriaAdminTenantsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/dashboard/orcamento': {
-      id: '/dashboard/orcamento'
-      path: '/orcamento'
-      fullPath: '/dashboard/orcamento'
-      preLoaderRoute: typeof DashboardOrcamentoRouteImport
-      parentRoute: typeof DashboardRoute
-    }
-    '/dashboard/notas-fiscais': {
-      id: '/dashboard/notas-fiscais'
-      path: '/notas-fiscais'
-      fullPath: '/dashboard/notas-fiscais'
-      preLoaderRoute: typeof DashboardNotasFiscaisRouteImport
-      parentRoute: typeof DashboardRoute
-    }
-    '/dashboard/indicadores': {
-      id: '/dashboard/indicadores'
-      path: '/indicadores'
-      fullPath: '/dashboard/indicadores'
-      preLoaderRoute: typeof DashboardIndicadoresRouteImport
-      parentRoute: typeof DashboardRoute
-    }
-    '/dashboard/fornecedores': {
-      id: '/dashboard/fornecedores'
-      path: '/fornecedores'
-      fullPath: '/dashboard/fornecedores'
-      preLoaderRoute: typeof DashboardFornecedoresRouteImport
-      parentRoute: typeof DashboardRoute
-    }
-    '/dashboard/fluxo-de-caixa': {
-      id: '/dashboard/fluxo-de-caixa'
-      path: '/fluxo-de-caixa'
-      fullPath: '/dashboard/fluxo-de-caixa'
-      preLoaderRoute: typeof DashboardFluxoDeCaixaRouteImport
-      parentRoute: typeof DashboardRoute
-    }
-    '/dashboard/dre': {
-      id: '/dashboard/dre'
-      path: '/dre'
-      fullPath: '/dashboard/dre'
-      preLoaderRoute: typeof DashboardDreRouteImport
-      parentRoute: typeof DashboardRoute
-    }
-    '/dashboard/balanco': {
-      id: '/dashboard/balanco'
-      path: '/balanco'
-      fullPath: '/dashboard/balanco'
-      preLoaderRoute: typeof DashboardBalancoRouteImport
-      parentRoute: typeof DashboardRoute
-    }
-    '/dashboard/analise': {
-      id: '/dashboard/analise'
-      path: '/analise'
-      fullPath: '/dashboard/analise'
-      preLoaderRoute: typeof DashboardAnaliseRouteImport
-      parentRoute: typeof DashboardRoute
-    }
-    '/admin/usuarios': {
-      id: '/admin/usuarios'
-      path: '/admin/usuarios'
-      fullPath: '/admin/usuarios'
-      preLoaderRoute: typeof AdminUsuariosRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/admin/upload': {
-      id: '/admin/upload'
-      path: '/admin/upload'
-      fullPath: '/admin/upload'
-      preLoaderRoute: typeof AdminUploadRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/admin/sistemas': {
-      id: '/admin/sistemas'
-      path: '/admin/sistemas'
-      fullPath: '/admin/sistemas'
-      preLoaderRoute: typeof AdminSistemasRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/admin/segmentos': {
-      id: '/admin/segmentos'
-      path: '/admin/segmentos'
-      fullPath: '/admin/segmentos'
-      preLoaderRoute: typeof AdminSegmentosRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/admin/saude': {
-      id: '/admin/saude'
-      path: '/admin/saude'
-      fullPath: '/admin/saude'
-      preLoaderRoute: typeof AdminSaudeRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/admin/plano-padrao': {
-      id: '/admin/plano-padrao'
-      path: '/admin/plano-padrao'
-      fullPath: '/admin/plano-padrao'
-      preLoaderRoute: typeof AdminPlanoPadraoRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/admin/logs': {
-      id: '/admin/logs'
-      path: '/admin/logs'
-      fullPath: '/admin/logs'
-      preLoaderRoute: typeof AdminLogsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/admin/indicadores': {
-      id: '/admin/indicadores'
-      path: '/admin/indicadores'
-      fullPath: '/admin/indicadores'
-      preLoaderRoute: typeof AdminIndicadoresRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/admin/grupos': {
-      id: '/admin/grupos'
-      path: '/admin/grupos'
-      fullPath: '/admin/grupos'
-      preLoaderRoute: typeof AdminGruposRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/admin/empresas': {
-      id: '/admin/empresas'
-      path: '/admin/empresas'
-      fullPath: '/admin/empresas'
-      preLoaderRoute: typeof AdminEmpresasRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/admin/diagnostico': {
-      id: '/admin/diagnostico'
-      path: '/admin/diagnostico'
-      fullPath: '/admin/diagnostico'
-      preLoaderRoute: typeof AdminDiagnosticoRouteImport
+    '/admin/analises': {
+      id: '/admin/analises'
+      path: '/admin/analises'
+      fullPath: '/admin/analises'
+      preLoaderRoute: typeof AdminAnalisesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/comparativo': {
@@ -616,11 +469,158 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminComparativoRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/admin/analises': {
-      id: '/admin/analises'
-      path: '/admin/analises'
-      fullPath: '/admin/analises'
-      preLoaderRoute: typeof AdminAnalisesRouteImport
+    '/admin/diagnostico': {
+      id: '/admin/diagnostico'
+      path: '/admin/diagnostico'
+      fullPath: '/admin/diagnostico'
+      preLoaderRoute: typeof AdminDiagnosticoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/empresas': {
+      id: '/admin/empresas'
+      path: '/admin/empresas'
+      fullPath: '/admin/empresas'
+      preLoaderRoute: typeof AdminEmpresasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/grupos': {
+      id: '/admin/grupos'
+      path: '/admin/grupos'
+      fullPath: '/admin/grupos'
+      preLoaderRoute: typeof AdminGruposRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/indicadores': {
+      id: '/admin/indicadores'
+      path: '/admin/indicadores'
+      fullPath: '/admin/indicadores'
+      preLoaderRoute: typeof AdminIndicadoresRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/logs': {
+      id: '/admin/logs'
+      path: '/admin/logs'
+      fullPath: '/admin/logs'
+      preLoaderRoute: typeof AdminLogsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/plano-padrao': {
+      id: '/admin/plano-padrao'
+      path: '/admin/plano-padrao'
+      fullPath: '/admin/plano-padrao'
+      preLoaderRoute: typeof AdminPlanoPadraoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/saude': {
+      id: '/admin/saude'
+      path: '/admin/saude'
+      fullPath: '/admin/saude'
+      preLoaderRoute: typeof AdminSaudeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/segmentos': {
+      id: '/admin/segmentos'
+      path: '/admin/segmentos'
+      fullPath: '/admin/segmentos'
+      preLoaderRoute: typeof AdminSegmentosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/sistemas': {
+      id: '/admin/sistemas'
+      path: '/admin/sistemas'
+      fullPath: '/admin/sistemas'
+      preLoaderRoute: typeof AdminSistemasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/upload': {
+      id: '/admin/upload'
+      path: '/admin/upload'
+      fullPath: '/admin/upload'
+      preLoaderRoute: typeof AdminUploadRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/usuarios': {
+      id: '/admin/usuarios'
+      path: '/admin/usuarios'
+      fullPath: '/admin/usuarios'
+      preLoaderRoute: typeof AdminUsuariosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dashboard/': {
+      id: '/dashboard/'
+      path: '/'
+      fullPath: '/dashboard/'
+      preLoaderRoute: typeof DashboardIndexRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/analise': {
+      id: '/dashboard/analise'
+      path: '/analise'
+      fullPath: '/dashboard/analise'
+      preLoaderRoute: typeof DashboardAnaliseRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/balanco': {
+      id: '/dashboard/balanco'
+      path: '/balanco'
+      fullPath: '/dashboard/balanco'
+      preLoaderRoute: typeof DashboardBalancoRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/dre': {
+      id: '/dashboard/dre'
+      path: '/dre'
+      fullPath: '/dashboard/dre'
+      preLoaderRoute: typeof DashboardDreRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/fluxo-de-caixa': {
+      id: '/dashboard/fluxo-de-caixa'
+      path: '/fluxo-de-caixa'
+      fullPath: '/dashboard/fluxo-de-caixa'
+      preLoaderRoute: typeof DashboardFluxoDeCaixaRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/fornecedores': {
+      id: '/dashboard/fornecedores'
+      path: '/fornecedores'
+      fullPath: '/dashboard/fornecedores'
+      preLoaderRoute: typeof DashboardFornecedoresRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/indicadores': {
+      id: '/dashboard/indicadores'
+      path: '/indicadores'
+      fullPath: '/dashboard/indicadores'
+      preLoaderRoute: typeof DashboardIndicadoresRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/notas-fiscais': {
+      id: '/dashboard/notas-fiscais'
+      path: '/notas-fiscais'
+      fullPath: '/dashboard/notas-fiscais'
+      preLoaderRoute: typeof DashboardNotasFiscaisRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/orcamento': {
+      id: '/dashboard/orcamento'
+      path: '/orcamento'
+      fullPath: '/dashboard/orcamento'
+      preLoaderRoute: typeof DashboardOrcamentoRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/orkestria-admin/': {
+      id: '/orkestria-admin/'
+      path: '/orkestria-admin'
+      fullPath: '/orkestria-admin/'
+      preLoaderRoute: typeof OrkestriaAdminIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/orkestria-admin/tenants': {
+      id: '/orkestria-admin/tenants'
+      path: '/orkestria-admin/tenants'
+      fullPath: '/orkestria-admin/tenants'
+      preLoaderRoute: typeof OrkestriaAdminTenantsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/empresas/': {

@@ -125,41 +125,21 @@ function AuthPage() {
                 <Label htmlFor="pw">Senha</Label>
                 <Input id="pw" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} />
               </div>
-              {mode === "signin" && (
-                <div className="text-right">
-                  <Link to="/recuperar-senha" className="text-xs text-muted-foreground hover:underline">
-                    Esqueci minha senha
-                  </Link>
-                </div>
-              )}
+              <div className="text-right">
+                <Link to="/recuperar-senha" className="text-xs text-muted-foreground hover:underline">
+                  Esqueci minha senha
+                </Link>
+              </div>
               <Button type="submit" className="w-full" disabled={loading}>
                 {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : (
                   <>
-                    {mode === "signin" ? "Entrar" : "Criar conta"}
+                    Entrar
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </>
                 )}
               </Button>
             </form>
           </Card>
-
-          <div className="mt-4 text-center text-sm text-muted-foreground">
-            {mode === "signin" ? (
-              <>
-                Novo no Orkestria?{" "}
-                <button onClick={() => setMode("signup")} className="text-primary font-medium hover:underline">
-                  Criar conta
-                </button>
-              </>
-            ) : (
-              <>
-                Já tem conta?{" "}
-                <button onClick={() => setMode("signin")} className="text-primary font-medium hover:underline">
-                  Entrar
-                </button>
-              </>
-            )}
-          </div>
         </div>
       </div>
     </div>

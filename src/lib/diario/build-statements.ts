@@ -1167,6 +1167,7 @@ async function buildDRE(
   if (tipo === "DRE") {
     addAcumuladores(out, periodos, acumuladores, totalPorPrefixo, resultadoApurado, mascara, {
       formulasEbit,
+      ordemPrefixo: new Map(mapas.map((m) => [m.classificacao_prefixo, m.ordem])),
       somaClassifs: (classifs, p) => somaClassifsDre(classifs, p, saldos, planoMap, mascara),
       planoFormula: [...planoEbit, ...planoExtra],
       saldos,
@@ -1271,6 +1272,7 @@ function addAcumuladores(
   mascara: MascaraConfig,
   opts: {
     formulasEbit: FormulasEbitEbitda;
+    ordemPrefixo?: Map<string, number>;
     somaClassifs: (classifs: string[], periodo: string) => number;
     planoFormula: Plano[];
     saldos: Saldo[];
@@ -1461,9 +1463,21 @@ function addAcumuladores(
   // usam base + 20, +40…, então +10 cai entre o subtotal e o primeiro filho.
   const ordemDepoisDoPapel = (papel: string, fallback: number): number => {
     const ac = ordenados.find((a) => a.papel === papel);
+    if (ac) return ac.ordem * 1000 + 10;
+    // Bloco com UMA linha só: o subtotal não é emitido e o rótulo
+    // "Custo dos Produtos Vendidos" foi para a própria linha. Fica logo
+    // depois dela (e dos filhos dela, que usam base + 1, + 2…).
     const est = estrutura.find((e) => e.papel === papel && e.demonstracao === "DRE");
-    const ordem = ac?.ordem ?? est?.ordem ?? fallback;
-    return ordem * 1000 + 10;
+    if (est && opts.ordemPrefixo) {
+      const partes = dividir(est.classificacao, mascara);
+      const pai = partes.length > 1 ? juntar(partes.slice(0, -1), mascara) : est.classificacao;
+      let max = -1;
+      for (const [pref, ord] of opts.ordemPrefixo) {
+        if (pref === pai || descendeDe(pref, pai, mascara)) max = Math.max(max, ord);
+      }
+      if (max >= 0) return max * 1000 + 999;
+    }
+    return (est?.ordem ?? fallback) * 1000 + 10;
   };
 
   for (const p of periodos) {

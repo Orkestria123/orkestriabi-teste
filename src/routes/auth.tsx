@@ -72,7 +72,9 @@ function AuthPage() {
         }} />
         <div className="relative max-w-md">
           <div className="flex items-center gap-3 mb-12">
-            <img src={logoAsset.url} alt="Orkestria" className="h-9" />
+            <div className="bg-white rounded-xl px-4 py-2">
+              <img src={logoAsset.url} alt="Orkestria" className="h-8" />
+            </div>
             <span className="text-2xl font-bold leading-none">BI</span>
           </div>
           <h1 className="text-5xl font-bold leading-[1.05] tracking-tight">

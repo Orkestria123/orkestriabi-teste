@@ -3681,6 +3681,10 @@ export type Database = {
       pode_tenant: { Args: { _tenant_id: string }; Returns: boolean }
       prefixo_empresa: { Args: { _company_id: string }; Returns: string }
       promover_plano_empresa: { Args: { _company_id: string }; Returns: Json }
+      replicar_estrutura_tenant: {
+        Args: { _destino: string; _origem: string }
+        Returns: Json
+      }
       restaurar_conta_descartada: {
         Args: { _codigo: string; _tenant_id: string }
         Returns: Json

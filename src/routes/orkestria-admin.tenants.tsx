@@ -47,6 +47,7 @@ function Page() {
     admin_email: "", admin_name: "", admin_password: "",
     primary_color: "#6366F1",
   });
+  const [replicarDe, setReplicarDe] = useState("");
   const [loading, setLoading] = useState(false);
   const [editing, setEditing] = useState<TenantRow | null>(null);
 
@@ -54,9 +55,14 @@ function Page() {
     e.preventDefault();
     setLoading(true);
     try {
-      await createTenant({ data: { ...form, max_companies: 5, max_users: 10 } });
-      toast.success("Tenant criado!");
+      const res = await createTenant({ data: { ...form, max_companies: 5, max_users: 10 } });
+      if (replicarDe) {
+        const { error } = await (supabase as any).rpc("replicar_estrutura_tenant", { _origem: replicarDe, _destino: res.tenant_id });
+        if (error) toast.error(`Tenant criado, mas a replicação falhou: ${error.message}`);
+        else toast.success("Tenant criado com a estrutura replicada!");
+      } else toast.success("Tenant criado!");
       setOpen(false);
+      setReplicarDe("");
       setForm({ name: "", slug: "", plan: "starter", admin_email: "", admin_name: "", admin_password: "", primary_color: "#6366F1" });
       qc.invalidateQueries({ queryKey: ["tenants"] });
     } catch (e: any) {
@@ -83,6 +89,7 @@ function Page() {
                 <div><Label>Slug</Label><Input value={form.slug} onChange={(e) => setForm({ ...form, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "-") })} required /></div>
               </div>
               <div><Label>Cor primária</Label><Input type="color" value={form.primary_color} onChange={(e) => setForm({ ...form, primary_color: e.target.value })} className="h-10 w-20 p-1" /></div>
+              <ReplicarSelect tenants={tenants ?? []} value={replicarDe} onChange={setReplicarDe} />
               <div className="pt-2 border-t"><div className="text-xs font-medium text-muted-foreground mb-2 uppercase">Usuário admin do tenant</div></div>
               <div><Label>Nome do admin</Label><Input value={form.admin_name} onChange={(e) => setForm({ ...form, admin_name: e.target.value })} required /></div>
               <div><Label>E-mail</Label><Input type="email" value={form.admin_email} onChange={(e) => setForm({ ...form, admin_email: e.target.value })} required /></div>
@@ -119,6 +126,7 @@ function Page() {
       </Card>
 
       <BrandingDialog
+        tenants={tenants ?? []}
         tenant={editing}
         onClose={() => setEditing(null)}
         onSaved={() => {
@@ -191,10 +199,32 @@ function TenantRowItem({ t, onEdit, onDeleted }: { t: TenantRow; onEdit: () => v
 }
 
 
+function ReplicarSelect({ tenants, value, onChange, excluir }: {
+  tenants: TenantRow[]; value: string; onChange: (v: string) => void; excluir?: string;
+}) {
+  return (
+    <div>
+      <Label>Replicar estrutura de</Label>
+      <select className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+        value={value} onChange={(e) => onChange(e.target.value)}>
+        <option value="">— Não replicar (começar vazio) —</option>
+        {tenants.filter((t) => t.id !== excluir).map((t) => (
+          <option key={t.id} value={t.id}>{t.name}</option>
+        ))}
+      </select>
+      <p className="text-xs text-muted-foreground mt-1">
+        Copia Plano Padrão, estrutura da DRE/Balanço, DFC, EBIT/EBITDA, indicadores, dashboard,
+        análises, sistemas e segmentos. Empresas, usuários e movimentos não são copiados.
+      </p>
+    </div>
+  );
+}
+
 function BrandingDialog({
-  tenant, onClose, onSaved,
+  tenant, tenants, onClose, onSaved,
 }: {
   tenant: TenantRow | null;
+  tenants: TenantRow[];
   onClose: () => void;
   onSaved: () => void;
 }) {
@@ -202,6 +232,22 @@ function BrandingDialog({
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [origem, setOrigem] = useState("");
+  const [replicando, setReplicando] = useState(false);
+
+  const replicar = async () => {
+    if (!tenant || !origem) return;
+    const nome = tenants.find((t) => t.id === origem)?.name;
+    if (!confirm(`Replicar a estrutura de "${nome}" para "${tenant.name}"? Dashboard, indicadores e análises do destino serão substituídos.`)) return;
+    setReplicando(true);
+    try {
+      const { data, error } = await (supabase as any).rpc("replicar_estrutura_tenant", { _origem: origem, _destino: tenant.id });
+      if (error) throw error;
+      toast.success(`Estrutura replicada: ${data?.plano_contas ?? 0} contas, ${data?.indicadores ?? 0} indicadores.`);
+      setOrigem("");
+    } catch (e: any) { toast.error(e.message); }
+    finally { setReplicando(false); }
+  };
   const [info, setInfo] = useState({
     name: "", slug: "", plan: "starter", site: "",
     max_companies: 5, max_users: 10, active: true,
@@ -294,6 +340,12 @@ function BrandingDialog({
               <input type="checkbox" checked={info.active} onChange={(e) => setInfo({ ...info, active: e.target.checked })} />
               Tenant ativo
             </label>
+          </div>
+          <div className="rounded-md border p-3 space-y-2">
+            <ReplicarSelect tenants={tenants} value={origem} onChange={setOrigem} excluir={tenant?.id} />
+            <Button size="sm" variant="secondary" disabled={!origem || replicando} onClick={replicar}>
+              {replicando && <Loader2 className="h-4 w-4 mr-2 animate-spin" />} Replicar agora
+            </Button>
           </div>
           <div>
             <Label>Logo</Label>

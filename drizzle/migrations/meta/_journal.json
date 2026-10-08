@@ -379,6 +379,13 @@
       "when": 1790960490630,
       "tag": "0053_indicador_snapshot_sem_duplicar",
       "breakpoints": true
+    },
+    {
+      "idx": 54,
+      "version": "7",
+      "when": 1791488271105,
+      "tag": "0054_replicar_estrutura_tenant",
+      "breakpoints": true
     }
   ]
 }

@@ -179,7 +179,7 @@ function TenantRowItem({ t, onEdit, onDeleted }: { t: TenantRow; onEdit: () => v
       <td className="px-4 py-3 text-right">
         <div className="flex items-center justify-end gap-1">
           <Button size="sm" variant="ghost" onClick={onEdit}>
-            <Pencil className="h-3.5 w-3.5 mr-1" /> Branding
+            <Pencil className="h-3.5 w-3.5 mr-1" /> Editar
           </Button>
           <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:text-destructive" disabled={deleting} onClick={handleDelete}>
             <Trash2 className="h-4 w-4" />
@@ -202,9 +202,18 @@ function BrandingDialog({
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [info, setInfo] = useState({
+    name: "", slug: "", plan: "starter", site: "",
+    max_companies: 5, max_users: 10, active: true,
+  });
 
   useEffect(() => {
     if (!tenant) return;
+    const t = tenant as any;
+    setInfo({
+      name: t.name ?? "", slug: t.slug ?? "", plan: t.plan ?? "starter", site: t.site ?? "",
+      max_companies: t.max_companies ?? 5, max_users: t.max_users ?? 10, active: t.active ?? true,
+    });
     setColor(tenant.primary_color || "#6366F1");
     setFile(null);
     setPreview(null);
@@ -237,10 +246,19 @@ function BrandingDialog({
         if (upErr) throw upErr;
         logoPath = path;
       }
-      const update = { primary_color: color, ...(logoPath ? { logo_url: logoPath } : {}) };
+      if (info.name.trim().length < 2) throw new Error("Informe o nome");
+      if (!/^[a-z0-9-]{2,}$/.test(info.slug)) throw new Error("Slug: só letras minúsculas, números e hífen");
+      const update = {
+        name: info.name.trim(), slug: info.slug, plan: info.plan,
+        site: info.site.trim() || null,
+        max_companies: Math.max(1, Number(info.max_companies) || 1),
+        max_users: Math.max(1, Number(info.max_users) || 1),
+        active: info.active,
+        primary_color: color, ...(logoPath ? { logo_url: logoPath } : {}),
+      };
       const { error } = await supabase.from("tenants").update(update).eq("id", tenant.id);
       if (error) throw error;
-      toast.success("Branding atualizado");
+      toast.success("Tenant atualizado");
       onSaved();
     } catch (e: any) {
       toast.error(e.message || "Falha ao salvar");
@@ -251,9 +269,32 @@ function BrandingDialog({
 
   return (
     <Dialog open={!!tenant} onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent>
-        <DialogHeader><DialogTitle>Branding — {tenant?.name}</DialogTitle></DialogHeader>
+      <DialogContent className="max-h-[90vh] overflow-y-auto">
+        <DialogHeader><DialogTitle>Editar tenant — {tenant?.name}</DialogTitle></DialogHeader>
         <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="col-span-2"><Label>Nome</Label>
+              <Input value={info.name} onChange={(e) => setInfo({ ...info, name: e.target.value })} /></div>
+            <div><Label>Slug</Label>
+              <Input value={info.slug} onChange={(e) => setInfo({ ...info, slug: e.target.value.toLowerCase() })} /></div>
+            <div><Label>Plano</Label>
+              <select className="mt-0 h-10 w-full rounded-md border bg-background px-3 text-sm"
+                value={info.plan} onChange={(e) => setInfo({ ...info, plan: e.target.value })}>
+                <option value="starter">starter</option>
+                <option value="pro">pro</option>
+                <option value="enterprise">enterprise</option>
+              </select></div>
+            <div className="col-span-2"><Label>Site</Label>
+              <Input value={info.site} onChange={(e) => setInfo({ ...info, site: e.target.value })} placeholder="https://" /></div>
+            <div><Label>Máx. empresas</Label>
+              <Input type="number" min={1} value={info.max_companies} onChange={(e) => setInfo({ ...info, max_companies: Number(e.target.value) })} /></div>
+            <div><Label>Máx. usuários</Label>
+              <Input type="number" min={1} value={info.max_users} onChange={(e) => setInfo({ ...info, max_users: Number(e.target.value) })} /></div>
+            <label className="col-span-2 flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={info.active} onChange={(e) => setInfo({ ...info, active: e.target.checked })} />
+              Tenant ativo
+            </label>
+          </div>
           <div>
             <Label>Logo</Label>
             <div className="mt-2 flex items-center gap-4">

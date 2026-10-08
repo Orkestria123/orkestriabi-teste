@@ -126,6 +126,7 @@ function Page() {
       </Card>
 
       <BrandingDialog
+        tenants={tenants ?? []}
         tenant={editing}
         onClose={() => setEditing(null)}
         onSaved={() => {

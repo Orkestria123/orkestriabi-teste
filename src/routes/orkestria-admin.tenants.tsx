@@ -202,9 +202,18 @@ function BrandingDialog({
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [info, setInfo] = useState({
+    name: "", slug: "", plan: "starter", site: "",
+    max_companies: 5, max_users: 10, active: true,
+  });
 
   useEffect(() => {
     if (!tenant) return;
+    const t = tenant as any;
+    setInfo({
+      name: t.name ?? "", slug: t.slug ?? "", plan: t.plan ?? "starter", site: t.site ?? "",
+      max_companies: t.max_companies ?? 5, max_users: t.max_users ?? 10, active: t.active ?? true,
+    });
     setColor(tenant.primary_color || "#6366F1");
     setFile(null);
     setPreview(null);

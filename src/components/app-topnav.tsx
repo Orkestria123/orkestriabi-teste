@@ -22,6 +22,7 @@ import {
 import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
+import { useMyCompanies } from "@/hooks/use-financial-data";
 import { ThemeToggle } from "@/components/theme-toggle";
 import {
   DropdownMenu,
@@ -101,8 +102,16 @@ export function AppTopNav({
     void navigate({ to: to as never });
   };
 
+  const { data: minhasEmpresas } = useMyCompanies();
+  const multiEmpresa = variant === "client" && (minhasEmpresas?.length ?? 0) > 1;
   const items =
-    variant === "orkestria" ? ORK_NAV : variant === "admin" ? ADMIN_NAV : CLIENT_NAV;
+    variant === "orkestria"
+      ? ORK_NAV
+      : variant === "admin"
+        ? ADMIN_NAV
+        : multiEmpresa
+          ? [...CLIENT_NAV, { to: "/dashboard/comparativo-empresas", label: "Comparativo Empresas", icon: Building2 }]
+          : CLIENT_NAV;
 
   const brandName =
     variant === "orkestria" ? "Orkestria" : tenant?.name ?? "Orkestria BI";

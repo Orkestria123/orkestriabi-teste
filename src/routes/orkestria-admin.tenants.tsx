@@ -47,6 +47,7 @@ function Page() {
     admin_email: "", admin_name: "", admin_password: "",
     primary_color: "#6366F1",
   });
+  const [replicarDe, setReplicarDe] = useState("");
   const [loading, setLoading] = useState(false);
   const [editing, setEditing] = useState<TenantRow | null>(null);
 
@@ -54,9 +55,14 @@ function Page() {
     e.preventDefault();
     setLoading(true);
     try {
-      await createTenant({ data: { ...form, max_companies: 5, max_users: 10 } });
-      toast.success("Tenant criado!");
+      const res = await createTenant({ data: { ...form, max_companies: 5, max_users: 10 } });
+      if (replicarDe) {
+        const { error } = await (supabase as any).rpc("replicar_estrutura_tenant", { _origem: replicarDe, _destino: res.tenant_id });
+        if (error) toast.error(`Tenant criado, mas a replicação falhou: ${error.message}`);
+        else toast.success("Tenant criado com a estrutura replicada!");
+      } else toast.success("Tenant criado!");
       setOpen(false);
+      setReplicarDe("");
       setForm({ name: "", slug: "", plan: "starter", admin_email: "", admin_name: "", admin_password: "", primary_color: "#6366F1" });
       qc.invalidateQueries({ queryKey: ["tenants"] });
     } catch (e: any) {
@@ -83,6 +89,7 @@ function Page() {
                 <div><Label>Slug</Label><Input value={form.slug} onChange={(e) => setForm({ ...form, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "-") })} required /></div>
               </div>
               <div><Label>Cor primária</Label><Input type="color" value={form.primary_color} onChange={(e) => setForm({ ...form, primary_color: e.target.value })} className="h-10 w-20 p-1" /></div>
+              <ReplicarSelect tenants={tenants ?? []} value={replicarDe} onChange={setReplicarDe} />
               <div className="pt-2 border-t"><div className="text-xs font-medium text-muted-foreground mb-2 uppercase">Usuário admin do tenant</div></div>
               <div><Label>Nome do admin</Label><Input value={form.admin_name} onChange={(e) => setForm({ ...form, admin_name: e.target.value })} required /></div>
               <div><Label>E-mail</Label><Input type="email" value={form.admin_email} onChange={(e) => setForm({ ...form, admin_email: e.target.value })} required /></div>

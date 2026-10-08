@@ -199,10 +199,32 @@ function TenantRowItem({ t, onEdit, onDeleted }: { t: TenantRow; onEdit: () => v
 }
 
 
+function ReplicarSelect({ tenants, value, onChange, excluir }: {
+  tenants: TenantRow[]; value: string; onChange: (v: string) => void; excluir?: string;
+}) {
+  return (
+    <div>
+      <Label>Replicar estrutura de</Label>
+      <select className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+        value={value} onChange={(e) => onChange(e.target.value)}>
+        <option value="">— Não replicar (começar vazio) —</option>
+        {tenants.filter((t) => t.id !== excluir).map((t) => (
+          <option key={t.id} value={t.id}>{t.name}</option>
+        ))}
+      </select>
+      <p className="text-xs text-muted-foreground mt-1">
+        Copia Plano Padrão, estrutura da DRE/Balanço, DFC, EBIT/EBITDA, indicadores, dashboard,
+        análises, sistemas e segmentos. Empresas, usuários e movimentos não são copiados.
+      </p>
+    </div>
+  );
+}
+
 function BrandingDialog({
-  tenant, onClose, onSaved,
+  tenant, tenants, onClose, onSaved,
 }: {
   tenant: TenantRow | null;
+  tenants: TenantRow[];
   onClose: () => void;
   onSaved: () => void;
 }) {
@@ -210,6 +232,22 @@ function BrandingDialog({
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [origem, setOrigem] = useState("");
+  const [replicando, setReplicando] = useState(false);
+
+  const replicar = async () => {
+    if (!tenant || !origem) return;
+    const nome = tenants.find((t) => t.id === origem)?.name;
+    if (!confirm(`Replicar a estrutura de "${nome}" para "${tenant.name}"? Dashboard, indicadores e análises do destino serão substituídos.`)) return;
+    setReplicando(true);
+    try {
+      const { data, error } = await (supabase as any).rpc("replicar_estrutura_tenant", { _origem: origem, _destino: tenant.id });
+      if (error) throw error;
+      toast.success(`Estrutura replicada: ${data?.plano_contas ?? 0} contas, ${data?.indicadores ?? 0} indicadores.`);
+      setOrigem("");
+    } catch (e: any) { toast.error(e.message); }
+    finally { setReplicando(false); }
+  };
   const [info, setInfo] = useState({
     name: "", slug: "", plan: "starter", site: "",
     max_companies: 5, max_users: 10, active: true,

@@ -341,6 +341,12 @@ function BrandingDialog({
               Tenant ativo
             </label>
           </div>
+          <div className="rounded-md border p-3 space-y-2">
+            <ReplicarSelect tenants={tenants} value={origem} onChange={setOrigem} excluir={tenant?.id} />
+            <Button size="sm" variant="secondary" disabled={!origem || replicando} onClick={replicar}>
+              {replicando && <Loader2 className="h-4 w-4 mr-2 animate-spin" />} Replicar agora
+            </Button>
+          </div>
           <div>
             <Label>Logo</Label>
             <div className="mt-2 flex items-center gap-4">

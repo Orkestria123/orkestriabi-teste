@@ -30,6 +30,7 @@ import { Route as AdminUsuariosRouteImport } from './routes/admin.usuarios'
 import { Route as DashboardIndexRouteImport } from './routes/dashboard.index'
 import { Route as DashboardAnaliseRouteImport } from './routes/dashboard.analise'
 import { Route as DashboardBalancoRouteImport } from './routes/dashboard.balanco'
+import { Route as DashboardComparativoEmpresasRouteImport } from './routes/dashboard.comparativo-empresas'
 import { Route as DashboardDreRouteImport } from './routes/dashboard.dre'
 import { Route as DashboardFluxoDeCaixaRouteImport } from './routes/dashboard.fluxo-de-caixa'
 import { Route as DashboardFornecedoresRouteImport } from './routes/dashboard.fornecedores'
@@ -146,6 +147,12 @@ const DashboardBalancoRoute = DashboardBalancoRouteImport.update({
   path: '/balanco',
   getParentRoute: () => DashboardRoute,
 } as any)
+const DashboardComparativoEmpresasRoute =
+  DashboardComparativoEmpresasRouteImport.update({
+    id: '/comparativo-empresas',
+    path: '/comparativo-empresas',
+    getParentRoute: () => DashboardRoute,
+  } as any)
 const DashboardDreRoute = DashboardDreRouteImport.update({
   id: '/dre',
   path: '/dre',
@@ -217,6 +224,7 @@ export interface FileRoutesByFullPath {
   '/admin/usuarios': typeof AdminUsuariosRoute
   '/dashboard/analise': typeof DashboardAnaliseRoute
   '/dashboard/balanco': typeof DashboardBalancoRoute
+  '/dashboard/comparativo-empresas': typeof DashboardComparativoEmpresasRoute
   '/dashboard/dre': typeof DashboardDreRoute
   '/dashboard/fluxo-de-caixa': typeof DashboardFluxoDeCaixaRoute
   '/dashboard/fornecedores': typeof DashboardFornecedoresRoute
@@ -248,6 +256,7 @@ export interface FileRoutesByTo {
   '/admin/usuarios': typeof AdminUsuariosRoute
   '/dashboard/analise': typeof DashboardAnaliseRoute
   '/dashboard/balanco': typeof DashboardBalancoRoute
+  '/dashboard/comparativo-empresas': typeof DashboardComparativoEmpresasRoute
   '/dashboard/dre': typeof DashboardDreRoute
   '/dashboard/fluxo-de-caixa': typeof DashboardFluxoDeCaixaRoute
   '/dashboard/fornecedores': typeof DashboardFornecedoresRoute
@@ -282,6 +291,7 @@ export interface FileRoutesById {
   '/admin/usuarios': typeof AdminUsuariosRoute
   '/dashboard/analise': typeof DashboardAnaliseRoute
   '/dashboard/balanco': typeof DashboardBalancoRoute
+  '/dashboard/comparativo-empresas': typeof DashboardComparativoEmpresasRoute
   '/dashboard/dre': typeof DashboardDreRoute
   '/dashboard/fluxo-de-caixa': typeof DashboardFluxoDeCaixaRoute
   '/dashboard/fornecedores': typeof DashboardFornecedoresRoute
@@ -317,6 +327,7 @@ export interface FileRouteTypes {
     | '/admin/usuarios'
     | '/dashboard/analise'
     | '/dashboard/balanco'
+    | '/dashboard/comparativo-empresas'
     | '/dashboard/dre'
     | '/dashboard/fluxo-de-caixa'
     | '/dashboard/fornecedores'
@@ -348,6 +359,7 @@ export interface FileRouteTypes {
     | '/admin/usuarios'
     | '/dashboard/analise'
     | '/dashboard/balanco'
+    | '/dashboard/comparativo-empresas'
     | '/dashboard/dre'
     | '/dashboard/fluxo-de-caixa'
     | '/dashboard/fornecedores'
@@ -381,6 +393,7 @@ export interface FileRouteTypes {
     | '/admin/usuarios'
     | '/dashboard/analise'
     | '/dashboard/balanco'
+    | '/dashboard/comparativo-empresas'
     | '/dashboard/dre'
     | '/dashboard/fluxo-de-caixa'
     | '/dashboard/fornecedores'
@@ -567,6 +580,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardBalancoRouteImport
       parentRoute: typeof DashboardRoute
     }
+    '/dashboard/comparativo-empresas': {
+      id: '/dashboard/comparativo-empresas'
+      path: '/comparativo-empresas'
+      fullPath: '/dashboard/comparativo-empresas'
+      preLoaderRoute: typeof DashboardComparativoEmpresasRouteImport
+      parentRoute: typeof DashboardRoute
+    }
     '/dashboard/dre': {
       id: '/dashboard/dre'
       path: '/dre'
@@ -643,6 +663,7 @@ declare module '@tanstack/react-router' {
 interface DashboardRouteChildren {
   DashboardAnaliseRoute: typeof DashboardAnaliseRoute
   DashboardBalancoRoute: typeof DashboardBalancoRoute
+  DashboardComparativoEmpresasRoute: typeof DashboardComparativoEmpresasRoute
   DashboardDreRoute: typeof DashboardDreRoute
   DashboardFluxoDeCaixaRoute: typeof DashboardFluxoDeCaixaRoute
   DashboardFornecedoresRoute: typeof DashboardFornecedoresRoute
@@ -655,6 +676,7 @@ interface DashboardRouteChildren {
 const DashboardRouteChildren: DashboardRouteChildren = {
   DashboardAnaliseRoute: DashboardAnaliseRoute,
   DashboardBalancoRoute: DashboardBalancoRoute,
+  DashboardComparativoEmpresasRoute: DashboardComparativoEmpresasRoute,
   DashboardDreRoute: DashboardDreRoute,
   DashboardFluxoDeCaixaRoute: DashboardFluxoDeCaixaRoute,
   DashboardFornecedoresRoute: DashboardFornecedoresRoute,

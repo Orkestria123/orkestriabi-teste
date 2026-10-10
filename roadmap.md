@@ -33,5 +33,6 @@
 - [x] DFC Casa do Vidro: depreciação contada duas vezes (DRE + Balanço) — agora fecha
 
 ## Rodada 10/10
-- [ ] Replicar estrutura Open → Beltrami e conferir Plano Padrão/DFC/indicadores; publicar
-- [ ] Relatório executivo: configuração geral (engrenagem) + escolha por empresa, botão no BI, capa/tenant/empresa/demonstrações/indicadores/comparativo, cores Open, texto por IA; PDF de exemplo Casa do Vidro
+- [x] Replicar estrutura Open → Beltrami conferida (1.250 contas, 74 vínculos DFC, 19 indicadores); publicado
+- [x] PDF de exemplo Casa do Vidro (ago/26) entregue para validação
+- [ ] Relatório executivo no app: configuração geral (engrenagem) + escolha por empresa, botão no BI, capa/tenant/empresa/demonstrações/indicadores/comparativo, cores Open, texto por IA; PDF de exemplo Casa do Vidro — aguarda validação do exemplo

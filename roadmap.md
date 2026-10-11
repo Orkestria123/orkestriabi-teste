@@ -38,5 +38,7 @@
 - [ ] Relatório executivo no app: configuração geral (engrenagem) + escolha por empresa, botão no BI, capa/tenant/empresa/demonstrações/indicadores/comparativo, cores Open, texto por IA; PDF de exemplo Casa do Vidro — aguarda validação do exemplo
 
 ## Revisão do modelo executivo — 11/10
+- [ ] PDF v4: recuperar visual v2, ampliar notas explicativas e validar todos os destinos do sumário
+- [ ] PDF v4: usar logo cadastrado da Open e imagem do cadastro/perfil da Casa do Vidro
 - [x] PDF v3 Casa do Vidro: DFC conciliada, detalhamento inspirado na IBE, fórmulas, prazos, notas, sumário clicável, glossário de uma página e texto formal justificado; 18 páginas inspecionadas
 - [ ] Completar faturamento de 12 meses — depende da importação de setembro a dezembro/2025 da Casa do Vidro; versão v3 identifica esses meses como N/D

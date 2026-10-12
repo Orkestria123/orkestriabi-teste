@@ -18,5 +18,6 @@ O envio exige um domínio próprio verificado (ex.: avisos@opengestao.com.br). A
 ## Detalhes técnicos
 - Tabelas: `relatorio_modelos` (tenant, seções jsonb, textos, imagens), `relatorios_executivos` (company, competência, conteúdo jsonb, status, pdf_path, disponibilizado_em/por), `relatorio_envios` (log por destinatário). RLS: escritório escreve no próprio tenant; cliente lê só disponibilizados das empresas em `usuario_empresas`.
 - Bucket privado `relatorios` para PDFs/imagens; URL assinada para o cliente.
-- Geração: server function com IA (Lovable AI) + dados via build-statements; PDF renderizado no navegador (@react-pdf/renderer) seguindo o visual v4 aprovado.
+- Geração: server function + dados via build-statements; PDF renderizado no navegador (@react-pdf/renderer) seguindo o visual v4 aprovado.
+- Textos por IA via Perplexity (chave PERPLEXITY_KEY já salva). A API de Embeddings do anexo não escreve textos (só serve para busca semântica), então os textos usam o Router API da Perplexity (`/router/v1/chat/completions`, sem busca na web, para não trazer informação externa aos números) com perfil de contador/controller formal. Fallback para a IA atual se a Perplexity falhar.
 - E-mail: template "relatorio-disponivel" (um envio por destinatário, idempotente por relatório+usuário).

@@ -9,6 +9,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { claimOrkestriaAdmin } from "@/lib/api/orkestria.functions";
 
 export const Route = createFileRoute("/")({
+  head: () => ({ meta: [
+    { title: "Acesso ao Orkestria BI" },
+    { name: "description", content: "Acesse as demonstrações contábeis e os relatórios mensais das suas empresas no Orkestria BI." },
+    { property: "og:title", content: "Acesso ao Orkestria BI" },
+    { property: "og:description", content: "Demonstrações contábeis, indicadores e relatórios executivos em um ambiente seguro." },
+    { property: "og:type", content: "website" },
+    { name: "twitter:card", content: "summary" },
+  ] }),
   component: Index,
 });
 

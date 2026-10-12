@@ -2533,6 +2533,149 @@ export type Database = {
           },
         ]
       }
+      relatorio_envios: {
+        Row: {
+          created_at: string
+          detalhe: string | null
+          email: string
+          id: string
+          relatorio_id: string
+          status: string
+          tenant_id: string
+        }
+        Insert: {
+          created_at?: string
+          detalhe?: string | null
+          email: string
+          id?: string
+          relatorio_id: string
+          status?: string
+          tenant_id: string
+        }
+        Update: {
+          created_at?: string
+          detalhe?: string | null
+          email?: string
+          id?: string
+          relatorio_id?: string
+          status?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "relatorio_envios_relatorio_id_fkey"
+            columns: ["relatorio_id"]
+            isOneToOne: false
+            referencedRelation: "relatorios_executivos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "relatorio_envios_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      relatorio_modelos: {
+        Row: {
+          created_at: string
+          id: string
+          secoes: Json
+          tenant_id: string
+          textos: Json
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          secoes?: Json
+          tenant_id: string
+          textos?: Json
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          secoes?: Json
+          tenant_id?: string
+          textos?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "relatorio_modelos_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: true
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      relatorios_executivos: {
+        Row: {
+          company_id: string
+          competencia: string
+          conteudo: Json
+          created_at: string
+          criado_por: string | null
+          disponibilizado_em: string | null
+          disponibilizado_por: string | null
+          id: string
+          pdf_path: string | null
+          status: string
+          tenant_id: string
+          titulo: string
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          competencia: string
+          conteudo?: Json
+          created_at?: string
+          criado_por?: string | null
+          disponibilizado_em?: string | null
+          disponibilizado_por?: string | null
+          id?: string
+          pdf_path?: string | null
+          status?: string
+          tenant_id: string
+          titulo?: string
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          competencia?: string
+          conteudo?: Json
+          created_at?: string
+          criado_por?: string | null
+          disponibilizado_em?: string | null
+          disponibilizado_por?: string | null
+          id?: string
+          pdf_path?: string | null
+          status?: string
+          tenant_id?: string
+          titulo?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "relatorios_executivos_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "relatorios_executivos_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       saldo_inicial_uploads: {
         Row: {
           company_id: string
@@ -3542,6 +3685,14 @@ export type Database = {
       ecd_titulo: { Args: { _s: string }; Returns: string }
       ecd_upload_do_ecd: { Args: { _importacao_id: string }; Returns: string }
       ecd_vinculo_do_robo: { Args: { _observacao: string }; Returns: boolean }
+      emails_com_acesso_empresa: {
+        Args: { _company_id: string }
+        Returns: {
+          email: string
+          nome: string
+          user_id: string
+        }[]
+      }
       encerramentos_da_empresa: {
         Args: { _company_id: string }
         Returns: {

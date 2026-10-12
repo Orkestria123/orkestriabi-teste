@@ -85,7 +85,7 @@ export const gerarTextosRelatorio = createServerFn({ method: "POST" })
       return { texto: null, erro: String(e?.message ?? e) };
     });
     let textos = p.texto ? extrairJson(p.texto) : null;
-    if (p.texto && !textos) console.error("[relatorio-ia] perplexity sem JSON válido:", p.texto.slice(0, 400));
+    if (p.texto && !textos) console.error("[relatorio-ia] perplexity sem JSON válido:", "len=" + p.texto.length, "tail=", p.texto.slice(-200));
     let fonte = "Perplexity";
     if (!textos) {
       const l = await viaLovable(prompt).catch(() => null);

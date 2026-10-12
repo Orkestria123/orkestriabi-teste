@@ -1,13 +1,14 @@
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Eye, EyeOff, ArrowUp, ArrowDown, FileText, Loader2, Send, Download, Pencil, Trash2, Sparkles, Upload } from "lucide-react";
+import { Plus, Star, Eye, EyeOff, ArrowUp, ArrowDown, FileText, Loader2, Send, Download, Pencil, Trash2, Sparkles, Upload } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { useMyCompanies } from "@/hooks/use-financial-data";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -21,13 +22,19 @@ import { urlDaImagemPerfil } from "@/lib/perfil-imagens";
 
 const db = supabase as any;
 
-function useModelo(tenantId: string | null) {
+type ModeloSalvo = ModeloRelatorio & { id?: string; nome: string; is_padrao: boolean };
+
+function useModelos(tenantId: string | null) {
   return useQuery({
-    queryKey: ["relatorio-modelo", tenantId], enabled: !!tenantId,
-    queryFn: async (): Promise<ModeloRelatorio & { id?: string }> => {
-      const { data } = await db.from("relatorio_modelos").select("*").eq("tenant_id", tenantId).maybeSingle();
-      if (!data) return MODELO_PADRAO;
-      return { id: data.id, secoes: normalizarSecoes(data.secoes), textos: { ...MODELO_PADRAO.textos, ...(data.textos ?? {}) } };
+    queryKey: ["relatorio-modelos", tenantId], enabled: !!tenantId,
+    queryFn: async (): Promise<ModeloSalvo[]> => {
+      const { data } = await db.from("relatorio_modelos").select("*").eq("tenant_id", tenantId).order("created_at");
+      const lista: ModeloSalvo[] = (data ?? []).map((d: any) => ({
+        id: d.id, nome: d.nome, is_padrao: d.is_padrao,
+        secoes: normalizarSecoes(d.secoes), textos: { ...MODELO_PADRAO.textos, ...(d.textos ?? {}) },
+      }));
+      if (!lista.length) return [{ ...MODELO_PADRAO, nome: "Modelo padrão", is_padrao: true }];
+      return lista.sort((a, b) => Number(b.is_padrao) - Number(a.is_padrao));
     },
   });
 }
@@ -53,34 +60,79 @@ function EditorSecoes({ secoes, onChange }: { secoes: SecaoCfg[]; onChange: (s: 
   );
 }
 
-function ModeloPadrao({ tenantId }: { tenantId: string }) {
+function GerenciarModelos({ tenantId }: { tenantId: string }) {
   const qc = useQueryClient();
-  const { data } = useModelo(tenantId);
-  const [m, setM] = useState<ModeloRelatorio | null>(null);
-  useEffect(() => { if (data) setM(data); }, [data]);
-  if (!m) return <Loader2 className="h-5 w-5 animate-spin" />;
+  const { data: modelos } = useModelos(tenantId);
+  const [selId, setSelId] = useState<string>("");
+  const [m, setM] = useState<ModeloSalvo | null>(null);
+  useEffect(() => {
+    if (!modelos?.length || selId === "__novo") return;
+    const atual = modelos.find((x) => (x.id ?? "") === selId) ?? modelos[0];
+    setSelId(atual.id ?? ""); setM(atual);
+  }, [modelos, selId]);
+  if (!m || !modelos) return <Loader2 className="h-5 w-5 animate-spin" />;
+  const recarregar = () => qc.invalidateQueries({ queryKey: ["relatorio-modelos"] });
   const salvar = async () => {
-    const { error } = await db.from("relatorio_modelos").upsert({ tenant_id: tenantId, secoes: m.secoes, textos: m.textos }, { onConflict: "tenant_id" });
+    if (!m.nome.trim()) return toast.error("Informe o nome do modelo.");
+    const linha = { tenant_id: tenantId, nome: m.nome.trim(), secoes: m.secoes, textos: m.textos, is_padrao: m.is_padrao };
+    const { data, error } = m.id
+      ? await db.from("relatorio_modelos").update(linha).eq("id", m.id).select("id").single()
+      : await db.from("relatorio_modelos").insert(linha).select("id").single();
     if (error) return toast.error(error.message);
-    toast.success("Modelo padrão salvo."); qc.invalidateQueries({ queryKey: ["relatorio-modelo"] });
+    toast.success("Modelo salvo."); setSelId(data.id); recarregar();
+  };
+  const novo = () => {
+    setSelId("__novo");
+    setM({ ...MODELO_PADRAO, secoes: [...m.secoes], textos: { ...m.textos }, nome: `Cópia de ${m.nome}`, is_padrao: false, id: undefined });
+  };
+  const tornarPadrao = async () => {
+    if (!m.id) return toast.error("Salve o modelo antes.");
+    await db.from("relatorio_modelos").update({ is_padrao: false }).eq("tenant_id", tenantId).neq("id", m.id);
+    const { error } = await db.from("relatorio_modelos").update({ is_padrao: true }).eq("id", m.id);
+    if (error) return toast.error(error.message);
+    toast.success(`"${m.nome}" agora é o modelo padrão.`); recarregar();
+  };
+  const excluir = async () => {
+    if (!m.id || m.is_padrao) return;
+    if (!confirm(`Excluir o modelo "${m.nome}"?`)) return;
+    const { error } = await db.from("relatorio_modelos").delete().eq("id", m.id);
+    if (error) return toast.error(error.message);
+    setSelId(""); recarregar();
   };
   return (
-    <div className="grid gap-6 lg:grid-cols-2">
-      <div className="space-y-2">
-        <h3 className="font-semibold">Seções e ordem</h3>
-        <p className="text-xs text-muted-foreground">Vale para todos os relatórios novos. Em cada empresa você ainda pode ajustar.</p>
-        <EditorSecoes secoes={m.secoes} onChange={(secoes) => setM({ ...m, secoes })} />
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-end gap-3 rounded-lg border bg-card p-4">
+        <div className="space-y-1"><Label className="text-xs">Modelo</Label>
+          <Select value={selId} onValueChange={setSelId}>
+            <SelectTrigger className="w-[260px]"><SelectValue placeholder={m.nome} /></SelectTrigger>
+            <SelectContent>{modelos.filter((x) => x.id).map((x) => <SelectItem key={x.id} value={x.id!}>{x.nome}{x.is_padrao ? " (padrão)" : ""}</SelectItem>)}</SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1"><Label className="text-xs">Nome</Label>
+          <Input className="w-[260px]" value={m.nome} onChange={(e) => setM({ ...m, nome: e.target.value })} />
+        </div>
+        <Button variant="outline" onClick={novo}><Plus className="h-4 w-4 mr-1" />Novo modelo</Button>
+        {m.is_padrao ? <Badge><Star className="h-3 w-3 mr-1" />Padrão</Badge>
+          : <Button variant="outline" onClick={tornarPadrao}><Star className="h-4 w-4 mr-1" />Tornar padrão</Button>}
+        {m.id && !m.is_padrao && <Button variant="ghost" onClick={excluir}><Trash2 className="h-4 w-4 mr-1" />Excluir</Button>}
       </div>
-      <div className="space-y-3">
-        <h3 className="font-semibold">Textos fixos</h3>
-        <p className="text-xs text-muted-foreground">Se preenchidos, entram em todos os relatórios no lugar do texto da IA.</p>
-        {(["escritorio", "conclusoes", "glossario"] as SecaoId[]).map((k) => (
-          <div key={k} className="space-y-1">
-            <Label className="text-xs">{SECOES.find((s) => s.id === k)?.titulo}</Label>
-            <Textarea rows={k === "glossario" ? 8 : 4} value={m.textos[k] ?? ""} onChange={(e) => setM({ ...m, textos: { ...m.textos, [k]: e.target.value } })} />
-          </div>
-        ))}
-        <Button onClick={salvar}>Salvar modelo padrão</Button>
+      <div className="grid gap-6 lg:grid-cols-2">
+        <div className="space-y-2">
+          <h3 className="font-semibold">Seções e ordem</h3>
+          <p className="text-xs text-muted-foreground">Vale para os relatórios novos gerados com este modelo. Em cada relatório você ainda pode ajustar.</p>
+          <EditorSecoes secoes={m.secoes} onChange={(secoes) => setM({ ...m, secoes })} />
+        </div>
+        <div className="space-y-3">
+          <h3 className="font-semibold">Textos fixos</h3>
+          <p className="text-xs text-muted-foreground">Se preenchidos, entram nos relatórios deste modelo no lugar do texto da IA.</p>
+          {(["escritorio", "conclusoes", "glossario"] as SecaoId[]).map((k) => (
+            <div key={k} className="space-y-1">
+              <Label className="text-xs">{SECOES.find((s) => s.id === k)?.titulo}</Label>
+              <Textarea rows={k === "glossario" ? 8 : 4} value={m.textos[k] ?? ""} onChange={(e) => setM({ ...m, textos: { ...m.textos, [k]: e.target.value } })} />
+            </div>
+          ))}
+          <Button onClick={salvar}>Salvar modelo</Button>
+        </div>
       </div>
     </div>
   );
@@ -211,7 +263,9 @@ function DisponibilizarDialog({ rel, onClose }: { rel: any; onClose: () => void 
 export function RelatoriosEmpresa({ tenantId, companyIdInicial }: { tenantId: string; companyIdInicial?: string }) {
   const qc = useQueryClient();
   const { data: companies } = useMyCompanies();
-  const { data: modelo } = useModelo(tenantId);
+  const { data: modelos } = useModelos(tenantId);
+  const [modeloId, setModeloId] = useState("");
+  const modelo = modelos?.find((x) => (x.id ?? "") === modeloId) ?? modelos?.find((x) => x.is_padrao) ?? modelos?.[0];
   const [companyId, setCompanyId] = useState(companyIdInicial ?? "");
   const [periodo, setPeriodo] = useState("");
   const [gerando, setGerando] = useState<string | null>(null);
@@ -227,6 +281,20 @@ export function RelatoriosEmpresa({ tenantId, companyIdInicial }: { tenantId: st
       const { data } = await q; return data ?? [];
     },
   });
+
+  // Ao escolher a empresa: modelo mais usado nela; senão, o padrão.
+  useEffect(() => {
+    if (!modelos?.length) return;
+    const padrao = modelos.find((x) => x.is_padrao)?.id ?? modelos[0].id ?? "";
+    if (!companyId) { setModeloId(padrao); return; }
+    db.from("relatorios_executivos").select("modelo_id").eq("company_id", companyId).not("modelo_id", "is", null).order("created_at", { ascending: false }).limit(50)
+      .then(({ data }: any) => {
+        const cont = new Map<string, number>();
+        for (const r of data ?? []) if (modelos.some((m) => m.id === r.modelo_id)) cont.set(r.modelo_id, (cont.get(r.modelo_id) ?? 0) + 1);
+        const top = [...cont.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
+        setModeloId(top ?? padrao);
+      });
+  }, [companyId, modelos]);
 
   const gerar = async () => {
     if (!companyId || !periodo || !modelo) return;
@@ -257,7 +325,7 @@ export function RelatoriosEmpresa({ tenantId, companyIdInicial }: { tenantId: st
       const embed = async (u?: string | null) => { if (!u) return null; try { const b = await (await fetch(u)).blob(); return await new Promise<string>((res) => { const f = new FileReader(); f.onload = () => res(f.result as string); f.readAsDataURL(b); }); } catch { return null; } };
       conteudo.imagens = { logoEscritorio: await embed(conteudo.imagens.logoEscritorio), logoEmpresa: await embed(conteudo.imagens.logoEmpresa), fotoEmpresa: await embed(conteudo.imagens.fotoEmpresa) };
       const { data: novo, error } = await db.from("relatorios_executivos").insert({
-        tenant_id: tenantId, company_id: companyId, competencia: periodo, conteudo, titulo: `Relatório Executivo ${mesExtenso(periodo)}`,
+        tenant_id: tenantId, company_id: companyId, modelo_id: modelo.id ?? null, competencia: periodo, conteudo, titulo: `Relatório Executivo ${mesExtenso(periodo)}`,
       }).select("*").single();
       if (error) throw error;
       toast.success(r.ok ? `Relatório gerado (textos: ${r.fonte}). Revise antes de disponibilizar.` : "Relatório gerado sem textos da IA.");
@@ -286,6 +354,12 @@ export function RelatoriosEmpresa({ tenantId, companyIdInicial }: { tenantId: st
           <Select value={periodo} onValueChange={setPeriodo} disabled={!periodos?.length}>
             <SelectTrigger className="w-[180px]"><SelectValue placeholder="—" /></SelectTrigger>
             <SelectContent>{[...(periodos ?? [])].reverse().map((p) => <SelectItem key={p} value={p}>{mesExtenso(p)}</SelectItem>)}</SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1"><Label className="text-xs">Modelo</Label>
+          <Select value={modelo?.id ?? ""} onValueChange={setModeloId} disabled={!modelos?.some((x) => x.id)}>
+            <SelectTrigger className="w-[220px]"><SelectValue placeholder={modelo?.nome ?? "Modelo padrão"} /></SelectTrigger>
+            <SelectContent>{modelos?.filter((x) => x.id).map((x) => <SelectItem key={x.id} value={x.id!}>{x.nome}{x.is_padrao ? " (padrão)" : ""}</SelectItem>)}</SelectContent>
           </Select>
         </div>
         <Button onClick={gerar} disabled={!companyId || !periodo || !!gerando}>
@@ -318,9 +392,9 @@ export function RelatoriosEmpresa({ tenantId, companyIdInicial }: { tenantId: st
 export function RelatoriosAdmin({ tenantId, companyId }: { tenantId: string; companyId?: string }) {
   return (
     <Tabs defaultValue="relatorios">
-      <TabsList><TabsTrigger value="relatorios">Relatórios por empresa</TabsTrigger><TabsTrigger value="modelo">Modelo padrão</TabsTrigger></TabsList>
+      <TabsList><TabsTrigger value="relatorios">Relatórios por empresa</TabsTrigger><TabsTrigger value="modelo">Modelos</TabsTrigger></TabsList>
       <TabsContent value="relatorios"><RelatoriosEmpresa tenantId={tenantId} companyIdInicial={companyId} /></TabsContent>
-      <TabsContent value="modelo"><ModeloPadrao tenantId={tenantId} /></TabsContent>
+      <TabsContent value="modelo"><GerenciarModelos tenantId={tenantId} /></TabsContent>
     </Tabs>
   );
 }

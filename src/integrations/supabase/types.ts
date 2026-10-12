@@ -2582,6 +2582,8 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          is_padrao: boolean
+          nome: string
           secoes: Json
           tenant_id: string
           textos: Json
@@ -2590,6 +2592,8 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
+          is_padrao?: boolean
+          nome?: string
           secoes?: Json
           tenant_id: string
           textos?: Json
@@ -2598,6 +2602,8 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
+          is_padrao?: boolean
+          nome?: string
           secoes?: Json
           tenant_id?: string
           textos?: Json
@@ -2607,7 +2613,7 @@ export type Database = {
           {
             foreignKeyName: "relatorio_modelos_tenant_id_fkey"
             columns: ["tenant_id"]
-            isOneToOne: true
+            isOneToOne: false
             referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
@@ -2623,6 +2629,7 @@ export type Database = {
           disponibilizado_em: string | null
           disponibilizado_por: string | null
           id: string
+          modelo_id: string | null
           pdf_path: string | null
           status: string
           tenant_id: string
@@ -2638,6 +2645,7 @@ export type Database = {
           disponibilizado_em?: string | null
           disponibilizado_por?: string | null
           id?: string
+          modelo_id?: string | null
           pdf_path?: string | null
           status?: string
           tenant_id: string
@@ -2653,6 +2661,7 @@ export type Database = {
           disponibilizado_em?: string | null
           disponibilizado_por?: string | null
           id?: string
+          modelo_id?: string | null
           pdf_path?: string | null
           status?: string
           tenant_id?: string
@@ -2665,6 +2674,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "relatorios_executivos_modelo_id_fkey"
+            columns: ["modelo_id"]
+            isOneToOne: false
+            referencedRelation: "relatorio_modelos"
             referencedColumns: ["id"]
           },
           {

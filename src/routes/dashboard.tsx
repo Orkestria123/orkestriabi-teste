@@ -1,3 +1,5 @@
+import { FileText } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { createFileRoute, Outlet, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { PortalShell } from "@/components/portal-shell";
@@ -158,6 +160,11 @@ function DashboardLayout() {
         actions={
           <div className="flex items-center gap-2">
             <VisaoToggle />
+            {!isCliente && selectedCompany ? (
+              <Button size="sm" onClick={() => navigate({ to: "/admin/relatorios", search: { company: selectedCompany } })}>
+                <FileText className="h-4 w-4 mr-1" />Relatório Executivo
+              </Button>
+            ) : null}
             {companies && companies.length > 1 ? (
               <Select
                 value={selectedCompany ?? ""}

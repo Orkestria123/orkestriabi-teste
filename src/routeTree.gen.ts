@@ -22,6 +22,7 @@ import { Route as AdminGruposRouteImport } from './routes/admin.grupos'
 import { Route as AdminIndicadoresRouteImport } from './routes/admin.indicadores'
 import { Route as AdminLogsRouteImport } from './routes/admin.logs'
 import { Route as AdminPlanoPadraoRouteImport } from './routes/admin.plano-padrao'
+import { Route as AdminRelatoriosRouteImport } from './routes/admin.relatorios'
 import { Route as AdminSaudeRouteImport } from './routes/admin.saude'
 import { Route as AdminSegmentosRouteImport } from './routes/admin.segmentos'
 import { Route as AdminSistemasRouteImport } from './routes/admin.sistemas'
@@ -37,6 +38,7 @@ import { Route as DashboardFornecedoresRouteImport } from './routes/dashboard.fo
 import { Route as DashboardIndicadoresRouteImport } from './routes/dashboard.indicadores'
 import { Route as DashboardNotasFiscaisRouteImport } from './routes/dashboard.notas-fiscais'
 import { Route as DashboardOrcamentoRouteImport } from './routes/dashboard.orcamento'
+import { Route as DashboardRelatoriosRouteImport } from './routes/dashboard.relatorios'
 import { Route as OrkestriaAdminIndexRouteImport } from './routes/orkestria-admin.index'
 import { Route as OrkestriaAdminTenantsRouteImport } from './routes/orkestria-admin.tenants'
 import { Route as AdminEmpresasIndexRouteImport } from './routes/admin.empresas.index'
@@ -105,6 +107,11 @@ const AdminLogsRoute = AdminLogsRouteImport.update({
 const AdminPlanoPadraoRoute = AdminPlanoPadraoRouteImport.update({
   id: '/admin/plano-padrao',
   path: '/admin/plano-padrao',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminRelatoriosRoute = AdminRelatoriosRouteImport.update({
+  id: '/admin/relatorios',
+  path: '/admin/relatorios',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminSaudeRoute = AdminSaudeRouteImport.update({
@@ -183,6 +190,11 @@ const DashboardOrcamentoRoute = DashboardOrcamentoRouteImport.update({
   path: '/orcamento',
   getParentRoute: () => DashboardRoute,
 } as any)
+const DashboardRelatoriosRoute = DashboardRelatoriosRouteImport.update({
+  id: '/relatorios',
+  path: '/relatorios',
+  getParentRoute: () => DashboardRoute,
+} as any)
 const OrkestriaAdminIndexRoute = OrkestriaAdminIndexRouteImport.update({
   id: '/orkestria-admin/',
   path: '/orkestria-admin/',
@@ -217,6 +229,7 @@ export interface FileRoutesByFullPath {
   '/admin/indicadores': typeof AdminIndicadoresRoute
   '/admin/logs': typeof AdminLogsRoute
   '/admin/plano-padrao': typeof AdminPlanoPadraoRoute
+  '/admin/relatorios': typeof AdminRelatoriosRoute
   '/admin/saude': typeof AdminSaudeRoute
   '/admin/segmentos': typeof AdminSegmentosRoute
   '/admin/sistemas': typeof AdminSistemasRoute
@@ -231,6 +244,7 @@ export interface FileRoutesByFullPath {
   '/dashboard/indicadores': typeof DashboardIndicadoresRoute
   '/dashboard/notas-fiscais': typeof DashboardNotasFiscaisRoute
   '/dashboard/orcamento': typeof DashboardOrcamentoRoute
+  '/dashboard/relatorios': typeof DashboardRelatoriosRoute
   '/orkestria-admin/tenants': typeof OrkestriaAdminTenantsRoute
   '/admin/': typeof AdminIndexRoute
   '/dashboard/': typeof DashboardIndexRoute
@@ -249,6 +263,7 @@ export interface FileRoutesByTo {
   '/admin/indicadores': typeof AdminIndicadoresRoute
   '/admin/logs': typeof AdminLogsRoute
   '/admin/plano-padrao': typeof AdminPlanoPadraoRoute
+  '/admin/relatorios': typeof AdminRelatoriosRoute
   '/admin/saude': typeof AdminSaudeRoute
   '/admin/segmentos': typeof AdminSegmentosRoute
   '/admin/sistemas': typeof AdminSistemasRoute
@@ -263,6 +278,7 @@ export interface FileRoutesByTo {
   '/dashboard/indicadores': typeof DashboardIndicadoresRoute
   '/dashboard/notas-fiscais': typeof DashboardNotasFiscaisRoute
   '/dashboard/orcamento': typeof DashboardOrcamentoRoute
+  '/dashboard/relatorios': typeof DashboardRelatoriosRoute
   '/orkestria-admin/tenants': typeof OrkestriaAdminTenantsRoute
   '/admin': typeof AdminIndexRoute
   '/dashboard': typeof DashboardIndexRoute
@@ -284,6 +300,7 @@ export interface FileRoutesById {
   '/admin/indicadores': typeof AdminIndicadoresRoute
   '/admin/logs': typeof AdminLogsRoute
   '/admin/plano-padrao': typeof AdminPlanoPadraoRoute
+  '/admin/relatorios': typeof AdminRelatoriosRoute
   '/admin/saude': typeof AdminSaudeRoute
   '/admin/segmentos': typeof AdminSegmentosRoute
   '/admin/sistemas': typeof AdminSistemasRoute
@@ -298,6 +315,7 @@ export interface FileRoutesById {
   '/dashboard/indicadores': typeof DashboardIndicadoresRoute
   '/dashboard/notas-fiscais': typeof DashboardNotasFiscaisRoute
   '/dashboard/orcamento': typeof DashboardOrcamentoRoute
+  '/dashboard/relatorios': typeof DashboardRelatoriosRoute
   '/orkestria-admin/tenants': typeof OrkestriaAdminTenantsRoute
   '/admin/': typeof AdminIndexRoute
   '/dashboard/': typeof DashboardIndexRoute
@@ -320,6 +338,7 @@ export interface FileRouteTypes {
     | '/admin/indicadores'
     | '/admin/logs'
     | '/admin/plano-padrao'
+    | '/admin/relatorios'
     | '/admin/saude'
     | '/admin/segmentos'
     | '/admin/sistemas'
@@ -334,6 +353,7 @@ export interface FileRouteTypes {
     | '/dashboard/indicadores'
     | '/dashboard/notas-fiscais'
     | '/dashboard/orcamento'
+    | '/dashboard/relatorios'
     | '/orkestria-admin/tenants'
     | '/admin/'
     | '/dashboard/'
@@ -352,6 +372,7 @@ export interface FileRouteTypes {
     | '/admin/indicadores'
     | '/admin/logs'
     | '/admin/plano-padrao'
+    | '/admin/relatorios'
     | '/admin/saude'
     | '/admin/segmentos'
     | '/admin/sistemas'
@@ -366,6 +387,7 @@ export interface FileRouteTypes {
     | '/dashboard/indicadores'
     | '/dashboard/notas-fiscais'
     | '/dashboard/orcamento'
+    | '/dashboard/relatorios'
     | '/orkestria-admin/tenants'
     | '/admin'
     | '/dashboard'
@@ -386,6 +408,7 @@ export interface FileRouteTypes {
     | '/admin/indicadores'
     | '/admin/logs'
     | '/admin/plano-padrao'
+    | '/admin/relatorios'
     | '/admin/saude'
     | '/admin/segmentos'
     | '/admin/sistemas'
@@ -400,6 +423,7 @@ export interface FileRouteTypes {
     | '/dashboard/indicadores'
     | '/dashboard/notas-fiscais'
     | '/dashboard/orcamento'
+    | '/dashboard/relatorios'
     | '/orkestria-admin/tenants'
     | '/admin/'
     | '/dashboard/'
@@ -421,6 +445,7 @@ export interface RootRouteChildren {
   AdminIndicadoresRoute: typeof AdminIndicadoresRoute
   AdminLogsRoute: typeof AdminLogsRoute
   AdminPlanoPadraoRoute: typeof AdminPlanoPadraoRoute
+  AdminRelatoriosRoute: typeof AdminRelatoriosRoute
   AdminSaudeRoute: typeof AdminSaudeRoute
   AdminSegmentosRoute: typeof AdminSegmentosRoute
   AdminSistemasRoute: typeof AdminSistemasRoute
@@ -522,6 +547,13 @@ declare module '@tanstack/react-router' {
       path: '/admin/plano-padrao'
       fullPath: '/admin/plano-padrao'
       preLoaderRoute: typeof AdminPlanoPadraoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/relatorios': {
+      id: '/admin/relatorios'
+      path: '/admin/relatorios'
+      fullPath: '/admin/relatorios'
+      preLoaderRoute: typeof AdminRelatoriosRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/saude': {
@@ -629,6 +661,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardOrcamentoRouteImport
       parentRoute: typeof DashboardRoute
     }
+    '/dashboard/relatorios': {
+      id: '/dashboard/relatorios'
+      path: '/relatorios'
+      fullPath: '/dashboard/relatorios'
+      preLoaderRoute: typeof DashboardRelatoriosRouteImport
+      parentRoute: typeof DashboardRoute
+    }
     '/orkestria-admin/': {
       id: '/orkestria-admin/'
       path: '/orkestria-admin'
@@ -670,6 +709,7 @@ interface DashboardRouteChildren {
   DashboardIndicadoresRoute: typeof DashboardIndicadoresRoute
   DashboardNotasFiscaisRoute: typeof DashboardNotasFiscaisRoute
   DashboardOrcamentoRoute: typeof DashboardOrcamentoRoute
+  DashboardRelatoriosRoute: typeof DashboardRelatoriosRoute
   DashboardIndexRoute: typeof DashboardIndexRoute
 }
 
@@ -683,6 +723,7 @@ const DashboardRouteChildren: DashboardRouteChildren = {
   DashboardIndicadoresRoute: DashboardIndicadoresRoute,
   DashboardNotasFiscaisRoute: DashboardNotasFiscaisRoute,
   DashboardOrcamentoRoute: DashboardOrcamentoRoute,
+  DashboardRelatoriosRoute: DashboardRelatoriosRoute,
   DashboardIndexRoute: DashboardIndexRoute,
 }
 
@@ -717,6 +758,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminIndicadoresRoute: AdminIndicadoresRoute,
   AdminLogsRoute: AdminLogsRoute,
   AdminPlanoPadraoRoute: AdminPlanoPadraoRoute,
+  AdminRelatoriosRoute: AdminRelatoriosRoute,
   AdminSaudeRoute: AdminSaudeRoute,
   AdminSegmentosRoute: AdminSegmentosRoute,
   AdminSistemasRoute: AdminSistemasRoute,

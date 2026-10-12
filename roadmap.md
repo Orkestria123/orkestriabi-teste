@@ -35,7 +35,7 @@
 ## Rodada 10/10
 - [x] Replicar estrutura Open → Beltrami conferida (1.250 contas, 74 vínculos DFC, 19 indicadores); publicado
 - [x] PDF de exemplo Casa do Vidro (ago/26) entregue para validação
-- [ ] Relatório executivo no app: configuração geral (engrenagem) + escolha por empresa, botão no BI, capa/tenant/empresa/demonstrações/indicadores/comparativo, cores Open, texto por IA; PDF de exemplo Casa do Vidro — aguarda validação do exemplo
+- [x] Relatório executivo no app: configuração geral (engrenagem) + escolha por empresa, botão no BI, capa/tenant/empresa/demonstrações/indicadores/comparativo, cores Open, texto por IA
 
 ## Revisão do modelo executivo — 11/10
 - [x] PDF v4: recuperar visual v2, ampliar notas explicativas e validar todos os destinos do sumário
@@ -47,6 +47,6 @@
 - [ ] Envio dos e-mails do relatório — aguarda o domínio de e-mail do escritório
 
 ## Fidelidade ao relatório V4 — 12/10
-- [ ] Reproduzir apresentação V4: BP lado a lado, DRE sintética com acumulado, custos, caixa, PL, indicadores agrupados e notas ampliadas
-- [ ] Faturamento V4: tabela RB/RL de 12 meses, cobertura, totais e gráfico compacto; ausências como N/D
-- [ ] Conferir PDF real da Casa do Vidro e links internos sem disponibilizar ou enviar e-mails
+- [x] Reproduzir apresentação V4: BP lado a lado, DRE sintética com acumulado, custos, caixa, PL, indicadores agrupados e notas ampliadas
+- [x] Faturamento V4: tabela RB/RL de 12 meses, cobertura, totais e gráfico compacto; ausências como N/D
+- [x] Conferir PDF real da Casa do Vidro e links internos sem disponibilizar ou enviar e-mails

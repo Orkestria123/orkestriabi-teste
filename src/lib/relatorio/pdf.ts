@@ -65,7 +65,8 @@ function fmtI(v: number | null, formato: string) {
   if (v == null || !isFinite(v)) return "N/D";
   if (formato === "percent") return pct(v);
   if (formato === "money_mil" || formato === "money") return fmtV(formato === "money_mil" ? v / 1000 : v);
-  return v.toLocaleString("pt-BR", { maximumFractionDigits: 2, minimumFractionDigits: 2 });
+  const valor = Math.abs(v).toLocaleString("pt-BR", { maximumFractionDigits: 2, minimumFractionDigits: 2 });
+  return v < 0 ? `(${valor})` : valor;
 }
 const mesTitulo = (p: string) => { const m = MESES[Number(p.slice(5, 7)) - 1]; return `${m[0].toUpperCase()}${m.slice(1)}/${p.slice(0, 4)}`; };
 
@@ -400,7 +401,7 @@ export async function gerarPdfRelatorio(c: ConteudoRelatorio): Promise<Blob> {
             const m=it.match(/^(?:Nota\s+\d+\s*[—–-]\s*)?([^:]+):\s*([\s\S]*)$/i);
             fonte("bold",11,C.azul);doc.text(String(i+1).padStart(2,"0"),x+14,yy);
             fonte("bold",9.5,C.indigo);const title=doc.splitTextToSize(m?.[1]??"Nota explicativa",cw-60);doc.text(title,x+42,yy);yy+=title.length*14+16;
-            const body=m?.[2]??it;fonte("normal",9);const lines=doc.splitTextToSize(body,cw-28);doc.text(lines,x+14,yy,{align:"justify",maxWidth:cw-28,lineHeightFactor:1.45});yy+=lines.length*13.05+26;
+            const body=m?.[2]??it;fonte("normal",10.5);const lines=doc.splitTextToSize(body,cw-28);doc.text(lines,x+14,yy,{align:"justify",maxWidth:cw-28,lineHeightFactor:1.45});yy+=lines.length*15.225+26;
           }
         }
       }

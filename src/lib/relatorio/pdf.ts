@@ -376,7 +376,7 @@ export async function gerarPdfRelatorio(c: ConteudoRelatorio): Promise<Blob> {
           }
         }
       }
-    else if (id === "conclusoes") {
+    } else if (id === "conclusoes") {
       for (const par of (T.conclusoes ?? "").split(/\n+/).map((s) => s.trim()).filter(Boolean)) {
         const m = par.match(/^(\d+\s*[·.)-]\s*[^:]{3,60}):\s*(.+)$/);
         if (m) { if (y > BASE - 50) y = continuacao(); fonte("bold", 9, C.indigo); doc.text(m[1], M, y); y = texto(m[2], y + 16, W - 2 * M, M, 9); }

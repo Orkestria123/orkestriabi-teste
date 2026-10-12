@@ -1,13 +1,14 @@
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Eye, EyeOff, ArrowUp, ArrowDown, FileText, Loader2, Send, Download, Pencil, Trash2, Sparkles, Upload } from "lucide-react";
+import { Plus, Star, Eye, EyeOff, ArrowUp, ArrowDown, FileText, Loader2, Send, Download, Pencil, Trash2, Sparkles, Upload } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { useMyCompanies } from "@/hooks/use-financial-data";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -65,7 +66,7 @@ function GerenciarModelos({ tenantId }: { tenantId: string }) {
   const [selId, setSelId] = useState<string>("");
   const [m, setM] = useState<ModeloSalvo | null>(null);
   useEffect(() => {
-    if (!modelos?.length) return;
+    if (!modelos?.length || selId === "__novo") return;
     const atual = modelos.find((x) => (x.id ?? "") === selId) ?? modelos[0];
     setSelId(atual.id ?? ""); setM(atual);
   }, [modelos, selId]);
@@ -262,7 +263,9 @@ function DisponibilizarDialog({ rel, onClose }: { rel: any; onClose: () => void 
 export function RelatoriosEmpresa({ tenantId, companyIdInicial }: { tenantId: string; companyIdInicial?: string }) {
   const qc = useQueryClient();
   const { data: companies } = useMyCompanies();
-  const { data: modelo } = useModelo(tenantId);
+  const { data: modelos } = useModelos(tenantId);
+  const [modeloId, setModeloId] = useState("");
+  const modelo = modelos?.find((x) => (x.id ?? "") === modeloId) ?? modelos?.find((x) => x.is_padrao) ?? modelos?.[0];
   const [companyId, setCompanyId] = useState(companyIdInicial ?? "");
   const [periodo, setPeriodo] = useState("");
   const [gerando, setGerando] = useState<string | null>(null);
@@ -278,6 +281,20 @@ export function RelatoriosEmpresa({ tenantId, companyIdInicial }: { tenantId: st
       const { data } = await q; return data ?? [];
     },
   });
+
+  // Ao escolher a empresa: modelo mais usado nela; senão, o padrão.
+  useEffect(() => {
+    if (!modelos?.length) return;
+    const padrao = modelos.find((x) => x.is_padrao)?.id ?? modelos[0].id ?? "";
+    if (!companyId) { setModeloId(padrao); return; }
+    db.from("relatorios_executivos").select("modelo_id").eq("company_id", companyId).not("modelo_id", "is", null).order("created_at", { ascending: false }).limit(50)
+      .then(({ data }: any) => {
+        const cont = new Map<string, number>();
+        for (const r of data ?? []) if (modelos.some((m) => m.id === r.modelo_id)) cont.set(r.modelo_id, (cont.get(r.modelo_id) ?? 0) + 1);
+        const top = [...cont.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
+        setModeloId(top ?? padrao);
+      });
+  }, [companyId, modelos]);
 
   const gerar = async () => {
     if (!companyId || !periodo || !modelo) return;
@@ -308,7 +325,7 @@ export function RelatoriosEmpresa({ tenantId, companyIdInicial }: { tenantId: st
       const embed = async (u?: string | null) => { if (!u) return null; try { const b = await (await fetch(u)).blob(); return await new Promise<string>((res) => { const f = new FileReader(); f.onload = () => res(f.result as string); f.readAsDataURL(b); }); } catch { return null; } };
       conteudo.imagens = { logoEscritorio: await embed(conteudo.imagens.logoEscritorio), logoEmpresa: await embed(conteudo.imagens.logoEmpresa), fotoEmpresa: await embed(conteudo.imagens.fotoEmpresa) };
       const { data: novo, error } = await db.from("relatorios_executivos").insert({
-        tenant_id: tenantId, company_id: companyId, competencia: periodo, conteudo, titulo: `Relatório Executivo ${mesExtenso(periodo)}`,
+        tenant_id: tenantId, company_id: companyId, modelo_id: modelo.id ?? null, competencia: periodo, conteudo, titulo: `Relatório Executivo ${mesExtenso(periodo)}`,
       }).select("*").single();
       if (error) throw error;
       toast.success(r.ok ? `Relatório gerado (textos: ${r.fonte}). Revise antes de disponibilizar.` : "Relatório gerado sem textos da IA.");
@@ -337,6 +354,12 @@ export function RelatoriosEmpresa({ tenantId, companyIdInicial }: { tenantId: st
           <Select value={periodo} onValueChange={setPeriodo} disabled={!periodos?.length}>
             <SelectTrigger className="w-[180px]"><SelectValue placeholder="—" /></SelectTrigger>
             <SelectContent>{[...(periodos ?? [])].reverse().map((p) => <SelectItem key={p} value={p}>{mesExtenso(p)}</SelectItem>)}</SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1"><Label className="text-xs">Modelo</Label>
+          <Select value={modelo?.id ?? ""} onValueChange={setModeloId} disabled={!modelos?.some((x) => x.id)}>
+            <SelectTrigger className="w-[220px]"><SelectValue placeholder={modelo?.nome ?? "Modelo padrão"} /></SelectTrigger>
+            <SelectContent>{modelos?.filter((x) => x.id).map((x) => <SelectItem key={x.id} value={x.id!}>{x.nome}{x.is_padrao ? " (padrão)" : ""}</SelectItem>)}</SelectContent>
           </Select>
         </div>
         <Button onClick={gerar} disabled={!companyId || !periodo || !!gerando}>
@@ -369,9 +392,9 @@ export function RelatoriosEmpresa({ tenantId, companyIdInicial }: { tenantId: st
 export function RelatoriosAdmin({ tenantId, companyId }: { tenantId: string; companyId?: string }) {
   return (
     <Tabs defaultValue="relatorios">
-      <TabsList><TabsTrigger value="relatorios">Relatórios por empresa</TabsTrigger><TabsTrigger value="modelo">Modelo padrão</TabsTrigger></TabsList>
+      <TabsList><TabsTrigger value="relatorios">Relatórios por empresa</TabsTrigger><TabsTrigger value="modelo">Modelos</TabsTrigger></TabsList>
       <TabsContent value="relatorios"><RelatoriosEmpresa tenantId={tenantId} companyIdInicial={companyId} /></TabsContent>
-      <TabsContent value="modelo"><ModeloPadrao tenantId={tenantId} /></TabsContent>
+      <TabsContent value="modelo"><GerenciarModelos tenantId={tenantId} /></TabsContent>
     </Tabs>
   );
 }

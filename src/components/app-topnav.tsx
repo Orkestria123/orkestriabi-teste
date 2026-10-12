@@ -70,7 +70,7 @@ const ADMIN_NAV: NavItem[] = [
   { to: "/admin", label: "Dashboard", icon: LayoutDashboard },
   { to: "/admin/comparativo", label: "Comparativo", icon: BarChart3 },
   { to: "/admin/empresas", label: "Empresas", icon: Building2 },
-  
+  { to: "/admin/relatorios", label: "Relatórios", icon: FileText },
   { to: "/admin/usuarios", label: "Usuários", icon: Users },
   { to: "/admin/segmentos", label: "Segmentos", icon: Tags },
   { to: "/admin/grupos", label: "Grupos", icon: Briefcase },

@@ -76,10 +76,7 @@ export async function gerarPdfRelatorio(c: ConteudoRelatorio): Promise<Blob> {
       const p = doc.getImageProperties(data);
       const r = cobrir ? Math.max(w / p.width, h / p.height) : Math.min(w / p.width, h / p.height);
       const iw = p.width * r, ih = p.height * r;
-      if (cobrir) {
-        // recorte simples: centraliza e limita à área com máscara de retângulos do fundo
-        doc.addImage(data, x + (w - iw) / 2, y + (h - ih) / 2, iw, ih);
-      } else doc.addImage(data, x + (w - iw) / 2, y + (h - ih) / 2, iw, ih);
+      doc.addImage(data, x + (w - iw) / 2, y + (h - ih) / 2, iw, ih);
       return true;
     } catch { return false; }
   };
@@ -94,8 +91,8 @@ export async function gerarPdfRelatorio(c: ConteudoRelatorio): Promise<Blob> {
     }
   };
 
-  const cabecalho = (id: SecaoId | null, titulo: string, kicker: string) => {
-    if (!primeira) doc.addPage(); primeira = false;
+  const cabecalho = (id: SecaoId | null, titulo: string, kicker: string, nova = true) => {
+    if (nova) { if (!primeira) doc.addPage(); primeira = false; }
     fill(C.paper); doc.rect(0, 0, W, H, "F");
     faixa(0, 3);
     fonte("normal", 7.5, C.azul, "courier"); doc.text(kicker.toUpperCase(), M, 46, { charSpace: 0.6 });
@@ -118,7 +115,7 @@ export async function gerarPdfRelatorio(c: ConteudoRelatorio): Promise<Blob> {
     paginas.push({ id, titulo: SECOES.find((s) => s.id === id)!.titulo, pagina: doc.getNumberOfPages() });
     return y;
   };
-  const continuacao = () => cabecalho(secaoAtual?.id ?? null, `${secaoAtual?.titulo ?? ""} (continuação)`, secaoAtual ? KICKER[secaoAtual.id] ?? "" : "");
+  const continuacao = (nova = true) => cabecalho(secaoAtual?.id ?? null, `${secaoAtual?.titulo ?? ""} (continuação)`, secaoAtual ? KICKER[secaoAtual.id] ?? "" : "", nova);
 
   const texto = (t: string | undefined, y: number, largura = W - 2 * M, x = M, tam = 10): number => {
     if (!t?.trim()) return y;
@@ -150,7 +147,7 @@ export async function gerarPdfRelatorio(c: ConteudoRelatorio): Promise<Blob> {
       headStyles: { fillColor: C.sunk as any, textColor: C.ink2 as any, fontStyle: "normal" },
       columnStyles: Object.fromEntries(head.map((_, i) => [i, i === 0 ? { cellWidth: opts.larg0 ?? 260, halign: "left" } : { halign: opts.esquerda?.includes(i) ? "left" : "right" }])),
       didParseCell: (h) => { if (h.section === "body" && opts.negrito?.(h.row.index)) { h.cell.styles.fontStyle = "bold"; h.cell.styles.fillColor = C.sunk as any; } },
-      willDrawPage: (h) => { if (h.pageNumber > 1) { doc.deletePage(doc.getNumberOfPages()); continuacao(); } },
+      willDrawPage: (h) => { if (h.pageNumber > 1) continuacao(false); },
     });
     return ((doc as any).lastAutoTable?.finalY ?? y) + 16;
   };

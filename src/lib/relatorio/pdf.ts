@@ -4,6 +4,7 @@
 // rodapé com link para o Sumário, tabelas leves e notas em cartões.
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { calcularCapitalGiro } from "@/lib/analise-capital-giro";
 import { SECOES, mesExtenso, mesCurto, MESES, normalizarSecoes, type ConteudoRelatorio, type LinhaDemo, type SecaoId } from "./tipos";
 
 import headingFont from "@/assets/report-fonts/Poppins-SemiBold.ttf?url";
@@ -110,7 +111,7 @@ export async function gerarPdfRelatorio(c: ConteudoRelatorio): Promise<Blob> {
     if (nova) { if (!primeira) doc.addPage(); primeira = false; }
     fill(C.paper); doc.rect(0, 0, W, H, "F");
     faixa(0, 3);
-    fonte("normal", 7.5, C.azul, "courier"); doc.text(kicker.toUpperCase(), M, 46, { charSpace: 0.6 });
+    fonte("normal", 8, C.azul, "courier"); doc.text(kicker.toUpperCase(), M, 47, { charSpace: 0.6 });
     fonte("bold", 21, C.indigo); doc.text(doc.splitTextToSize(titulo, W - 2 * M - 100), M, 72);
     if (logoEsc) img(logoEsc, W - M - 70, 24, 70, 52);
     if (id && id !== "sumario") { fonte("normal", 7.5, C.ink2); doc.text(`${c.empresa.nome}  |  ${mesTitulo(d.periodo)}`, W - M - 82, 46, { align: "right" }); }
@@ -132,7 +133,7 @@ export async function gerarPdfRelatorio(c: ConteudoRelatorio): Promise<Blob> {
   };
   const continuacao = (nova = true) => cabecalho(secaoAtual?.id ?? null, `${secaoAtual?.titulo ?? ""} (continuação)`, secaoAtual ? KICKER[secaoAtual.id] ?? "" : "", nova);
 
-  const texto = (t: string | undefined, y: number, largura = W - 2 * M, x = M, tam = 10): number => {
+  const texto = (t: string | undefined, y: number, largura = W - 2 * M, x = M, tam = 10.5): number => {
     if (!t?.trim()) return y;
     const lh = tam * 1.45;
     for (const par of t.split(/\n+/)) {
@@ -218,9 +219,9 @@ export async function gerarPdfRelatorio(c: ConteudoRelatorio): Promise<Blob> {
       fill(C.branco); doc.roundedRect(M, 40, 112, 92, 4, 4, "F");
       img(logoEsc, M + 8, 46, 96, 80);
       fonte("normal", 8, C.ciano, "courier"); doc.text("APRESENTAÇÃO MENSAL DE RESULTADOS", M, 232, { charSpace: 0.8 });
-      fonte("bold", 30, C.branco); doc.text(doc.splitTextToSize(c.empresa.nome, W - 2 * M), M, 276);
+      fonte("bold", 33, C.branco); doc.text(doc.splitTextToSize(c.empresa.nome, W - 2 * M), M, 276);
       const sub = [c.empresa.razao, c.empresa.cnpj && `CNPJ ${c.empresa.cnpj}`].filter(Boolean).join(" · ");
-      if (sub) { fonte("normal", 10, C.ciano); doc.text(sub, M, 300); }
+      if (sub) { fonte("normal", 12, C.ciano); doc.text(sub, M, 307); }
       const mm = MESES[Number(d.periodo.slice(5, 7)) - 1];
       fonte("bold", 16, C.lima); doc.text(`${mm[0].toUpperCase()}${mm.slice(1)} · ${d.periodo.slice(0, 4)}`, M, 356);
       fonte("normal", 9, C.branco); doc.text("Preparado por ", M, H - 92);
@@ -313,7 +314,7 @@ export async function gerarPdfRelatorio(c: ConteudoRelatorio): Promise<Blob> {
       const compactar = (ls: LinhaDemo[]) => ls.filter((l) => (l.nivel <= 3 && !(/^(ATIVO|PASSIVO|PASSIVO E PATRIMÔNIO LÍQUIDO|CREDITOS)$/i.test(l.descricao)) || l.nivel === 4 && /^(CLIENTES|ADIANTAMENTO DIVERSOS|TRIBUTOS A RECUPERAR)$/i.test(l.descricao)) && (l.subtotal || Object.values(l.valores).some((v) => Math.abs(v) > .005)));
       const ativo = compactar(d.bpAtivo), passivo = compactar(d.bpPassivo);
       y = tabelaBase(["Ativo", mesCurto(d.periodo), "Passivo + patrimônio líquido", mesCurto(d.periodo)], Array.from({length:Math.max(ativo.length, passivo.length)}, (_, i) => [ativo[i]?.descricao ?? "", ativo[i] ? fmtV(ativo[i].valores[d.periodo]) : "", passivo[i]?.descricao ?? "", passivo[i] ? fmtV(passivo[i].valores[d.periodo]) : ""]), y, { larg0:230, esquerda:[2], compacto:true, negrito:(i)=>!!ativo[i]?.subtotal || !!passivo[i]?.subtotal });
-      texto(T.bp, y, W-2*M, M, 9);
+      texto(T.bp, y, W-2*M, M, 10);
     } else if (id === "dfc") {
       const ls = d.dfc.filter((l) => !/^Bloco|^Fechamento|Validação CPC/i.test(l.descricao) && (l.nivel<=1 || /Depreciação|Fornecedores|Investimentos|Empréstimos|Patrimônio Líquido/i.test(l.descricao)));
       y = ls.length ? tabelaBase(["Descrição",...periodos.map(mesCurto)],ls.map(l=>[l.descricao,...periodos.map(p=>fmtV(l.valores[p]))]),y,{negrito:i=>!!ls[i]?.subtotal,compacto:true,larg0:380}) : texto("Demonstração dos fluxos de caixa não disponível para o período.",y);
@@ -354,6 +355,23 @@ export async function gerarPdfRelatorio(c: ConteudoRelatorio): Promise<Blob> {
         y=tabelaBase(["Indicador","Fórmula",d.anterior?mesCurto(d.anterior):"Anterior",mesCurto(d.periodo),"O que demonstra"],ls.map(i=>[i.label,i.formula,fmtI(i.anterior,i.formato),fmtI(i.atual,i.formato),meanings[i.key]??""]),y,{larg0:165,esquerda:[1,4]});
         texto(j===0?T.indicadores:"ROA, ROE e giro são mensais, não anualizados, usando saldos finais. Dívida bancária não inclui fornecedores; dívida líquida negativa não elimina risco de liquidez.",y,W-2*M,M,9);
       }
+      y = novaPagina(id,"Indicadores de gestão e prazos");
+      const media = (l?:LinhaDemo) => l ? periodos.reduce((a,p)=>a+(l.valores[p]??0),0)/periodos.length : 0;
+      const clientes=media(linha(d.bpAtivo,/^CLIENTES$|contas a receber/i)), estoque=media(linha(d.bpAtivo,/^ESTOQUES$/i)), fornecedores=media(linha(d.bpPassivo,/^FORNECEDORES$/i));
+      const receita=media(linha(d.dre,/receita l[ií]quida/i)), custo=Math.abs(media(linha(d.dre,/custo dos produtos|custo das mercadorias|custo dos servi/i)));
+      const cg=calcularCapitalGiro({bpAtivo:[{descricao:"Clientes",valor:clientes},{descricao:"Estoques",valor:estoque}],bpPassivo:[{descricao:"Fornecedores",valor:fornecedores}],dre:[{descricao:"Receita líquida",valor:receita},{descricao:"Custo dos produtos",valor:custo}],mesesNoRecorte:1});
+      const compras=linha(d.dre,/^COMPRAS$/i), deducoes=linha(d.dre,/deducoes de compras|deduções de compras/i);
+      const liquidas=compras ? Math.abs(media(compras))-Math.abs(media(deducoes)) : null;
+      const pmp=liquidas!=null && liquidas>0?fornecedores/liquidas*30:null;
+      const ciclo=cg.cicloOperacional!=null&&pmp!=null?cg.cicloOperacional-pmp:null;
+      y=tabelaBase(["Indicador","Fórmula","Aplicação — R$ / dias","Resultado","O que demonstra"],[
+        ["Prazo médio de recebimento","Clientes médios / RL média × 30",`${fmtV(clientes)} / ${fmtV(receita)} × 30`,fmtI(cg.pmr,"ratio"),"Estimativa contábil de recebimento, em dias."],
+        ["Prazo médio de estocagem","Estoque médio / CPV médio × 30",`${fmtV(estoque)} / ${fmtV(custo)} × 30`,fmtI(cg.pme,"ratio"),"Tempo estimado de permanência do estoque."],
+        ["Prazo médio de pagamento","Fornecedores médios / compras líquidas médias × 30",`${fmtV(fornecedores)} / ${fmtV(liquidas)} × 30`,fmtI(pmp,"ratio"),"Estimativa de financiamento pelos fornecedores."],
+        ["Ciclo operacional","PMR + PME","Recebimento + estocagem",fmtI(cg.cicloOperacional,"ratio"),"Duração estimada do ciclo da operação."],
+        ["Ciclo financeiro","PMR + PME − PMP","Ciclo operacional − pagamento",fmtI(ciclo,"ratio"),"Intervalo estimado de financiamento da operação."],
+      ],y,{larg0:150,esquerda:[1,2,4]});
+      texto(`Estimativas com médias dos ${periodos.length} meses apresentados e base de 30 dias. Compras líquidas: compras menos deduções cadastradas. Sem compras disponíveis, PMP e ciclo financeiro são N/D, sem substituir compras por CPV industrial. Os prazos não equivalem a vencimentos contratuais nem à idade dos títulos.`,y,W-2*M,M,10);
     } else if (id === "faturamento") {
       const existing = new Map(d.faturamento.map(f=>[f.periodo.slice(0,7),f]));
       const fat=Array.from({length:12},(_,i)=>{const dt=new Date(Date.UTC(Number(d.periodo.slice(0,4)),Number(d.periodo.slice(5,7))-12+i,1));const p=`${dt.getUTCFullYear()}-${String(dt.getUTCMonth()+1).padStart(2,"0")}-01`;return existing.get(p.slice(0,7))??{periodo:p,valor:null,liquida:null};});
@@ -361,7 +379,7 @@ export async function gerarPdfRelatorio(c: ConteudoRelatorio): Promise<Blob> {
       const total=fat.reduce((a,f)=>a+(f.valor??0),0), totalRL=fat.reduce((a,f)=>a+(f.liquida??0),0);
       const rows=fat.map(f=>[mesCurto(f.periodo),f.valor==null?"N/D":fmtV(f.valor),f.liquida==null?"N/D":fmtV(f.liquida),f.valor==null?"Sem dados no BI":"Disponível"]);
       rows.push([`Total parcial (${n} meses)`,fmtV(total),nl?fmtV(totalRL):"N/D","Meses disponíveis"],["Total dos 12 meses",n===12?fmtV(total):"N/D",nl===12?fmtV(totalRL):"N/D",n===12?"Cobertura completa":`${12-n} meses ausentes`]);
-      y=tabelaBase(["Mês","Receita bruta","Receita líquida","Cobertura"],rows,y,{larg0:145,esquerda:[3],compacto:true,negrito:i=>i>=12});
+      y=tabelaBase(["Mês","Receita bruta","Receita líquida","Cobertura"],rows,y,{larg0:145,esquerda:[3],negrito:i=>i>=12});
       const gh=60,gx=M+32,gw=W-2*M-42,bw=gw/12,max=Math.max(1,...fat.map(f=>Math.abs(f.valor??0)));
       fill(C.branco);doc.rect(M,y-6,W-2*M,gh+26,"F");
       for(let j=0;j<=3;j++){const yy=y+gh-j*gh/3;traco(C.line);doc.line(gx,yy,gx+gw,yy);fonte("normal",6,C.ink2);doc.text(fmtV(max*j/3/1e6),gx-5,yy+2,{align:"right"});}

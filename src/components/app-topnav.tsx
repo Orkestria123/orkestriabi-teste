@@ -1,3 +1,4 @@
+import { FileText } from "lucide-react";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import {
   LayoutDashboard,
@@ -44,6 +45,7 @@ const CONFIG_ITEMS: NavItem[] = [
   { to: "/admin/empresas", label: "Cadastro de empresas", icon: Building2 },
   { to: "/admin/indicadores", label: "Indicadores", icon: LineChart },
   { to: "/admin/analises", label: "Análises", icon: BarChart3 },
+  { to: "/admin/relatorios", label: "Relatório Executivo", icon: FileText },
   { to: "/admin/diagnostico", label: "Diagnóstico", icon: Stethoscope },
 ];
 
@@ -56,6 +58,7 @@ const CONFIG_ITEMS_BI: NavItem[] = [
   { to: "/admin/sistemas", label: "Sistemas e layouts", icon: Cable },
   { to: "/admin/indicadores", label: "Indicadores", icon: LineChart },
   { to: "/admin/analises", label: "Análises", icon: BarChart3 },
+  { to: "/admin/relatorios", label: "Relatório Executivo", icon: FileText },
 ];
 
 const ORK_NAV: NavItem[] = [
@@ -82,6 +85,7 @@ const CLIENT_NAV: NavItem[] = [
   { to: "/dashboard/indicadores", label: "Indicadores", icon: LineChart },
   { to: "/dashboard/orcamento", label: "Orçamento", icon: Target },
   { to: "/dashboard/analise", label: "Análise", icon: FileSpreadsheet },
+  { to: "/dashboard/relatorios", label: "Relatórios", icon: FileText },
 ];
 
 export function AppTopNav({

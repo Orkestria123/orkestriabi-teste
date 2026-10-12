@@ -26,7 +26,7 @@ const C = {
   sunk: [234, 237, 247] as RGB, card: [250, 251, 254] as RGB, ink: [26, 28, 49] as RGB,
   ink2: [96, 100, 124] as RGB, line: [220, 223, 236] as RGB, branco: [255, 255, 255] as RGB,
 };
-const W = 841.89, H = 595.28, M = 40, TOPO = 112, BASE = H - 46;
+const W = 841.89, H = 595.28, M = 50, TOPO = 118, BASE = H - 46;
 
 const KICKER: Partial<Record<SecaoId, string>> = {
   sumario: "NAVEGAÇÃO DO RELATÓRIO", escritorio: "ESCRITÓRIO RESPONSÁVEL", empresa: "PERFIL CADASTRADO",
@@ -39,6 +39,7 @@ const KICKER: Partial<Record<SecaoId, string>> = {
 const TITULO: Partial<Record<SecaoId, string>> = {
   escritorio: "Quem apresenta", empresa: "A empresa", resumo: "Resumo do mês", bp: "Balanço Patrimonial",
   dre: "Demonstração do Resultado", dfc: "Demonstração dos Fluxos de Caixa", indicadores: "Indicadores e fórmulas",
+  caixa: "Como o resultado se transforma em caixa", patrimonio: "Evolução do patrimônio líquido", custos: "Custos e despesas",
   faturamento: "Faturamento dos últimos 12 meses", notas: "Notas explicativas", conclusoes: "Conclusões e recomendações",
   glossario: "Glossário",
 };
@@ -58,7 +59,7 @@ function fmtV(v: number | undefined | null) {
   return v < 0 ? `(${a})` : a;
 }
 const fmtR = (v: number | undefined | null) => (v == null || !isFinite(v) ? "N/D" : v < 0 ? `(R$ ${fmtV(-v)})` : `R$ ${fmtV(v)}`);
-const pct = (v: number) => `${v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`;
+const pct = (v: number) => v < 0 ? `(${Math.abs(v).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%)` : `${v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`;
 function fmtI(v: number | null, formato: string) {
   if (v == null || !isFinite(v)) return "N/D";
   if (formato === "percent") return pct(v);
@@ -157,7 +158,7 @@ export async function gerarPdfRelatorio(c: ConteudoRelatorio): Promise<Blob> {
     autoTable(doc, {
       startY: y, head: [head], body: body as any, margin: { left: M, right: M, top: TOPO, bottom: H - BASE + 6 },
       theme: "plain",
-      styles: { font: "PublicSans", fontSize: 7.8, cellPadding: { top: opts.compacto ? 2.5 : 3.2, bottom: opts.compacto ? 2.5 : 3.2, left: 6, right: 6 }, textColor: C.ink as any, lineColor: C.line as any, lineWidth: { bottom: 0.4 } as any, fillColor: C.paper as any },
+      styles: { font: "PublicSans", fontSize: opts.compacto ? 8.4 : 9, cellPadding: { top: opts.compacto ? 3 : 3.8, bottom: opts.compacto ? 3 : 3.8, left: 6, right: 6 }, textColor: C.ink as any, lineColor: C.line as any, lineWidth: { bottom: 0.4 } as any, fillColor: C.paper as any },
       headStyles: { fillColor: C.sunk as any, textColor: C.ink2 as any, fontStyle: "normal" },
       columnStyles: Object.fromEntries(head.map((_, i) => [i, i === 0 ? { cellWidth: opts.larg0 ?? 260, halign: "left" } : { halign: opts.esquerda?.includes(i) ? "left" : "right" }])),
       didParseCell: (h) => { if (h.section === "body" && opts.negrito?.(h.row.index)) { h.cell.styles.font = "Poppins"; h.cell.styles.fontStyle = "normal"; h.cell.styles.fillColor = C.sunk as any; } },
@@ -281,7 +282,16 @@ export async function gerarPdfRelatorio(c: ConteudoRelatorio): Promise<Blob> {
         fonte("normal", 7.5, C.ink2); doc.text(s, x + 12, y + 68);
       });
       y += 100; traco(C.line); doc.line(M, y - 6, W - M, y - 6);
-      texto(T.resumo, y + 14);
+      y = texto(T.resumo, y + 14);
+      if (d.acumulado) {
+        const linhasAcc = d.acumulado.dre;
+        const soma = (re: RegExp) => Object.values(linhasAcc.find(l=>re.test(l.descricao))?.valores ?? {}).reduce((a,b)=>a+b,0);
+        tabelaBase([`Acumulado jan–${mesCurto(d.periodo)}`, "Valor", "Leitura"], [
+          ["Receita bruta",fmtR(soma(/receita bruta/i)),`${d.acumulado.periodos.length} meses com dados`],
+          ["Receita líquida",fmtR(soma(/receita l[ií]quida/i)),"Receita após deduções"],
+          ["Lucro líquido",fmtR(soma(/lucro.*exerc[ií]cio/i)),"Resultado acumulado do período"],
+        ], y, {larg0:260});
+      }
     } else if (id === "dre") {
       const ls = d.dre.filter((l) => l.subtotal || l.nivel === 0);
       const rl = linha(ls, /receita l[ií]quida/i)?.valores[d.periodo] ?? 0;
@@ -300,13 +310,13 @@ export async function gerarPdfRelatorio(c: ConteudoRelatorio): Promise<Blob> {
       y = texto("A segregação segue os grupos configurados no BI. Componentes dos custos não devem ser somados novamente aos respectivos totais.", y, W-2*M, M, 8);
       texto(T.custos, y, W-2*M, M,9);
     } else if (id === "bp") {
-      const compactar = (ls: LinhaDemo[]) => ls.filter((l) => l.nivel <= 3 && !(/^(ATIVO|PASSIVO)$/i.test(l.descricao)) && (l.subtotal || Object.values(l.valores).some((v) => Math.abs(v) > .005)));
+      const compactar = (ls: LinhaDemo[]) => ls.filter((l) => (l.nivel <= 3 && !(/^(ATIVO|PASSIVO|PASSIVO E PATRIMÔNIO LÍQUIDO|CREDITOS)$/i.test(l.descricao)) || l.nivel === 4 && /^(CLIENTES|ADIANTAMENTO DIVERSOS|TRIBUTOS A RECUPERAR)$/i.test(l.descricao)) && (l.subtotal || Object.values(l.valores).some((v) => Math.abs(v) > .005)));
       const ativo = compactar(d.bpAtivo), passivo = compactar(d.bpPassivo);
       y = tabelaBase(["Ativo", mesCurto(d.periodo), "Passivo + patrimônio líquido", mesCurto(d.periodo)], Array.from({length:Math.max(ativo.length, passivo.length)}, (_, i) => [ativo[i]?.descricao ?? "", ativo[i] ? fmtV(ativo[i].valores[d.periodo]) : "", passivo[i]?.descricao ?? "", passivo[i] ? fmtV(passivo[i].valores[d.periodo]) : ""]), y, { larg0:230, esquerda:[2], compacto:true, negrito:(i)=>!!ativo[i]?.subtotal || !!passivo[i]?.subtotal });
       texto(T.bp, y, W-2*M, M, 9);
     } else if (id === "dfc") {
-      const ls = d.dfc.filter((l) => !/^Bloco|^Fechamento|Validação CPC/i.test(l.descricao));
-      y = ls.length ? tabelaDemo(ls, periodos, y) : texto("Demonstração dos fluxos de caixa não disponível para o período.",y);
+      const ls = d.dfc.filter((l) => !/^Bloco|^Fechamento|Validação CPC/i.test(l.descricao) && (l.nivel<=1 || /Depreciação|Fornecedores|Investimentos|Empréstimos|Patrimônio Líquido/i.test(l.descricao)));
+      y = ls.length ? tabelaBase(["Descrição",...periodos.map(mesCurto)],ls.map(l=>[l.descricao,...periodos.map(p=>fmtV(l.valores[p]))]),y,{negrito:i=>!!ls[i]?.subtotal,compacto:true,larg0:380}) : texto("Demonstração dos fluxos de caixa não disponível para o período.",y);
       texto(T.dfc, y, W-2*M, M,9);
     } else if (id === "caixa") {
       const get = (re: RegExp) => linha(d.dfc,re)?.valores[d.periodo] ?? 0;
@@ -327,7 +337,7 @@ export async function gerarPdfRelatorio(c: ConteudoRelatorio): Promise<Blob> {
       y=texto(T.caixa || T.dfc,y,W-2*M,M,9);
       texto(`Conciliação: FCO ${fmtR(values[1])} + FCI ${fmtR(values[2])} + FCF ${fmtR(values[3])} = ${fmtR(values[1]+values[2]+values[3])}. Caixa final ${fmtR(final)}; inicial ${fmtR(inicial)}. Valores do gráfico em R$ milhões.`,y,W-2*M,M,8);
     } else if (id === "patrimonio") {
-      const start=d.bpPassivo.findIndex((l)=>/patrim[oô]nio l[ií]quido/i.test(l.descricao));
+      const start=d.bpPassivo.findIndex((l)=>/^patrim[oô]nio l[ií]quido$/i.test(l.descricao));
       const ls=start<0 ? [] : d.bpPassivo.slice(start).filter((l)=>!/total do passivo/i.test(l.descricao) && l.nivel<=3);
       y=tabelaBase(["Componente",d.anterior?mesCurto(d.anterior):"Anterior",mesCurto(d.periodo),"Variação"],ls.map((l)=>[l.descricao,d.anterior?fmtV(l.valores[d.anterior]):"N/D",fmtV(l.valores[d.periodo]),d.anterior?fmtV((l.valores[d.periodo]??0)-(l.valores[d.anterior]??0)):"N/D"]),y,{negrito:i=>!!ls[i]?.subtotal});
       y=texto(T.patrimonio,y,W-2*M,M,9);

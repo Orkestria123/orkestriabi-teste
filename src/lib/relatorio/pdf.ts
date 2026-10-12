@@ -48,8 +48,8 @@ export async function gerarPdfRelatorio(c: ConteudoRelatorio): Promise<Blob> {
     } catch { /* imagem inválida */ }
   };
   const faixa = () => {
-    const cores = [C.indigo, C.azul, C.ciano, C.lima];
-    cores.forEach((cor, i) => { doc.setFillColor(...cor); doc.rect((W / 4) * i, 0, W / 4, 5, "F"); });
+    const cores = [C.indigo, C.azul, C.ciano, C.lima] as const;
+    cores.forEach((cor, i) => { doc.setFillColor(cor[0], cor[1], cor[2]); doc.rect((W / 4) * i, 0, W / 4, 5, "F"); });
   };
   const novaPagina = (id: SecaoId | null, titulo: string) => {
     if (!primeira) doc.addPage(); primeira = false;
@@ -153,7 +153,7 @@ export async function gerarPdfRelatorio(c: ConteudoRelatorio): Promise<Blob> {
       const gw = W - 2 * M, gh = 200, bw = gw / Math.max(12, d.faturamento.length);
       d.faturamento.forEach((f, i) => {
         const h = (Math.abs(f.valor) / max) * (gh - 30);
-        doc.setFillColor(...(i === d.faturamento.length - 1 ? C.azul : C.indigo));
+        { const cor = i === d.faturamento.length - 1 ? C.azul : C.indigo; doc.setFillColor(cor[0], cor[1], cor[2]); }
         doc.rect(M + i * bw + 6, y + gh - h, bw - 12, h, "F");
         doc.setFontSize(7); doc.setTextColor(...C.ink2);
         doc.text(mesCurto(f.periodo), M + i * bw + bw / 2, y + gh + 12, { align: "center" });

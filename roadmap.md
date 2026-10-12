@@ -45,3 +45,8 @@
 
 - [x] Relatório Executivo no app (padrão na engrenagem, gerar/editar por empresa, disponibilizar no BI + e-mail com confirmação) — textos pela Perplexity
 - [ ] Envio dos e-mails do relatório — aguarda o domínio de e-mail do escritório
+
+## Fidelidade ao relatório V4 — 12/10
+- [ ] Reproduzir apresentação V4: BP lado a lado, DRE sintética com acumulado, custos, caixa, PL, indicadores agrupados e notas ampliadas
+- [ ] Faturamento V4: tabela RB/RL de 12 meses, cobertura, totais e gráfico compacto; ausências como N/D
+- [ ] Conferir PDF real da Casa do Vidro e links internos sem disponibilizar ou enviar e-mails

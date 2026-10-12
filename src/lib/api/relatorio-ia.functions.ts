@@ -80,12 +80,17 @@ export const gerarTextosRelatorio = createServerFn({ method: "POST" })
   }).parse(i))
   .handler(async ({ data }) => {
     const prompt = promptUsuario(data);
-    const p = await viaPerplexity(prompt).catch((e) => {
+    let p = await viaPerplexity(prompt).catch((e) => {
       console.error("[relatorio-ia] perplexity exceção", String(e?.message ?? e));
       return { texto: null, erro: String(e?.message ?? e) };
     });
     let textos = p.texto ? extrairJson(p.texto) : null;
-    if (p.texto && !textos) console.error("[relatorio-ia] perplexity sem JSON válido:", "len=" + p.texto.length, "tail=", p.texto.slice(-200));
+    if (p.texto && !textos) {
+      console.error("[relatorio-ia] perplexity sem JSON válido:", "len=" + p.texto.length, "tail=", p.texto.slice(-200));
+      // Resposta possivelmente truncada: tenta uma segunda vez.
+      p = await viaPerplexity(prompt).catch(() => ({ texto: null }));
+      textos = p.texto ? extrairJson(p.texto) : null;
+    }
     let fonte = "Perplexity";
     if (!textos) {
       const l = await viaLovable(prompt).catch(() => null);

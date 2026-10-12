@@ -42,3 +42,5 @@
 - [x] PDF v4: usar logo cadastrado da Open e imagem do cadastro/perfil da Casa do Vidro
 - [x] PDF v3 Casa do Vidro: DFC conciliada, detalhamento inspirado na IBE, fórmulas, prazos, notas, sumário clicável, glossário de uma página e texto formal justificado; 18 páginas inspecionadas
 - [ ] Completar faturamento de 12 meses — depende da importação de setembro a dezembro/2025 da Casa do Vidro; versão v3 identifica esses meses como N/D
+
+- [ ] Relatório Executivo no app (padrão na engrenagem, gerar/editar por empresa, disponibilizar no BI + e-mail com confirmação) — textos pela Perplexity

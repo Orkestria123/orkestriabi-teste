@@ -407,6 +407,13 @@
       "when": 1791922677370,
       "tag": "0057_tenant_usuarios_multi_escritorio",
       "breakpoints": true
+    },
+    {
+      "idx": 58,
+      "version": "7",
+      "when": 1791922796417,
+      "tag": "0058_listar_vinculos_tenant",
+      "breakpoints": true
     }
   ]
 }

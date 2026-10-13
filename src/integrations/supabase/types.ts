@@ -3837,6 +3837,15 @@ export type Database = {
         Args: { _company_id?: string; _limite?: number; _tenant_id: string }
         Returns: number
       }
+      listar_vinculos_tenant: {
+        Args: { _tenant_id: string }
+        Returns: {
+          ativo_aqui: boolean
+          email: string
+          full_name: string
+          user_id: string
+        }[]
+      }
       marcar_participantes_origem: {
         Args: { _company_id: string }
         Returns: number

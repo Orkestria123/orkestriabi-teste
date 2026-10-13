@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { usePersistente } from "@/hooks/use-persistente";
 import { useQueryClient } from "@tanstack/react-query";
 import { RefreshCw } from "lucide-react";
 import { useDashboardCompany } from "@/components/dashboard-context";
@@ -131,14 +132,14 @@ export function makeStatementPage(
     const { companyId, company } = useDashboardCompany();
     const { periodos } = useFilters();
     const { data, isLoading } = useMonthlyStatement(companyId, tipo, periodos);
-    const [avRB, setAvRB] = useState(false);
-    const [avRL, setAvRL] = useState(false);
+    const [avRB, setAvRB] = usePersistente("dre:avRB", false);
+    const [avRL, setAvRL] = usePersistente("dre:avRL", false);
     const showAV = avRB || avRL;
     const avSelecionadas = [
       avRB ? "AV% RB" : null,
       avRL ? "AV% RL" : null,
     ].filter((x): x is string => x != null);
-    const [showAH, setShowAH] = useState(false);
+    const [showAH, setShowAH] = usePersistente("dre:ah", false);
     const [category, setCategory] = useState<"all" | "receita" | "despesa">("all");
 
     const { rows: allRows, periods: dataPeriods } = useMemo(

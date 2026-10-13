@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { usePersistente } from "@/hooks/use-persistente";
 import { useDashboardCompany } from "@/components/dashboard-context";
 import { useFilters } from "@/components/filter-bar";
 import { useMonthlyStatement } from "@/hooks/use-financial-data";
@@ -36,12 +37,12 @@ export const Route = createFileRoute("/dashboard/balanco")({ component: Page });
 function Page() {
   const { companyId, company } = useDashboardCompany();
   const { periodos } = useFilters();
-  const [showAV, setShowAV] = useState(false);
-  const [showAH, setShowAH] = useState(false);
+  const [showAV, setShowAV] = usePersistente("bp:av", false);
+  const [showAH, setShowAH] = usePersistente("bp:ah", false);
   // O balanço é uma foto da empresa numa data, não um acumulado do período.
   // Por isso mostra só o mês mais recente selecionado; quem quiser ver a
   // evolução liga "Todos os meses".
-  const [todosMeses, setTodosMeses] = useState(false);
+  const [todosMeses, setTodosMeses] = usePersistente("bp:todos", false);
 
   const periodosBp = useMemo(
     () => (todosMeses ? periodos : periodos.slice(-1)),

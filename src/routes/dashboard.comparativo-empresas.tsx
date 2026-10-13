@@ -1,6 +1,7 @@
 // Comparativo entre as empresas a que o usuário tem acesso (ex.: sócio de
 // várias empresas). Reusa o mesmo cálculo da tabela de Índices do dashboard.
 import { createFileRoute } from "@tanstack/react-router";
+import { usePersistente } from "@/hooks/use-persistente";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useFilters } from "@/components/filter-bar";
 import { useMyCompanies } from "@/hooks/use-financial-data";
@@ -10,7 +11,7 @@ import {
 } from "@/hooks/use-indicador-data";
 import type { ResolverLinha } from "@/lib/indicadores/engine";
 import {
-  INDICES_DASHBOARD, formatarIndice, rotuloMes,
+  INDICES_DASHBOARD, formatarIndice, rotuloMes, ROTULO_BASE_RECEITA,
   type BaseReceita, type BasesIndice,
 } from "@/lib/dashboard/indices-financeiros";
 import { cn } from "@/lib/utils";
@@ -48,9 +49,8 @@ function acumular(bs: BasesIndice[], base: BaseReceita): BasesIndice | null {
 }
 
 const MARGENS = new Set(["margBruta", "margEbitda", "margLiq"]);
-const LINHAS = INDICES_DASHBOARD.flatMap((d) => MARGENS.has(d.key)
-  ? (["RB", "RL"] as BaseReceita[]).map((b) => ({ def: d, base: b, label: `${d.label} (% ${b})`, id: `${d.key}_${b}` }))
-  : [{ def: d, base: "RL" as BaseReceita, label: d.label, id: d.key }]);
+const LINHAS = INDICES_DASHBOARD.map((d) => ({ def: d, label: d.label, id: d.key }));
+void MARGENS;
 
 const n = (v: number | null | undefined) => Number(v) || 0;
 function basesDe(r: ResolverLinha, p: string, base: BaseReceita): BasesIndice {
@@ -81,7 +81,8 @@ function Page() {
   const { visao } = useVisaoGerencial();
   const visaoCalc = visao === "comparativo" ? "contabil" : visao;
   const { data: companies } = useMyCompanies();
-  const [modo, setModo] = useState<Modo>("mes");
+  const [modo, setModo] = usePersistente<Modo>("consolidado:modo", "mes");
+  const [base, setBase] = usePersistente<BaseReceita>("consolidado:base", "RL");
   const [res, setRes] = useState<Record<string, Bases | "loading">>({});
 
   const selecionados = useMemo(() => [...periodos].sort(), [periodos]);
@@ -100,7 +101,7 @@ function Page() {
   const valor = (cid: string, linha: (typeof LINHAS)[number]): number | null => {
     const r = res[cid];
     if (!r || r === "loading") return null;
-    const ag = acumular(meses.map((p) => r[p]).filter((x): x is BasesIndice => !!x), linha.base);
+    const ag = acumular(meses.map((p) => r[p]).filter((x): x is BasesIndice => !!x), base);
     return ag ? linha.def.compute(ag) : null;
   };
 
@@ -118,7 +119,7 @@ function Page() {
       ))}
       <div>
         <h2 className="text-xl font-semibold tracking-tight">Consolidado de empresas</h2>
-        <p className="text-sm text-muted-foreground">{rotuloPeriodo}</p>
+        <p className="text-sm text-muted-foreground">{rotuloPeriodo} · margens sobre a {ROTULO_BASE_RECEITA[base]}</p>
       </div>
       <div className="flex flex-wrap items-center gap-2">
         <div className="flex flex-wrap gap-1 rounded-md border p-0.5">
@@ -127,6 +128,15 @@ function Page() {
               className={cn("px-2.5 py-1 rounded text-xs font-medium",
                 modo === m.id ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent")}>
               {m.label}
+            </button>
+          ))}
+        </div>
+        <div className="flex gap-1 rounded-md border p-0.5">
+          {(["RB", "RL"] as BaseReceita[]).map((b) => (
+            <button key={b} type="button" onClick={() => setBase(b)}
+              className={cn("px-2.5 py-1 rounded text-xs font-medium",
+                base === b ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent")}>
+              {b}
             </button>
           ))}
         </div>
@@ -160,7 +170,7 @@ function Page() {
         </table>
       </div>
       <p className="text-xs text-muted-foreground">
-        Resultado, Lucro Bruto, EBITDA e receitas somam os meses do período; as margens são calculadas sobre esse total (RB e RL). Os índices de balanço (liquidez, caixa, dívida, endividamento) são do último mês.
+        Resultado, Lucro Bruto, EBITDA e receitas somam os meses do período; as margens são calculadas sobre esse total (RB ou RL, conforme o botão). Os índices de balanço (liquidez, caixa, dívida, endividamento) são do último mês.
       </p>
     </div>
   );

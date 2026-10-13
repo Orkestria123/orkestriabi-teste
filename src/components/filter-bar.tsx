@@ -1,4 +1,5 @@
 import { createContext, useContext, useMemo, useRef, useState, type ReactNode } from "react";
+import { usePersistente } from "@/hooks/use-persistente";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -31,8 +32,8 @@ const Ctx = createContext<FilterCtx | null>(null);
 
 export function FilterProvider({ children }: { children: ReactNode }) {
   const now = new Date();
-  const [years, setYears] = useState<number[]>([now.getFullYear()]);
-  const [months, setMonths] = useState<number[]>(
+  const [years, setYears] = usePersistente<number[]>("anos", [now.getFullYear()]);
+  const [months, setMonths] = usePersistente<number[]>("meses", 
     Array.from({ length: now.getMonth() + 1 }, (_, i) => i + 1),
   );
   const [availableYears, setAvailableYears] = useState<number[]>([now.getFullYear()]);

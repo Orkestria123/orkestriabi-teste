@@ -114,7 +114,7 @@ export function AppTopNav({
       : variant === "admin"
         ? ADMIN_NAV
         : multiEmpresa
-          ? [...CLIENT_NAV, { to: "/dashboard/comparativo-empresas", label: "Comparativo Empresas", icon: Building2 }]
+          ? [...CLIENT_NAV, { to: "/dashboard/comparativo-empresas", label: "Consolidado Empresas", icon: Building2 }]
           : CLIENT_NAV;
 
   const brandName =

@@ -1,5 +1,6 @@
 // src/components/statement-table.tsx
 import { useState, useMemo, useEffect, Fragment } from 'react';
+import { usePersistente } from "@/hooks/use-persistente";
 import { ChevronDown, ChevronRight, ChevronUp, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useFiltersOptional } from '@/components/filter-bar';
@@ -326,7 +327,7 @@ export function StatementTable({
   const [busca, setBusca] = useState('');
 
   // Estado para tipo de AH%
-  const [ahTipo, setAhTipo] = useState<'anterior' | 'base'>('anterior');
+  const [ahTipo, setAhTipo] = usePersistente<'anterior' | 'base'>(`ahTipo:${variante}`, 'anterior');
 
   // Estado para exibição em milhares
   const [mostrarMilhares, setMostrarMilhares] = useState(emMilhares);
@@ -369,10 +370,10 @@ export function StatementTable({
     () => new Set(periods.map((p) => p.slice(0, 4))).size > 1,
     [periods],
   );
-  const [agrupador, setAgrupador] = useState<Agrupador | null>(null);
+  const [agrupador, setAgrupador] = usePersistente<Agrupador | null>(`agrupador:${variante}`, null);
   const agrupadorEfetivo: Agrupador =
     variante === "bp" ? "mes" : (agrupador ?? (multiAno ? "mes" : "selecao"));
-  const [mostrarMeses, setMostrarMeses] = useState(true);
+  const [mostrarMeses, setMostrarMeses] = usePersistente(`mostrarMeses:${variante}`, true);
   const colunasTodas = useMemo(
     () => montarColunas(periods, agrupadorEfetivo),
     [periods, agrupadorEfetivo],

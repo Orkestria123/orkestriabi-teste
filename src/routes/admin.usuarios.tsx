@@ -107,9 +107,12 @@ function Page() {
             <p className="text-sm text-muted-foreground">
               Equipe do escritório — acesso a todas as empresas do tenant.
             </p>
-            <Button size="sm" onClick={() => setCreating("admin_escritorio")}>
-              <Plus className="h-4 w-4 mr-1" />Novo colaborador
-            </Button>
+            <div className="flex gap-2">
+              <VincularExistente />
+              <Button size="sm" onClick={() => setCreating("admin_escritorio")}>
+                <Plus className="h-4 w-4 mr-1" />Novo colaborador
+              </Button>
+            </div>
           </div>
           <UserTable
             rows={colaboradores}
@@ -119,6 +122,7 @@ function Page() {
             onEdit={setEditing}
             onDelete={handleDelete}
           />
+          <VinculadosOutros />
         </TabsContent>
 
         <TabsContent value="clientes" className="space-y-3">

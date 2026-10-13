@@ -21,9 +21,11 @@ export const Route = createFileRoute("/")({
 });
 
 function Index() {
-  const { loading, userId, role, refresh } = useAuth();
+  const { loading, userId, role, refresh, tenant, tenantsDisponiveis, trocarTenant } = useAuth();
   const navigate = useNavigate();
   const [claiming, setClaiming] = useState(false);
+  const [escolhendo, setEscolhendo] = useState<boolean | null>(null);
+  const [trocando, setTrocando] = useState<string | null>(null);
 
   useEffect(() => {
     if (loading) return;
@@ -31,15 +33,63 @@ function Index() {
       navigate({ to: "/auth", replace: true });
       return;
     }
+    // Acesso a mais de um escritório: pergunta qual abrir (uma vez por sessão).
+    const precisaEscolher =
+      role !== "orkestria_admin" &&
+      tenantsDisponiveis.length > 1 &&
+      sessionStorage.getItem("orkestria:tenant-escolhido") !== "1";
+    setEscolhendo(precisaEscolher);
+    if (precisaEscolher) return;
     if (role === "orkestria_admin") navigate({ to: "/orkestria-admin", replace: true });
     else if (role === "tenant_admin") navigate({ to: "/admin", replace: true });
-    // `search` explícito: a rota /dashboard declara `validateSearch`, e sem
-    // isso o TypeScript acusa erro no ÚNICO caminho de entrada do usuário
-    // cliente — justamente o redirecionamento logo depois do login.
     else if (role === "client")
       navigate({ to: "/dashboard", search: { company: undefined }, replace: true });
     // if userId && !role, stay here and show claim/no-access UI
-  }, [loading, userId, role, navigate]);
+  }, [loading, userId, role, navigate, tenantsDisponiveis]);
+
+  const escolher = async (id: string) => {
+    setTrocando(id);
+    try {
+      if (id === tenant?.id) {
+        sessionStorage.setItem("orkestria:tenant-escolhido", "1");
+        setEscolhendo(false);
+        if (role === "tenant_admin") navigate({ to: "/admin", replace: true });
+        else navigate({ to: "/dashboard", search: { company: undefined }, replace: true });
+      } else {
+        await trocarTenant(id);
+      }
+    } catch (e: any) {
+      toast.error(e.message || "Não foi possível abrir o escritório");
+      setTrocando(null);
+    }
+  };
+
+  if (escolhendo) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background p-6">
+        <Card className="w-full max-w-md p-8">
+          <h1 className="text-xl font-bold tracking-tight">Escolha o escritório</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Você tem acesso a mais de um escritório. Depois é possível trocar pelo topo da tela.
+          </p>
+          <div className="mt-6 space-y-2">
+            {tenantsDisponiveis.map((t) => (
+              <Button
+                key={t.id}
+                variant={t.id === tenant?.id ? "default" : "outline"}
+                className="w-full justify-between"
+                disabled={trocando != null}
+                onClick={() => escolher(t.id)}
+              >
+                <span className="truncate">{t.name}</span>
+                {trocando === t.id && <Loader2 className="h-4 w-4 animate-spin" />}
+              </Button>
+            ))}
+          </div>
+        </Card>
+      </div>
+    );
+  }
 
   const handleClaim = async () => {
     setClaiming(true);

@@ -1,4 +1,5 @@
-import { FileText } from "lucide-react";
+import { FileText, ChevronsUpDown, Check } from "lucide-react";
+import { toast } from "sonner";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import {
   LayoutDashboard,
@@ -97,7 +98,7 @@ export function AppTopNav({
   title?: string;
   actions?: React.ReactNode;
 }) {
-  const { profile, tenant, signOut, isCliente } = useAuth();
+  const { profile, tenant, signOut, isCliente, tenantsDisponiveis, trocarTenant } = useAuth();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -151,9 +152,40 @@ export function AppTopNav({
               {brandName.slice(0, 1).toUpperCase()}
             </div>
           )}
-          <div className="hidden sm:block text-sm font-semibold tracking-tight truncate max-w-[160px]">
-            {brandName}
-          </div>
+          {variant !== "orkestria" && tenantsDisponiveis.length > 1 ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  className="flex items-center gap-1 text-sm font-semibold tracking-tight max-w-[180px] rounded-md px-1.5 py-0.5 hover:bg-accent"
+                  title="Trocar de escritório"
+                >
+                  <span className="truncate">{brandName}</span>
+                  <ChevronsUpDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-60">
+                <DropdownMenuLabel>Trocar de escritório</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {tenantsDisponiveis.map((t) => (
+                  <DropdownMenuItem
+                    key={t.id}
+                    className="cursor-pointer"
+                    disabled={t.id === tenant?.id}
+                    onSelect={() => {
+                      trocarTenant(t.id).catch((e) => toast.error(e.message || "Falha ao trocar"));
+                    }}
+                  >
+                    <Check className={cn("h-4 w-4 mr-2", t.id === tenant?.id ? "opacity-100" : "opacity-0")} />
+                    {t.name}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <div className="hidden sm:block text-sm font-semibold tracking-tight truncate max-w-[160px]">
+              {brandName}
+            </div>
+          )}
         </div>
 
         {/* Title inline on large screens */}

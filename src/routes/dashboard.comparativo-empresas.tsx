@@ -168,7 +168,7 @@ function Page() {
 
 function Calculadora({ companyId, tenantId, periodos, visao, onResult }: {
   companyId: string; tenantId: string; periodos: string[]; visao: "contabil" | "gerencial";
-  base: BaseReceita; onResult: (id: string, v: Bases | "loading") => void;
+  onResult: (id: string, v: Bases | "loading") => void;
 }) {
   const { data: ctxRaw, isLoading: l1 } = useIndicadorData(tenantId, companyId, visao);
   const { data: demoRaw, isLoading: l2 } = useDemoValues(tenantId, companyId, periodos, visao);

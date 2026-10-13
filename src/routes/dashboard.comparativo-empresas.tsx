@@ -81,7 +81,7 @@ function Page() {
   const { visao } = useVisaoGerencial();
   const visaoCalc = visao === "comparativo" ? "contabil" : visao;
   const { data: companies } = useMyCompanies();
-  const [modo, setModo] = usePersistente<Modo>("consolidado:modo", "mes");
+  const [modo, setModo] = usePersistente<Modo>("consolidado:modo2", "sel");
   const [base, setBase] = usePersistente<BaseReceita>("consolidado:base", "RL");
   const [res, setRes] = useState<Record<string, Bases | "loading">>({});
 

@@ -10,7 +10,7 @@ import {
 } from "@/hooks/use-indicador-data";
 import type { ResolverLinha } from "@/lib/indicadores/engine";
 import {
-  INDICES_DASHBOARD, formatarIndice, rotuloMes, ROTULO_BASE_RECEITA,
+  INDICES_DASHBOARD, formatarIndice, rotuloMes,
   type BaseReceita, type BasesIndice,
 } from "@/lib/dashboard/indices-financeiros";
 import { cn } from "@/lib/utils";
@@ -18,10 +18,10 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/dashboard/comparativo-empresas")({
   head: () => ({
     meta: [
-      { title: "Comparativo de Empresas — Orkestria BI" },
+      { title: "Consolidado Empresas — Orkestria BI" },
       { name: "description", content: "Compare os índices financeiros de todas as suas empresas em uma só tela." },
-      { property: "og:title", content: "Comparativo de Empresas — Orkestria BI" },
-      { property: "og:description", content: "Índices financeiros lado a lado, por mês, trimestre, semestre ou ano." },
+      { property: "og:title", content: "Consolidado Empresas — Orkestria BI" },
+      { property: "og:description", content: "Índices financeiros lado a lado, no último mês, acumulado dos meses selecionados ou do ano." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
@@ -29,16 +29,28 @@ export const Route = createFileRoute("/dashboard/comparativo-empresas")({
   component: Page,
 });
 
-type Modo = "mes" | "tri" | "sem" | "ano" | "sel";
+type Modo = "mes" | "sel" | "ano";
 const MODOS: { id: Modo; label: string }[] = [
   { id: "mes", label: "Último mês" },
-  { id: "tri", label: "Média trimestre" },
-  { id: "sem", label: "Média semestre" },
-  { id: "ano", label: "Média ano" },
-  { id: "sel", label: "Média meses marcados" },
+  { id: "sel", label: "Acumulado meses selecionados" },
+  { id: "ano", label: "Acumulado do ano" },
 ];
 
-type Valores = Record<string, Record<string, number | null>>; // periodo -> key -> valor
+type Bases = Record<string, BasesIndice>; // periodo -> bases
+
+// Contas de resultado somam no período; contas de balanço usam o último mês.
+function acumular(bs: BasesIndice[], base: BaseReceita): BasesIndice | null {
+  if (!bs.length) return null;
+  const u = bs[bs.length - 1]!;
+  const soma = (k: keyof BasesIndice) => bs.reduce((a, b) => a + (Number(b[k]) || 0), 0);
+  return { ...u, lucroBruto: soma("lucroBruto"), ebitda: soma("ebitda"), lucroLiquido: soma("lucroLiquido"),
+    receitaLiquida: soma("receitaLiquida"), receitaBruta: soma("receitaBruta"), baseReceita: base };
+}
+
+const MARGENS = new Set(["margBruta", "margEbitda", "margLiq"]);
+const LINHAS = INDICES_DASHBOARD.flatMap((d) => MARGENS.has(d.key)
+  ? (["RB", "RL"] as BaseReceita[]).map((b) => ({ def: d, base: b, label: `${d.label} (% ${b})`, id: `${d.key}_${b}` }))
+  : [{ def: d, base: "RL" as BaseReceita, label: d.label, id: d.key }]);
 
 const n = (v: number | null | undefined) => Number(v) || 0;
 function basesDe(r: ResolverLinha, p: string, base: BaseReceita): BasesIndice {
@@ -54,11 +66,10 @@ function basesDe(r: ResolverLinha, p: string, base: BaseReceita): BasesIndice {
 
 function janela(ultimo: string, modo: Modo, selecionados: string[]): string[] {
   if (modo === "sel") return selecionados;
+  if (modo === "mes") return [ultimo];
   const ano = Number(ultimo.slice(0, 4));
   const mes = Number(ultimo.slice(5, 7));
   let ini = mes;
-  if (modo === "tri") ini = Math.floor((mes - 1) / 3) * 3 + 1;
-  if (modo === "sem") ini = mes <= 6 ? 1 : 7;
   if (modo === "ano") ini = 1;
   const out: string[] = [];
   for (let m = ini; m <= mes; m++) out.push(`${ano}-${String(m).padStart(2, "0")}-01`);
@@ -71,8 +82,7 @@ function Page() {
   const visaoCalc = visao === "comparativo" ? "contabil" : visao;
   const { data: companies } = useMyCompanies();
   const [modo, setModo] = useState<Modo>("mes");
-  const [base, setBase] = useState<BaseReceita>("RL");
-  const [res, setRes] = useState<Record<string, Valores | "loading">>({});
+  const [res, setRes] = useState<Record<string, Bases | "loading">>({});
 
   const selecionados = useMemo(() => [...periodos].sort(), [periodos]);
   const ultimo = selecionados[selecionados.length - 1];
@@ -82,34 +92,33 @@ function Page() {
     [selecionados, ultimo],
   );
 
-  const report = useCallback((id: string, v: Valores | "loading") => {
+  const report = useCallback((id: string, v: Bases | "loading") => {
     setRes((prev) => (prev[id] === v ? prev : { ...prev, [id]: v }));
   }, []);
 
   const lista = companies ?? [];
-  const valor = (cid: string, key: string): number | null => {
+  const valor = (cid: string, linha: (typeof LINHAS)[number]): number | null => {
     const r = res[cid];
     if (!r || r === "loading") return null;
-    const vs = meses.map((p) => r[p]?.[key]).filter((v): v is number => v != null && isFinite(v));
-    if (vs.length === 0) return null;
-    return vs.reduce((a, b) => a + b, 0) / vs.length;
+    const ag = acumular(meses.map((p) => r[p]).filter((x): x is BasesIndice => !!x), linha.base);
+    return ag ? linha.def.compute(ag) : null;
   };
 
   const rotuloPeriodo = !ultimo
     ? "Selecione os meses"
     : meses.length <= 1
       ? rotuloMes(ultimo, true)
-      : `${rotuloMes(meses[0]!, true)} a ${rotuloMes(meses[meses.length - 1]!, true)} (média de ${meses.length} meses)`;
+      : `${rotuloMes(meses[0]!, true)} a ${rotuloMes(meses[meses.length - 1]!, true)} (acumulado de ${meses.length} meses)`;
 
   return (
     <div className="space-y-4">
       {lista.map((c) => (
         <Calculadora key={c.id} companyId={c.id} tenantId={(c as any).tenant_id}
-          periodos={buscar} visao={visaoCalc} base={base} onResult={report} />
+          periodos={buscar} visao={visaoCalc} onResult={report} />
       ))}
       <div>
-        <h2 className="text-xl font-semibold tracking-tight">Comparativo de empresas</h2>
-        <p className="text-sm text-muted-foreground">{rotuloPeriodo} · margens sobre a {ROTULO_BASE_RECEITA[base]}</p>
+        <h2 className="text-xl font-semibold tracking-tight">Consolidado de empresas</h2>
+        <p className="text-sm text-muted-foreground">{rotuloPeriodo}</p>
       </div>
       <div className="flex flex-wrap items-center gap-2">
         <div className="flex flex-wrap gap-1 rounded-md border p-0.5">
@@ -118,15 +127,6 @@ function Page() {
               className={cn("px-2.5 py-1 rounded text-xs font-medium",
                 modo === m.id ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent")}>
               {m.label}
-            </button>
-          ))}
-        </div>
-        <div className="flex gap-1 rounded-md border p-0.5">
-          {(["RB", "RL"] as BaseReceita[]).map((b) => (
-            <button key={b} type="button" onClick={() => setBase(b)}
-              className={cn("px-2.5 py-1 rounded text-xs font-medium",
-                base === b ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent")}>
-              {b}
             </button>
           ))}
         </div>
@@ -146,12 +146,12 @@ function Page() {
             </tr>
           </thead>
           <tbody>
-            {INDICES_DASHBOARD.map((def, i) => (
-              <tr key={def.key} className={cn("border-b border-border/60", def.key === "resultado" && "font-semibold bg-muted/40", i % 2 === 1 && "bg-muted/20")}>
-                <td className="px-4 py-2 sticky left-0 z-10 bg-card font-medium whitespace-nowrap">{def.label}</td>
+            {LINHAS.map((linha, i) => (
+              <tr key={linha.id} className={cn("border-b border-border/60", linha.def.key === "resultado" && "font-semibold bg-muted/40", i % 2 === 1 && "bg-muted/20")}>
+                <td className="px-4 py-2 sticky left-0 z-10 bg-card font-medium whitespace-nowrap">{linha.label}</td>
                 {lista.map((c) => (
                   <td key={c.id} className="px-3 py-2 text-right tabular-nums whitespace-nowrap">
-                    {formatarIndice(valor(c.id, def.key), def.formato)}
+                    {formatarIndice(valor(c.id, linha), linha.def.formato)}
                   </td>
                 ))}
               </tr>
@@ -160,15 +160,15 @@ function Page() {
         </table>
       </div>
       <p className="text-xs text-muted-foreground">
-        Os meses seguem o seletor acima. Nas médias, entram os meses do trimestre, semestre ou ano do último mês marcado.
+        Resultado, Lucro Bruto, EBITDA e receitas somam os meses do período; as margens são calculadas sobre esse total (RB e RL). Os índices de balanço (liquidez, caixa, dívida, endividamento) são do último mês.
       </p>
     </div>
   );
 }
 
-function Calculadora({ companyId, tenantId, periodos, visao, base, onResult }: {
+function Calculadora({ companyId, tenantId, periodos, visao, onResult }: {
   companyId: string; tenantId: string; periodos: string[]; visao: "contabil" | "gerencial";
-  base: BaseReceita; onResult: (id: string, v: Valores | "loading") => void;
+  onResult: (id: string, v: Bases | "loading") => void;
 }) {
   const { data: ctxRaw, isLoading: l1 } = useIndicadorData(tenantId, companyId, visao);
   const { data: demoRaw, isLoading: l2 } = useDemoValues(tenantId, companyId, periodos, visao);
@@ -179,15 +179,10 @@ function Calculadora({ companyId, tenantId, periodos, visao, base, onResult }: {
   const valores = useMemo(() => {
     if (!ctx) return null;
     const r = criarResolverLinha(ctx, demo, estrutura);
-    const out: Valores = {};
-    for (const p of periodos) {
-      const b = basesDe(r, p, base);
-      const v: Record<string, number | null> = {};
-      for (const d of INDICES_DASHBOARD) v[d.key] = d.compute(b);
-      out[p] = v;
-    }
+    const out: Bases = {};
+    for (const p of periodos) out[p] = basesDe(r, p, "RL");
     return out;
-  }, [ctx, demo, estrutura, periodos, base]);
+  }, [ctx, demo, estrutura, periodos]);
 
   useEffect(() => {
     onResult(companyId, l1 || l2 || !valores ? "loading" : valores);

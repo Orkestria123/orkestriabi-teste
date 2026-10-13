@@ -3022,6 +3022,48 @@ export type Database = {
           },
         ]
       }
+      tenant_usuarios: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          tenant_id: string
+          tipo_usuario: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          tenant_id: string
+          tipo_usuario?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          tenant_id?: string
+          tipo_usuario?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tenant_usuarios_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tenant_usuarios_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tenants: {
         Row: {
           active: boolean
@@ -3167,6 +3209,10 @@ export type Database = {
       }
       agregar_saldos_mensais: {
         Args: { _upload_id: string }
+        Returns: undefined
+      }
+      alternar_tenant_ativo: {
+        Args: { _tenant_id: string }
         Returns: undefined
       }
       apagar_estrutura_padrao: {
@@ -3340,6 +3386,10 @@ export type Database = {
       descartar_contas_novas: {
         Args: { _codigos: string[]; _motivo?: string; _tenant_id: string }
         Returns: Json
+      }
+      desvincular_colaborador_tenant: {
+        Args: { _tenant_id: string; _user_id: string }
+        Returns: undefined
       }
       dfc_alocar_automatico: {
         Args: {
@@ -3787,6 +3837,15 @@ export type Database = {
         Args: { _company_id?: string; _limite?: number; _tenant_id: string }
         Returns: number
       }
+      listar_vinculos_tenant: {
+        Args: { _tenant_id: string }
+        Returns: {
+          ativo_aqui: boolean
+          email: string
+          full_name: string
+          user_id: string
+        }[]
+      }
       marcar_participantes_origem: {
         Args: { _company_id: string }
         Returns: number
@@ -3923,6 +3982,10 @@ export type Database = {
           lancamentos_gravados: number
           status: string
         }[]
+      }
+      vincular_colaborador_tenant: {
+        Args: { _email: string; _tenant_id: string }
+        Returns: string
       }
     }
     Enums: {

@@ -107,9 +107,12 @@ function Page() {
             <p className="text-sm text-muted-foreground">
               Equipe do escritório — acesso a todas as empresas do tenant.
             </p>
-            <Button size="sm" onClick={() => setCreating("admin_escritorio")}>
-              <Plus className="h-4 w-4 mr-1" />Novo colaborador
-            </Button>
+            <div className="flex gap-2">
+              <VincularExistente />
+              <Button size="sm" onClick={() => setCreating("admin_escritorio")}>
+                <Plus className="h-4 w-4 mr-1" />Novo colaborador
+              </Button>
+            </div>
           </div>
           <UserTable
             rows={colaboradores}
@@ -119,6 +122,7 @@ function Page() {
             onEdit={setEditing}
             onDelete={handleDelete}
           />
+          <VinculadosOutros />
         </TabsContent>
 
         <TabsContent value="clientes" className="space-y-3">
@@ -393,5 +397,76 @@ function UsuarioDialog({
         </form>
       </DialogContent>
     </Dialog>
+  );
+}
+
+/** Vincula ao escritório atual um colaborador que já tem login em outro escritório. */
+function VincularExistente() {
+  const { tenant } = useAuth();
+  const qc = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const [email, setEmail] = useState("");
+  const [salvando, setSalvando] = useState(false);
+  const salvar = async () => {
+    if (!tenant) return;
+    setSalvando(true);
+    const { error } = await supabase.rpc("vincular_colaborador_tenant", { _email: email, _tenant_id: tenant.id });
+    setSalvando(false);
+    if (error) return toast.error(error.message);
+    toast.success("Colaborador vinculado. Ele escolhe o escritório ao entrar.");
+    setOpen(false);
+    setEmail("");
+    qc.invalidateQueries({ queryKey: ["tenant-vinculos-outros"] });
+  };
+  return (
+    <>
+      <Button size="sm" variant="outline" onClick={() => setOpen(true)}>Vincular existente</Button>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Vincular colaborador de outro escritório</DialogTitle>
+            <DialogDescription>
+              Use o e-mail de login que a pessoa já tem. Ela continua com a mesma senha e passa a escolher o escritório ao entrar.
+            </DialogDescription>
+          </DialogHeader>
+          <Label>E-mail</Label>
+          <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="nome@escritorio.com.br" />
+          <DialogFooter>
+            <Button onClick={salvar} disabled={salvando || !email.includes("@")}>Vincular</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
+/** Colaboradores vinculados que estão com outro escritório ativo no momento. */
+function VinculadosOutros() {
+  const { tenant } = useAuth();
+  const qc = useQueryClient();
+  const { data } = useQuery({
+    queryKey: ["tenant-vinculos-outros", tenant?.id],
+    enabled: !!tenant,
+    queryFn: async () => {
+      const { data } = await supabase.rpc("listar_vinculos_tenant", { _tenant_id: tenant!.id });
+      return (data ?? []).filter((v) => !v.ativo_aqui);
+    },
+  });
+  if (!data?.length) return null;
+  const remover = async (uid: string) => {
+    const { error } = await supabase.rpc("desvincular_colaborador_tenant", { _user_id: uid, _tenant_id: tenant!.id });
+    if (error) return toast.error(error.message);
+    qc.invalidateQueries({ queryKey: ["tenant-vinculos-outros"] });
+  };
+  return (
+    <Card className="p-3">
+      <p className="text-sm font-medium mb-2">Também têm acesso (no momento usando outro escritório)</p>
+      {data.map((v: any) => (
+        <div key={v.user_id} className="flex items-center justify-between text-sm py-1">
+          <span>{v.full_name ?? v.email} <span className="text-muted-foreground">{v.email}</span></span>
+          <Button size="sm" variant="ghost" onClick={() => remover(v.user_id)}><Trash2 className="h-4 w-4" /></Button>
+        </div>
+      ))}
+    </Card>
   );
 }

@@ -28,6 +28,9 @@ interface AuthContextValue {
   profile: Profile | null;
   role: AppRole | null;
   tenant: Tenant | null;
+  /** Escritórios a que o usuário tem acesso (2+ = mostra seletor). */
+  tenantsDisponiveis: { id: string; name: string }[];
+  trocarTenant: (tenantId: string) => Promise<void>;
   /** Usuário do tipo cliente: acesso somente leitura ao BI. */
   isCliente: boolean;
   refresh: () => Promise<void>;
@@ -42,6 +45,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [role, setRole] = useState<AppRole | null>(null);
   const [tenant, setTenant] = useState<Tenant | null>(null);
+  const [tenantsDisponiveis, setTenantsDisponiveis] = useState<{ id: string; name: string }[]>([]);
   const router = useRouter();
 
   // O provider era carregado 3x por abertura de tela: uma vez pelo
@@ -73,10 +77,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setTenant(null);
       return;
     }
-    const [{ data: prof }, { data: roles }] = await Promise.all([
+    const [{ data: prof }, { data: roles }, { data: vinculos }] = await Promise.all([
       supabase.from("profiles").select("*").eq("id", uid).maybeSingle(),
       supabase.from("user_roles").select("role").eq("user_id", uid),
+      supabase.from("tenant_usuarios").select("tenant_id, tenants(id,name)").eq("user_id", uid),
     ]);
+    setTenantsDisponiveis(
+      (vinculos ?? [])
+        .map((v: any) => v.tenants)
+        .filter(Boolean)
+        .sort((a: any, b: any) => a.name.localeCompare(b.name)),
+    );
     // Sessão órfã: token válido mas usuário foi excluído do banco.
     // Força logout para limpar o token antigo do navegador.
     if (!prof) {
@@ -144,13 +155,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
+    sessionStorage.removeItem("orkestria:tenant-escolhido");
     await supabase.auth.signOut();
     // Hard reload garante que nenhum cache/token antigo permaneça
     window.location.href = "/auth";
   };
 
+  const trocarTenant = async (tenantId: string) => {
+    const { error } = await supabase.rpc("alternar_tenant_ativo", { _tenant_id: tenantId });
+    if (error) throw error;
+    sessionStorage.setItem("orkestria:tenant-escolhido", "1");
+    // Recarrega tudo: nenhum dado em cache do escritório anterior permanece.
+    window.location.href = "/";
+  };
+
   return (
-    <AuthContext.Provider value={{ loading, userId, profile, role, tenant, isCliente, refresh, signOut }}>
+    <AuthContext.Provider value={{ loading, userId, profile, role, tenant, tenantsDisponiveis, trocarTenant, isCliente, refresh, signOut }}>
       {children}
     </AuthContext.Provider>
   );

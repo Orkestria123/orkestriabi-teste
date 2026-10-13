@@ -400,6 +400,20 @@
       "when": 1791776005599,
       "tag": "0056_relatorio_varios_modelos",
       "breakpoints": true
+    },
+    {
+      "idx": 57,
+      "version": "7",
+      "when": 1791922677370,
+      "tag": "0057_tenant_usuarios_multi_escritorio",
+      "breakpoints": true
+    },
+    {
+      "idx": 58,
+      "version": "7",
+      "when": 1791922796417,
+      "tag": "0058_listar_vinculos_tenant",
+      "breakpoints": true
     }
   ]
 }

@@ -448,11 +448,8 @@ function VinculadosOutros() {
     queryKey: ["tenant-vinculos-outros", tenant?.id],
     enabled: !!tenant,
     queryFn: async () => {
-      const { data } = await supabase
-        .from("tenant_usuarios")
-        .select("user_id, profiles(full_name, email, tenant_id)")
-        .eq("tenant_id", tenant!.id);
-      return (data ?? []).filter((v: any) => v.profiles && v.profiles.tenant_id !== tenant!.id);
+      const { data } = await supabase.rpc("listar_vinculos_tenant", { _tenant_id: tenant!.id });
+      return (data ?? []).filter((v) => !v.ativo_aqui);
     },
   });
   if (!data?.length) return null;
@@ -466,7 +463,7 @@ function VinculadosOutros() {
       <p className="text-sm font-medium mb-2">Também têm acesso (no momento usando outro escritório)</p>
       {data.map((v: any) => (
         <div key={v.user_id} className="flex items-center justify-between text-sm py-1">
-          <span>{v.profiles.full_name ?? v.profiles.email} <span className="text-muted-foreground">{v.profiles.email}</span></span>
+          <span>{v.full_name ?? v.email} <span className="text-muted-foreground">{v.email}</span></span>
           <Button size="sm" variant="ghost" onClick={() => remover(v.user_id)}><Trash2 className="h-4 w-4" /></Button>
         </div>
       ))}

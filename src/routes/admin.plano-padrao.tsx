@@ -21,6 +21,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { ContasPlanoPadrao } from "@/components/plano/contas-plano-padrao";
 import { DfcAlocacaoPanel, EstruturaDemonstracaoPanel } from "@/components/plano/estrutura-dfc-panel";
 import { ContasEspecificasEmpresa } from "@/components/plano/contas-especificas-empresa";
+import { ImportarPlanoPadrao } from "@/components/plano/importar-plano-padrao";
 
 export const Route = createFileRoute("/admin/plano-padrao")({ component: Page });
 
@@ -113,6 +114,7 @@ function Page() {
 
             <TabsContent value="contas">
               <div className="space-y-4">
+                <ImportarPlanoPadrao tenantId={tenantId} podeEditar={podeEditar} />
                 <ContasPlanoPadrao tenantId={tenantId} podeEditar={podeEditar} />
                 <ContasEspecificasEmpresa tenantId={tenantId} podeEditar={podeEditar} />
                 <PromoverPlanoCard tenantId={tenantId} podeEditar={podeEditar} />

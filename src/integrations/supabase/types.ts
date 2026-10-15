@@ -3285,7 +3285,10 @@ export type Database = {
           historico_exemplo: string
           lancamentos: number
           movimento: number
+          nome_sugerido: string
+          pai_sugerido: string
           primeira_competencia: string
+          tipo_sugerido: string
           ultima_competencia: string
         }[]
       }

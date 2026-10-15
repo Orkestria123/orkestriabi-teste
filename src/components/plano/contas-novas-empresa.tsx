@@ -35,6 +35,8 @@ interface ContaNova {
   empresas: string | null;
   primeira_competencia: string | null;
   ultima_competencia: string | null;
+  tipo_sugerido?: string | null;
+  pai_sugerido?: string | null;
 }
 
 interface Sintetica {
@@ -147,6 +149,28 @@ export function ContasNovasEmpresaPanel({
     finally { setBusy(false); }
   };
 
+  const sugeridas = (novas ?? []).filter((c) => c.tipo_sugerido && c.pai_sugerido);
+
+  const cadastrarAutomatico = async () => {
+    if (sugeridas.length === 0) return;
+    if (!confirm(`Cadastrar ${sugeridas.length} cliente(s)/fornecedor(es) nas sintéticas sugeridas?`)) return;
+    setBusy(true);
+    try {
+      const itens = sugeridas.map((c) => ({
+        codigo: c.codigo, descricao: nomeDe(c), tipo: c.tipo_sugerido, classificacao_pai: c.pai_sugerido,
+      }));
+      const { data, error } = await supabase.rpc("aprovar_contas_novas_lote", {
+        _tenant_id: tenantId, _itens: itens as any,
+      });
+      if (error) throw error;
+      const r = data as any;
+      toast.success(`${r.inseridas} cliente(s)/fornecedor(es) cadastrado(s)`);
+      setSel(new Set());
+      invalidar();
+    } catch (e: any) { toast.error(e.message); }
+    finally { setBusy(false); }
+  };
+
   const descartarSelecionadas = async () => {
     const codigos = Array.from(sel);
     if (codigos.length === 0) return;
@@ -216,6 +240,18 @@ export function ContasNovasEmpresaPanel({
           </p>
         </div>
       </div>
+
+      {sugeridas.length > 0 && (
+        <div className="rounded-md border bg-card p-3 mb-3 flex flex-wrap items-center gap-3">
+          <div className="text-xs flex-1 min-w-[240px]">
+            <strong>{sugeridas.length}</strong> conta(s) parecem clientes ou fornecedores. Cada uma entra
+            em Clientes Nacionais ou Fornecedores Nacionais com o nome do diário.
+          </div>
+          <Button size="sm" onClick={cadastrarAutomatico} disabled={busy || !podeEditar}>
+            Cadastrar clientes e fornecedores
+          </Button>
+        </div>
+      )}
 
       {/* ---- barra de lote ---- */}
       <div className="rounded-md border bg-card p-3 mb-3">
@@ -298,7 +334,14 @@ export function ContasNovasEmpresaPanel({
                     onCheckedChange={() => toggle(c.codigo)} />
                 </td>
                 <td className="px-2 py-2">
-                  <div className="font-mono font-medium">{c.codigo}</div>
+                  <div className="font-mono font-medium">
+                    {c.codigo}
+                    {c.tipo_sugerido && (
+                      <Badge variant="outline" className="ml-2 text-[10px]">
+                        {c.tipo_sugerido.startsWith("4") ? "Cliente" : "Fornecedor"}
+                      </Badge>
+                    )}
+                  </div>
                   <div className="text-[11px] text-muted-foreground">
                     {c.lancamentos} lançamento(s) · {c.primeira_competencia} → {c.ultima_competencia}
                     {c.historico_exemplo && <> · <span className="italic">“{c.historico_exemplo}”</span></>}

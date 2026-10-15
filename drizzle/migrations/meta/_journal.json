@@ -414,6 +414,13 @@
       "when": 1791922796417,
       "tag": "0058_listar_vinculos_tenant",
       "breakpoints": true
+    },
+    {
+      "idx": 59,
+      "version": "7",
+      "when": 1792086723833,
+      "tag": "0059_contas_novas_sugestao_participante",
+      "breakpoints": true
     }
   ]
 }

@@ -67,12 +67,10 @@ function basesDe(r: ResolverLinha, p: string, base: BaseReceita): BasesIndice {
 function janela(ultimo: string, modo: Modo, selecionados: string[]): string[] {
   if (modo === "sel") return selecionados;
   if (modo === "mes") return [ultimo];
+  // Acumulado do ano: todos os meses do ano (os sem dados são descartados depois).
   const ano = Number(ultimo.slice(0, 4));
-  const mes = Number(ultimo.slice(5, 7));
-  let ini = mes;
-  if (modo === "ano") ini = 1;
   const out: string[] = [];
-  for (let m = ini; m <= mes; m++) out.push(`${ano}-${String(m).padStart(2, "0")}-01`);
+  for (let m = 1; m <= 12; m++) out.push(`${ano}-${String(m).padStart(2, "0")}-01`);
   return out;
 }
 
@@ -101,12 +99,17 @@ function Page() {
   const valor = (cid: string, linha: (typeof LINHAS)[number]): number | null => {
     const r = res[cid];
     if (!r || r === "loading") return null;
-    const ag = acumular(meses.map((p) => r[p]).filter((x): x is BasesIndice => !!x), base);
+    const temDados = (b: BasesIndice) =>
+      (["ac", "pc", "pl", "disponivel", "receitaLiquida", "receitaBruta", "lucroLiquido", "lucroBruto"] as const)
+        .some((k) => Math.abs(Number(b[k]) || 0) > 0.005);
+    const ag = acumular(meses.map((p) => r[p]).filter((x): x is BasesIndice => !!x && (modo !== "ano" || temDados(x))), base);
     return ag ? linha.def.compute(ag) : null;
   };
 
   const rotuloPeriodo = !ultimo
     ? "Selecione os meses"
+    : modo === "ano"
+      ? `Acumulado de ${ultimo.slice(0, 4)} (todos os meses com dados)`
     : meses.length <= 1
       ? rotuloMes(ultimo, true)
       : `${rotuloMes(meses[0]!, true)} a ${rotuloMes(meses[meses.length - 1]!, true)} (acumulado de ${meses.length} meses)`;

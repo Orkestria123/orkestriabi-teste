@@ -108,6 +108,8 @@ function Page() {
 
   const rotuloPeriodo = !ultimo
     ? "Selecione os meses"
+    : modo === "ano"
+      ? `Acumulado de ${ultimo.slice(0, 4)} (todos os meses com dados)`
     : meses.length <= 1
       ? rotuloMes(ultimo, true)
       : `${rotuloMes(meses[0]!, true)} a ${rotuloMes(meses[meses.length - 1]!, true)} (acumulado de ${meses.length} meses)`;

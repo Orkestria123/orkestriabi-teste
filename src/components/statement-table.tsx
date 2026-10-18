@@ -1,5 +1,5 @@
 // src/components/statement-table.tsx
-import { useState, useMemo, useEffect, Fragment } from 'react';
+import { useState, useMemo, useEffect, useRef, Fragment } from 'react';
 import { buildStatementView, comparisonValues, type StatementView } from '@/lib/statement-view';
 import { usePersistente } from "@/hooks/use-persistente";
 import { ChevronDown, ChevronRight, ChevronUp, Search } from 'lucide-react';
@@ -499,7 +499,13 @@ export function StatementTable({
     standard: row => isRowVisible(rows, rows.indexOf(row), padrao), thousands: mostrarMilhares,
   }), [rowsFiltradas, colunas, variante, corteLados, rows, basesAVEsq, basesAVDir, basesAV,
     showAV, showAH, ahTipo, basePeriod, periods, busca, expandedRows, padrao, mostrarMilhares]);
-  useEffect(() => { onViewChange?.(exportView); }, [exportView, onViewChange]);
+  const lastExportKey = useRef('');
+  useEffect(() => {
+    const key = JSON.stringify(exportView);
+    if (lastExportKey.current === key) return;
+    lastExportKey.current = key;
+    onViewChange?.(exportView);
+  }, [exportView, onViewChange]);
 
   const comparisonCells = (row: StatementRow, col: ColunaAgrupada) => {
     const v = comparisonValues(row, col, variante);

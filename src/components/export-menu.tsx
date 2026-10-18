@@ -39,7 +39,7 @@ export function ExportMenu({ rows, periods, filename, title, subtitle, view }: P
               primaryColor: tenant?.primary_color,
               logoUrl: tenant?.logo_url,
               tenantName: tenant?.name,
-            })
+            }, view)
           }
         >
           <FileText className="h-4 w-4 mr-2" /> PDF

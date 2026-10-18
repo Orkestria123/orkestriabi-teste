@@ -1214,7 +1214,7 @@ export function OrcamentoAnalise() {
               </Button>
             </>
           )}
-        </div>
+        </div>}
       </div>
 
       {editMode && totalizarPor !== "mes" && (

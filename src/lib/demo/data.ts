@@ -1,4 +1,6 @@
 import snapshot from "./snapshot.json";
+import companyPhoto from "@/assets/demo-company.jpg";
+import openLogo from "@/assets/open-demo-logo.png.asset.json";
 import { buildContext, type EngineContext, type PlanoRowEng } from "@/lib/indicadores/engine";
 import { indexarDemoDre, type DemoDre } from "@/lib/indicadores/linhas";
 import type { PapelEstrutura } from "@/lib/plano/estrutura";

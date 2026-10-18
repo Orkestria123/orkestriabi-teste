@@ -350,9 +350,9 @@ export function AppTopNav({
 
       {/* Title bar (when present and on mobile, or actions visible) */}
       {(title || actions) && (
-        <div className="md:hidden flex items-center justify-between gap-2 border-t px-3 py-2">
+        <div className="md:hidden flex flex-wrap items-center justify-between gap-2 border-t px-3 py-2">
           {title && <h1 className="text-sm font-semibold truncate">{title}</h1>}
-          <div className="flex items-center gap-2 ml-auto">{actions}</div>
+          <div className="flex min-w-0 flex-wrap items-center gap-2 ml-auto">{actions}</div>
         </div>
       )}
     </header>

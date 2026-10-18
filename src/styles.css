@@ -147,6 +147,47 @@
   --color-chart-5: var(--chart-5);
 }
 
+/* Tema Beltrami Assessoria Contábil — ouro/grafite do papel timbrado.
+   Aplicado quando o escritório ativo tem slug "beltrami" (data-tenant no <html>). */
+[data-tenant="beltrami"] {
+  --background: oklch(0.975 0.008 90);            /* creme quase branco */
+  --foreground: oklch(0.33 0.03 260);             /* grafite #3A3B4D */
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.33 0.03 260);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.33 0.03 260);
+  --primary: oklch(0.33 0.03 260);                /* grafite */
+  --primary-foreground: oklch(0.99 0.005 90);
+  --secondary: oklch(0.955 0.015 90);             /* creme #F7F4ED */
+  --secondary-foreground: oklch(0.38 0.06 55);    /* marrom #5A3E2B */
+  --muted: oklch(0.955 0.015 90);
+  --muted-foreground: oklch(0.48 0.045 60);       /* marrom suave #715945 */
+  --accent: oklch(0.90 0.05 85);                  /* ouro areia claro */
+  --accent-foreground: oklch(0.30 0.05 45);
+  --brand: oklch(0.72 0.10 80);                   /* ouro areia #C7AB77 */
+  --brand-foreground: oklch(0.25 0.04 45);
+  --border: oklch(0.88 0.03 85);
+  --input: oklch(0.90 0.025 85);
+  --ring: oklch(0.70 0.15 60);                    /* laranja #E69B30 */
+  --chart-1: oklch(0.33 0.03 260);                /* grafite */
+  --chart-2: oklch(0.72 0.10 80);                 /* ouro areia */
+  --chart-3: oklch(0.70 0.15 60);                 /* laranja */
+  --chart-4: oklch(0.62 0.16 155);                /* verde (sucesso) */
+  --chart-5: oklch(0.58 0.20 25);                 /* vermelho (alerta) */
+  --sidebar: oklch(0.33 0.03 260);                /* grafite */
+  --sidebar-foreground: oklch(0.955 0.015 90);
+  --sidebar-primary: oklch(0.72 0.10 80);
+  --sidebar-primary-foreground: oklch(0.25 0.04 45);
+  --sidebar-accent: oklch(0.40 0.035 260);
+  --sidebar-accent-foreground: oklch(0.96 0.02 85);
+  --sidebar-border: oklch(0.42 0.03 260);
+  --sidebar-ring: oklch(0.70 0.15 60);
+  --gradient-brand: linear-gradient(90deg, oklch(0.80 0.12 90), oklch(0.72 0.10 80) 50%, oklch(0.70 0.15 60));
+  --gradient-surface: linear-gradient(180deg, oklch(1 0 0), oklch(0.96 0.015 90));
+  --shadow-soft: 0 1px 2px oklch(0.33 0.03 260 / 0.05), 0 4px 12px oklch(0.33 0.03 260 / 0.07);
+  --shadow-elegant: 0 10px 30px -12px oklch(0.38 0.06 55 / 0.28);
+}
+
 html, body {
   transition: background-color 0.25s ease, color 0.25s ease;
 }

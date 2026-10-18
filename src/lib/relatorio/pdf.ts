@@ -21,11 +21,22 @@ async function carregarFontes(doc: jsPDF) {
   }));
 }
 type RGB = readonly [number, number, number];
-const C = {
-  indigo: [62, 64, 149] as RGB, indigoD: [43, 44, 104] as RGB, azul: [0, 152, 219] as RGB,
-  ciano: [91, 198, 208] as RGB, lima: [169, 207, 70] as RGB, paper: [243, 244, 249] as RGB,
-  sunk: [234, 237, 247] as RGB, card: [250, 251, 254] as RGB, ink: [26, 28, 49] as RGB,
-  ink2: [96, 100, 124] as RGB, line: [220, 223, 236] as RGB, branco: [255, 255, 255] as RGB,
+type Paleta = {
+  indigo: RGB; indigoD: RGB; azul: RGB; ciano: RGB; lima: RGB; paper: RGB;
+  sunk: RGB; card: RGB; ink: RGB; ink2: RGB; line: RGB; branco: RGB;
+};
+const PALETA_PADRAO: Paleta = {
+  indigo: [62, 64, 149], indigoD: [43, 44, 104], azul: [0, 152, 219],
+  ciano: [91, 198, 208], lima: [169, 207, 70], paper: [243, 244, 249],
+  sunk: [234, 237, 247], card: [250, 251, 254], ink: [26, 28, 49],
+  ink2: [96, 100, 124], line: [220, 223, 236], branco: [255, 255, 255],
+};
+// Beltrami Assessoria Contábil — ouro/grafite extraídos do papel timbrado.
+const PALETA_BELTRAMI: Paleta = {
+  indigo: [58, 59, 77], indigoD: [43, 31, 26], azul: [230, 155, 48],
+  ciano: [199, 171, 119], lima: [239, 208, 121], paper: [247, 244, 237],
+  sunk: [238, 231, 218], card: [252, 250, 246], ink: [43, 31, 26],
+  ink2: [113, 89, 69], line: [224, 214, 196], branco: [255, 255, 255],
 };
 const W = 841.89, H = 595.28, M = 50, TOPO = 118, BASE = H - 46;
 
@@ -71,6 +82,7 @@ function fmtI(v: number | null, formato: string) {
 const mesTitulo = (p: string) => { const m = MESES[Number(p.slice(5, 7)) - 1]; return `${m[0].toUpperCase()}${m.slice(1)}/${p.slice(0, 4)}`; };
 
 export async function gerarPdfRelatorio(c: ConteudoRelatorio): Promise<Blob> {
+  const C: Paleta = c.tema === "beltrami" ? PALETA_BELTRAMI : PALETA_PADRAO;
   const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
   await carregarFontes(doc);
   const [logoEsc, logoEmp, fotoEmp] = await Promise.all([paraDataUrl(c.imagens.logoEscritorio), paraDataUrl(c.imagens.logoEmpresa), paraDataUrl(c.imagens.fotoEmpresa)]);

@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useRef, useState, type ReactNode 
 import { supabase } from "@/integrations/supabase/client";
 import { useRouter } from "@tanstack/react-router";
 import { useIsDemo, DEMO_TENANT, DEMO_COMPANY } from "@/lib/demo/context";
+import demoLogo from "@/assets/open-demo-logo.png.asset.json";
 
 export type AppRole = "orkestria_admin" | "tenant_admin" | "client";
 
@@ -191,7 +192,7 @@ export function useAuth() {
   if (demo) return {
     loading: false, userId: null, role: "client" as const, isCliente: true,
     profile: { id: "demo", tenant_id: DEMO_TENANT, company_id: DEMO_COMPANY, full_name: "Demonstração", email: null, avatar_url: null, tipo_usuario: "cliente" },
-    tenant: { id: DEMO_TENANT, name: "Open Gestão", slug: "open", primary_color: "", logo_url: null },
+    tenant: { id: DEMO_TENANT, name: "Open Gestão", slug: "open", primary_color: "", logo_url: demoLogo.url },
     tenantsDisponiveis: [], trocarTenant: async () => {}, refresh: async () => {}, signOut: async () => {},
   };
   if (!ctx) throw new Error("useAuth must be used within AuthProvider");

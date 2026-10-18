@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
+import { useIsDemo } from "@/lib/demo/context";
 
 /** useState que sobrevive à troca de tela (guardado na sessão do navegador). */
 export function usePersistente<T>(chave: string, inicial: T) {
-  const k = `orkestria:sel:${chave}`;
+  const demo = useIsDemo();
+  const k = `orkestria:${demo ? "demo:" : ""}sel:${chave}`;
   const [v, setV] = useState<T>(inicial);
   useEffect(() => {
     try {

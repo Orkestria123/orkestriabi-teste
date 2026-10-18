@@ -26,6 +26,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
 import { useMyCompanies } from "@/hooks/use-financial-data";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { useIsDemo } from "@/lib/demo/context";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -98,6 +99,7 @@ export function AppTopNav({
   title?: string;
   actions?: React.ReactNode;
 }) {
+  const demo = useIsDemo();
   const { profile, tenant, signOut, isCliente, tenantsDisponiveis, trocarTenant } = useAuth();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const navigate = useNavigate();
@@ -109,7 +111,7 @@ export function AppTopNav({
 
   const { data: minhasEmpresas } = useMyCompanies();
   const multiEmpresa = variant === "client" && (minhasEmpresas?.length ?? 0) > 1;
-  const items =
+  const baseItems =
     variant === "orkestria"
       ? ORK_NAV
       : variant === "admin"
@@ -117,6 +119,7 @@ export function AppTopNav({
         : multiEmpresa
           ? [...CLIENT_NAV, { to: "/dashboard/comparativo-empresas", label: "Consolidado Empresas", icon: Building2 }]
           : CLIENT_NAV;
+  const items = demo ? baseItems.map((item) => ({ ...item, to: item.to.replace("/dashboard", "/demo") })) : baseItems;
 
   const brandName =
     variant === "orkestria" ? "Orkestria" : tenant?.name ?? "Orkestria BI";
@@ -242,13 +245,13 @@ export function AppTopNav({
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
-            <button
+            {!demo && <button
               onClick={() => signOut()}
               className="text-muted-foreground hover:text-foreground ml-1"
               title="Sair"
             >
               <LogOut className="h-3.5 w-3.5" />
-            </button>
+            </button>}
           </div>
         </div>
 
@@ -335,12 +338,12 @@ export function AppTopNav({
               <ThemeToggle />
               <span className="text-xs text-muted-foreground">{profile?.email}</span>
             </div>
-            <button
+            {!demo && <button
               onClick={() => signOut()}
               className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
             >
               <LogOut className="h-3.5 w-3.5" /> Sair
-            </button>
+            </button>}
           </div>
         </div>
       )}

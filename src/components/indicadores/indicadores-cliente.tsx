@@ -29,8 +29,6 @@ import {
   tokensDaFormula,
 
   tokensComBaseReceita,
-  tokensComLucroYtd,
-  indicadorUsaLucroYtd,
   type EngineContext,
   type IndicadorEmpresa,
   type SeriePonto,
@@ -65,8 +63,7 @@ function computeOne(
   baseAV?: BaseAV,
 ) {
   const resolver = criarResolverLinha(ctx, demoDre, estruturaPadrao);
-  let tokens = tokensComBaseReceita(tokensDaFormula(ind.formula), baseAV);
-  if (indicadorUsaLucroYtd(ind.nome)) tokens = tokensComLucroYtd(tokens);
+  const tokens = tokensComBaseReceita(tokensDaFormula(ind.formula), baseAV);
   const usaBase = !!baseAV;
   const serie = usaBase
     ? calcularSerieComBase(ind, periodos, ctx, resolver, baseAV)

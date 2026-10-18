@@ -176,8 +176,13 @@ export async function gerarPdfRelatorio(c: ConteudoRelatorio): Promise<Blob> {
       headStyles: { fillColor: C.sunk as any, textColor: C.ink2 as any, fontStyle: "normal" },
       columnStyles: Object.fromEntries(head.map((_, i) => [i, i === 0
         ? { cellWidth: opts.larg0 ?? 260, halign: "left" }
-        : { halign: opts.esquerda?.includes(i) ? "left" : "right", cellWidth: (W - 2 * M - (opts.larg0 ?? 260)) / (head.length - 1) }])),
-      didParseCell: (h) => { if (h.section === "body" && opts.negrito?.(h.row.index)) { h.cell.styles.font = "Poppins"; h.cell.styles.fontStyle = "normal"; h.cell.styles.fillColor = C.sunk as any; } },
+        : { halign: opts.esquerda?.includes(i) ? "left" : "center", cellWidth: (W - 2 * M - (opts.larg0 ?? 260)) / (head.length - 1) }])),
+      didParseCell: (h) => {
+        // AutoTable does not apply columnStyles to headers. Set both sections
+        // explicitly so labels and values share the same column center.
+        h.cell.styles.halign = h.column.index === 0 || opts.esquerda?.includes(h.column.index) ? "left" : "center";
+        if (h.section === "body" && opts.negrito?.(h.row.index)) { h.cell.styles.font = "Poppins"; h.cell.styles.fontStyle = "normal"; h.cell.styles.fillColor = C.sunk as any; }
+      },
       willDrawPage: (h) => { if (h.pageNumber > 1) continuacao(false); },
     });
     return ((doc as any).lastAutoTable?.finalY ?? y) + 16;

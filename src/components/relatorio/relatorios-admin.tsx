@@ -302,7 +302,7 @@ export function RelatoriosEmpresa({ tenantId, companyIdInicial }: { tenantId: st
       setGerando("Buscando os números do BI…");
       const [{ data: emp }, { data: ten }] = await Promise.all([
         db.from("companies").select("name, razao_social, cnpj, municipio, uf, regime_tributario, perfil_ia, logo_url, foto_url").eq("id", companyId).maybeSingle(),
-        db.from("tenants").select("name, perfil_ia, logo_url").eq("id", tenantId).maybeSingle(),
+        db.from("tenants").select("name, slug, perfil_ia, logo_url").eq("id", tenantId).maybeSingle(),
       ]);
       const dados = await coletarDados(companyId, tenantId, emp?.name ?? "", periodo);
       setGerando("A IA está escrevendo os textos…");
@@ -320,6 +320,7 @@ export function RelatoriosEmpresa({ tenantId, companyIdInicial }: { tenantId: st
         escritorio: { nome: ten?.name ?? "" },
         empresa: { nome: emp?.name ?? "", razao: emp?.razao_social, cnpj: emp?.cnpj, cidade: [emp?.municipio, emp?.uf].filter(Boolean).join("-"), regime: emp?.regime_tributario },
         dados,
+        tema: (ten as any)?.slug === "beltrami" ? "beltrami" : "padrao",
       };
       // Imagens embutidas para não expirar
       const embed = async (u?: string | null) => { if (!u) return null; try { const b = await (await fetch(u)).blob(); return await new Promise<string>((res) => { const f = new FileReader(); f.onload = () => res(f.result as string); f.readAsDataURL(b); }); } catch { return null; } };

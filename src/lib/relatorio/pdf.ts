@@ -82,6 +82,7 @@ function fmtI(v: number | null, formato: string) {
 const mesTitulo = (p: string) => { const m = MESES[Number(p.slice(5, 7)) - 1]; return `${m[0].toUpperCase()}${m.slice(1)}/${p.slice(0, 4)}`; };
 
 export async function gerarPdfRelatorio(c: ConteudoRelatorio): Promise<Blob> {
+  const C: Paleta = c.tema === "beltrami" ? PALETA_BELTRAMI : PALETA_PADRAO;
   const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
   await carregarFontes(doc);
   const [logoEsc, logoEmp, fotoEmp] = await Promise.all([paraDataUrl(c.imagens.logoEscritorio), paraDataUrl(c.imagens.logoEmpresa), paraDataUrl(c.imagens.fotoEmpresa)]);

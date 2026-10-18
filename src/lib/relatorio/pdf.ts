@@ -174,7 +174,9 @@ export async function gerarPdfRelatorio(c: ConteudoRelatorio): Promise<Blob> {
       theme: "plain",
       styles: { font: "PublicSans", fontSize: opts.compacto ? 8.4 : 9, cellPadding: { top: opts.compacto ? 3 : 3.8, bottom: opts.compacto ? 3 : 3.8, left: 6, right: 6 }, textColor: C.ink as any, lineColor: C.line as any, lineWidth: { bottom: 0.4 } as any, fillColor: C.paper as any },
       headStyles: { fillColor: C.sunk as any, textColor: C.ink2 as any, fontStyle: "normal" },
-      columnStyles: Object.fromEntries(head.map((_, i) => [i, i === 0 ? { cellWidth: opts.larg0 ?? 260, halign: "left" } : { halign: opts.esquerda?.includes(i) ? "left" : "right" }])),
+      columnStyles: Object.fromEntries(head.map((_, i) => [i, i === 0
+        ? { cellWidth: opts.larg0 ?? 260, halign: "left" }
+        : { halign: opts.esquerda?.includes(i) ? "left" : "right", cellWidth: (W - 2 * M - (opts.larg0 ?? 260)) / (head.length - 1) }])),
       didParseCell: (h) => { if (h.section === "body" && opts.negrito?.(h.row.index)) { h.cell.styles.font = "Poppins"; h.cell.styles.fontStyle = "normal"; h.cell.styles.fillColor = C.sunk as any; } },
       willDrawPage: (h) => { if (h.pageNumber > 1) continuacao(false); },
     });
@@ -232,11 +234,19 @@ export async function gerarPdfRelatorio(c: ConteudoRelatorio): Promise<Blob> {
       fill(C.branco); doc.roundedRect(M, 40, 112, 92, 4, 4, "F");
       img(logoEsc, M + 8, 46, 96, 80);
       fonte("normal", 8, C.ciano, "courier"); doc.text("APRESENTAÇÃO MENSAL DE RESULTADOS", M, 232, { charSpace: 0.8 });
-      fonte("bold", 33, C.branco); doc.text(doc.splitTextToSize(c.empresa.nome, W - 2 * M), M, 276);
+      fonte("bold", 33, C.branco);
+      const tituloLinhas = doc.splitTextToSize(c.empresa.nome, W - 2 * M) as string[];
+      doc.text(tituloLinhas, M, 276, { lineHeightFactor: 1.18 });
+      let yCapa = 276 + tituloLinhas.length * 33 * 1.18 + 16;
       const sub = [c.empresa.razao, c.empresa.cnpj && `CNPJ ${c.empresa.cnpj}`].filter(Boolean).join(" · ");
-      if (sub) { fonte("normal", 12, C.ciano); doc.text(sub, M, 307); }
+      if (sub) {
+        fonte("normal", 12, C.ciano);
+        const subLinhas = doc.splitTextToSize(sub, W - 2 * M) as string[];
+        doc.text(subLinhas, M, yCapa, { lineHeightFactor: 1.3 });
+        yCapa += subLinhas.length * 12 * 1.3 + 24;
+      } else yCapa += 24;
       const mm = MESES[Number(d.periodo.slice(5, 7)) - 1];
-      fonte("bold", 16, C.lima); doc.text(`${mm[0].toUpperCase()}${mm.slice(1)} · ${d.periodo.slice(0, 4)}`, M, 356);
+      fonte("bold", 16, C.lima); doc.text(`${mm[0].toUpperCase()}${mm.slice(1)} · ${d.periodo.slice(0, 4)}`, M, yCapa);
       fonte("normal", 9, C.branco); doc.text("Preparado por ", M, H - 92);
       fonte("bold", 9, C.branco); doc.text(c.escritorio.nome, M + doc.getTextWidth("Preparado por ") + 1, H - 92);
 

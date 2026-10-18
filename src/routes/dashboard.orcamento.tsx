@@ -766,6 +766,7 @@ export function OrcamentoAnalise() {
     descricao: string;
     sobrescrever: boolean;
   }) => {
+    if (isDemo) throw new Error("Demonstração somente leitura.");
     if (!company?.tenant_id || !companyId || editingAno === null) {
       throw new Error("Contexto inválido");
     }

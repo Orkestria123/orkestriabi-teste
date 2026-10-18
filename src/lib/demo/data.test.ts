@@ -16,11 +16,12 @@ describe("public Modelo Ltda. demonstration",()=>{
     expect(rb && rl && Math.abs(rb/13119175.65-rl/11169459.31)).toBeGreaterThan(.001);
   });
   it("balances fictional assets with liabilities and equity in every month",()=>{
-    for (const p of demoPeriods) {
-      const a=demoRows("BP_ATIVO",[p]).find((r)=>r.linha_ordem===1)?.valor ?? 0;
-      const rows=demoRows("BP_PASSIVO",[p]);
+    for (const p of demoPeriods) for (const visao of ["contabil","gerencial"]) for (const company of demoCompanies) {
+      const a=demoRows("BP_ATIVO",[p],visao,company.id).find((r)=>r.linha_ordem===1)?.valor ?? 0;
+      const rows=demoRows("BP_PASSIVO",[p],visao,company.id);
       const components=rows.filter((r)=>[10000,20000,40000].includes(r.linha_ordem)).reduce((s,r)=>s+r.valor,0);
       expect(a).toBeGreaterThan(0);expect(components).toBeCloseTo(a,2);
+      expect(rows.find((r)=>r.linha_ordem===1)?.valor).toBeCloseTo(a,2);
     }
   });
   it("keeps the executive report identical to the public BI amounts",()=>{

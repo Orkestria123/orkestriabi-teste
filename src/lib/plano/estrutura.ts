@@ -29,6 +29,7 @@
 //               toda vez que o rótulo mudava.
 
 import { supabase } from "@/integrations/supabase/client";
+import { isDemoLocation } from "@/lib/demo/context";
 
 export type TipoLinha = "detalhe" | "bloco" | "corrido" | "tag";
 export type DemonstracaoEstrutura = "DRE" | "BP_ATIVO" | "BP_PASSIVO";
@@ -47,6 +48,10 @@ let inflight: Promise<PapelEstrutura[]> | null = null;
 
 /** Tabela de referência global — carrega uma vez por sessão. */
 export async function getEstruturaPadrao(): Promise<PapelEstrutura[]> {
+  if (isDemoLocation()) {
+    const { demoStructure } = await import("@/lib/demo/data");
+    return demoStructure;
+  }
   if (cache) return cache;
   if (inflight) return inflight;
   inflight = (async () => {
@@ -83,6 +88,7 @@ export function limparCacheEstrutura() {
  * ainda não carregou — e dispara a carga para a próxima chamada.
  */
 export function getEstruturaPadraoSync(): PapelEstrutura[] | null {
+  if (isDemoLocation()) return [];
   if (!cache && !inflight) void getEstruturaPadrao();
   return cache;
 }

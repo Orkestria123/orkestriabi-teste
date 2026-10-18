@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { biHead } from "@/lib/bi-head";
 import { useDashboardCompany } from "@/components/dashboard-context";
 import { useFilters } from "@/components/filter-bar";
 import { useMyCompanies } from "@/hooks/use-financial-data";
@@ -6,9 +7,9 @@ import { useAuth } from "@/hooks/use-auth";
 import { InsightsCard } from "@/components/insights-card";
 import { TabelaIndices } from "@/components/dashboard/tabela-indices";
 
-export const Route = createFileRoute("/dashboard/")({ component: DashboardHome });
+export const Route = createFileRoute("/dashboard/")({ component: DashboardHome, head: () => biHead("Visão geral financeira") });
 
-function DashboardHome() {
+export function DashboardHome() {
   const { companyId, company } = useDashboardCompany();
   const { loading: authLoading } = useAuth();
   const { isLoading: companiesLoading } = useMyCompanies();

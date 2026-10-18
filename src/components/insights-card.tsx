@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useBiQuery as useQuery } from "@/lib/demo/query";
 import { useServerFn } from "@tanstack/react-start";
 import { generateFinancialInsights } from "@/lib/api/insights.functions";
 import { useMonthlyStatement } from "@/hooks/use-financial-data";

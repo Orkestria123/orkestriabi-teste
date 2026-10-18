@@ -41,7 +41,7 @@ export function exportStatementPDF(rows: StatementRow[], periods: string[], file
   const height = width > 842 ? 595.28 : 841.89;
   const doc = new jsPDF({ orientation: width > height ? 'landscape' : 'portrait', unit: 'pt', format: [width, height] });
   const pageWidth = doc.internal.pageSize.getWidth();
-  const primary = brand?.primaryColor ?? '#3A3B4D';
+  const primary = brand?.primaryColor || '#3A3B4D';
   const modes = statementPDFModes(model);
   const starts: number[] = [];
   const pages: { page: number; mode: number }[] = [];

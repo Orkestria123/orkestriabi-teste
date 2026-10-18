@@ -5,6 +5,7 @@ import {
   createRootRouteWithContext,
   HeadContent,
   Scripts,
+  useRouterState,
 } from "@tanstack/react-router";
 import { type ReactNode } from "react";
 
@@ -111,17 +112,18 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const publicDemo = useRouterState({ select: (s) => s.location.pathname === "/demo" || s.location.pathname.startsWith("/demo/") });
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
-        <AuthProvider>
+        {publicDemo ? <TooltipProvider><Outlet /><Toaster richColors position="top-right" /></TooltipProvider> : <AuthProvider>
           <TooltipProvider>
             <MfaGate>
               <Outlet />
             </MfaGate>
             <Toaster richColors position="top-right" />
           </TooltipProvider>
-        </AuthProvider>
+        </AuthProvider>}
       </ThemeProvider>
     </QueryClientProvider>
   );

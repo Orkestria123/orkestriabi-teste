@@ -9,7 +9,7 @@
 //                 lado a lado com a diferença.
 
 import { useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useBiQuery as useQuery } from "@/lib/demo/query";
 import { supabase } from "@/integrations/supabase/client";
 import {
   useIndicadorData,

@@ -4,7 +4,7 @@
 // por linha da DRE: cada item cai automaticamente na linha certa via prefixo
 // de classificação.
 import { Fragment, useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useBiQuery as useQuery } from "@/lib/demo/query";
 import { CircleAlert, CircleCheck, CircleMinus, TriangleAlert, Info } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";

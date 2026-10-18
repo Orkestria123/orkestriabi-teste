@@ -12,7 +12,7 @@
 // lógica. Em "comparativo", devolvemos os DOIS conjuntos (contábil e gerencial)
 // para o card de indicador mostrar lado a lado.
 
-import { useQuery } from "@tanstack/react-query";
+import { useBiQuery as useQuery } from "@/lib/demo/query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCarimboEmpresa } from "@/hooks/use-financial-data";
 import { carimboToken, lerCache, gravarCache } from "@/lib/cache-demonstracoes";
@@ -35,6 +35,7 @@ import { getEstruturaPadrao, type PapelEstrutura } from "@/lib/plano/estrutura";
 import type { Visao } from "@/hooks/use-visao-gerencial";
 import { getModoGlobal } from "@/lib/plano/escopo";
 import { tipoCustoEfetivo, classeGastoEfetivo } from "@/lib/plano/tipo-custo";
+import { isDemoEngine, demoLine } from "@/lib/demo/data";
 
 interface SnapshotRaw {
   plano: any[];
@@ -478,6 +479,7 @@ export function criarResolverLinha(
 ): ResolverLinha {
   return (linha: string, periodo: string) => {
     if (!ctx) return null;
+    if (isDemoEngine(ctx)) return demoLine(linha, periodo, ctx);
     return resolverLinhaCatalogo(linha, periodo, ctx, demoDre, estrutura);
   };
 }

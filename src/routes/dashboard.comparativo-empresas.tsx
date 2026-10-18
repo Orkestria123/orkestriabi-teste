@@ -74,7 +74,7 @@ function janela(ultimo: string, modo: Modo, selecionados: string[]): string[] {
   return out;
 }
 
-function Page() {
+export function Page() {
   const { periodos } = useFilters();
   const { visao } = useVisaoGerencial();
   const visaoCalc = visao === "comparativo" ? "contabil" : visao;

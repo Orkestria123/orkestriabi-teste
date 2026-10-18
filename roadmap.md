@@ -1,5 +1,10 @@
 # Roadmap — ajustes BI (25/09/2026)
 
+## Demonstração pública — 18/10
+- [x] Criar base estática descaracterizada da empresa de referência, sem identificação ou acesso às bases privadas
+- [x] Demo aberta com visão do cliente, demonstrações, análise, indicadores e Consolidado Empresas compartilhados
+- [x] Relatório executivo Modelo Ltda. e exportações; verificar navegação anônima e privacidade
+
 ## Comparativo e exportações — 18/10
 - [x] Acrescentar e conferir a visão Sintéticas nos links do PDF
 - [x] Comparativo Contábil/Gerencial lado a lado e diferença em vermelho

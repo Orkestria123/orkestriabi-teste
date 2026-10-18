@@ -1,7 +1,7 @@
 // Análises configuráveis pelo escritório (Admin → Análises).
 // Usa a MESMA lógica de fórmulas dos indicadores (engine), mas com
 // destino próprio: aba "Análises" do dashboard, seção Capital de Giro etc.
-import { useQuery } from "@tanstack/react-query";
+import { useBiQuery as useQuery } from "@/lib/demo/query";
 import { supabase } from "@/integrations/supabase/client";
 import {
   avaliarExpressao,

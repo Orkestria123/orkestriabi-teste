@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { biHead } from "@/lib/bi-head";
 import { useEffect, useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -33,7 +34,7 @@ import {
   type DespesaItem,
 } from "@/lib/analise-ponto-equilibrio";
 import { tipoCustoEfetivo, inferirAlocacaoGasto } from "@/lib/plano/tipo-custo";
-import { useQuery } from "@tanstack/react-query";
+import { useBiQuery as useQuery } from "@/lib/demo/query";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { Maximize2, Minimize2, Loader2 } from "lucide-react";
@@ -44,7 +45,7 @@ import {
 } from "@/components/analise/analises-dinamicas";
 import { CapitalGiroEstrutural } from "@/components/analise/capital-giro-estrutural";
 
-export const Route = createFileRoute("/dashboard/analise")({ component: Page });
+export const Route = createFileRoute("/dashboard/analise")({ component: Page, head: () => biHead("Análise financeira") });
 
 type Tipo = "DRE" | "BP_ATIVO" | "BP_PASSIVO" | "DFC";
 
@@ -67,7 +68,7 @@ function findValor(rows: { descricao: string; valor: number }[], kw: RegExp): nu
   );
 }
 
-function Page() {
+export function Page() {
   const { companyId, company } = useDashboardCompany();
   const { data: availablePeriods = [] } = useAvailablePeriods(companyId);
 

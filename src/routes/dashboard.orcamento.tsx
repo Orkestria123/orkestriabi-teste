@@ -5,7 +5,8 @@
 // e Variação com semáforo, e permite drill-down por item nas contas do plano.
 import { createFileRoute } from "@tanstack/react-router";
 import { Fragment, useEffect, useMemo, useState, type ReactNode } from "react";
-import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
+import { useBiQuery as useQuery, useBiQueries as useQueries } from "@/lib/demo/query";
 import { toast } from "sonner";
 import {
   ChevronDown,
@@ -75,8 +76,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import DREOrcada from "@/components/orcamento/dre-orcada";
 import { NaturezaCharts } from "@/components/orcamento/natureza-charts";
 import { cn } from "@/lib/utils";
+import { useIsDemo } from "@/lib/demo/context";
+import { biHead } from "@/lib/bi-head";
 
 export const Route = createFileRoute("/dashboard/orcamento")({
+  head: () => biHead("Orçamento e realizado"),
   component: OrcamentoAnalise,
 });
 
@@ -245,7 +249,8 @@ interface Cell {
   semDados: boolean;
 }
 
-function OrcamentoAnalise() {
+export function OrcamentoAnalise() {
+  const demo = useIsDemo();
   const { companyId, company } = useDashboardCompany();
   const { years, months } = useFilters();
 
@@ -763,6 +768,7 @@ function OrcamentoAnalise() {
     descricao: string;
     sobrescrever: boolean;
   }) => {
+    if (demo) throw new Error("Demonstração somente leitura.");
     if (!company?.tenant_id || !companyId || editingAno === null) {
       throw new Error("Contexto inválido");
     }
@@ -1145,7 +1151,7 @@ function OrcamentoAnalise() {
           </span>
         )}
 
-        <div className="ml-auto flex items-center gap-2">
+        {!demo && <div className="ml-auto flex items-center gap-2">
           {!editMode ? (
             <>
               <Button
@@ -1211,7 +1217,7 @@ function OrcamentoAnalise() {
               </Button>
             </>
           )}
-        </div>
+        </div>}
       </div>
 
       {editMode && totalizarPor !== "mes" && (

@@ -1,5 +1,6 @@
 // src/components/statement-table.tsx
 import { useState, useMemo, useEffect, Fragment } from 'react';
+import { buildStatementView, comparisonValues, type StatementView } from '@/lib/statement-view';
 import { usePersistente } from "@/hooks/use-persistente";
 import { ChevronDown, ChevronRight, ChevronUp, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -13,7 +14,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { resolverBasesAV, percentualAV } from '@/lib/av-base';
+import { resolverBasesAV } from '@/lib/av-base';
 import { tituloConta as formatarTituloConta, variacaoPct } from '@/lib/format';
 import { isCustoDespesaDre } from '@/lib/analise-helpers';
 import {
@@ -60,6 +61,7 @@ interface StatementTableProps {
   emMilhares?: boolean;
   /** Balanço: Ativo à esquerda e Passivo+PL à direita, com a mesma barra de filtro/expandir. */
   lados?: boolean;
+  onViewChange?: (view: StatementView) => void;
 }
 
 // Utilitários
@@ -303,6 +305,7 @@ export function StatementTable({
   onDrilldownClick,
   emMilhares = false,
   lados = false,
+  onViewChange,
 }: StatementTableProps) {
   // Períodos vêm da prop (DRE/BP) ou, se omitidos, do FilterProvider do dashboard.
   const filterContext = useFiltersOptional();
@@ -487,6 +490,26 @@ export function StatementTable({
   const expandirUmNivel = () => setExpandedRows(expandirCamada(rows, expandedRows));
   const recolherUmNivel = () => setExpandedRows(expandAteNivel(rows, abertoMax - 1));
 
+  const comparison = rows.some(row => row.valuesGer !== undefined);
+  const exportView = useMemo(() => buildStatementView({
+    rows: rowsFiltradas, columns: colunas, variant: variante,
+    bases: row => corteLados > 0 ? (rows.indexOf(row) < corteLados ? basesAVEsq : basesAVDir) : basesAV,
+    showAV, showAH, ahType: ahTipo, basePeriod, periods,
+    visible: row => !!busca.trim() || isRowVisible(rows, rows.indexOf(row), expandedRows),
+    standard: row => isRowVisible(rows, rows.indexOf(row), padrao), thousands: mostrarMilhares,
+  }), [rowsFiltradas, colunas, variante, corteLados, rows, basesAVEsq, basesAVDir, basesAV,
+    showAV, showAH, ahTipo, basePeriod, periods, busca, expandedRows, padrao, mostrarMilhares]);
+  useEffect(() => { onViewChange?.(exportView); }, [exportView, onViewChange]);
+
+  const comparisonCells = (row: StatementRow, col: ColunaAgrupada) => {
+    const v = comparisonValues(row, col, variante);
+    return <>
+      <td className="px-3 py-1.5 text-right tabular-nums whitespace-nowrap min-w-[7.25rem]">{formatarMoeda(v.accounting, mostrarMilhares)}</td>
+      <td className="px-3 py-1.5 text-right tabular-nums whitespace-nowrap min-w-[7.25rem]">{formatarMoeda(v.management, mostrarMilhares)}</td>
+      <td className={cn("px-3 py-1.5 text-right tabular-nums whitespace-nowrap min-w-[7.25rem]", Math.abs(v.difference) > 0.005 && "text-destructive font-medium")}>{formatarMoeda(v.difference, mostrarMilhares)}</td>
+    </>;
+  };
+
   // Se não houver períodos
   if (periods.length === 0) {
     return (
@@ -593,15 +616,15 @@ export function StatementTable({
               const idxSub = colunasSub.findIndex((c) => c.key === col.key);
               return (
                 <Fragment key={col.key}>
-                  <td className={cn(
+                  {comparison ? comparisonCells(row, col) : <td className={cn(
                     "px-3 py-1.5 text-right tabular-nums whitespace-nowrap min-w-[7.25rem] bg-muted/20 font-medium",
                     yoYMensal && "border-l",
                   )}>
                     {formatarMoeda(valorCol, mostrarMilhares)}
-                  </td>
+                  </td>}
                   {showAV && bases.map((base) => {
                     const den = base.row
-                      ? valorSubtotal(base.row.values, col.periodos, variante)
+                      ? comparisonValues(base.row, col, variante)[comparison ? "management" : "accounting"]
                       : 0;
                     const pct = Math.abs(den) < 0.001 ? null : (valorCol / den) * 100;
                     return (
@@ -640,29 +663,16 @@ export function StatementTable({
             const periodo = col.periodo;
             const valor = row.values[periodo] ?? 0;
             const valorGer = row.valuesGer?.[periodo] ?? valor;
-            const isGerencial = row.valuesGer && row.valuesGer[periodo] !== undefined;
 
             return (
               <Fragment key={periodo}>
-                <td className={cn(
+                {comparison ? comparisonCells(row, col) : <td className={cn(
                   "px-3 py-1.5 text-right tabular-nums whitespace-nowrap min-w-[7.25rem]",
                   yoYMensal && "border-l",
-                )}>
-                  {isGerencial && Math.abs(valorGer - valor) > 0.01 ? (
-                    <div className="flex flex-col items-end">
-                      <span className="text-muted-foreground line-through text-[10px]">
-                        {formatarMoeda(valor, mostrarMilhares)}
-                      </span>
-                      <span className="font-semibold">
-                        {formatarMoeda(valorGer, mostrarMilhares)}
-                      </span>
-                    </div>
-                  ) : (
-                    <span>{formatarMoeda(valor, mostrarMilhares)}</span>
-                  )}
-                </td>
+                )}>{formatarMoeda(valor, mostrarMilhares)}</td>}
                 {showAV && bases.map((base) => {
-                  const pct = percentualAV(row, base.row, periodo);
+                  const den = base.row ? comparisonValues(base.row, col, variante)[comparison ? "management" : "accounting"] : 0;
+                  const pct = Math.abs(den) < 0.001 ? null : (comparison ? valorGer : valor) / den * 100;
                   return (
                     <td
                       key={`${periodo}-${base.rotulo}`}
@@ -699,12 +709,12 @@ export function StatementTable({
         {/* Drill-down */}
         {drilldownExp && hasDrilldown && (
           <InlineDrilldown
-            codigoConta={codigoDrill!}
+            codigoConta={codigoDrill ?? ""}
             descricao={tituloConta(desc, variante)}
             periods={periods}
             colSpanLeft={1}
             colSpanRight={0}
-            extraMiddleCols={colunas.length * ((showAV ? bases.length : 0) + (showAH ? 1 : 0))}
+            extraMiddleCols={colunas.length * ((comparison ? 2 : 0) + (showAV ? bases.length : 0) + (showAH ? 1 : 0))}
             variante={variante === "bp" ? "bp" : variante === "dfc" ? "dfc" : "dre"}
             emMilhares={mostrarMilhares}
           />
@@ -715,8 +725,8 @@ export function StatementTable({
 
   const renderHeader = (bases = basesAV) => {
     const extrasPorPeriodo = (showAV ? bases.length : 0) + (showAH ? 1 : 0);
-    const colsPorPeriodo = 1 + extrasPorPeriodo;
-    const comSub = extrasPorPeriodo > 0;
+    const colsPorPeriodo = (comparison ? 3 : 1) + extrasPorPeriodo;
+    const comSub = comparison || extrasPorPeriodo > 0;
     const temBandaSuperior = mostrarBanda || yoYMensal;
     const rowSpanDesc = (temBandaSuperior ? 1 : 0) + 1 + (comSub ? 1 : 0);
     const thDesc = (
@@ -789,14 +799,9 @@ export function StatementTable({
           <tr className="border-b bg-muted/20">
             {colunas.map((col, colIdx) => (
               <Fragment key={`sub-${col.key}`}>
-                <th
-                  className={cn(
-                    "text-right font-medium text-[10px] text-muted-foreground px-3 py-1 whitespace-nowrap",
-                    col.kind === "s" && "bg-muted/30",
-                  )}
-                >
-                  R$
-                </th>
+                {(comparison ? ["Contábil", "Gerencial", "Diferença"] : ["R$"]).map(label => (
+                  <th key={label} className={cn("text-right font-medium text-[10px] text-muted-foreground px-3 py-1 whitespace-nowrap", col.kind === "s" && "bg-muted/30")}>{label}</th>
+                ))}
                 {showAV && bases.map((base) => (
                   <th
                     key={`avh-${col.key}-${base.rotulo}`}
@@ -868,7 +873,7 @@ export function StatementTable({
             {visiveis.length === 0 ? (
               <tr>
                 <td
-                  colSpan={1 + colunas.length * (1 + extras)}
+                  colSpan={1 + colunas.length * ((comparison ? 3 : 1) + extras)}
                   className="px-3 py-8 text-sm text-muted-foreground"
                 >
                   {busca.trim()

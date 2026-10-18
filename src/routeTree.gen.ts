@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as DemoRouteImport } from './routes/demo'
 import { Route as RecuperarSenhaRouteImport } from './routes/recuperar-senha'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as AdminAnalisesRouteImport } from './routes/admin.analises'
@@ -39,6 +40,15 @@ import { Route as DashboardIndicadoresRouteImport } from './routes/dashboard.ind
 import { Route as DashboardNotasFiscaisRouteImport } from './routes/dashboard.notas-fiscais'
 import { Route as DashboardOrcamentoRouteImport } from './routes/dashboard.orcamento'
 import { Route as DashboardRelatoriosRouteImport } from './routes/dashboard.relatorios'
+import { Route as DemoIndexRouteImport } from './routes/demo.index'
+import { Route as DemoAnaliseRouteImport } from './routes/demo.analise'
+import { Route as DemoBalancoRouteImport } from './routes/demo.balanco'
+import { Route as DemoComparativoEmpresasRouteImport } from './routes/demo.comparativo-empresas'
+import { Route as DemoDreRouteImport } from './routes/demo.dre'
+import { Route as DemoFluxoDeCaixaRouteImport } from './routes/demo.fluxo-de-caixa'
+import { Route as DemoIndicadoresRouteImport } from './routes/demo.indicadores'
+import { Route as DemoOrcamentoRouteImport } from './routes/demo.orcamento'
+import { Route as DemoRelatoriosRouteImport } from './routes/demo.relatorios'
 import { Route as OrkestriaAdminIndexRouteImport } from './routes/orkestria-admin.index'
 import { Route as OrkestriaAdminTenantsRouteImport } from './routes/orkestria-admin.tenants'
 import { Route as AdminEmpresasIndexRouteImport } from './routes/admin.empresas.index'
@@ -57,6 +67,11 @@ const AuthRoute = AuthRouteImport.update({
 const DashboardRoute = DashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DemoRoute = DemoRouteImport.update({
+  id: '/demo',
+  path: '/demo',
   getParentRoute: () => rootRouteImport,
 } as any)
 const RecuperarSenhaRoute = RecuperarSenhaRouteImport.update({
@@ -195,6 +210,51 @@ const DashboardRelatoriosRoute = DashboardRelatoriosRouteImport.update({
   path: '/relatorios',
   getParentRoute: () => DashboardRoute,
 } as any)
+const DemoIndexRoute = DemoIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => DemoRoute,
+} as any)
+const DemoAnaliseRoute = DemoAnaliseRouteImport.update({
+  id: '/analise',
+  path: '/analise',
+  getParentRoute: () => DemoRoute,
+} as any)
+const DemoBalancoRoute = DemoBalancoRouteImport.update({
+  id: '/balanco',
+  path: '/balanco',
+  getParentRoute: () => DemoRoute,
+} as any)
+const DemoComparativoEmpresasRoute = DemoComparativoEmpresasRouteImport.update({
+  id: '/comparativo-empresas',
+  path: '/comparativo-empresas',
+  getParentRoute: () => DemoRoute,
+} as any)
+const DemoDreRoute = DemoDreRouteImport.update({
+  id: '/dre',
+  path: '/dre',
+  getParentRoute: () => DemoRoute,
+} as any)
+const DemoFluxoDeCaixaRoute = DemoFluxoDeCaixaRouteImport.update({
+  id: '/fluxo-de-caixa',
+  path: '/fluxo-de-caixa',
+  getParentRoute: () => DemoRoute,
+} as any)
+const DemoIndicadoresRoute = DemoIndicadoresRouteImport.update({
+  id: '/indicadores',
+  path: '/indicadores',
+  getParentRoute: () => DemoRoute,
+} as any)
+const DemoOrcamentoRoute = DemoOrcamentoRouteImport.update({
+  id: '/orcamento',
+  path: '/orcamento',
+  getParentRoute: () => DemoRoute,
+} as any)
+const DemoRelatoriosRoute = DemoRelatoriosRouteImport.update({
+  id: '/relatorios',
+  path: '/relatorios',
+  getParentRoute: () => DemoRoute,
+} as any)
 const OrkestriaAdminIndexRoute = OrkestriaAdminIndexRouteImport.update({
   id: '/orkestria-admin/',
   path: '/orkestria-admin/',
@@ -220,6 +280,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/dashboard': typeof DashboardRouteWithChildren
+  '/demo': typeof DemoRouteWithChildren
   '/recuperar-senha': typeof RecuperarSenhaRoute
   '/admin/analises': typeof AdminAnalisesRoute
   '/admin/comparativo': typeof AdminComparativoRoute
@@ -245,9 +306,18 @@ export interface FileRoutesByFullPath {
   '/dashboard/notas-fiscais': typeof DashboardNotasFiscaisRoute
   '/dashboard/orcamento': typeof DashboardOrcamentoRoute
   '/dashboard/relatorios': typeof DashboardRelatoriosRoute
+  '/demo/analise': typeof DemoAnaliseRoute
+  '/demo/balanco': typeof DemoBalancoRoute
+  '/demo/comparativo-empresas': typeof DemoComparativoEmpresasRoute
+  '/demo/dre': typeof DemoDreRoute
+  '/demo/fluxo-de-caixa': typeof DemoFluxoDeCaixaRoute
+  '/demo/indicadores': typeof DemoIndicadoresRoute
+  '/demo/orcamento': typeof DemoOrcamentoRoute
+  '/demo/relatorios': typeof DemoRelatoriosRoute
   '/orkestria-admin/tenants': typeof OrkestriaAdminTenantsRoute
   '/admin/': typeof AdminIndexRoute
   '/dashboard/': typeof DashboardIndexRoute
+  '/demo/': typeof DemoIndexRoute
   '/orkestria-admin/': typeof OrkestriaAdminIndexRoute
   '/admin/empresas/': typeof AdminEmpresasIndexRoute
   '/admin/empresas/$id/dados': typeof AdminEmpresasIdDadosRoute
@@ -279,9 +349,18 @@ export interface FileRoutesByTo {
   '/dashboard/notas-fiscais': typeof DashboardNotasFiscaisRoute
   '/dashboard/orcamento': typeof DashboardOrcamentoRoute
   '/dashboard/relatorios': typeof DashboardRelatoriosRoute
+  '/demo/analise': typeof DemoAnaliseRoute
+  '/demo/balanco': typeof DemoBalancoRoute
+  '/demo/comparativo-empresas': typeof DemoComparativoEmpresasRoute
+  '/demo/dre': typeof DemoDreRoute
+  '/demo/fluxo-de-caixa': typeof DemoFluxoDeCaixaRoute
+  '/demo/indicadores': typeof DemoIndicadoresRoute
+  '/demo/orcamento': typeof DemoOrcamentoRoute
+  '/demo/relatorios': typeof DemoRelatoriosRoute
   '/orkestria-admin/tenants': typeof OrkestriaAdminTenantsRoute
   '/admin': typeof AdminIndexRoute
   '/dashboard': typeof DashboardIndexRoute
+  '/demo': typeof DemoIndexRoute
   '/orkestria-admin': typeof OrkestriaAdminIndexRoute
   '/admin/empresas': typeof AdminEmpresasIndexRoute
   '/admin/empresas/$id/dados': typeof AdminEmpresasIdDadosRoute
@@ -291,6 +370,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/dashboard': typeof DashboardRouteWithChildren
+  '/demo': typeof DemoRouteWithChildren
   '/recuperar-senha': typeof RecuperarSenhaRoute
   '/admin/analises': typeof AdminAnalisesRoute
   '/admin/comparativo': typeof AdminComparativoRoute
@@ -316,9 +396,18 @@ export interface FileRoutesById {
   '/dashboard/notas-fiscais': typeof DashboardNotasFiscaisRoute
   '/dashboard/orcamento': typeof DashboardOrcamentoRoute
   '/dashboard/relatorios': typeof DashboardRelatoriosRoute
+  '/demo/analise': typeof DemoAnaliseRoute
+  '/demo/balanco': typeof DemoBalancoRoute
+  '/demo/comparativo-empresas': typeof DemoComparativoEmpresasRoute
+  '/demo/dre': typeof DemoDreRoute
+  '/demo/fluxo-de-caixa': typeof DemoFluxoDeCaixaRoute
+  '/demo/indicadores': typeof DemoIndicadoresRoute
+  '/demo/orcamento': typeof DemoOrcamentoRoute
+  '/demo/relatorios': typeof DemoRelatoriosRoute
   '/orkestria-admin/tenants': typeof OrkestriaAdminTenantsRoute
   '/admin/': typeof AdminIndexRoute
   '/dashboard/': typeof DashboardIndexRoute
+  '/demo/': typeof DemoIndexRoute
   '/orkestria-admin/': typeof OrkestriaAdminIndexRoute
   '/admin/empresas/': typeof AdminEmpresasIndexRoute
   '/admin/empresas/$id/dados': typeof AdminEmpresasIdDadosRoute
@@ -329,6 +418,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/dashboard'
+    | '/demo'
     | '/recuperar-senha'
     | '/admin/analises'
     | '/admin/comparativo'
@@ -354,9 +444,18 @@ export interface FileRouteTypes {
     | '/dashboard/notas-fiscais'
     | '/dashboard/orcamento'
     | '/dashboard/relatorios'
+    | '/demo/analise'
+    | '/demo/balanco'
+    | '/demo/comparativo-empresas'
+    | '/demo/dre'
+    | '/demo/fluxo-de-caixa'
+    | '/demo/indicadores'
+    | '/demo/orcamento'
+    | '/demo/relatorios'
     | '/orkestria-admin/tenants'
     | '/admin/'
     | '/dashboard/'
+    | '/demo/'
     | '/orkestria-admin/'
     | '/admin/empresas/'
     | '/admin/empresas/$id/dados'
@@ -388,9 +487,18 @@ export interface FileRouteTypes {
     | '/dashboard/notas-fiscais'
     | '/dashboard/orcamento'
     | '/dashboard/relatorios'
+    | '/demo/analise'
+    | '/demo/balanco'
+    | '/demo/comparativo-empresas'
+    | '/demo/dre'
+    | '/demo/fluxo-de-caixa'
+    | '/demo/indicadores'
+    | '/demo/orcamento'
+    | '/demo/relatorios'
     | '/orkestria-admin/tenants'
     | '/admin'
     | '/dashboard'
+    | '/demo'
     | '/orkestria-admin'
     | '/admin/empresas'
     | '/admin/empresas/$id/dados'
@@ -399,6 +507,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/dashboard'
+    | '/demo'
     | '/recuperar-senha'
     | '/admin/analises'
     | '/admin/comparativo'
@@ -424,9 +533,18 @@ export interface FileRouteTypes {
     | '/dashboard/notas-fiscais'
     | '/dashboard/orcamento'
     | '/dashboard/relatorios'
+    | '/demo/analise'
+    | '/demo/balanco'
+    | '/demo/comparativo-empresas'
+    | '/demo/dre'
+    | '/demo/fluxo-de-caixa'
+    | '/demo/indicadores'
+    | '/demo/orcamento'
+    | '/demo/relatorios'
     | '/orkestria-admin/tenants'
     | '/admin/'
     | '/dashboard/'
+    | '/demo/'
     | '/orkestria-admin/'
     | '/admin/empresas/'
     | '/admin/empresas/$id/dados'
@@ -436,6 +554,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthRoute: typeof AuthRoute
   DashboardRoute: typeof DashboardRouteWithChildren
+  DemoRoute: typeof DemoRouteWithChildren
   RecuperarSenhaRoute: typeof RecuperarSenhaRoute
   AdminAnalisesRoute: typeof AdminAnalisesRoute
   AdminComparativoRoute: typeof AdminComparativoRoute
@@ -477,6 +596,13 @@ declare module '@tanstack/react-router' {
       path: '/dashboard'
       fullPath: '/dashboard'
       preLoaderRoute: typeof DashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/demo': {
+      id: '/demo'
+      path: '/demo'
+      fullPath: '/demo'
+      preLoaderRoute: typeof DemoRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/recuperar-senha': {
@@ -668,6 +794,69 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardRelatoriosRouteImport
       parentRoute: typeof DashboardRoute
     }
+    '/demo/': {
+      id: '/demo/'
+      path: '/'
+      fullPath: '/demo/'
+      preLoaderRoute: typeof DemoIndexRouteImport
+      parentRoute: typeof DemoRoute
+    }
+    '/demo/analise': {
+      id: '/demo/analise'
+      path: '/analise'
+      fullPath: '/demo/analise'
+      preLoaderRoute: typeof DemoAnaliseRouteImport
+      parentRoute: typeof DemoRoute
+    }
+    '/demo/balanco': {
+      id: '/demo/balanco'
+      path: '/balanco'
+      fullPath: '/demo/balanco'
+      preLoaderRoute: typeof DemoBalancoRouteImport
+      parentRoute: typeof DemoRoute
+    }
+    '/demo/comparativo-empresas': {
+      id: '/demo/comparativo-empresas'
+      path: '/comparativo-empresas'
+      fullPath: '/demo/comparativo-empresas'
+      preLoaderRoute: typeof DemoComparativoEmpresasRouteImport
+      parentRoute: typeof DemoRoute
+    }
+    '/demo/dre': {
+      id: '/demo/dre'
+      path: '/dre'
+      fullPath: '/demo/dre'
+      preLoaderRoute: typeof DemoDreRouteImport
+      parentRoute: typeof DemoRoute
+    }
+    '/demo/fluxo-de-caixa': {
+      id: '/demo/fluxo-de-caixa'
+      path: '/fluxo-de-caixa'
+      fullPath: '/demo/fluxo-de-caixa'
+      preLoaderRoute: typeof DemoFluxoDeCaixaRouteImport
+      parentRoute: typeof DemoRoute
+    }
+    '/demo/indicadores': {
+      id: '/demo/indicadores'
+      path: '/indicadores'
+      fullPath: '/demo/indicadores'
+      preLoaderRoute: typeof DemoIndicadoresRouteImport
+      parentRoute: typeof DemoRoute
+    }
+    '/demo/orcamento': {
+      id: '/demo/orcamento'
+      path: '/orcamento'
+      fullPath: '/demo/orcamento'
+      preLoaderRoute: typeof DemoOrcamentoRouteImport
+      parentRoute: typeof DemoRoute
+    }
+    '/demo/relatorios': {
+      id: '/demo/relatorios'
+      path: '/relatorios'
+      fullPath: '/demo/relatorios'
+      preLoaderRoute: typeof DemoRelatoriosRouteImport
+      parentRoute: typeof DemoRoute
+    }
     '/orkestria-admin/': {
       id: '/orkestria-admin/'
       path: '/orkestria-admin'
@@ -731,6 +920,32 @@ const DashboardRouteWithChildren = DashboardRoute._addFileChildren(
   DashboardRouteChildren,
 )
 
+interface DemoRouteChildren {
+  DemoAnaliseRoute: typeof DemoAnaliseRoute
+  DemoBalancoRoute: typeof DemoBalancoRoute
+  DemoComparativoEmpresasRoute: typeof DemoComparativoEmpresasRoute
+  DemoDreRoute: typeof DemoDreRoute
+  DemoFluxoDeCaixaRoute: typeof DemoFluxoDeCaixaRoute
+  DemoIndicadoresRoute: typeof DemoIndicadoresRoute
+  DemoOrcamentoRoute: typeof DemoOrcamentoRoute
+  DemoRelatoriosRoute: typeof DemoRelatoriosRoute
+  DemoIndexRoute: typeof DemoIndexRoute
+}
+
+const DemoRouteChildren: DemoRouteChildren = {
+  DemoAnaliseRoute: DemoAnaliseRoute,
+  DemoBalancoRoute: DemoBalancoRoute,
+  DemoComparativoEmpresasRoute: DemoComparativoEmpresasRoute,
+  DemoDreRoute: DemoDreRoute,
+  DemoFluxoDeCaixaRoute: DemoFluxoDeCaixaRoute,
+  DemoIndicadoresRoute: DemoIndicadoresRoute,
+  DemoOrcamentoRoute: DemoOrcamentoRoute,
+  DemoRelatoriosRoute: DemoRelatoriosRoute,
+  DemoIndexRoute: DemoIndexRoute,
+}
+
+const DemoRouteWithChildren = DemoRoute._addFileChildren(DemoRouteChildren)
+
 interface AdminEmpresasRouteChildren {
   AdminEmpresasIndexRoute: typeof AdminEmpresasIndexRoute
   AdminEmpresasIdDadosRoute: typeof AdminEmpresasIdDadosRoute
@@ -749,6 +964,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthRoute: AuthRoute,
   DashboardRoute: DashboardRouteWithChildren,
+  DemoRoute: DemoRouteWithChildren,
   RecuperarSenhaRoute: RecuperarSenhaRoute,
   AdminAnalisesRoute: AdminAnalisesRoute,
   AdminComparativoRoute: AdminComparativoRoute,

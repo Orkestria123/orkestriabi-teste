@@ -1,6 +1,7 @@
 import { useQuery, useQueries } from "@tanstack/react-query";
 import { useIsDemo, DEMO_COMPANY } from "./context";
 import { demoCompanies, demoPeriods, demoRows, demoEngine, demoDre, demoStructure, demoIndicators, demoAnalyses, demoRevenueExpense } from "./data";
+import { MASCARA_DEFAULT } from "@/lib/mascara/interpretar";
 
 /** Explicit public-data adapter. Never executes the original private query in demo mode. */
 export function demoQueryData(key: readonly unknown[]): unknown {
@@ -20,6 +21,15 @@ export function demoQueryData(key: readonly unknown[]): unknown {
     return {ano,porItem:Object.fromEntries(budgetItems.map((item)=>[item.id,{porMes:Array.from({length:12},(_,i)=>{const p=`${ano}-${String(i+1).padStart(2,"0")}-01`;return {competencia:p.slice(0,7),valor:budgetValue(item.id,p),semDados:!demoPeriods.includes(p)};})}]))};
   }
   if (name === "orcamento-drill-mensal") return {ano:key[4],contas:[]};
+  if (name === "dre-orcada-meta") return {modoGlobal:true};
+  if (name === "dre-orcada-mascara") return MASCARA_DEFAULT;
+  if (name === "dre-orcada-resolver") return new Map(String(key[3]).split(",").map((c)=>[c,c]));
+  if (name === "dre-orcada-mapa") return [
+    {classificacao_prefixo:"3.01",linha_demonstracao:"Receita Bruta",ordem:100,inverter_sinal:false},
+    {classificacao_prefixo:"3.02",linha_demonstracao:"(-) Custos Industriais",ordem:200,inverter_sinal:true},
+    {classificacao_prefixo:"3.06",linha_demonstracao:"(-) Despesas Operacionais",ordem:400,inverter_sinal:true},
+  ];
+  if (name === "dre-orcada-realizado") return demoRows("DRE",String(key[5]).split(","),String(key[4]));
   if (name === "my-companies") return demoCompanies;
   if (name === "available-periods") return demoPeriods;
   if (name === "carimbo-empresa") return { linhas: 1, atualizado_em: "2026-10-18T00:00:00Z" };

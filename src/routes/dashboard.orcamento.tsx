@@ -76,6 +76,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import DREOrcada from "@/components/orcamento/dre-orcada";
 import { NaturezaCharts } from "@/components/orcamento/natureza-charts";
 import { cn } from "@/lib/utils";
+import { useIsDemo } from "@/lib/demo/context";
 
 export const Route = createFileRoute("/dashboard/orcamento")({
   component: OrcamentoAnalise,
@@ -247,6 +248,7 @@ interface Cell {
 }
 
 export function OrcamentoAnalise() {
+  const demo = useIsDemo();
   const { companyId, company } = useDashboardCompany();
   const { years, months } = useFilters();
 
@@ -1146,7 +1148,7 @@ export function OrcamentoAnalise() {
           </span>
         )}
 
-        <div className="ml-auto flex items-center gap-2">
+        {!demo && <div className="ml-auto flex items-center gap-2">
           {!editMode ? (
             <>
               <Button

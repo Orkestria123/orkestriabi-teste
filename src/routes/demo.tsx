@@ -31,7 +31,7 @@ function DemoShell() {
   const company=demoCompanies.find((c)=>c.id===companyId) ?? demoCompanies[0];
   return <DashboardCompanyContext.Provider value={{companyId,company}}>
     <div className="flex min-h-screen w-full flex-col bg-background" data-tenant="open">
-      <AppTopNav variant="client" title={company.name} actions={<><VisaoToggle /><Select value={companyId} onValueChange={setCompanyId}><SelectTrigger className="w-40 sm:w-52"><SelectValue /></SelectTrigger><SelectContent>{demoCompanies.map((c)=><SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent></Select>} />
+      <AppTopNav variant="client" title={company.name} actions={<><VisaoToggle /><Select value={companyId} onValueChange={setCompanyId}><SelectTrigger className="w-40 sm:w-52"><SelectValue /></SelectTrigger><SelectContent>{demoCompanies.map((c)=><SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent></Select></>} />
       <main className="flex-1"><DemoPeriods /><FilterBar /><div className="p-3 sm:p-4"><Outlet /></div></main>
     </div>
   </DashboardCompanyContext.Provider>;

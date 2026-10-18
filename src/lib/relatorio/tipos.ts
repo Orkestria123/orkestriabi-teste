@@ -74,6 +74,8 @@ export interface ConteudoRelatorio {
   escritorio: { nome: string };
   empresa: { nome: string; razao?: string | null; cnpj?: string | null; cidade?: string | null; regime?: string | null };
   dados: DadosRelatorio;
+  /** Paleta visual do PDF conforme o escritório. Ausente = padrão Orkestria. */
+  tema?: "padrao" | "beltrami";
 }
 
 export function normalizarSecoes(cfg: SecaoCfg[] | null | undefined): SecaoCfg[] {

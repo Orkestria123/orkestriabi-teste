@@ -61,29 +61,6 @@ export function tokensDaFormula(formula: Formula | Token[] | null | undefined): 
   return Array.isArray(exp) ? exp : [];
 }
 
-/** ROE/ROA precisam do lucro acumulado no ano, não do mês da DRE. */
-export function indicadorUsaLucroYtd(nome: string): boolean {
-  const n = (nome ?? "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]/g, "");
-  return (
-    n === "roe" ||
-    n === "roa" ||
-    n.includes("retornosobrepatrim") ||
-    n.includes("retornosobreoativo") ||
-    n.includes("retornosobreativo")
-  );
-}
-
-export function tokensComLucroYtd(tokens: Token[]): Token[] {
-  return tokens.map((t) => {
-    if (t.tipo !== "termo" || t.linha !== "LUCRO_LIQUIDO") return t;
-    return { ...t, origem: "demonstracao" as const, linha: "LUCRO_LIQUIDO_YTD" };
-  });
-}
-
 export interface Faixas {
   otimo?: number | null;
   bom?: number | null;
@@ -743,8 +720,7 @@ export function calcularSerie(
   ctx: EngineContext,
   resolverLinha?: ResolverLinha,
 ): SeriePonto[] {
-  let tokens = tokensDaFormula(ind.formula);
-  if (indicadorUsaLucroYtd(ind.nome)) tokens = tokensComLucroYtd(tokens);
+  const tokens = tokensDaFormula(ind.formula);
   return periodos.map((p) => ({
     periodo: p,
     valor: avaliarExpressao(tokens, p, ctx, resolverLinha),
@@ -906,8 +882,7 @@ export function calcularSerieComBase(
   base: "padrao" | "rb" | "rl" = "padrao",
 ): SeriePonto[] {
   if (base === "padrao") return calcularSerie(ind, periodos, ctx, resolverLinha);
-  let tokens = tokensComBaseReceita(tokensDaFormula(ind.formula), base);
-  if (indicadorUsaLucroYtd(ind.nome)) tokens = tokensComLucroYtd(tokens);
+  const tokens = tokensComBaseReceita(tokensDaFormula(ind.formula), base);
   return periodos.map((p) => ({
     periodo: p,
     valor: avaliarExpressao(tokens, p, ctx, resolverLinha),

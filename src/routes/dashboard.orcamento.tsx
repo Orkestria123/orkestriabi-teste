@@ -77,8 +77,10 @@ import DREOrcada from "@/components/orcamento/dre-orcada";
 import { NaturezaCharts } from "@/components/orcamento/natureza-charts";
 import { cn } from "@/lib/utils";
 import { useIsDemo } from "@/lib/demo/context";
+import { biHead } from "@/lib/bi-head";
 
 export const Route = createFileRoute("/dashboard/orcamento")({
+  head: () => biHead("Orçamento e realizado"),
   component: OrcamentoAnalise,
 });
 

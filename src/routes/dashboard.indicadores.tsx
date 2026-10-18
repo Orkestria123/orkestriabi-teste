@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { biHead } from "@/lib/bi-head";
 import { useDashboardCompany } from "@/components/dashboard-context";
 import { useFilters } from "@/components/filter-bar";
 import { IndicadoresClienteGrid } from "@/components/indicadores/indicadores-cliente";
@@ -6,6 +7,7 @@ import { useState } from "react";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/dashboard/indicadores")({
+  head: () => biHead("Indicadores financeiros"),
   component: Page,
 });
 

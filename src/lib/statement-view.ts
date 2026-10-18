@@ -6,8 +6,26 @@ import type { BaseAV } from '@/lib/av-base';
 export interface ViewCell { value: number | null; format: 'money' | 'percent'; difference?: boolean }
 export interface StatementView {
   headers: string[];
-  rows: { source: StatementRow; cells: ViewCell[]; visible: boolean; standard: boolean }[];
+  rows: { source: StatementRow; cells: ViewCell[]; visible: boolean; standard: boolean; synthetic?: boolean }[];
   thousands: boolean;
+}
+
+/** Keeps structural groups and result lines, without individual analytical accounts. */
+export function statementPDFModes(model: StatementView) {
+  const minimumLevel = Math.min(...model.rows.map(row => row.source.nivel));
+  return [
+    { label: 'Consulta atual', accept: (row: StatementView['rows'][number]) => row.visible },
+    { label: 'Padrão', accept: (row: StatementView['rows'][number]) => row.standard },
+    { label: 'Sintéticas', accept: (row: StatementView['rows'][number]) => {
+      if (row.synthetic !== undefined) return row.synthetic;
+      const index = model.rows.indexOf(row);
+      const next = model.rows[index + 1];
+      return row.source.is_subtotal || row.source.codigo_conta == null
+        || (next !== undefined && next.source.nivel > row.source.nivel);
+    } },
+    { label: 'Expandir tudo', accept: () => true },
+    { label: 'Recolher', accept: (row: StatementView['rows'][number]) => row.source.nivel <= minimumLevel },
+  ];
 }
 
 export function comparisonValues(row: StatementRow, col: ColunaAgrupada, variant: 'dre' | 'bp' | 'dfc') {
@@ -38,6 +56,7 @@ export function buildStatementView(options: {
   });
   return { headers, thousands: options.thousands, rows: rows.map(source => ({
     source, visible: options.visible(source), standard: options.standard(source),
+    synthetic: source.nivel <= (variant === 'bp' ? 2 : 1),
     cells: columns.flatMap(col => {
       const values = comparisonValues(source, col, variant);
       const current = comparison ? values.management : values.accounting;

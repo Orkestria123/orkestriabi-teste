@@ -4,7 +4,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import type { StatementRow } from '@/components/statement-table';
 import { montarColunas } from '@/lib/dre-acumulo';
-import { buildStatementView, type StatementView, type ViewCell } from '@/lib/statement-view';
+import { buildStatementView, statementPDFModes, type StatementView, type ViewCell } from '@/lib/statement-view';
 
 function fallback(rows: StatementRow[], periods: string[]): StatementView {
   return buildStatementView({ rows, columns: montarColunas(periods, 'mes'), variant: 'dre',
@@ -42,12 +42,7 @@ export function exportStatementPDF(rows: StatementRow[], periods: string[], file
   const doc = new jsPDF({ orientation: width > height ? 'landscape' : 'portrait', unit: 'pt', format: [width, height] });
   const pageWidth = doc.internal.pageSize.getWidth();
   const primary = brand?.primaryColor ?? '#3A3B4D';
-  const modes = [
-    { label: 'Consulta atual', accept: (r: StatementView['rows'][number]) => r.visible },
-    { label: 'Padrão', accept: (r: StatementView['rows'][number]) => r.standard },
-    { label: 'Expandir tudo', accept: () => true },
-    { label: 'Recolher', accept: (r: StatementView['rows'][number]) => r.source.nivel <= Math.min(...model.rows.map(x => x.source.nivel)) },
-  ];
+  const modes = statementPDFModes(model);
   const starts: number[] = [];
   const pages: { page: number; mode: number }[] = [];
   modes.forEach((mode, modeIndex) => {
@@ -80,9 +75,10 @@ export function exportStatementPDF(rows: StatementRow[], periods: string[], file
     doc.setTextColor('#FFFFFF'); doc.setFontSize(13); doc.text(brand?.tenantName ?? 'Orkestria BI', 30, 27);
     doc.setTextColor('#111827'); doc.setFontSize(12); doc.text(title, 30, 62);
     doc.setFontSize(9); doc.text(`${subtitle ?? ''} · ${model.thousands ? 'R$ mil' : 'R$'} · ${modes[mode].label}`, 30, 78);
+    const navigationWidth = Math.min(115, (pageWidth - 60) / modes.length);
     modes.forEach((item, i) => {
-      doc.setTextColor(primary); doc.text(item.label, 30 + i * 115, 97);
-      doc.link(30 + i * 115, 85, 110, 15, { pageNumber: starts[i] });
+      doc.setTextColor(primary); doc.text(item.label, 30 + i * navigationWidth, 97);
+      doc.link(30 + i * navigationWidth, 85, navigationWidth - 5, 15, { pageNumber: starts[i] });
     });
     doc.setTextColor('#6B7280'); doc.text(`${page} / ${doc.getNumberOfPages()}`, pageWidth - 30, height - 15, { align: 'right' });
   });

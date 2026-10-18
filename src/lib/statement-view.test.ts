@@ -25,4 +25,11 @@ describe('Comparativo e exportação da consulta', () => {
     expect(view.rows[0].cells.map(c => c.value)).toEqual([300, 310, 10]);
     expect(view.rows[0].visible).toBe(false);
   });
+  it('a visão gerencial exporta seus próprios valores sem colunas contábeis', () => {
+    const view = buildStatementView({ rows: [{ ...row, values: row.valuesGer, valuesGer: undefined }],
+      columns: montarColunas(periods, 'mes'), variant: 'dre', bases: () => [], showAV: false,
+      showAH: false, ahType: 'anterior', periods, visible: () => true, standard: () => true, thousands: false });
+    expect(view.rows[0].cells.map(c => c.value)).toEqual([130, 180]);
+    expect(view.headers).toHaveLength(2);
+  });
 });

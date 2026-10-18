@@ -13,6 +13,7 @@ function fallback(rows: StatementRow[], periods: string[]): StatementView {
 }
 function formatted(cell: ViewCell, thousands: boolean) {
   if (cell.value == null || !Number.isFinite(cell.value)) return '—';
+  if (cell.value === 0 && cell.format === 'money') return '—';
   const value = cell.format === 'money' && thousands ? cell.value / 1000 : cell.value;
   const number = Math.abs(value).toLocaleString('pt-BR', { minimumFractionDigits: cell.format === 'percent' || thousands ? 1 : 2, maximumFractionDigits: cell.format === 'percent' || thousands ? 1 : 2 });
   const text = cell.format === 'percent' ? `${number}%` : number;

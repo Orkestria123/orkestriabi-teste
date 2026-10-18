@@ -1,9 +1,9 @@
 # Roadmap — ajustes BI (25/09/2026)
 
 ## Comparativo e exportações — 18/10
-- [ ] Comparativo Contábil/Gerencial lado a lado e diferença em vermelho
-- [ ] PDF e Excel da visão consultada, incluindo análises e totalizadores
-- [ ] PDF com todas as colunas e navegação entre detalhamentos; testar fluxo
+- [x] Comparativo Contábil/Gerencial lado a lado e diferença em vermelho
+- [x] PDF e Excel da visão consultada, incluindo análises e totalizadores
+- [x] PDF com todas as colunas e navegação entre detalhamentos; consulta real e downloads conferidos na Beltrami
 
 - [x] ECD: DRE em meses com encerramento (causa: diário da ECD gravado pela metade → mês caía no saldo I155)
 - [x] ECD: histórico (drill-down agora acha contas específicas da empresa; envio do diário com repetição)

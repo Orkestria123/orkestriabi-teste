@@ -21,11 +21,12 @@ interface Props {
 export function ExportMenu({ rows, periods, filename, title, subtitle, view }: Props) {
   const { tenant } = useAuth();
   const { visao } = useVisaoGerencial();
+  const ready = !!view && view.rows.length > 0 && view.rows.every(row => rows.includes(row.source));
   const exportTitle = `${title} — ${visao === "comparativo" ? "Comparativo Contábil / Gerencial" : visao === "gerencial" ? "Gerencial" : "Contábil"}`;
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button size="sm" variant="outline">
+        <Button size="sm" variant="outline" disabled={!ready}>
           <Download className="h-4 w-4 mr-1.5" /> Exportar
         </Button>
       </DropdownMenuTrigger>

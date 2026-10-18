@@ -1,6 +1,6 @@
 import { Fragment, useMemo, useState } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { useBiQuery as useQuery } from "@/lib/demo/query";
 import { cn } from "@/lib/utils";
 import { useVisaoGerencial } from "@/hooks/use-visao-gerencial";
 import type { EngineContext, ResolverLinha } from "@/lib/indicadores/engine";

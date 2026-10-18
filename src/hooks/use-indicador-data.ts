@@ -12,7 +12,7 @@
 // lógica. Em "comparativo", devolvemos os DOIS conjuntos (contábil e gerencial)
 // para o card de indicador mostrar lado a lado.
 
-import { useQuery } from "@tanstack/react-query";
+import { useBiQuery as useQuery } from "@/lib/demo/query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCarimboEmpresa } from "@/hooks/use-financial-data";
 import { carimboToken, lerCache, gravarCache } from "@/lib/cache-demonstracoes";

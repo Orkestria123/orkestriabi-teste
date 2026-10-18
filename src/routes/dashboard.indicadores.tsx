@@ -11,7 +11,7 @@ export const Route = createFileRoute("/dashboard/indicadores")({
 
 type BaseAV = "rb" | "rl";
 
-function Page() {
+export function Page() {
   const { companyId, company } = useDashboardCompany();
   const { periodos } = useFilters();
   const [baseAV, setBaseAV] = useState<BaseAV>("rl");

@@ -5,7 +5,8 @@
 // e Variação com semáforo, e permite drill-down por item nas contas do plano.
 import { createFileRoute } from "@tanstack/react-router";
 import { Fragment, useEffect, useMemo, useState, type ReactNode } from "react";
-import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
+import { useBiQuery as useQuery, useBiQueries as useQueries } from "@/lib/demo/query";
 import { toast } from "sonner";
 import {
   ChevronDown,
@@ -245,7 +246,7 @@ interface Cell {
   semDados: boolean;
 }
 
-function OrcamentoAnalise() {
+export function OrcamentoAnalise() {
   const { companyId, company } = useDashboardCompany();
   const { years, months } = useFilters();
 

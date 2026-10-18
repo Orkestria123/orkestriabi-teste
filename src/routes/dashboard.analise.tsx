@@ -33,7 +33,7 @@ import {
   type DespesaItem,
 } from "@/lib/analise-ponto-equilibrio";
 import { tipoCustoEfetivo, inferirAlocacaoGasto } from "@/lib/plano/tipo-custo";
-import { useQuery } from "@tanstack/react-query";
+import { useBiQuery as useQuery } from "@/lib/demo/query";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { Maximize2, Minimize2, Loader2 } from "lucide-react";
@@ -67,7 +67,7 @@ function findValor(rows: { descricao: string; valor: number }[], kw: RegExp): nu
   );
 }
 
-function Page() {
+export function Page() {
   const { companyId, company } = useDashboardCompany();
   const { data: availablePeriods = [] } = useAvailablePeriods(companyId);
 

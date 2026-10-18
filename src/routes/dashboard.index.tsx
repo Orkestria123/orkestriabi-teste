@@ -8,7 +8,7 @@ import { TabelaIndices } from "@/components/dashboard/tabela-indices";
 
 export const Route = createFileRoute("/dashboard/")({ component: DashboardHome });
 
-function DashboardHome() {
+export function DashboardHome() {
   const { companyId, company } = useDashboardCompany();
   const { loading: authLoading } = useAuth();
   const { isLoading: companiesLoading } = useMyCompanies();

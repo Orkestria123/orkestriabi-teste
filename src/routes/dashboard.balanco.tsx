@@ -40,7 +40,7 @@ export const Route = createFileRoute("/dashboard/balanco")({ component: Page, he
     { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" },
   ] }) });
 
-function Page() {
+export function Page() {
   const [exportView, setExportView] = useState<StatementView>();
   const { companyId, company } = useDashboardCompany();
   const { periodos } = useFilters();

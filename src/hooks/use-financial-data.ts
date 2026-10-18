@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useBiQuery as useQuery } from "@/lib/demo/query";
 import { supabase } from "@/integrations/supabase/client";
 import { buildStatementFromDiario } from "@/lib/diario/build-statements";
 import { useVisaoGerencial } from "@/hooks/use-visao-gerencial";

@@ -148,6 +148,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Tema visual por escritório: o slug vira data-tenant no <html> e o
+  // styles.css aplica a paleta da marca (ex.: Beltrami em ouro/grafite).
+  useEffect(() => {
+    const slug = tenant?.slug ?? "";
+    if (slug) document.documentElement.dataset.tenant = slug;
+    else delete document.documentElement.dataset.tenant;
+  }, [tenant?.slug]);
+
   const isCliente = profile?.tipo_usuario === "cliente" || (role === "client" && profile?.tipo_usuario == null);
 
   const refresh = async () => {

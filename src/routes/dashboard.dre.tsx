@@ -1,3 +1,4 @@
+import type { StatementView } from "@/lib/statement-view";
 import { createFileRoute } from "@tanstack/react-router";
 import { usePersistente } from "@/hooks/use-persistente";
 import { useQueryClient } from "@tanstack/react-query";
@@ -36,10 +37,11 @@ function buildRows(data: any[]): { rows: StatementRow[]; periods: string[] } {
         linha_ordem: r.linha_ordem ?? 0,
       });
     }
-    const row = map.get(key)!;
+    const row = map.get(key);
+    if (!row) continue;
     row.values[r.periodo] = Number(r.valor) || 0;
-    if (hasComparativo) {
-      row.valuesGer![r.periodo] = Number(r.valor_gerencial) || 0;
+    if (row.valuesGer) {
+      row.valuesGer[r.periodo] = Number(r.valor_gerencial) || 0;
     }
     periodSet.add(r.periodo);
   }
@@ -129,6 +131,7 @@ export function makeStatementPage(
   opts?: { categoryFilter?: boolean },
 ) {
   return function Page() {
+    const [exportView, setExportView] = useState<StatementView>();
     const { companyId, company } = useDashboardCompany();
     const { periodos } = useFilters();
     const { data, isLoading } = useMonthlyStatement(companyId, tipo, periodos);
@@ -233,6 +236,7 @@ export function makeStatementPage(
               AH%
             </Button>
             <ExportMenu
+              view={exportView}
               rows={rows}
               periods={periods}
               filename={`${tipo}-${company?.name ?? "empresa"}`}
@@ -269,6 +273,7 @@ export function makeStatementPage(
           </div>
         ) : (
           <StatementTable
+            onViewChange={setExportView}
             rows={rows}
             periods={periods}
             showAV={showAV}
@@ -291,6 +296,11 @@ export function makeStatementPage(
 }
 
 export const Route = createFileRoute("/dashboard/dre")({
+  head: () => ({ meta: [
+    { title: "DRE — Orkestria BI" }, { name: "description", content: "Demonstração do resultado contábil, gerencial e comparativo da empresa." },
+    { property: "og:title", content: "DRE — Orkestria BI" }, { property: "og:description", content: "Consulte e exporte a demonstração do resultado." },
+    { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" },
+  ] }),
   component: makeStatementPage(
     "DRE",
     "Demonstração do Resultado (DRE)",

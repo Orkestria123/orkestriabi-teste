@@ -5,6 +5,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import type { StatementRow } from "@/components/statement-table";
 import { exportStatementPDF, exportStatementXLSX } from "@/lib/exports";
+import type { StatementView } from "@/lib/statement-view";
+import { useVisaoGerencial } from "@/hooks/use-visao-gerencial";
 import { useAuth } from "@/hooks/use-auth";
 
 interface Props {
@@ -13,10 +15,13 @@ interface Props {
   filename: string;
   title: string;
   subtitle?: string;
+  view?: StatementView;
 }
 
-export function ExportMenu({ rows, periods, filename, title, subtitle }: Props) {
+export function ExportMenu({ rows, periods, filename, title, subtitle, view }: Props) {
   const { tenant } = useAuth();
+  const { visao } = useVisaoGerencial();
+  const exportTitle = `${title} — ${visao === "comparativo" ? "Comparativo Contábil / Gerencial" : visao === "gerencial" ? "Gerencial" : "Contábil"}`;
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -25,12 +30,12 @@ export function ExportMenu({ rows, periods, filename, title, subtitle }: Props) 
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        <DropdownMenuItem onClick={() => exportStatementXLSX(rows, periods, filename, title)}>
+        <DropdownMenuItem onClick={() => exportStatementXLSX(rows, periods, `${filename}-${visao}`, exportTitle, view)}>
           <FileSpreadsheet className="h-4 w-4 mr-2" /> Excel (.xlsx)
         </DropdownMenuItem>
         <DropdownMenuItem
           onClick={() =>
-            exportStatementPDF(rows, periods, filename, title, subtitle, {
+            exportStatementPDF(rows, periods, `${filename}-${visao}`, exportTitle, subtitle, {
               primaryColor: tenant?.primary_color,
               logoUrl: tenant?.logo_url,
               tenantName: tenant?.name,

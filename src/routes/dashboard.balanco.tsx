@@ -1,3 +1,4 @@
+import type { StatementView } from "@/lib/statement-view";
 import { createFileRoute } from "@tanstack/react-router";
 import { usePersistente } from "@/hooks/use-persistente";
 import { useDashboardCompany } from "@/components/dashboard-context";
@@ -25,16 +26,22 @@ function buildRows(data: any[]): StatementRow[] {
       valuesGer: hasComparativo ? {} : undefined,
       linha_ordem: r.linha_ordem ?? 0,
     });
-    const row = map.get(key)!;
+    const row = map.get(key);
+    if (!row) continue;
     row.values[r.periodo] = Number(r.valor) || 0;
-    if (hasComparativo) row.valuesGer![r.periodo] = Number(r.valor_gerencial) || 0;
+    if (row.valuesGer) row.valuesGer[r.periodo] = Number(r.valor_gerencial) || 0;
   }
   return Array.from(map.values()).sort((a, b) => a.linha_ordem - b.linha_ordem);
 }
 
-export const Route = createFileRoute("/dashboard/balanco")({ component: Page });
+export const Route = createFileRoute("/dashboard/balanco")({ component: Page, head: () => ({ meta: [
+    { title: "Balanço Patrimonial — Orkestria BI" }, { name: "description", content: "Ativo, passivo e patrimônio nas visões contábil, gerencial e comparativa." },
+    { property: "og:title", content: "Balanço Patrimonial — Orkestria BI" }, { property: "og:description", content: "Consulte e exporte o balanço da empresa." },
+    { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" },
+  ] }) });
 
 function Page() {
+  const [exportView, setExportView] = useState<StatementView>();
   const { companyId, company } = useDashboardCompany();
   const { periodos } = useFilters();
   const [showAV, setShowAV] = usePersistente("bp:av", false);
@@ -96,6 +103,7 @@ function Page() {
             onClick={() => setShowAH((v) => !v)}
           >AH%</Button>
           <ExportMenu
+              view={exportView}
             rows={bpRows}
             periods={periodosBp}
             filename={`BP-${company?.name ?? "empresa"}`}
@@ -106,6 +114,7 @@ function Page() {
       </div>
 
       <StatementTable
+            onViewChange={setExportView}
         rows={bpRows}
         periods={periodosBp}
         showAV={showAV}

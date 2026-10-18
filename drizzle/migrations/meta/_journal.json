@@ -421,6 +421,13 @@
       "when": 1792086723833,
       "tag": "0059_contas_novas_sugestao_participante",
       "breakpoints": true
+    },
+    {
+      "idx": 60,
+      "version": "7",
+      "when": 1792282676465,
+      "tag": "0060_ecd_participantes_respeita_manual",
+      "breakpoints": true
     }
   ]
 }

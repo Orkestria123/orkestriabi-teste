@@ -44,6 +44,13 @@ export function buildStatementView(options: {
   standard: (row: StatementRow) => boolean; thousands: boolean;
 }): StatementView {
   const { rows, columns, variant, showAV, showAH, periods } = options;
+  const levels: number[] = [];
+  const syntheticRows = new Set<StatementRow>();
+  for (const row of rows) {
+    while (levels.length && levels[levels.length - 1] >= row.nivel) levels.pop();
+    if (levels.length <= (variant === 'bp' ? 2 : 1)) syntheticRows.add(row);
+    levels.push(row.nivel);
+  }
   const comparison = rows.some(r => r.valuesGer !== undefined);
   const bases = rows[0] ? options.bases(rows[0]) : [];
   const headers = columns.flatMap(col => {
@@ -56,7 +63,7 @@ export function buildStatementView(options: {
   });
   return { headers, thousands: options.thousands, rows: rows.map(source => ({
     source, visible: options.visible(source), standard: options.standard(source),
-    synthetic: source.nivel <= (variant === 'bp' ? 2 : 1),
+    synthetic: syntheticRows.has(source),
     cells: columns.flatMap(col => {
       const values = comparisonValues(source, col, variant);
       const current = comparison ? values.management : values.accounting;

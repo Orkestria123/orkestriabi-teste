@@ -9,9 +9,9 @@ describe('Comparativo e exportação da consulta', () => {
     const rows = [
       { ...row, descricao: 'Ativo' },
       { ...row, descricao: 'Circulante', nivel: 1 },
-      { ...row, descricao: 'Disponível', codigo_conta: '1.1.1', nivel: 2, is_subtotal: false },
-      { ...row, descricao: 'Banco individual', codigo_conta: '1.1.1.01', nivel: 3, is_subtotal: false },
-      { ...row, descricao: 'Subgrupo bancário detalhado', codigo_conta: '1.1.1.02', nivel: 3, is_subtotal: true },
+      { ...row, descricao: 'Disponível', codigo_conta: '1.1.1', nivel: 4, is_subtotal: false },
+      { ...row, descricao: 'Banco individual', codigo_conta: '1.1.1.01', nivel: 5, is_subtotal: false },
+      { ...row, descricao: 'Subgrupo bancário detalhado', codigo_conta: '1.1.1.02', nivel: 5, is_subtotal: true },
       { ...row, descricao: 'Resultado do Exercício', nivel: 2, is_subtotal: false },
       { ...row, descricao: 'Total do Ativo' },
     ];

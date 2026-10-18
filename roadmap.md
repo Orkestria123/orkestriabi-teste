@@ -1,5 +1,8 @@
 # Roadmap — ajustes BI (25/09/2026)
 
+## Rentabilidade mensal — 18/10
+- [ ] Corrigir ROA/ROE mensais para lucro da DRE do próprio mês sobre Ativo/PL do mesmo mês e validar com testes e consulta real
+
 ## Demonstração pública — 18/10
 - [x] Criar base estática descaracterizada da empresa de referência, sem identificação ou acesso às bases privadas
 - [x] Demo aberta com visão do cliente, demonstrações, análise, indicadores e Consolidado Empresas compartilhados

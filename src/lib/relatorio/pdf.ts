@@ -6,7 +6,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { calcularCapitalGiro } from "@/lib/analise-capital-giro";
 import { SECOES, mesExtenso, mesCurto, MESES, normalizarSecoes, type ConteudoRelatorio, type LinhaDemo, type SecaoId } from "./tipos";
-import { componenteFabricacao, destaqueBp, indiceEbitRelatorio, linhasBpRelatorio, linhasDfcRelatorio, linhasDreRelatorio, valorCaixaNominal } from "./apresentacao";
+import { componenteFabricacao, destaqueBp, indiceEbitRelatorio, linhasBpRelatorio, linhasDfcRelatorio, linhasDreRelatorio, tituloLinha, valorCaixaNominal } from "./apresentacao";
 
 import headingFont from "@/assets/report-fonts/Poppins-SemiBold.ttf?url";
 import bodyFont from "@/assets/report-fonts/PublicSans-Regular.ttf?url";
@@ -194,7 +194,7 @@ export async function gerarPdfRelatorio(c: ConteudoRelatorio): Promise<Blob> {
     const head = ["Descrição", ...periodos.map(mesCurto), ...(periodos.length > 1 ? ["AH %"] : []), ...(comAV ? ["AV % RL"] : [])];
     const body = ls.map((l) => {
       const at = l.valores[d.periodo] ?? 0, an = d.anterior ? l.valores[d.anterior] ?? 0 : 0;
-      return ["   ".repeat(Math.max(0, l.nivel - 1)) + l.descricao, ...periodos.map((p) => fmtV(l.valores[p])),
+      return ["   ".repeat(Math.max(0, l.nivel - 1)) + tituloLinha(l.descricao), ...periodos.map((p) => fmtV(l.valores[p])),
         ...(periodos.length > 1 ? [an ? pct(((at - an) / Math.abs(an)) * 100) : "—"] : []),
         ...(comAV ? [rl ? pct((at / rl) * 100) : "—"] : [])];
     });
@@ -328,7 +328,7 @@ export async function gerarPdfRelatorio(c: ConteudoRelatorio): Promise<Blob> {
       const acc = (l: LinhaDemo) => d.acumulado?.dre.find((x) => x.descricao === l.descricao);
       const body = ls.map((l) => {
         const at = l.valores[d.periodo] ?? 0, ant = d.anterior ? l.valores[d.anterior] : null;
-        return [l.descricao, d.anterior ? fmtV(ant) : "N/D", fmtV(at), rl ? pct(at / rl * 100) : "—", ant ? pct((at - ant) / Math.abs(ant) * 100) : "—", d.acumulado ? fmtV(Object.values(acc(l)?.valores ?? {}).reduce((a,b) => a+b,0)) : "N/D"];
+        return [tituloLinha(l.descricao), d.anterior ? fmtV(ant) : "N/D", fmtV(at), rl ? pct(at / rl * 100) : "—", ant ? pct((at - ant) / Math.abs(ant) * 100) : "—", d.acumulado ? fmtV(Object.values(acc(l)?.valores ?? {}).reduce((a,b) => a+b,0)) : "N/D"];
       });
       y = tabelaBase(["Descrição", d.anterior ? mesCurto(d.anterior) : "Anterior", mesCurto(d.periodo), "AV% RL", "AH% mês", `Jan–${mesCurto(d.periodo)}`], body, y, { larg0: 270, compacto: true, negrito: (i) => !!ls[i] && !componenteFabricacao(ls[i]) && !/materiais|dedu[çc]|despesas operacionais|provis[aã]o/i.test(ls[i].descricao) });
       y = texto("AV% = linha / receita líquida × 100. AH% = (atual − anterior) / |anterior| × 100. Materiais, mão de obra e gastos gerais de fabricação integram os custos e não são somados novamente. Acumulado considera somente meses disponíveis no ano.", y, W - 2*M, M, 8);
@@ -336,16 +336,16 @@ export async function gerarPdfRelatorio(c: ConteudoRelatorio): Promise<Blob> {
     } else if (id === "custos") {
       const ls = d.dre.filter((l) => componenteFabricacao(l) || l.nivel === 2 && /gastos|despesas|compras|estoque inicial|estoque final/i.test(l.descricao));
       const rl = linha(d.dre, /receita l[ií]quida/i)?.valores[d.periodo] ?? 0;
-      y = tabelaBase(["Grupo / componente", ...periodos.map(mesCurto), "% receita líquida"], ls.map((l) => [l.descricao, ...periodos.map((p) => fmtV(l.valores[p])), rl ? pct((l.valores[d.periodo] ?? 0)/rl*100) : "—"]), y, {larg0:340});
+      y = tabelaBase(["Grupo / componente", ...periodos.map(mesCurto), "% receita líquida"], ls.map((l) => [tituloLinha(l.descricao), ...periodos.map((p) => fmtV(l.valores[p])), rl ? pct((l.valores[d.periodo] ?? 0)/rl*100) : "—"]), y, {larg0:340});
       y = texto("A segregação segue os grupos configurados no BI. Componentes dos custos não devem ser somados novamente aos respectivos totais.", y, W-2*M, M, 8);
       texto(T.custos, y, W-2*M, M,9);
     } else if (id === "bp") {
       const ativo = linhasBpRelatorio(d.bpAtivo), passivo = linhasBpRelatorio(d.bpPassivo);
-      y = tabelaBase(["Ativo", mesCurto(d.periodo), "Passivo + patrimônio líquido", mesCurto(d.periodo)], Array.from({length:Math.max(ativo.length, passivo.length)}, (_, i) => [ativo[i]?.descricao ?? "", ativo[i] ? fmtV(ativo[i].valores[d.periodo]) : "", passivo[i]?.descricao ?? "", passivo[i] ? fmtV(passivo[i].valores[d.periodo]) : ""]), y, { larg0:230, esquerda:[2], compacto:true, negritoCelula:(i,col)=>destaqueBp(col < 2 ? ativo[i] : passivo[i]) });
+      y = tabelaBase(["Ativo", mesCurto(d.periodo), "Passivo + patrimônio líquido", mesCurto(d.periodo)], Array.from({length:Math.max(ativo.length, passivo.length)}, (_, i) => [ativo[i] ? tituloLinha(ativo[i].descricao) : "", ativo[i] ? fmtV(ativo[i].valores[d.periodo]) : "", passivo[i] ? tituloLinha(passivo[i].descricao) : "", passivo[i] ? fmtV(passivo[i].valores[d.periodo]) : ""]), y, { larg0:230, esquerda:[2], compacto:true, negritoCelula:(i,col)=>destaqueBp(col < 2 ? ativo[i] : passivo[i]) });
       texto(T.bp, y, W-2*M, M, 10);
     } else if (id === "dfc") {
       const ls = linhasDfcRelatorio(d.dfc);
-      y = ls.length ? tabelaBase(["Descrição",...periodos.map(mesCurto)],ls.map(l=>[l.descricao,...periodos.map(p=>fmtV(l.valores[p]))]),y,{negrito:i=>!!ls[i]?.subtotal,compacto:true,larg0:380}) : texto("Demonstração dos fluxos de caixa não disponível para o período.",y);
+      y = ls.length ? tabelaBase(["Descrição",...periodos.map(mesCurto)],ls.map(l=>[tituloLinha(l.descricao),...periodos.map(p=>fmtV(l.valores[p]))]),y,{negrito:i=>!!ls[i]?.subtotal,compacto:true,larg0:380}) : texto("Demonstração dos fluxos de caixa não disponível para o período.",y);
       texto(T.dfc, y, W-2*M, M,9);
     } else if (id === "caixa") {
       const get = (re: RegExp) => linha(d.dfc,re)?.valores[d.periodo] ?? 0;
@@ -368,7 +368,7 @@ export async function gerarPdfRelatorio(c: ConteudoRelatorio): Promise<Blob> {
     } else if (id === "patrimonio") {
       const start=d.bpPassivo.findIndex((l)=>/^patrim[oô]nio l[ií]quido$/i.test(l.descricao));
       const ls=start<0 ? [] : d.bpPassivo.slice(start).filter((l)=>!/total do passivo/i.test(l.descricao) && l.nivel<=3);
-      y=tabelaBase(["Componente",d.anterior?mesCurto(d.anterior):"Anterior",mesCurto(d.periodo),"Variação"],ls.map((l)=>[l.descricao,d.anterior?fmtV(l.valores[d.anterior]):"N/D",fmtV(l.valores[d.periodo]),d.anterior?fmtV((l.valores[d.periodo]??0)-(l.valores[d.anterior]??0)):"N/D"]),y,{negrito:i=>!!ls[i]?.subtotal});
+      y=tabelaBase(["Componente",d.anterior?mesCurto(d.anterior):"Anterior",mesCurto(d.periodo),"Variação"],ls.map((l)=>[tituloLinha(l.descricao),d.anterior?fmtV(l.valores[d.anterior]):"N/D",fmtV(l.valores[d.periodo]),d.anterior?fmtV((l.valores[d.periodo]??0)-(l.valores[d.anterior]??0)):"N/D"]),y,{negrito:i=>!!ls[i]?.subtotal});
       y=texto(T.patrimonio,y,W-2*M,M,9);
       texto("Conciliação patrimonial baseada nos saldos do Balanço. A DMPL formal depende da classificação e documentação dos movimentos por componente; não se atribuem naturezas a variações não documentadas.",y,W-2*M,M,9);
     } else if (id === "indicadores") {

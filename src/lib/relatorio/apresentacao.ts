@@ -50,3 +50,35 @@ export function valorCaixaNominal(valor: number): string {
   const numero = Math.abs(valor).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   return valor < 0 ? `(R$ ${numero})` : `R$ ${numero}`;
 }
+
+const LETRA = /[A-Za-zÀ-ÿ]/;
+/** Mantidos em caixa alta: siglas de demonstrações, indicadores e siglas fiscais. */
+const SIGLAS = new Set(["EBIT", "EBITDA", "DRE", "DFC", "BP", "PL", "ROE", "ROA", "ROI", "AV", "AH", "N/D", "CPC", "CNPJ", "CPF", "ICMS", "IPI", "ISS", "PIS", "COFINS", "CSLL", "IRPJ", "DVA", "DLPA", "DMPL", "CAPEX", "CDI", "SELIC", "MEI", "FGTS", "INSS", "LP", "CP", "TJ", "R$"]);
+/** Palavras de ligação ficam em minúsculo no meio do título, como nas demais linhas. */
+const CONECTIVOS = new Set(["de", "da", "do", "das", "dos", "e", "a", "o", "as", "os", "em", "na", "no", "nos", "nas", "por", "com", "para", "sem", "ao", "aos", "um", "uma", "s"]);
+
+const capitalizar = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
+/**
+ * Contas do plano chegam em CAIXA ALTA; o relatório apresenta as linhas em
+ * título (como "Custo dos Produtos Vendidos"), então normaliza apenas o que
+ * está inteiramente em maiúsculo, preservando siglas e operadores "(=)".
+ */
+export function tituloLinha(texto: string): string {
+  const letras = texto.replace(/[^A-Za-zÀ-ÿ]/g, "");
+  if (letras.length < 2 || /[a-zà-ÿ]/.test(letras)) return texto;
+  let primeira = true;
+  return texto.split(/(\s+)/).map((token) => {
+    if (!token || !LETRA.test(token) || SIGLAS.has(token)) return token;
+    const ehPrimeira = primeira;
+    primeira = false;
+    if (!ehPrimeira && CONECTIVOS.has(token.toLowerCase())) return token.toLowerCase();
+    const partes = token.split(/([-/.])/).map((seg) => {
+      if (!seg || !LETRA.test(seg) || SIGLAS.has(seg)) return seg;
+      const baixo = seg.toLowerCase();
+      return CONECTIVOS.has(baixo) ? baixo : capitalizar(baixo);
+    });
+    if (ehPrimeira && CONECTIVOS.has(partes[0])) partes[0] = capitalizar(partes[0]);
+    return partes.join("");
+  }).join("");
+}

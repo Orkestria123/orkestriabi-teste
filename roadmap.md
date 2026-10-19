@@ -1,5 +1,8 @@
 # Roadmap — ajustes BI (25/09/2026)
 
+## Capital de Giro — 19/10
+- [x] Fórmula da Open inclui Adiantamento Diversos e Créditos Diversos sem duplicidade; agosto conferido no BI: R$ 26.510.294,05; três testes aprovados
+
 ## Comparativo no relatório executivo — 19/10
 - [x] Gerar relatório em Comparativo quando houver Contábil e Gerencial, com diferenças destacadas; 32 testes e PDF real Dal Mobile/demo conferidos sem salvar ou enviar relatórios
 

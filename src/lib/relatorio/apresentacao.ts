@@ -57,7 +57,11 @@ const SIGLAS = new Set(["EBIT", "EBITDA", "DRE", "DFC", "BP", "PL", "ROE", "ROA"
 /** Palavras de ligação ficam em minúsculo no meio do título, como nas demais linhas. */
 const CONECTIVOS = new Set(["de", "da", "do", "das", "dos", "e", "a", "o", "as", "os", "em", "na", "no", "nos", "nas", "por", "com", "para", "sem", "ao", "aos", "um", "uma", "s"]);
 
-const capitalizar = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+/** Sobe a primeira letra, mesmo quando a palavra vem colada a um operador: ")deducoes" → ")Deducoes". */
+const capitalizar = (s: string) => {
+  const i = s.search(LETRA);
+  return i < 0 ? s : s.slice(0, i) + s[i].toUpperCase() + s.slice(i + 1);
+};
 
 /**
  * Contas do plano chegam em CAIXA ALTA; o relatório apresenta as linhas em

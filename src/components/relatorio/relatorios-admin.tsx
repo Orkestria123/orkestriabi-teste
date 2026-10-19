@@ -105,7 +105,7 @@ function GerenciarModelos({ tenantId }: { tenantId: string }) {
         <div className="space-y-1"><Label className="text-xs">Modelo</Label>
           <Select value={selId} onValueChange={setSelId}>
             <SelectTrigger className="w-[260px]"><SelectValue placeholder={m.nome} /></SelectTrigger>
-            <SelectContent>{modelos.filter((x) => x.id).map((x) => <SelectItem key={x.id} value={x.id!}>{x.nome}{x.is_padrao ? " (padrão)" : ""}</SelectItem>)}</SelectContent>
+            <SelectContent>{modelos.flatMap((x) => x.id ? [<SelectItem key={x.id} value={x.id}>{x.nome}{x.is_padrao ? " (padrão)" : ""}</SelectItem>] : [])}</SelectContent>
           </Select>
         </div>
         <div className="space-y-1"><Label className="text-xs">Nome</Label>
@@ -146,7 +146,7 @@ async function baixar(c: ConteudoRelatorio, nome: string) {
 
 function EditorRelatorio({ rel, onClose }: { rel: any; onClose: () => void }) {
   const qc = useQueryClient();
-  const [c, setC] = useState<ConteudoRelatorio>(rel.conteudo);
+  const [c, setC] = useState<ConteudoRelatorio>(() => ({ ...rel.conteudo, secoes: normalizarSecoes(rel.conteudo.secoes) }));
   const [ocupado, setOcupado] = useState(false);
   const setTexto = (k: SecaoId, v: string) => setC({ ...c, textos: { ...c.textos, [k]: v } });
   const trocarImg = (k: keyof ConteudoRelatorio["imagens"]) => (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -171,7 +171,7 @@ function EditorRelatorio({ rel, onClose }: { rel: any; onClose: () => void }) {
             {([["logoEscritorio", "Logo do escritório"], ["logoEmpresa", "Logo da empresa"], ["fotoEmpresa", "Foto da empresa"]] as const).map(([k, l]) => (
               <div key={k} className="rounded-lg border p-3 space-y-2">
                 <Label className="text-xs">{l}</Label>
-                {c.imagens[k] ? <img src={c.imagens[k]!} alt={l} className="h-16 object-contain" /> : <div className="h-16 text-xs text-muted-foreground">Sem imagem</div>}
+                {c.imagens[k] ? <img src={c.imagens[k] ?? undefined} alt={l} className="h-16 object-contain" /> : <div className="h-16 text-xs text-muted-foreground">Sem imagem</div>}
                 <div className="flex gap-2">
                   <label className="inline-flex cursor-pointer items-center gap-1 rounded-md border px-2 py-1 text-xs hover:bg-accent">
                     <Upload className="h-3 w-3" />Trocar<input type="file" accept="image/*" className="hidden" onChange={trocarImg(k)} />
@@ -360,7 +360,7 @@ export function RelatoriosEmpresa({ tenantId, companyIdInicial }: { tenantId: st
         <div className="space-y-1"><Label className="text-xs">Modelo</Label>
           <Select value={modelo?.id ?? ""} onValueChange={setModeloId} disabled={!modelos?.some((x) => x.id)}>
             <SelectTrigger className="w-[220px]"><SelectValue placeholder={modelo?.nome ?? "Modelo padrão"} /></SelectTrigger>
-            <SelectContent>{modelos?.filter((x) => x.id).map((x) => <SelectItem key={x.id} value={x.id!}>{x.nome}{x.is_padrao ? " (padrão)" : ""}</SelectItem>)}</SelectContent>
+            <SelectContent>{modelos?.flatMap((x) => x.id ? [<SelectItem key={x.id} value={x.id}>{x.nome}{x.is_padrao ? " (padrão)" : ""}</SelectItem>] : [])}</SelectContent>
           </Select>
         </div>
         <Button onClick={gerar} disabled={!companyId || !periodo || !!gerando}>

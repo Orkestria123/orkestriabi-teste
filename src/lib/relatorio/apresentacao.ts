@@ -70,15 +70,16 @@ export function tituloLinha(texto: string): string {
   let primeira = true;
   return texto.split(/(\s+)/).map((token) => {
     if (!token || !LETRA.test(token) || SIGLAS.has(token)) return token;
-    const ehPrimeira = primeira;
-    primeira = false;
-    if (!ehPrimeira && CONECTIVOS.has(token.toLowerCase())) return token.toLowerCase();
+    if (!primeira && CONECTIVOS.has(token.toLowerCase())) return token.toLowerCase();
     const partes = token.split(/([-/.])/).map((seg) => {
       if (!seg || !LETRA.test(seg) || SIGLAS.has(seg)) return seg;
       const baixo = seg.toLowerCase();
       return CONECTIVOS.has(baixo) ? baixo : capitalizar(baixo);
     });
-    if (ehPrimeira && CONECTIVOS.has(partes[0])) partes[0] = capitalizar(partes[0]);
-    return partes.join("");
+    // A primeira palavra pode vir colada em um operador, como em "(-)DEDUCOES".
+    const inicio = partes.findIndex((p) => LETRA.test(p) && !SIGLAS.has(p));
+    if (primeira && inicio >= 0) partes[inicio] = capitalizar(partes[inicio]);
+    primeira = false;
+    return partes.join("").replace(/^(\(\s*[+=−-]\s*\))([A-Za-zÀ-ÿ])/, "$1 $2");
   }).join("");
 }

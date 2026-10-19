@@ -67,6 +67,11 @@ describe("Caixa das linhas do relatório", () => {
     expect(tituloLinha("(-) Custo dos Produtos Vendidos")).toBe("(-) Custo dos Produtos Vendidos");
     expect(tituloLinha("   ATIVO CIRCULANTE")).toBe("   Ativo Circulante");
   });
+  it("capitaliza a palavra colada ao operador e separa o operador", () => {
+    expect(tituloLinha("(-)DEDUCOES DA RECEITA BRUTA")).toBe("(-) Deducoes da Receita Bruta");
+    expect(tituloLinha("(-)ESTOQUE FINAL")).toBe("(-) Estoque Final");
+    expect(tituloLinha("ICMS S/VENDAS")).toBe("ICMS s/Vendas");
+  });
   it("preserva siglas, operadores e marcações", () => {
     expect(tituloLinha("(=) EBITDA")).toBe("(=) EBITDA");
     expect(tituloLinha("(=) EBIT")).toBe("(=) EBIT");

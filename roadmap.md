@@ -1,7 +1,7 @@
 # Roadmap — ajustes BI (25/09/2026)
 
 ## Percentuais — 19/10
-- [ ] Padronizar indicadores percentuais com duas casas em todas as telas, Dashboard e exportações; verificar exibição
+- [x] Padronizar indicadores percentuais com duas casas em todas as telas, Dashboard e exportações; sete testes e Dashboard/Indicadores reais conferidos sem erros
 
 ## Capital de Giro — 19/10
 - [x] Fórmula da Open inclui Adiantamento Diversos e Créditos Diversos sem duplicidade; agosto conferido no BI: R$ 26.510.294,05; três testes aprovados

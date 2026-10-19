@@ -1,7 +1,7 @@
 # Roadmap — ajustes BI (25/09/2026)
 
 ## Comparativo no relatório executivo — 19/10
-- [ ] Gerar relatório em Comparativo quando houver Contábil e Gerencial, com diferenças destacadas; validar cálculos e PDF
+- [x] Gerar relatório em Comparativo quando houver Contábil e Gerencial, com diferenças destacadas; 32 testes e PDF real Dal Mobile/demo conferidos sem salvar ou enviar relatórios
 
 ## Rentabilidade mensal — 18/10
 - [x] Revisar relatório executivo: contas BP/DRE, destaques independentes, DFC sem fornecedores duplicados, caixa nominal, EBIT e retirada das notas; testes e PDF real Casa do Vidro conferidos

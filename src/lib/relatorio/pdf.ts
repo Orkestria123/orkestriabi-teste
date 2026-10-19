@@ -185,7 +185,7 @@ export async function gerarPdfRelatorio(c: ConteudoRelatorio): Promise<Blob> {
         // AutoTable does not apply columnStyles to headers. Set both sections
         // explicitly so labels and values share the same column center.
         if (h.section === "body" && opts.diferencas?.includes(h.column.index)) {
-          h.cell.styles.textColor = C.diferenca as any;
+          h.cell.styles.textColor = /^(?:0,00|0,00%)$/.test(String(h.cell.raw)) ? C.ink2 as any : C.diferenca as any;
         }
         h.cell.styles.halign = h.column.index === 0 || opts.esquerda?.includes(h.column.index) ? "left" : "center";
         if (h.section === "body" && (opts.negritoCelula ? opts.negritoCelula(h.row.index, h.column.index) : opts.negrito?.(h.row.index))) { h.cell.styles.font = "Poppins"; h.cell.styles.fontStyle = "normal"; h.cell.styles.fillColor = C.sunk as any; }

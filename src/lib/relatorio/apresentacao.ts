@@ -8,7 +8,14 @@ export function componenteFabricacao(linha: LinhaDemo): boolean {
 }
 
 export function linhasDreRelatorio(linhas: LinhaDemo[]): LinhaDemo[] {
-  return linhas.filter(l => l.subtotal || l.nivel === 0 || componenteFabricacao(l));
+  const selecionadas = linhas.filter(l => l.subtotal || l.nivel === 0 || componenteFabricacao(l));
+  const material = selecionadas.findIndex(l => /custo de materiais/i.test(l.descricao));
+  const cpv = selecionadas.findIndex(l => /custo dos produtos vendidos|custo das mercadorias vendidas/i.test(l.descricao));
+  if (material > cpv + 1 && cpv >= 0) {
+    const [linha] = selecionadas.splice(material, 1);
+    if (linha) selecionadas.splice(cpv + 1, 0, linha);
+  }
+  return selecionadas;
 }
 
 export function linhasBpRelatorio(linhas: LinhaDemo[]): LinhaDemo[] {

@@ -27,6 +27,12 @@ describe("Seleção do relatório executivo sem alterar totais", () => {
     const l = row("GASTOS GERAIS DE FABRICACAO", 1, false);
     expect(linhasDreRelatorio([l])).toEqual([l]);
   });
+  it("mantém materiais logo após CPV ao incluir fabricação", () => {
+    const cpv = row("(-) Custo dos Produtos Vendidos", 0);
+    const fabrica = row("Gastos Gerais de Fabricação", 1, false);
+    const material = row("(-) Custo de materiais dos produtos", 0);
+    expect(linhasDreRelatorio([cpv, fabrica, material])).toEqual([cpv, material, fabrica]);
+  });
   it("oculta fornecedores, preservando capital de giro e fluxo operacional", () => {
     const giro = row("Variação do Capital de Giro", 1, true, -100);
     const fco = row("Caixa das atividades operacionais", 0, true, 500);

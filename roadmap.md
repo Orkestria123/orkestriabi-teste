@@ -1,7 +1,7 @@
 # Roadmap — ajustes BI (25/09/2026)
 
 ## Rentabilidade mensal — 18/10
-- [ ] Revisar relatório executivo: contas BP/DRE, destaques independentes, DFC sem fornecedores duplicados, caixa nominal, EBIT e retirada das notas; testar e conferir PDF
+- [x] Revisar relatório executivo: contas BP/DRE, destaques independentes, DFC sem fornecedores duplicados, caixa nominal, EBIT e retirada das notas; testes e PDF real Casa do Vidro conferidos
 - [x] Corrigir ROA/ROE mensais para lucro da DRE do próprio mês sobre Ativo/PL do mesmo mês e validar com testes e consulta real
 
 ## Demonstração pública — 18/10

@@ -73,7 +73,9 @@ export function tituloLinha(texto: string): string {
   if (letras.length < 2 || /[a-zà-ÿ]/.test(letras)) return texto;
   let primeira = true;
   return texto.split(/(\s+)/).map((token) => {
-    if (!token || !LETRA.test(token) || SIGLAS.has(token)) return token;
+    if (!token || !LETRA.test(token)) return token;
+    // Siglas contam como palavra: quem vem depois delas não é mais a primeira.
+    if (SIGLAS.has(token)) { primeira = false; return token; }
     if (!primeira && CONECTIVOS.has(token.toLowerCase())) return token.toLowerCase();
     const partes = token.split(/([-/.])/).map((seg) => {
       if (!seg || !LETRA.test(seg) || SIGLAS.has(seg)) return seg;

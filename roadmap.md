@@ -1,5 +1,8 @@
 # Roadmap — ajustes BI (25/09/2026)
 
+## Capital de Giro — 19/10
+- [ ] Incluir Adiantamento Diversos e Créditos Diversos na Open e conferir agosto contra R$ 26.510.294,05
+
 ## Comparativo no relatório executivo — 19/10
 - [x] Gerar relatório em Comparativo quando houver Contábil e Gerencial, com diferenças destacadas; 32 testes e PDF real Dal Mobile/demo conferidos sem salvar ou enviar relatórios
 

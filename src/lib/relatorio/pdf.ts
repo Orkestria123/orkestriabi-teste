@@ -435,9 +435,9 @@ export async function gerarPdfRelatorio(c: ConteudoRelatorio): Promise<Blob> {
       ];
       const meanings:Record<string,string>={lc:"Cobertura das obrigações de curto prazo.",ls:"Cobertura sem depender dos estoques.",li:"Cobertura imediata com disponibilidades.",cgl:"Recursos circulantes menos obrigações de curto prazo.",endivPL:"Dívida bancária relativa aos recursos próprios.",cobCaixa:"Cobertura do passivo circulante com caixa.",margBruta:"Resultado após os custos.",margEbitda:"Desempenho operacional antes de D&A; não é caixa.",margLiq:"Parcela da receita convertida em lucro.",roe:"Retorno mensal sobre saldo final do PL.",roa:"Retorno mensal sobre saldo final do ativo.",giroAtivo:"Receita mensal relativa ao saldo final do ativo.",divLiq:"Dívida bancária menos caixa; não inclui fornecedores.",caixaDiv:"Relação entre caixa e dívida bancária líquida.",resultado:"Lucro ou prejuízo mensal.",caixa:"Disponibilidades na data de fechamento.",divBruta:"Empréstimos e financiamentos bancários."};
       for(let j=0;j<groups.length;j++) {
-        const g=groups[j]; if(j===0){secaoAtual={id,titulo:g.title};cabecalho(id,g.title,KICKER[id]??"",false);paginas[paginas.length-1].titulo=g.title;}else y=novaPagina(id,g.title);
+        const grupo=groups[j]; if(j===0){secaoAtual={id,titulo:grupo.title};cabecalho(id,grupo.title,KICKER[id]??"",false);paginas[paginas.length-1].titulo=grupo.title;}else y=novaPagina(id,grupo.title);
         const indices = [...d.indices.filter(i=>i.key!=="ebit"), indiceEbitRelatorio(d)];
-        const ls=g.keys.flatMap(key=>indices.filter(i=>i.key===key));
+        const ls=grupo.keys.flatMap(key=>indices.filter(i=>i.key===key));
         if (g) {
           const gerIndices = [...g.indices.filter(i => i.key !== "ebit"), indiceEbitRelatorio(g)];
           y = tabelaBase(["Indicador", "Fórmula", `${mesCurto(d.periodo)} Contábil`, `${mesCurto(d.periodo)} Gerencial`, "Diferença"], ls.map(i => {

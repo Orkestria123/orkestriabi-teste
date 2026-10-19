@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { destaqueBp, indiceEbitRelatorio, linhasBpRelatorio, linhasDfcRelatorio, linhasDreRelatorio, valorCaixaNominal } from "./apresentacao";
+import { destaqueBp, indiceEbitRelatorio, linhasBpRelatorio, linhasDfcRelatorio, linhasDreRelatorio, tituloLinha, valorCaixaNominal } from "./apresentacao";
 import { normalizarSecoes, type LinhaDemo } from "./tipos";
 
 const row = (descricao: string, nivel = 4, subtotal = true, valor = 120): LinhaDemo => ({ descricao, nivel, subtotal, valores: { "2026-08-01": valor } });
@@ -55,5 +55,21 @@ describe("Seleção do relatório executivo sem alterar totais", () => {
     const ids = normalizarSecoes([{ id: "notas", visivel: true }, { id: "bp", visivel: true }]).map(s=>s.id);
     expect(ids).not.toContain("notas");
     expect(ids).toContain("bp");
+  });
+});
+
+describe("Caixa das linhas do relatório", () => {
+  it("apresenta gastos de fabricação como os demais títulos", () => {
+    expect(tituloLinha("GASTOS GERAIS DE FABRICACAO")).toBe("Gastos Gerais de Fabricacao");
+    expect(tituloLinha("GASTOS C/FAB./MAO-DE-OBRA ENCAR. DIRETOS")).toBe("Gastos C/Fab./Mao-de-Obra Encar. Diretos");
+  });
+  it("não altera linhas que já estão em título nem a indentação", () => {
+    expect(tituloLinha("(-) Custo dos Produtos Vendidos")).toBe("(-) Custo dos Produtos Vendidos");
+    expect(tituloLinha("   ATIVO CIRCULANTE")).toBe("   Ativo Circulante");
+  });
+  it("preserva siglas, operadores e marcações", () => {
+    expect(tituloLinha("(=) EBITDA")).toBe("(=) EBITDA");
+    expect(tituloLinha("(=) EBIT")).toBe("(=) EBIT");
+    expect(tituloLinha("N/D")).toBe("N/D");
   });
 });

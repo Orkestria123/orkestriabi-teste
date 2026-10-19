@@ -34,6 +34,7 @@ import { labelLinha } from "@/lib/indicadores/linhas";
 import { explicarIndicador } from "@/lib/api/indicador-explicacao.functions";
 import { Sparkles, ChevronDown, ChevronRight, Eye, EyeOff, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { formatPercentuaisTexto } from "@/lib/format";
 
 interface Props {
   ind: IndicadorEmpresa;
@@ -459,7 +460,7 @@ export function IndicadorCardCliente({
         <p className="text-[11px] leading-snug text-muted-foreground">
           {analiseLoading && !analise
             ? "Analisando…"
-            : analise?.texto ?? ind.descricao ?? "—"}
+            : formatPercentuaisTexto(analise?.texto ?? ind.descricao ?? "—")}
         </p>
       </div>
     </Card>

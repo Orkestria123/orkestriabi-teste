@@ -63,6 +63,13 @@ export function formatPct(value: number | null | undefined, digits = 2): string 
   return `${Number(value).toFixed(digits).replace(".", ",")}%`;
 }
 
+/** Normalize numeric percentages in saved/AI indicator explanations without recalculating them. */
+export function formatPercentuaisTexto(text: string): string {
+  return text.replace(/(\d+(?:[.,]\d+)?)\s*%/g, (_match, numero: string) =>
+    formatPct(Number(numero.replace(",", "."))),
+  );
+}
+
 export function formatNumber(value: number | null | undefined, digits = 2): string {
   if (value == null || isNaN(value as number)) return "—";
   return Number(value).toLocaleString("pt-BR", {

@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { formatPct } from "./format";
+import { formatPct, formatPercentuaisTexto } from "./format";
 import { formatIndicador } from "./indicators";
 import { formatarIndice } from "./dashboard/indices-financeiros";
 import { formatarComparavel } from "./comparativo/indices-empresa";
 import { formatarValor } from "./indicadores/engine";
 
 describe("indicadores percentuais com duas casas decimais", () => {
+  it("normaliza percentuais numéricos em explicações já salvas", () => {
+    expect(formatPercentuaisTexto("63,6%, 76.4%, 0% e (8,2%)")).toBe("63,60%, 76,40%, 0,00% e (8,20%)");
+  });
   it.each([
     ["percentual compartilhado", (v: number) => formatPct(v)],
     ["Dashboard", (v: number) => formatarIndice(v, "percent")],

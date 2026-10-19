@@ -5,6 +5,8 @@ import { buildStatementFromDiario, type FlatRow } from "@/lib/diario/build-state
 import { calcularIndicesEmpresa, periodosDaEmpresa } from "@/lib/comparativo/indices-empresa";
 import { INDICES_DASHBOARD } from "@/lib/dashboard/indices-financeiros";
 import type { DadosRelatorio, LinhaDemo } from "./tipos";
+import { getAjustesGerenciais } from "@/lib/gerencial/ajustes";
+import { possuiAjustesNoPeriodo } from "./comparativo";
 
 function agrupar(rows: FlatRow[], nivelMax: number): LinhaDemo[] {
   const map = new Map<string, LinhaDemo & { ordem: number }>();
@@ -22,7 +24,7 @@ export async function periodosDisponiveis(companyId: string) {
   return periodosDaEmpresa(companyId);
 }
 
-export async function coletarDados(companyId: string, tenantId: string, nome: string, periodo: string): Promise<DadosRelatorio> {
+export async function coletarDados(companyId: string, tenantId: string, nome: string, periodo: string, visao: "contabil" | "gerencial" = "contabil"): Promise<DadosRelatorio> {
   const todos = await periodosDaEmpresa(companyId);
   if (!todos.includes(periodo)) throw new Error("Sem dados no mês escolhido.");
   const ano = Number(periodo.slice(0, 4)), mes = Number(periodo.slice(5, 7));
@@ -40,12 +42,12 @@ export async function coletarDados(companyId: string, tenantId: string, nome: st
   const par = anterior ? [anterior, periodo] : [periodo];
 
   const [dre12, ativo, passivo, dfc, iAtual, iAnt] = await Promise.all([
-    buildStatementFromDiario(companyId, tenantId, modoGlobal, "DRE", fluxos, "contabil"),
-    buildStatementFromDiario(companyId, tenantId, modoGlobal, "BP_ATIVO", par, "contabil"),
-    buildStatementFromDiario(companyId, tenantId, modoGlobal, "BP_PASSIVO", par, "contabil"),
-    buildStatementFromDiario(companyId, tenantId, modoGlobal, "DFC", par, "contabil"),
-    calcularIndicesEmpresa({ companyId, tenantId, nome, periodo, visao: "contabil" }),
-    anterior ? calcularIndicesEmpresa({ companyId, tenantId, nome, periodo: anterior, visao: "contabil" }) : Promise.resolve(null),
+    buildStatementFromDiario(companyId, tenantId, modoGlobal, "DRE", fluxos, visao),
+    buildStatementFromDiario(companyId, tenantId, modoGlobal, "BP_ATIVO", par, visao),
+    buildStatementFromDiario(companyId, tenantId, modoGlobal, "BP_PASSIVO", par, visao),
+    buildStatementFromDiario(companyId, tenantId, modoGlobal, "DFC", par, visao),
+    calcularIndicesEmpresa({ companyId, tenantId, nome, periodo, visao }),
+    anterior ? calcularIndicesEmpresa({ companyId, tenantId, nome, periodo: anterior, visao }) : Promise.resolve(null),
   ]);
 
   const dreTodas = agrupar(dre12, 3);
@@ -65,10 +67,19 @@ export async function coletarDados(companyId: string, tenantId: string, nome: st
     { key: "giroAtivo", label: "Giro do Ativo mensal", formula: "Receita Líquida / Ativo Total", formato: "ratio" },
   ].map((d) => ({ ...d, atual: iAtual.valores[d.key] ?? null, anterior: iAnt?.valores[d.key] ?? null })) as typeof indices);
 
-  return { periodo, anterior, dre, acumulado, bpAtivo: agrupar(ativo, 5), bpPassivo: agrupar(passivo, 5), dfc: agrupar(dfc, 3), indices, faturamento };
+  const dados: DadosRelatorio = { periodo, anterior, dre, acumulado, bpAtivo: agrupar(ativo, 5), bpPassivo: agrupar(passivo, 5), dfc: agrupar(dfc, 3), indices, faturamento };
+  if (visao === "contabil") {
+    const { ajustes } = await getAjustesGerenciais(companyId, tenantId);
+    if (possuiAjustesNoPeriodo(ajustes, periodo)) dados.gerencial = await coletarDados(companyId, tenantId, nome, periodo, "gerencial");
+  }
+  return dados;
 }
 
 export function resumoParaIA(d: DadosRelatorio): string {
+  if (d.gerencial) {
+    const { gerencial, ...contabil } = d;
+    return "Visão Comparativo. Diferencie explicitamente os valores Contábeis dos Gerenciais e explique somente alterações demonstradas. Diferença = Gerencial menos Contábil.\n\nCONTÁBIL:\n" + resumoParaIA(contabil) + "\n\nGERENCIAL:\n" + resumoParaIA(gerencial);
+  }
   const f = (v: number) => v.toLocaleString("pt-BR", { maximumFractionDigits: 0 });
   const linhas = (ls: typeof d.dre, max = 70) => ls.filter((l) => l.nivel <= 3).slice(0, max)
     .map((l) => `${l.descricao}: ${f(l.valores[d.periodo] ?? 0)}${d.anterior ? ` (ant. ${f(l.valores[d.anterior] ?? 0)})` : ""}`).join("\n");

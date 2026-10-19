@@ -55,6 +55,8 @@ export interface LinhaDemo { descricao: string; nivel: number; subtotal: boolean
 export interface IndiceRel { key: string; label: string; formula: string; formato: string; atual: number | null; anterior: number | null }
 
 export interface DadosRelatorio {
+  /** Independent BI snapshot of the managerial view; absent for accounting-only reports. */
+  gerencial?: DadosRelatorio;
   periodo: string;
   anterior: string | null;
   dre: LinhaDemo[];

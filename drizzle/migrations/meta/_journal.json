@@ -428,6 +428,13 @@
       "when": 1792282676465,
       "tag": "0060_ecd_participantes_respeita_manual",
       "breakpoints": true
+    },
+    {
+      "idx": 61,
+      "version": "7",
+      "when": 1792413730997,
+      "tag": "0061_ecd_encerramento_lado_por_saldo",
+      "breakpoints": true
     }
   ]
 }

@@ -20,7 +20,6 @@ export const SECOES: SecaoDef[] = [
   { id: "patrimonio", titulo: "Evolução do patrimônio líquido", temTexto: true },
   { id: "indicadores", titulo: "Indicadores e fórmulas", temTexto: true },
   { id: "faturamento", titulo: "Faturamento dos últimos 12 meses", temTexto: true },
-  { id: "notas", titulo: "Notas explicativas", temTexto: true },
   { id: "conclusoes", titulo: "Conclusões e recomendações", temTexto: true },
   { id: "glossario", titulo: "Glossário", temTexto: true },
 ];
@@ -79,6 +78,7 @@ export interface ConteudoRelatorio {
 }
 
 export function normalizarSecoes(cfg: SecaoCfg[] | null | undefined): SecaoCfg[] {
+  // Legacy snapshots can retain notes text, but the section is no longer presented.
   const m = new Map((cfg ?? []).map((s) => [s.id, s]));
   const ordem = (cfg ?? []).map((s) => s.id).filter((id) => SECOES.some((d) => d.id === id));
   for (let i = 0; i < SECOES.length; i++) {

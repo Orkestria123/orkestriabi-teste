@@ -6,6 +6,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { calcularCapitalGiro } from "@/lib/analise-capital-giro";
 import { SECOES, mesExtenso, mesCurto, MESES, normalizarSecoes, type ConteudoRelatorio, type LinhaDemo, type SecaoId } from "./tipos";
+import { componenteFabricacao, destaqueBp, indiceEbitRelatorio, linhasBpRelatorio, linhasDfcRelatorio, linhasDreRelatorio, valorCaixaNominal } from "./apresentacao";
 
 import headingFont from "@/assets/report-fonts/Poppins-SemiBold.ttf?url";
 import bodyFont from "@/assets/report-fonts/PublicSans-Regular.ttf?url";
@@ -168,7 +169,7 @@ export async function gerarPdfRelatorio(c: ConteudoRelatorio): Promise<Blob> {
     return y;
   };
 
-  const tabelaBase = (head: string[], body: (string | number)[][], y: number, opts: { negrito?: (i: number) => boolean; larg0?: number; esquerda?: number[]; compacto?: boolean } = {}) => {
+  const tabelaBase = (head: string[], body: (string | number)[][], y: number, opts: { negrito?: (i: number) => boolean; negritoCelula?: (linha: number, coluna: number) => boolean; larg0?: number; esquerda?: number[]; compacto?: boolean } = {}) => {
     autoTable(doc, {
       startY: y, head: [head], body: body as any, margin: { left: M, right: M, top: TOPO, bottom: H - BASE + 6 },
       theme: "plain",
@@ -181,7 +182,7 @@ export async function gerarPdfRelatorio(c: ConteudoRelatorio): Promise<Blob> {
         // AutoTable does not apply columnStyles to headers. Set both sections
         // explicitly so labels and values share the same column center.
         h.cell.styles.halign = h.column.index === 0 || opts.esquerda?.includes(h.column.index) ? "left" : "center";
-        if (h.section === "body" && opts.negrito?.(h.row.index)) { h.cell.styles.font = "Poppins"; h.cell.styles.fontStyle = "normal"; h.cell.styles.fillColor = C.sunk as any; }
+        if (h.section === "body" && (opts.negritoCelula ? opts.negritoCelula(h.row.index, h.column.index) : opts.negrito?.(h.row.index))) { h.cell.styles.font = "Poppins"; h.cell.styles.fontStyle = "normal"; h.cell.styles.fillColor = C.sunk as any; }
       },
       willDrawPage: (h) => { if (h.pageNumber > 1) continuacao(false); },
     });
@@ -322,29 +323,28 @@ export async function gerarPdfRelatorio(c: ConteudoRelatorio): Promise<Blob> {
         ], y, {larg0:260});
       }
     } else if (id === "dre") {
-      const ls = d.dre.filter((l) => l.subtotal || l.nivel === 0);
+      const ls = linhasDreRelatorio(d.dre);
       const rl = linha(ls, /receita l[ií]quida/i)?.valores[d.periodo] ?? 0;
       const acc = (l: LinhaDemo) => d.acumulado?.dre.find((x) => x.descricao === l.descricao);
       const body = ls.map((l) => {
         const at = l.valores[d.periodo] ?? 0, ant = d.anterior ? l.valores[d.anterior] : null;
         return [l.descricao, d.anterior ? fmtV(ant) : "N/D", fmtV(at), rl ? pct(at / rl * 100) : "—", ant ? pct((at - ant) / Math.abs(ant) * 100) : "—", d.acumulado ? fmtV(Object.values(acc(l)?.valores ?? {}).reduce((a,b) => a+b,0)) : "N/D"];
       });
-      y = tabelaBase(["Descrição", d.anterior ? mesCurto(d.anterior) : "Anterior", mesCurto(d.periodo), "AV% RL", "AH% mês", `Jan–${mesCurto(d.periodo)}`], body, y, { larg0: 270, compacto: true, negrito: (i) => !/materiais|dedu[çc]|despesas operacionais|provis[aã]o/i.test(ls[i]?.descricao ?? "") });
-      y = texto("AV% = linha / receita líquida × 100. AH% = (atual − anterior) / |anterior| × 100. Custo de materiais integra o CPV e não é somado novamente. Acumulado considera somente meses disponíveis no ano.", y, W - 2*M, M, 8);
+      y = tabelaBase(["Descrição", d.anterior ? mesCurto(d.anterior) : "Anterior", mesCurto(d.periodo), "AV% RL", "AH% mês", `Jan–${mesCurto(d.periodo)}`], body, y, { larg0: 270, compacto: true, negrito: (i) => !!ls[i] && !componenteFabricacao(ls[i]) && !/materiais|dedu[çc]|despesas operacionais|provis[aã]o/i.test(ls[i].descricao) });
+      y = texto("AV% = linha / receita líquida × 100. AH% = (atual − anterior) / |anterior| × 100. Materiais, mão de obra e gastos gerais de fabricação integram os custos e não são somados novamente. Acumulado considera somente meses disponíveis no ano.", y, W - 2*M, M, 8);
       texto(T.dre, y, W - 2*M, M, 9);
     } else if (id === "custos") {
-      const ls = d.dre.filter((l) => l.nivel === 2 && /gastos|despesas|compras|estoque inicial|estoque final/i.test(l.descricao));
+      const ls = d.dre.filter((l) => componenteFabricacao(l) || l.nivel === 2 && /gastos|despesas|compras|estoque inicial|estoque final/i.test(l.descricao));
       const rl = linha(d.dre, /receita l[ií]quida/i)?.valores[d.periodo] ?? 0;
       y = tabelaBase(["Grupo / componente", ...periodos.map(mesCurto), "% receita líquida"], ls.map((l) => [l.descricao, ...periodos.map((p) => fmtV(l.valores[p])), rl ? pct((l.valores[d.periodo] ?? 0)/rl*100) : "—"]), y, {larg0:340});
       y = texto("A segregação segue os grupos configurados no BI. Componentes dos custos não devem ser somados novamente aos respectivos totais.", y, W-2*M, M, 8);
       texto(T.custos, y, W-2*M, M,9);
     } else if (id === "bp") {
-      const compactar = (ls: LinhaDemo[]) => ls.filter((l) => (l.nivel <= 3 && !(/^(ATIVO|PASSIVO|PASSIVO E PATRIMÔNIO LÍQUIDO|CREDITOS)$/i.test(l.descricao)) || l.nivel === 4 && /^(CLIENTES|ADIANTAMENTO DIVERSOS|TRIBUTOS A RECUPERAR)$/i.test(l.descricao)) && (l.subtotal || Object.values(l.valores).some((v) => Math.abs(v) > .005)));
-      const ativo = compactar(d.bpAtivo), passivo = compactar(d.bpPassivo);
-      y = tabelaBase(["Ativo", mesCurto(d.periodo), "Passivo + patrimônio líquido", mesCurto(d.periodo)], Array.from({length:Math.max(ativo.length, passivo.length)}, (_, i) => [ativo[i]?.descricao ?? "", ativo[i] ? fmtV(ativo[i].valores[d.periodo]) : "", passivo[i]?.descricao ?? "", passivo[i] ? fmtV(passivo[i].valores[d.periodo]) : ""]), y, { larg0:230, esquerda:[2], compacto:true, negrito:(i)=>!!ativo[i]?.subtotal || !!passivo[i]?.subtotal });
+      const ativo = linhasBpRelatorio(d.bpAtivo), passivo = linhasBpRelatorio(d.bpPassivo);
+      y = tabelaBase(["Ativo", mesCurto(d.periodo), "Passivo + patrimônio líquido", mesCurto(d.periodo)], Array.from({length:Math.max(ativo.length, passivo.length)}, (_, i) => [ativo[i]?.descricao ?? "", ativo[i] ? fmtV(ativo[i].valores[d.periodo]) : "", passivo[i]?.descricao ?? "", passivo[i] ? fmtV(passivo[i].valores[d.periodo]) : ""]), y, { larg0:230, esquerda:[2], compacto:true, negritoCelula:(i,col)=>destaqueBp(col < 2 ? ativo[i] : passivo[i]) });
       texto(T.bp, y, W-2*M, M, 10);
     } else if (id === "dfc") {
-      const ls = d.dfc.filter((l) => !/^Bloco|^Fechamento|Validação CPC/i.test(l.descricao) && (l.nivel<=1 || /Depreciação|Fornecedores|Investimentos|Empréstimos|Patrimônio Líquido/i.test(l.descricao)));
+      const ls = linhasDfcRelatorio(d.dfc);
       y = ls.length ? tabelaBase(["Descrição",...periodos.map(mesCurto)],ls.map(l=>[l.descricao,...periodos.map(p=>fmtV(l.valores[p]))]),y,{negrito:i=>!!ls[i]?.subtotal,compacto:true,larg0:380}) : texto("Demonstração dos fluxos de caixa não disponível para o período.",y);
       texto(T.dfc, y, W-2*M, M,9);
     } else if (id === "caixa") {
@@ -357,14 +357,14 @@ export async function gerarPdfRelatorio(c: ConteudoRelatorio): Promise<Blob> {
       const colors = [C.ink2,C.azul,C.indigo,C.ciano,C.lima];
       const positions: [number,number][] = []; let running = values[0];
       values.forEach((v,i) => { const start = i===0 || i===4 ? 0 : running; const end = start + v; positions.push([start,end]); if(i>0 && i<4) running=end; });
-      const max = Math.max(1,...positions.flat()), min = Math.min(0,...positions.flat()), gh=205, gx=M+40, gw=W-2*M-60;
+      const max = Math.max(1,...positions.flat()), min = Math.min(0,...positions.flat()), gh=205, gx=M+125, gw=W-2*M-145;
       fill(C.sunk);doc.rect(M,y-4,W-2*M,gh+42,"F"); fill(C.branco);doc.rect(M+12,y+8,W-2*M-24,gh+18,"F");
       const yy=(v:number)=>y+gh-(v-min)/(max-min)* (gh-28);
-      for(let i=0;i<=4;i++){ const v=min+(max-min)*i/4;traco(C.line);doc.line(gx,yy(v),gx+gw,yy(v));fonte("normal",7,C.ink2);doc.text(fmtV(v/1e6),gx-8,yy(v)+3,{align:"right"});}
-      positions.forEach(([a,b],i)=>{const x=gx+i*gw/5+30,w=gw/5-60;fill(colors[i]);doc.rect(x,Math.min(yy(a),yy(b)),w,Math.max(1,Math.abs(yy(a)-yy(b))),"F");fonte("normal",9);doc.text(i===0&&inicial==null?"N/D":fmtV(values[i]/1e6),x+w/2,Math.min(yy(a),yy(b))-5,{align:"center"});fonte("normal",8);doc.text(labels[i],x+w/2,y+gh+16,{align:"center"});});
+      for(let i=0;i<=4;i++){ const v=min+(max-min)*i/4;traco(C.line);doc.line(gx,yy(v),gx+gw,yy(v));fonte("normal",7,C.ink2);doc.text(valorCaixaNominal(v),gx-8,yy(v)+3,{align:"right"});}
+      positions.forEach(([a,b],i)=>{const x=gx+i*gw/5+22,w=gw/5-44;fill(colors[i]);doc.rect(x,Math.min(yy(a),yy(b)),w,Math.max(1,Math.abs(yy(a)-yy(b))),"F");fonte("normal",7);doc.text(i===0&&inicial==null?"N/D":valorCaixaNominal(values[i]),x+w/2,Math.min(yy(a),yy(b))-5,{align:"center"});fonte("normal",8);doc.text(labels[i],x+w/2,y+gh+16,{align:"center"});});
       y+=gh+62;
       y=texto(T.caixa || T.dfc,y,W-2*M,M,9);
-      texto(`Conciliação: FCO ${fmtR(values[1])} + FCI ${fmtR(values[2])} + FCF ${fmtR(values[3])} = ${fmtR(values[1]+values[2]+values[3])}. Caixa final ${fmtR(final)}; inicial ${fmtR(inicial)}. Valores do gráfico em R$ milhões.`,y,W-2*M,M,8);
+      texto(`Conciliação: FCO ${fmtR(values[1])} + FCI ${fmtR(values[2])} + FCF ${fmtR(values[3])} = ${fmtR(values[1]+values[2]+values[3])}. Caixa final ${fmtR(final)}; inicial ${fmtR(inicial)}. Valores do gráfico em R$ nominais.`,y,W-2*M,M,8);
     } else if (id === "patrimonio") {
       const start=d.bpPassivo.findIndex((l)=>/^patrim[oô]nio l[ií]quido$/i.test(l.descricao));
       const ls=start<0 ? [] : d.bpPassivo.slice(start).filter((l)=>!/total do passivo/i.test(l.descricao) && l.nivel<=3);
@@ -374,13 +374,14 @@ export async function gerarPdfRelatorio(c: ConteudoRelatorio): Promise<Blob> {
     } else if (id === "indicadores") {
       const groups = [
         {title:"Liquidez e estrutura de capital", keys:["lc","ls","li","cgl","endivPL","cobCaixa"]},
-        {title:"Rentabilidade e posição financeira", keys:["margBruta","margEbitda","margLiq","roe","roa","giroAtivo","caixa","divBruta","divLiq","caixaDiv","resultado"]}
+        {title:"Rentabilidade e posição financeira", keys:["margBruta","ebit","margEbitda","margLiq","roe","roa","giroAtivo","caixa","divBruta","divLiq","caixaDiv","resultado"]}
       ];
       const meanings:Record<string,string>={lc:"Cobertura das obrigações de curto prazo.",ls:"Cobertura sem depender dos estoques.",li:"Cobertura imediata com disponibilidades.",cgl:"Recursos circulantes menos obrigações de curto prazo.",endivPL:"Dívida bancária relativa aos recursos próprios.",cobCaixa:"Cobertura do passivo circulante com caixa.",margBruta:"Resultado após os custos.",margEbitda:"Desempenho operacional antes de D&A; não é caixa.",margLiq:"Parcela da receita convertida em lucro.",roe:"Retorno mensal sobre saldo final do PL.",roa:"Retorno mensal sobre saldo final do ativo.",giroAtivo:"Receita mensal relativa ao saldo final do ativo.",divLiq:"Dívida bancária menos caixa; não inclui fornecedores.",caixaDiv:"Relação entre caixa e dívida bancária líquida.",resultado:"Lucro ou prejuízo mensal.",caixa:"Disponibilidades na data de fechamento.",divBruta:"Empréstimos e financiamentos bancários."};
       for(let j=0;j<groups.length;j++) {
         const g=groups[j]; if(j===0){secaoAtual={id,titulo:g.title};cabecalho(id,g.title,KICKER[id]??"",false);paginas[paginas.length-1].titulo=g.title;}else y=novaPagina(id,g.title);
-        const ls=d.indices.filter(i=>g.keys.includes(i.key));
-        y=tabelaBase(["Indicador","Fórmula",d.anterior?mesCurto(d.anterior):"Anterior",mesCurto(d.periodo),"O que demonstra"],ls.map(i=>[i.label,i.formula,fmtI(i.anterior,i.formato),fmtI(i.atual,i.formato),meanings[i.key]??""]),y,{larg0:165,esquerda:[1,4]});
+        const indices = [...d.indices.filter(i=>i.key!=="ebit"), indiceEbitRelatorio(d)];
+        const ls=g.keys.flatMap(key=>indices.filter(i=>i.key===key));
+        y=tabelaBase(["Indicador","Fórmula",d.anterior?mesCurto(d.anterior):"Anterior",mesCurto(d.periodo),"O que demonstra"],ls.map(i=>[i.label,i.formula,fmtI(i.anterior,i.formato),fmtI(i.atual,i.formato),i.key==="ebit"?"Resultado operacional antes de juros e impostos.":meanings[i.key]??""]),y,{larg0:165,esquerda:[1,4]});
         texto(j===0?T.indicadores:"ROA, ROE e giro são mensais, não anualizados, usando saldos finais. Dívida bancária não inclui fornecedores; dívida líquida negativa não elimina risco de liquidez.",y,W-2*M,M,9);
       }
       y = novaPagina(id,"Indicadores de gestão e prazos");

@@ -65,3 +65,6 @@
 - [x] Reproduzir apresentação V4: BP lado a lado, DRE sintética com acumulado, custos, caixa, PL, indicadores agrupados e notas ampliadas
 - [x] Faturamento V4: tabela RB/RL de 12 meses, cobertura, totais e gráfico compacto; ausências como N/D
 - [x] Conferir PDF real da Casa do Vidro e links internos sem disponibilizar ou enviar e-mails
+
+## Caixa das linhas do relatório — 19/10
+- [x] Linhas em CAIXA ALTA do plano (Gastos…) apresentadas em título como as demais; siglas preservadas; testes e PDF real conferidos

@@ -56,8 +56,14 @@ export function exportStatementPDF(rows: StatementRow[], periods: string[], file
       body: selected.map(r => [r.source.descricao, ...r.cells.map(c => formatted(c, model.thousands))]),
       styles: { fontSize: 8, cellPadding: 4, overflow: 'linebreak' },
       headStyles: { fillColor: primary, fontStyle: 'bold' },
-      columnStyles: { 0: { cellWidth: 220 }, ...Object.fromEntries(model.headers.map((_, i) => [i + 1, { cellWidth: numericWidth, halign: 'right' }])) },
+      columnStyles: { 0: { cellWidth: 220 }, ...Object.fromEntries(model.headers.map((_, i) => [i + 1, { cellWidth: numericWidth, halign: 'center' }])) },
       didParseCell: data => {
+        // Column styles do not reach AutoTable headers: align both sections
+        // on the same axis, with wrapping and inset space inside every cell.
+        data.cell.styles.halign = data.column.index === 0 ? 'left' : 'center';
+        data.cell.styles.valign = 'middle';
+        data.cell.styles.overflow = 'linebreak';
+        if (data.column.index > 0) data.cell.styles.cellPadding = { top: 4, bottom: 4, left: 8, right: 8 };
         if (data.section !== 'body') return;
         const row = selected[data.row.index];
         if (!row) return;

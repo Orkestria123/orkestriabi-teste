@@ -33,12 +33,12 @@ export function TendenciaPanel({ serie }: { serie: PontoSerie[] }) {
     const partes: string[] = [];
     if (crescR != null) {
       partes.push(
-        `Receita cresce em média ${formatPct(Math.abs(crescR), 1)} ao mês ${crescR >= 0 ? "" : "(queda)"}.`,
+        `Receita cresce em média ${formatPct(Math.abs(crescR), 2)} ao mês ${crescR >= 0 ? "" : "(queda)"}.`,
       );
     }
     if (crescD != null) {
       partes.push(
-        `Despesa cresce ${formatPct(Math.abs(crescD), 1)} ao mês ${crescD >= 0 ? "" : "(queda)"}.`,
+        `Despesa cresce ${formatPct(Math.abs(crescD), 2)} ao mês ${crescD >= 0 ? "" : "(queda)"}.`,
       );
     }
     if (crescR != null && crescD != null && crescD > crescR) {
@@ -85,7 +85,7 @@ export function TendenciaPanel({ serie }: { serie: PontoSerie[] }) {
             <YAxis {...AXIS_PROPS} tickFormatter={(v) => `${Math.round(v * 100)}%`} />
             <Tooltip
               contentStyle={TOOLTIP_STYLE}
-              formatter={(v: any) => `${(Number(v) * 100).toFixed(0)}% da média`}
+              formatter={(v: any) => `${(Number(v) * 100).toFixed(2).replace(".", ",")}% da média`}
             />
             <Bar dataKey="indiceReceita" radius={[6, 6, 0, 0]}>
               {sz.map((s, i) => (

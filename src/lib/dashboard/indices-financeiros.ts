@@ -169,7 +169,7 @@ export const INDICES_DASHBOARD: DefIndice[] = [
 export function formatarIndice(valor: number | null, formato: FormatoIndice): string {
   if (valor == null || !isFinite(valor)) return "—";
   if (formato === "percent") {
-    return `${valor.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`;
+    return `${valor.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`;
   }
   if (formato === "money_mil") {
     const mil = valor / 1000;

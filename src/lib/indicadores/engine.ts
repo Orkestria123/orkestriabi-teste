@@ -759,7 +759,7 @@ export function formatarValor(v: number | null, modo: ModoAnalise): string {
   if (v == null || !isFinite(v)) return "—";
   const fmtNum = (n: number, d = 2) => n.toLocaleString("pt-BR", { minimumFractionDigits: d, maximumFractionDigits: d });
   if (modo === "reais") return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-  if (modo === "percentual" || modo === "ah_percent") return `${fmtNum(v, 1)}%`;
+  if (modo === "percentual" || modo === "ah_percent") return `${fmtNum(v, 2)}%`;
   if (modo === "ah_valor") return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
   return fmtNum(v, 2);
 }

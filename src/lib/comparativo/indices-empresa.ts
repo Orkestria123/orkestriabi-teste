@@ -217,7 +217,7 @@ export async function calcularIndicesEmpresa(opts: {
 export function formatarComparavel(v: number | null, formato: DefComparavel["formato"]): string {
   if (v == null || !isFinite(v)) return "—";
   if (formato === "percent") {
-    return `${v.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`;
+    return `${v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`;
   }
   return v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }

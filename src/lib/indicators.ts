@@ -356,7 +356,7 @@ const DEFS: CalcCtx[] = [
     denominadorOf: (b) => b.passivo_circulante,
     faixaOf: (v) => faixaMaiorMelhor(v, [1.0, 0.8, 0.5]),
     leituraOf: (v) =>
-      `Sem contar com estoques, a empresa cobre ${fmtN(v * 100, 0)}% das dívidas de curto prazo.`,
+      `Sem contar com estoques, a empresa cobre ${fmtN(v * 100, 2)}% das dívidas de curto prazo.`,
     referencia: "Ideal acima de 0,8",
   },
   {
@@ -369,7 +369,7 @@ const DEFS: CalcCtx[] = [
     denominadorOf: (b) => b.passivo_circulante,
     faixaOf: (v) => faixaMaiorMelhor(v, [0.4, 0.2, 0.1]),
     leituraOf: (v) =>
-      `Apenas com caixa e bancos, ${fmtN(v * 100, 0)}% das dívidas de curto prazo já estão cobertas.`,
+      `Apenas com caixa e bancos, ${fmtN(v * 100, 2)}% das dívidas de curto prazo já estão cobertas.`,
     referencia: "Acima de 0,2 indica boa folga imediata",
   },
   {
@@ -414,7 +414,7 @@ const DEFS: CalcCtx[] = [
     },
     faixaOf: (v) => faixaMenorMelhor(v, [40, 60, 75]),
     leituraOf: (v) =>
-      `${fmtN(v, 0)}% dos ativos da empresa são financiados por dívidas. O restante é capital próprio.`,
+      `${fmtN(v, 2)}% dos ativos da empresa são financiados por dívidas. O restante é capital próprio.`,
     referencia: "Abaixo de 60% indica estrutura equilibrada",
   },
   {
@@ -438,7 +438,7 @@ const DEFS: CalcCtx[] = [
     },
     faixaOf: (v) => faixaMenorMelhor(v, [40, 60, 75]),
     leituraOf: (v) =>
-      `${fmtN(v, 0)}% das dívidas vencem no curto prazo (até 12 meses).`,
+      `${fmtN(v, 2)}% das dívidas vencem no curto prazo (até 12 meses).`,
     referencia: "Menor concentração no curto prazo = menor pressão de caixa",
   },
   {
@@ -456,7 +456,7 @@ const DEFS: CalcCtx[] = [
     },
     faixaOf: (v) => faixaMenorMelhor(v, [50, 80, 100]),
     leituraOf: (v) =>
-      `${fmtN(v, 0)}% do capital próprio está imobilizado em máquinas, imóveis e equipamentos.`,
+      `${fmtN(v, 2)}% do capital próprio está imobilizado em máquinas, imóveis e equipamentos.`,
     referencia: "Abaixo de 100% — o resto financia capital de giro",
   },
   {
@@ -566,7 +566,7 @@ const DEFS: CalcCtx[] = [
     },
     faixaOf: (v) => faixaMaiorMelhor(v, [15, 10, 5]),
     leituraOf: (v) =>
-      `O capital investido pelos sócios rendeu ${fmtN(v, 1)}% no período.`,
+      `O capital investido pelos sócios rendeu ${fmtN(v, 2)}% no período.`,
     referencia: "Comparar com a Selic — acima dela, supera a renda fixa",
   },
 
@@ -648,7 +648,7 @@ const DEFS: CalcCtx[] = [
 
 export function formatIndicador(v: number | null, fmt: Formato): string {
   if (v == null || !isFinite(v)) return "—";
-  if (fmt === "percent") return `${fmtN(v, 1)}%`;
+  if (fmt === "percent") return `${fmtN(v, 2)}%`;
   if (fmt === "days") return `${Math.round(v)} dias`;
   if (fmt === "ratio") return fmtN(v, 2);
   // money
@@ -758,7 +758,7 @@ export function gerarDestaques(
     const dir = subiu ? "subiu" : "caiu";
     out.push({
       positivo,
-      texto: `${i.label} ${dir} ${fmtN(Math.abs(i.variacao_pct!), 1)}% vs período anterior`,
+      texto: `${i.label} ${dir} ${fmtN(Math.abs(i.variacao_pct!), 2)}% vs período anterior`,
     });
   }
   const criticos = ind.filter((i) => i.faixa === "critico");

@@ -65,7 +65,7 @@ export function PontoEquilibrioPanel({ resultado, labelPeriodo }: Props) {
         <Card className="p-3 bg-warning/10 border-warning/40 flex items-start gap-2">
           <AlertTriangle className="h-4 w-4 text-warning shrink-0 mt-0.5" />
           <div className="text-xs text-muted-foreground">
-            Apenas <strong>{(cobertura_pct * 100).toFixed(0)}%</strong> das despesas estão
+            Apenas <strong>{(cobertura_pct * 100).toFixed(2).replace(".", ",")}%</strong> das despesas estão
             classificadas. Os resultados ficam mais precisos conforme você completa a
             classificação no Plano de Contas.
           </div>
@@ -80,14 +80,14 @@ export function PontoEquilibrioPanel({ resultado, labelPeriodo }: Props) {
         />
         <Kpi
           label="Margem de Contribuição"
-          value={`${(margem_contribuicao_pct * 100).toFixed(1).replace(".", ",")}%`}
+          value={`${(margem_contribuicao_pct * 100).toFixed(2).replace(".", ",")}%`}
           sub="Sobra após custos variáveis"
         />
         <Kpi
           label="Margem de Segurança"
           value={
             margem_seguranca_pct != null
-              ? `${(margem_seguranca_pct * 100).toFixed(1).replace(".", ",")}%`
+              ? `${(margem_seguranca_pct * 100).toFixed(2).replace(".", ",")}%`
               : "—"
           }
           sub={

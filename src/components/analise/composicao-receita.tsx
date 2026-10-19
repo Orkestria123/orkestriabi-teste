@@ -48,7 +48,7 @@ export function ComposicaoReceita({ data }: { data: OrigemItem[] }) {
                 <span className="truncate">{o.nome}</span>
               </div>
               <div className="tabular-nums text-muted-foreground whitespace-nowrap ml-2">
-                {formatBRL(o.valor)} <span className="opacity-70">· {formatPct(o.pct, 1)}</span>
+                {formatBRL(o.valor)} <span className="opacity-70">· {formatPct(o.pct, 2)}</span>
               </div>
             </div>
           ))}
@@ -59,7 +59,7 @@ export function ComposicaoReceita({ data }: { data: OrigemItem[] }) {
       </div>
       <p className={`text-xs mt-3 ${concentrado ? "text-destructive" : "text-success"}`}>
         {concentrado
-          ? `⚠ ${formatPct(maiorPct, 0)} da receita vem de uma única origem. Alta dependência — considere diversificar.`
+          ? `⚠ ${formatPct(maiorPct, 2)} da receita vem de uma única origem. Alta dependência — considere diversificar.`
           : `✓ Receita diversificada entre ${data.length} ${data.length === 1 ? "origem" : "origens"} — menor risco.`}
       </p>
     </Card>

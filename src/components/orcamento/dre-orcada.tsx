@@ -791,7 +791,7 @@ export default function DREOrcada({
                             >
                               {varP === null
                                 ? "—"
-                                : `${varP > 0 ? "+" : ""}${varP.toFixed(1).replace(".", ",")}%`}
+                                : `${varP > 0 ? "+" : ""}${varP.toFixed(2).replace(".", ",")}%`}
                             </td>
                             <td
                               className={cn(
@@ -821,7 +821,7 @@ export default function DREOrcada({
                       >
                         {tVarP === null
                           ? "—"
-                          : `${tVarP > 0 ? "+" : ""}${tVarP.toFixed(1).replace(".", ",")}%`}
+                          : `${tVarP > 0 ? "+" : ""}${tVarP.toFixed(2).replace(".", ",")}%`}
                       </td>
                       <td className="text-center px-1 py-1 bg-primary/5">
                         <StatusPill status={tStatus} />

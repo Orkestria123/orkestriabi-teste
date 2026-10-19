@@ -40,8 +40,8 @@ export function EvolucaoReceitaDespesa({ data }: { data: SerieItem[] }) {
     : 0;
   const tesoura = ahDespesa > ahReceita;
   const insight = tesoura
-    ? `⚠ Efeito tesoura: despesas crescem ${formatPct(Math.abs(ahDespesa), 0)} enquanto a receita cresce ${formatPct(Math.abs(ahReceita), 0)}. Margem em compressão.`
-    : `✓ Receita cresce ${formatPct(Math.abs(ahReceita), 0)} acima do crescimento das despesas (${formatPct(Math.abs(ahDespesa), 0)}). Margem em expansão.`;
+    ? `⚠ Efeito tesoura: despesas crescem ${formatPct(Math.abs(ahDespesa), 2)} enquanto a receita cresce ${formatPct(Math.abs(ahReceita), 2)}. Margem em compressão.`
+    : `✓ Receita cresce ${formatPct(Math.abs(ahReceita), 2)} acima do crescimento das despesas (${formatPct(Math.abs(ahDespesa), 2)}). Margem em expansão.`;
 
   return (
     <Card className="p-5">

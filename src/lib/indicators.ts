@@ -648,7 +648,7 @@ const DEFS: CalcCtx[] = [
 
 export function formatIndicador(v: number | null, fmt: Formato): string {
   if (v == null || !isFinite(v)) return "—";
-  if (fmt === "percent") return `${fmtN(v, 1)}%`;
+  if (fmt === "percent") return `${fmtN(v, 2)}%`;
   if (fmt === "days") return `${Math.round(v)} dias`;
   if (fmt === "ratio") return fmtN(v, 2);
   // money
@@ -758,7 +758,7 @@ export function gerarDestaques(
     const dir = subiu ? "subiu" : "caiu";
     out.push({
       positivo,
-      texto: `${i.label} ${dir} ${fmtN(Math.abs(i.variacao_pct!), 1)}% vs período anterior`,
+      texto: `${i.label} ${dir} ${fmtN(Math.abs(i.variacao_pct!), 2)}% vs período anterior`,
     });
   }
   const criticos = ind.filter((i) => i.faixa === "critico");

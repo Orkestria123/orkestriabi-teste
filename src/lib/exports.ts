@@ -15,7 +15,7 @@ function formatted(cell: ViewCell, thousands: boolean) {
   if (cell.value == null || !Number.isFinite(cell.value)) return '—';
   if (cell.value === 0 && cell.format === 'money') return '—';
   const value = cell.format === 'money' && thousands ? cell.value / 1000 : cell.value;
-  const number = Math.abs(value).toLocaleString('pt-BR', { minimumFractionDigits: cell.format === 'percent' || thousands ? 1 : 2, maximumFractionDigits: cell.format === 'percent' || thousands ? 1 : 2 });
+  const number = Math.abs(value).toLocaleString('pt-BR', { minimumFractionDigits: cell.format === 'money' && thousands ? 1 : 2, maximumFractionDigits: cell.format === 'money' && thousands ? 1 : 2 });
   const text = cell.format === 'percent' ? `${number}%` : number;
   return value < 0 ? `(${text})` : text;
 }
@@ -28,7 +28,7 @@ export function exportStatementXLSX(rows: StatementRow[], periods: string[], fil
   ws['!outline'] = { above: true, left: true };
   model.rows.forEach((r, i) => r.cells.forEach((c, j) => {
     const cell = ws[XLSX.utils.encode_cell({ r: i + 3, c: j + 1 })];
-    if (cell) cell.z = c.format === 'percent' ? '0.0%;[Red](0.0%);"—"' : c.difference ? '[Red]#,##0.00;[Red](#,##0.00);"—"' : '#,##0.00;(#,##0.00);"—"';
+    if (cell) cell.z = c.format === 'percent' ? '0.00%;[Red](0.00%);"—"' : c.difference ? '[Red]#,##0.00;[Red](#,##0.00);"—"' : '#,##0.00;(#,##0.00);"—"';
   }));
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Demonstração');

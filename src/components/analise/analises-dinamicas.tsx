@@ -71,7 +71,7 @@ function labelPeriodo(p: string): string {
 
 function tickFmt(v: number, modo: ModoAnalise): string {
   if (modo === "reais") return formatBRLCompact(v);
-  if (modo === "percentual") return `${v.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`;
+  if (modo === "percentual") return `${v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`;
   return v.toLocaleString("pt-BR", { maximumFractionDigits: 2 });
 }
 
@@ -434,7 +434,7 @@ function MiniSerie({ serie, formato }: { serie: SeriePonto[]; formato: string })
       </div>
       {variacao != null && Number.isFinite(variacao) && (
         <p className="text-xs font-medium whitespace-nowrap">
-          {variacao >= 0 ? "▲" : "▼"} {Math.abs(variacao).toFixed(1).replace(".", ",")}% vs. período anterior
+          {variacao >= 0 ? "▲" : "▼"} {Math.abs(variacao).toFixed(2).replace(".", ",")}% vs. período anterior
         </p>
       )}
     </div>

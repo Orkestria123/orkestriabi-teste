@@ -566,7 +566,7 @@ const DEFS: CalcCtx[] = [
     },
     faixaOf: (v) => faixaMaiorMelhor(v, [15, 10, 5]),
     leituraOf: (v) =>
-      `O capital investido pelos sócios rendeu ${fmtN(v, 1)}% no período.`,
+      `O capital investido pelos sócios rendeu ${fmtN(v, 2)}% no período.`,
     referencia: "Comparar com a Selic — acima dela, supera a renda fixa",
   },
 

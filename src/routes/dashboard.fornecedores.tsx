@@ -15,8 +15,9 @@ import {
 } from "recharts";
 import { Users, TrendingUp, Building2, BarChart3, FileSearch } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { biHead } from "@/lib/bi-head";
 
-export const Route = createFileRoute("/dashboard/fornecedores")({ component: Page });
+export const Route = createFileRoute("/dashboard/fornecedores")({ head: () => biHead("Fornecedores"), component: Page });
 
 const COLORS = [
   "var(--chart-1)", "var(--chart-2)", "var(--chart-3)", "var(--chart-4)", "var(--chart-5)",
@@ -152,7 +153,7 @@ function Page() {
                           <div className="h-1.5 w-12 rounded-full bg-muted overflow-hidden">
                             <div className="h-full bg-primary" style={{ width: `${Math.min(100, pct)}%` }} />
                           </div>
-                          <span className="text-xs text-muted-foreground w-12 text-right">{pct.toFixed(2).replace(".", ",")}%</span>
+                          <span className="text-xs text-muted-foreground w-16 shrink-0 text-right">{pct.toFixed(2).replace(".", ",")}%</span>
                         </div>
                       </td>
                       <td className="px-2 py-2.5">

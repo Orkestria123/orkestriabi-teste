@@ -2243,7 +2243,7 @@ async function buildDFC(
     : undefined;
   if (ger) {
     const perSet = new Set(periodosOrd);
-    const virtuais = ajustesToSaldosVirtuais(ger.ajustes, (c) => perSet.has(c));
+    const virtuais = ajustesToSaldosVirtuais(ger.ajustes, (c) => perSet.has(c), true);
     saldosDFC = [...saldosDFC, ...virtuais];
   }
   const codigosComMovimento = Array.from(

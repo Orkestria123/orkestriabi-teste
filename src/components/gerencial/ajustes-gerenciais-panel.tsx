@@ -6,18 +6,20 @@
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Loader2, Plus, Pencil, Trash2, Sparkles, Copy } from "lucide-react";
+import { Loader2, Plus, Pencil, Trash2, Sparkles, Copy, RefreshCw } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
 import { escoparPlano, getEscopoConsulta } from "@/lib/plano/consulta";
 import { useAuth } from "@/hooks/use-auth";
 import { formatBRL } from "@/lib/format";
 import { CONTA_AJUSTES_GERENCIAIS } from "@/lib/gerencial/ajustes";
+import { limparCacheDemonstracoes } from "@/lib/cache-demonstracoes";
 
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -61,6 +63,7 @@ interface AjusteRow {
   conta_debito: string;
   conta_credito: string;
   valor: number;
+  movimenta_dfc: boolean;
   criado_por: string | null;
   created_at: string;
   autor_nome?: string | null;
@@ -114,6 +117,9 @@ function termoBuscaSeguro(q: string): string {
 }
 
 function invalidarDemonstracoes(qc: ReturnType<typeof useQueryClient>, companyId: string) {
+  // Lançamentos gerenciais não mudam o carimbo dos saldos contábeis, então o
+  // cache local das demonstrações precisa ser descartado junto.
+  limparCacheDemonstracoes();
   qc.invalidateQueries({ queryKey: ["ajustes-gerenciais", companyId] });
   qc.invalidateQueries({ queryKey: ["monthly-stmt"] });
   qc.invalidateQueries({ queryKey: ["indic-engine-data"] });
@@ -205,7 +211,7 @@ export function AjustesGerenciaisPanel({ tenantId, companyId }: Props) {
       const comp = primeiroDiaDoMes(competencia);
       const { data, error } = await supabase
         .from("ajustes_gerenciais")
-        .select("id, competencia, descricao, justificativa, conta_debito, conta_credito, valor, criado_por, created_at")
+        .select("id, competencia, descricao, justificativa, conta_debito, conta_credito, valor, movimenta_dfc, criado_por, created_at")
         .eq("company_id", companyId)
         .eq("competencia", comp)
         .order("created_at", { ascending: false });
@@ -282,6 +288,16 @@ export function AjustesGerenciaisPanel({ tenantId, companyId }: Props) {
           <CompetenciaPicker value={competencia} onChange={setCompetencia} />
         </div>
         <div className="ml-auto flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              invalidarDemonstracoes(qc, companyId);
+              toast.success("Demonstrações atualizadas com os lançamentos gerenciais");
+            }}
+          >
+            <RefreshCw className="h-4 w-4 mr-1" /> Atualizar Demonstrações
+          </Button>
           <Button variant="outline" size="sm" onClick={() => setOpenConta(true)}>
             <Sparkles className="h-4 w-4 mr-1" /> Nova Conta Gerencial
           </Button>
@@ -331,6 +347,11 @@ export function AjustesGerenciaisPanel({ tenantId, companyId }: Props) {
                     <div className="text-[10px] text-muted-foreground mt-0.5">
                       {a.autor_nome ?? "—"} · {new Date(a.created_at).toLocaleDateString("pt-BR")}
                     </div>
+                    {!a.movimenta_dfc && (
+                      <Badge variant="outline" className="mt-1 text-[10px] border-amber-500/50 text-amber-600 dark:text-amber-400">
+                        Não movimenta a DFC
+                      </Badge>
+                    )}
                   </div>
                   <div className="col-span-6 md:col-span-3 text-xs">
                     <div className="text-muted-foreground">Débito</div>
@@ -657,6 +678,7 @@ function AjusteDialog({
   const [contaDebito, setContaDebito] = useState("");
   const [contaCredito, setContaCredito] = useState("");
   const [valor, setValor] = useState<string>("");
+  const [movimentaDfc, setMovimentaDfc] = useState(true);
   const [busy, setBusy] = useState(false);
 
   // Reset quando abrir
@@ -669,6 +691,7 @@ function AjusteDialog({
       setContaDebito(editando.conta_debito);
       setContaCredito(editando.conta_credito);
       setValor(formatarValorDigitado(String(Math.round(editando.valor * 100))));
+      setMovimentaDfc(editando.movimenta_dfc !== false);
     } else {
       setCompetencia(competenciaPadrao);
       setDescricao("");
@@ -676,6 +699,7 @@ function AjusteDialog({
       setContaDebito("");
       setContaCredito("");
       setValor("");
+      setMovimentaDfc(true);
     }
   }, [open, editando, competenciaPadrao]);
 
@@ -706,6 +730,7 @@ function AjusteDialog({
         conta_debito: contaDebito,
         conta_credito: contaCredito,
         valor: valorNum,
+        movimenta_dfc: movimentaDfc,
       };
       if (editando && !duplicar) {
         const { error } = await supabase.from("ajustes_gerenciais").update(payload).eq("id", editando.id);
@@ -816,6 +841,23 @@ function AjusteDialog({
           {contasIguais && (
             <p className="text-[11px] text-destructive">Conta de débito e crédito devem ser diferentes.</p>
           )}
+
+          <div className="flex items-start gap-3 rounded-lg border border-border bg-muted/30 p-3">
+            <Switch
+              id="movimenta-dfc"
+              checked={movimentaDfc}
+              onCheckedChange={setMovimentaDfc}
+              aria-label="Movimenta DFC"
+            />
+            <div className="space-y-0.5">
+              <Label htmlFor="movimenta-dfc" className="text-xs font-medium cursor-pointer">
+                Movimenta a DFC
+              </Label>
+              <p className="text-[10px] text-muted-foreground">
+                Quando desmarcado, o lançamento é desconsiderado no cálculo da DFC, mas continua valendo nas demais demonstrações e indicadores.
+              </p>
+            </div>
+          </div>
 
           {/* Resumo da partida */}
           {(dInfo || cInfo) && Number.isFinite(valorNum) && valorNum > 0 && (

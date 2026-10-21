@@ -80,3 +80,4 @@
 
 - [x] DRE: linha calculada de Custo de Materiais/Mercadorias logo após a sintética de custos, antes das analíticas
 - [x] Aquafast 2025: encerramento da ECD sem diário (contrapartida em Lucros Acumulados) e reclassificações mensais
+- [x] Lançamentos gerenciais: botão "Atualizar Demonstrações" e marcação "Movimenta a DFC" (desmarcado = fora só da DFC); testes e painel conferidos na tela

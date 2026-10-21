@@ -117,6 +117,9 @@ function termoBuscaSeguro(q: string): string {
 }
 
 function invalidarDemonstracoes(qc: ReturnType<typeof useQueryClient>, companyId: string) {
+  // Lançamentos gerenciais não mudam o carimbo dos saldos contábeis, então o
+  // cache local das demonstrações precisa ser descartado junto.
+  limparCacheDemonstracoes();
   qc.invalidateQueries({ queryKey: ["ajustes-gerenciais", companyId] });
   qc.invalidateQueries({ queryKey: ["monthly-stmt"] });
   qc.invalidateQueries({ queryKey: ["indic-engine-data"] });
@@ -285,6 +288,16 @@ export function AjustesGerenciaisPanel({ tenantId, companyId }: Props) {
           <CompetenciaPicker value={competencia} onChange={setCompetencia} />
         </div>
         <div className="ml-auto flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              invalidarDemonstracoes(qc, companyId);
+              toast.success("Demonstrações atualizadas com os lançamentos gerenciais");
+            }}
+          >
+            <RefreshCw className="h-4 w-4 mr-1" /> Atualizar Demonstrações
+          </Button>
           <Button variant="outline" size="sm" onClick={() => setOpenConta(true)}>
             <Sparkles className="h-4 w-4 mr-1" /> Nova Conta Gerencial
           </Button>
@@ -334,6 +347,11 @@ export function AjustesGerenciaisPanel({ tenantId, companyId }: Props) {
                     <div className="text-[10px] text-muted-foreground mt-0.5">
                       {a.autor_nome ?? "—"} · {new Date(a.created_at).toLocaleDateString("pt-BR")}
                     </div>
+                    {!a.movimenta_dfc && (
+                      <Badge variant="outline" className="mt-1 text-[10px] border-amber-500/50 text-amber-600 dark:text-amber-400">
+                        Não movimenta a DFC
+                      </Badge>
+                    )}
                   </div>
                   <div className="col-span-6 md:col-span-3 text-xs">
                     <div className="text-muted-foreground">Débito</div>

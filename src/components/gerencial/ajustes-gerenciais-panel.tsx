@@ -6,18 +6,20 @@
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Loader2, Plus, Pencil, Trash2, Sparkles, Copy } from "lucide-react";
+import { Loader2, Plus, Pencil, Trash2, Sparkles, Copy, RefreshCw } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
 import { escoparPlano, getEscopoConsulta } from "@/lib/plano/consulta";
 import { useAuth } from "@/hooks/use-auth";
 import { formatBRL } from "@/lib/format";
 import { CONTA_AJUSTES_GERENCIAIS } from "@/lib/gerencial/ajustes";
+import { limparCacheDemonstracoes } from "@/lib/cache-demonstracoes";
 
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -61,6 +63,7 @@ interface AjusteRow {
   conta_debito: string;
   conta_credito: string;
   valor: number;
+  movimenta_dfc: boolean;
   criado_por: string | null;
   created_at: string;
   autor_nome?: string | null;
@@ -205,7 +208,7 @@ export function AjustesGerenciaisPanel({ tenantId, companyId }: Props) {
       const comp = primeiroDiaDoMes(competencia);
       const { data, error } = await supabase
         .from("ajustes_gerenciais")
-        .select("id, competencia, descricao, justificativa, conta_debito, conta_credito, valor, criado_por, created_at")
+        .select("id, competencia, descricao, justificativa, conta_debito, conta_credito, valor, movimenta_dfc, criado_por, created_at")
         .eq("company_id", companyId)
         .eq("competencia", comp)
         .order("created_at", { ascending: false });

@@ -177,6 +177,7 @@ export async function getAjustesGerenciais(
     conta_debito: r.conta_debito,
     conta_credito: r.conta_credito,
     valor: Number(r.valor) || 0,
+    movimenta_dfc: r.movimenta_dfc !== false,
     debito: resolver(r.conta_debito),
     credito: resolver(r.conta_credito),
   }));
@@ -206,9 +207,12 @@ export interface SaldoVirtual {
 export function ajustesToSaldosVirtuais(
   ajustes: AjusteResolvido[],
   filter: (competencia: string) => boolean,
+  /** true = consumidor é a DFC: ignora ajustes marcados como "não movimenta DFC". */
+  paraDfc = false,
 ): SaldoVirtual[] {
   const out: SaldoVirtual[] = [];
   for (const a of ajustes) {
+    if (paraDfc && !a.movimenta_dfc) continue;
     const comp = competenciaPadrao(a.competencia);
     if (!filter(comp) && !filter(a.competencia)) continue;
     if (!a.debito || !a.credito) continue; // conta removida — ignora

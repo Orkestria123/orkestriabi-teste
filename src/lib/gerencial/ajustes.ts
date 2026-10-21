@@ -46,6 +46,8 @@ export interface AjusteResolvido {
   conta_debito: string;
   conta_credito: string;
   valor: number;
+  /** false = desconsiderado apenas na DFC; vale nas demais demonstrações. */
+  movimenta_dfc: boolean;
   // resoluções (podem ser null se a conta foi removida)
   debito: ContaResolvida | null;
   credito: ContaResolvida | null;
@@ -84,7 +86,7 @@ export async function getAjustesGerenciais(
   const [ajustesRes, gerRes] = await Promise.all([
     supabase
       .from("ajustes_gerenciais")
-      .select("id, competencia, descricao, conta_debito, conta_credito, valor")
+      .select("id, competencia, descricao, conta_debito, conta_credito, valor, movimenta_dfc")
       .eq("company_id", companyId),
     supabase
       .from("contas_gerenciais")

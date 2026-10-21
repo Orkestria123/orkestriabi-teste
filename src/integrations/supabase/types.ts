@@ -86,6 +86,7 @@ export type Database = {
           descricao: string
           id: string
           justificativa: string | null
+          movimenta_dfc: boolean
           tenant_id: string
           updated_at: string
           valor: number
@@ -100,6 +101,7 @@ export type Database = {
           descricao: string
           id?: string
           justificativa?: string | null
+          movimenta_dfc?: boolean
           tenant_id: string
           updated_at?: string
           valor: number
@@ -114,6 +116,7 @@ export type Database = {
           descricao?: string
           id?: string
           justificativa?: string | null
+          movimenta_dfc?: boolean
           tenant_id?: string
           updated_at?: string
           valor?: number

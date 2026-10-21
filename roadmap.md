@@ -77,3 +77,6 @@
 
 ## Caixa das linhas do relatório — 19/10
 - [x] Linhas em CAIXA ALTA do plano (Gastos…) apresentadas em título como as demais; siglas preservadas; testes e PDF real conferidos
+
+- [x] DRE: linha calculada de Custo de Materiais/Mercadorias logo após a sintética de custos, antes das analíticas
+- [x] Aquafast 2025: encerramento da ECD sem diário (contrapartida em Lucros Acumulados) e reclassificações mensais

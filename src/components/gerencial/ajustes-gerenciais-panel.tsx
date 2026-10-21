@@ -678,6 +678,7 @@ function AjusteDialog({
   const [contaDebito, setContaDebito] = useState("");
   const [contaCredito, setContaCredito] = useState("");
   const [valor, setValor] = useState<string>("");
+  const [movimentaDfc, setMovimentaDfc] = useState(true);
   const [busy, setBusy] = useState(false);
 
   // Reset quando abrir
@@ -690,6 +691,7 @@ function AjusteDialog({
       setContaDebito(editando.conta_debito);
       setContaCredito(editando.conta_credito);
       setValor(formatarValorDigitado(String(Math.round(editando.valor * 100))));
+      setMovimentaDfc(editando.movimenta_dfc !== false);
     } else {
       setCompetencia(competenciaPadrao);
       setDescricao("");
@@ -697,6 +699,7 @@ function AjusteDialog({
       setContaDebito("");
       setContaCredito("");
       setValor("");
+      setMovimentaDfc(true);
     }
   }, [open, editando, competenciaPadrao]);
 
@@ -727,6 +730,7 @@ function AjusteDialog({
         conta_debito: contaDebito,
         conta_credito: contaCredito,
         valor: valorNum,
+        movimenta_dfc: movimentaDfc,
       };
       if (editando && !duplicar) {
         const { error } = await supabase.from("ajustes_gerenciais").update(payload).eq("id", editando.id);
@@ -837,6 +841,23 @@ function AjusteDialog({
           {contasIguais && (
             <p className="text-[11px] text-destructive">Conta de débito e crédito devem ser diferentes.</p>
           )}
+
+          <div className="flex items-start gap-3 rounded-lg border border-border bg-muted/30 p-3">
+            <Switch
+              id="movimenta-dfc"
+              checked={movimentaDfc}
+              onCheckedChange={setMovimentaDfc}
+              aria-label="Movimenta DFC"
+            />
+            <div className="space-y-0.5">
+              <Label htmlFor="movimenta-dfc" className="text-xs font-medium cursor-pointer">
+                Movimenta a DFC
+              </Label>
+              <p className="text-[10px] text-muted-foreground">
+                Quando desmarcado, o lançamento é desconsiderado no cálculo da DFC, mas continua valendo nas demais demonstrações e indicadores.
+              </p>
+            </div>
+          </div>
 
           {/* Resumo da partida */}
           {(dInfo || cInfo) && Number.isFinite(valorNum) && valorNum > 0 && (

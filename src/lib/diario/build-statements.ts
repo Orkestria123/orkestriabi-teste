@@ -1461,13 +1461,15 @@ function addAcumuladores(
   // "Custo de materiais dos produtos" (e o de mercadorias) ficam logo
   // ABAIXO do subtotal CPV/CMV (+10), não acima (-20). Os filhos do CPV
   // usam base + 20, +40…, então +10 cai entre o subtotal e o primeiro filho.
+  const abertos = new Set<number>();
   const ordemDepoisDoPapel = (papel: string, fallback: number): number => {
     const ac = ordenados.find((a) => a.papel === papel);
     if (ac) return ac.ordem * 1000 + 10;
     // Bloco com UMA linha só: o subtotal não é emitido e o rótulo
     // "Custo dos Produtos Vendidos" foi para a própria linha sintética.
     // A linha calculada fica logo depois dela e ANTES das analíticas
-    // (que usam base + 1, + 2…), por isso base + 0,5.
+    // (que usam base + 1, + 2…): ocupa base + 1 e empurra as analíticas
+    // uma posição (a ordem é inteira no banco).
     const est = estrutura.find((e) => e.papel === papel && e.demonstracao === "DRE");
     if (est && opts.ordemPrefixo) {
       const partes = dividir(est.classificacao, mascara);
@@ -1476,7 +1478,16 @@ function addAcumuladores(
       for (const [pref, ord] of opts.ordemPrefixo) {
         if (pref === pai || descendeDe(pref, pai, mascara)) min = Math.min(min, ord);
       }
-      if (min !== Infinity) return min * 1000 + 0.5;
+      if (min !== Infinity) {
+        const alvo = min * 1000 + 1;
+        if (!abertos.has(alvo)) {
+          abertos.add(alvo);
+          for (const r of rows) {
+            if (r.linha_ordem >= alvo && r.linha_ordem < min * 1000 + 1000) r.linha_ordem += 1;
+          }
+        }
+        return alvo;
+      }
     }
     return (est?.ordem ?? fallback) * 1000 + 10;
   };

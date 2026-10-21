@@ -435,6 +435,20 @@
       "when": 1792413730997,
       "tag": "0061_ecd_encerramento_lado_por_saldo",
       "breakpoints": true
+    },
+    {
+      "idx": 62,
+      "version": "7",
+      "when": 1792600814959,
+      "tag": "0062_ecd_encerramento_contrapartida",
+      "breakpoints": true
+    },
+    {
+      "idx": 63,
+      "version": "7",
+      "when": 1792600917236,
+      "tag": "0063_ecd_encerramento_so_contas_com_saldo",
+      "breakpoints": true
     }
   ]
 }

@@ -1465,17 +1465,18 @@ function addAcumuladores(
     const ac = ordenados.find((a) => a.papel === papel);
     if (ac) return ac.ordem * 1000 + 10;
     // Bloco com UMA linha só: o subtotal não é emitido e o rótulo
-    // "Custo dos Produtos Vendidos" foi para a própria linha. Fica logo
-    // depois dela (e dos filhos dela, que usam base + 1, + 2…).
+    // "Custo dos Produtos Vendidos" foi para a própria linha sintética.
+    // A linha calculada fica logo depois dela e ANTES das analíticas
+    // (que usam base + 1, + 2…), por isso base + 0,5.
     const est = estrutura.find((e) => e.papel === papel && e.demonstracao === "DRE");
     if (est && opts.ordemPrefixo) {
       const partes = dividir(est.classificacao, mascara);
       const pai = partes.length > 1 ? juntar(partes.slice(0, -1), mascara) : est.classificacao;
-      let max = -1;
+      let min = Infinity;
       for (const [pref, ord] of opts.ordemPrefixo) {
-        if (pref === pai || descendeDe(pref, pai, mascara)) max = Math.max(max, ord);
+        if (pref === pai || descendeDe(pref, pai, mascara)) min = Math.min(min, ord);
       }
-      if (max >= 0) return max * 1000 + 999;
+      if (min !== Infinity) return min * 1000 + 0.5;
     }
     return (est?.ordem ?? fallback) * 1000 + 10;
   };

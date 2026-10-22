@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { selecionarFormulasLinhas, type DefinicaoLinha } from "./linhas-calculadas";
 import { avaliarExpressao, buildContext, type Token } from "./engine";
 import { MASCARA_DEFAULT } from "@/lib/mascara/interpretar";
+import { indexarDemoDre, resolverLinha } from "./linhas";
 
 const termo = (contas: string[]): Token[] => [{ tipo: "termo", origem: "conta", contas }];
 const padrao: DefinicaoLinha = { id: "padrao", company_id: null, linha_calculada_key: "CUSTO_PRODUTOS", formula: { expressao: termo(["compras"]) }, exibir_demonstracao: true };
@@ -26,6 +27,8 @@ describe("Linhas calculadas de custos", () => {
     expect(formula?.exibir).toBe(false);
     expect(avaliarExpressao(formula?.tokens ?? [], "2026-01-01", ctx)).toBe(-310300);
     expect(avaliarExpressao(formula?.tokens ?? [], "2026-02-01", ctx)).toBe(310300);
+    const demo = indexarDemoDre([{ periodo: "2026-01-01", descricao: "(-) Custo de materiais dos produtos", codigo_conta: "CUSTO_PRODUTOS", valor: -310300, nivel: 0, is_subtotal: true }], []);
+    expect(resolverLinha("CUSTO_PRODUTOS", "2026-01-01", ctx, demo, [])).toBe(-310300);
   });
   it("remover exceção restaura a fórmula do escritório", () => {
     expect(selecionarFormulasLinhas([padrao], "dal").CUSTO_PRODUTOS?.tokens).toEqual(termo(["compras"]));

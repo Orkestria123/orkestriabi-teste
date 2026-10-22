@@ -91,9 +91,9 @@ export function ComparativoTable({ rows, labelA, labelB, presentation }: Props) 
           />
         </div>
       )}
-      <div className="overflow-x-auto">
+      <div className="overflow-auto max-h-[75vh]">
         <table className={cn("w-full", presentation ? "text-sm" : "text-xs")}>
-          <thead className="bg-muted/30">
+          <thead className="sticky top-0 z-20 bg-background">
             <tr>
               <th className="text-left px-4 py-3 font-medium uppercase tracking-wider text-muted-foreground sticky left-0 bg-muted/30 text-[11px]">
                 Descrição

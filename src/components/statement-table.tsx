@@ -756,7 +756,7 @@ export function StatementTable({
       if (n > 0) bandas.push({ banda: "", n });
     }
     return (
-      <thead className="sticky top-0 z-20 bg-background shadow-[0_1px_0_hsl(var(--border))]">
+      <thead className="sticky top-0 z-20 bg-background shadow-[0_1px_0_var(--border)]">
         {temBandaSuperior && (
           <tr className="border-b bg-muted/40">
             {thDesc}

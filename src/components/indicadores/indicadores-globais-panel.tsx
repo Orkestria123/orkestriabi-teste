@@ -79,7 +79,7 @@ export function IndicadoresGlobaisPanel({ tenantId, onEditGlobal }: Props) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("indicadores_empresa" as any)
-        .select("id, nome, categoria, descricao, modo_analise, formula, faixas, visibilidade, is_padrao, ordem")
+        .select("id, nome, categoria, descricao, modo_analise, formula, faixas, visibilidade, is_padrao, ordem, linha_calculada_key, exibir_demonstracao")
         .eq("tenant_id", tenantId)
         .is("company_id", null)
         .order("categoria").order("nome");
@@ -93,7 +93,7 @@ export function IndicadoresGlobaisPanel({ tenantId, onEditGlobal }: Props) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("indicadores_empresa" as any)
-        .select("id, nome, categoria, descricao, modo_analise, formula, faixas, visibilidade, is_padrao, company_id, ordem")
+        .select("id, nome, categoria, descricao, modo_analise, formula, faixas, visibilidade, is_padrao, company_id, ordem, linha_calculada_key, exibir_demonstracao")
         .eq("tenant_id", tenantId)
         .not("company_id", "is", null)
         .order("nome");
@@ -246,7 +246,7 @@ export function IndicadoresGlobaisPanel({ tenantId, onEditGlobal }: Props) {
   };
 
   const promoverTodos = async () => {
-    const lista = locais ?? [];
+    const lista = (locais ?? []).filter(l => l.categoria !== "Linhas calculadas");
     if (lista.length === 0) return;
     if (!confirm(
       `Promover ${lista.length} indicador(es) local(is) a definições do escritório?\n\n` +
@@ -452,7 +452,7 @@ export function IndicadoresGlobaisPanel({ tenantId, onEditGlobal }: Props) {
                         <Pencil className="h-3.5 w-3.5 mr-1" /> Editar
                       </Button>
                       <Button size="sm" variant="outline" className="h-7 text-xs mr-1"
-                        disabled={ocupado}
+                        disabled={ocupado || g.categoria === "Linhas calculadas"}
                         onClick={async () => {
                           setOcupado(true);
                           try {
@@ -483,7 +483,7 @@ export function IndicadoresGlobaisPanel({ tenantId, onEditGlobal }: Props) {
           if (!v) { setEditando(null); setSomenteLeitura(false); }
         }}
         tenantId={tenantId}
-        companyId={null}
+        companyId={editando?.company_id ?? null}
         plano={plano ?? []}
         indicador={editando}
         somenteLeitura={somenteLeitura}

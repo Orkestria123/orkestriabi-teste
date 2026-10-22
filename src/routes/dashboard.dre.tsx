@@ -24,6 +24,7 @@ function buildRows(data: any[]): { rows: StatementRow[]; periods: string[] } {
   const periodSet = new Set<string>();
   const hasComparativo = data.some((r) => r.valor_gerencial !== undefined);
   for (const r of data) {
+    if (r.exibir_demonstracao === false) continue;
     const identity = r.codigo_conta ?? `sub:${r.descricao}`;
     const key = `${r.linha_ordem}|${identity}`;
     if (!map.has(key)) {

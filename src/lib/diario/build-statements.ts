@@ -662,14 +662,6 @@ async function getSaldosAteData(
 // achatava para "a mais recente de qualquer data" e o chamador somava
 // todo o movimento por cima — contando duas vezes o que já estava
 // embutido na abertura. Ver src/lib/diario/acumulador.ts.
-/** "2025-12" → "2026-01" */
-function mesSeguinte(ym: string): string {
-  const ano = Number(ym.slice(0, 4));
-  const mes = Number(ym.slice(5, 7));
-  return mes >= 12
-    ? `${ano + 1}-01`
-    : `${ano}-${String(mes + 1).padStart(2, "0")}`;
-}
 
 /**
  * Competências em que a ECD zerou as contas de resultado.
@@ -1691,21 +1683,23 @@ async function buildBP(
   // já estão em saldosAcum e portanto propagam automaticamente para o resultado
   // — mantendo Ativo = Passivo + PL na visão gerencial.
   //
-  // O início da acumulação NÃO é sempre janeiro: quando a ECD zerou as contas
-  // de resultado, ela transferiu o resultado para a conta patrimonial, que já
-  // vem nos saldos. Contar a DRE de janeiro de novo somaria o resultado duas
-  // vezes e o Ativo pararia de fechar com o Passivo. Por isso a soma começa
-  // no mês SEGUINTE ao último zeramento (no próprio mês do zeramento dá zero).
-  const encerramentosYm = encerramentos.map((c) => c.slice(0, 7)).sort();
+  // A acumulação começa SEMPRE em janeiro do exercício. Funciona nos dois
+  // estados possíveis do encerramento:
+  //  - encerramento mantido nos saldos: a DRE do ano soma zero e o lucro
+  //    já está em Lucros Acumulados;
+  //  - encerramento retirado (regra atual da ECD, que tira também a
+  //    contrapartida em Lucros Acumulados): a DRE traz o lucro do ano e
+  //    Lucros Acumulados não.
+  // Reiniciar a soma no mês do zeramento zerava o Resultado justamente
+  // quando o encerramento já tinha sido retirado — dezembro deixava de fechar
+  // pelo lucro do ano inteiro.
+  void encerramentos;
   const dreCodigos = new Set<string>([...planoDRE, ...planoExtra].map((p) => p.codigo));
   const resultadoExercicioPorRef = new Map<string, number>();
   if (tipo === "BP_PASSIVO" && dreCodigos.size > 0) {
     for (const ref of periodos) {
       const refYm = ref.slice(0, 7);
-      const ultimoZeramento = encerramentosYm.filter((c) => c <= refYm).pop();
-      const inicioExerc = ultimoZeramento
-        ? mesSeguinte(ultimoZeramento)
-        : `${refYm.slice(0, 4)}-01`;
+      const inicioExerc = `${refYm.slice(0, 4)}-01`;
       let soma = 0;
       for (const s of saldosAcum) {
         const cYm = s.competencia.slice(0, 7);

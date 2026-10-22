@@ -756,7 +756,7 @@ export function StatementTable({
       if (n > 0) bandas.push({ banda: "", n });
     }
     return (
-      <thead>
+      <thead className="sticky top-0 z-20 bg-background shadow-[0_1px_0_var(--border)]">
         {temBandaSuperior && (
           <tr className="border-b bg-muted/40">
             {thDesc}
@@ -867,7 +867,7 @@ export function StatementTable({
       ? indices.filter((i) => rowsFiltradas.includes(rows[i]))
       : indices.filter((i) => isRowVisible(rows, i, expandedRows));
     return (
-      <div className={cn("min-w-0 bg-transparent", !encostar && "overflow-x-auto")}>
+      <div className={cn("min-w-0 bg-transparent", !encostar && "overflow-auto max-h-[75vh]")}>
         {titulo && (
           <div className="px-3 py-1.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground border-b bg-muted/10">
             {titulo}
@@ -1017,7 +1017,7 @@ export function StatementTable({
 
       {/* Tabela */}
       {corteLados > 0 ? (
-        <div className="overflow-x-auto">
+        <div className="overflow-auto max-h-[75vh]">
           <div className="flex w-max items-stretch">
             {renderPainel(
               Array.from({ length: corteLados }, (_, i) => i),

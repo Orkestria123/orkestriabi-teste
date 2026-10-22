@@ -63,7 +63,7 @@ export function IndicadorEditorDialog({
   const [exibir, setExibir] = useState(true);
   const [empresaExcecao, setEmpresaExcecao] = useState("");
   const ehLinha = categoria === CATEGORIA_LINHAS;
-  const escopoEmpresa = indicador?.id ? ((indicador as any).company_id ?? "") : (companyId ?? empresaExcecao);
+  const escopoEmpresa = indicador?.id ? ((indicador as any).company_id ?? companyId ?? "") : (companyId ?? empresaExcecao);
   const { data: empresas } = useQuery({ queryKey: ["empresas-linhas", tenantId], enabled: open && ehLinha,
     queryFn: async () => { const { data, error } = await supabase.from("companies").select("id, name").eq("tenant_id", tenantId).order("name"); if (error) throw error; return data ?? []; } });
   const { data: contasEspecificas } = useQuery({ queryKey: ["indic-contas-excecao", tenantId, escopoEmpresa], enabled: open && !!escopoEmpresa,
@@ -212,6 +212,7 @@ export function IndicadorEditorDialog({
           <div className={somenteLeitura ? "pointer-events-none opacity-90" : undefined}>
             <FormulaBuilder
               plano={[...plano, ...(contasEspecificas ?? [])]}
+              allowAnaliticas={ehLinha}
               tokens={tokens}
               onChange={setTokens}
               ocultarLinhas={

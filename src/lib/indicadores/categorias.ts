@@ -4,6 +4,7 @@ export const ORDEM_CATEGORIAS = [
   "Liquidez",
   "Atividade",
   "Endividamento",
+  "Linhas calculadas",
 ] as const;
 
 export const CATEGORIAS_INDICADOR = [

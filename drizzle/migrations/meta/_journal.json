@@ -456,6 +456,13 @@
       "when": 1792606525831,
       "tag": "0064_ajustes_gerenciais_movimenta_dfc",
       "breakpoints": true
+    },
+    {
+      "idx": 65,
+      "version": "7",
+      "when": 1792677844520,
+      "tag": "0065_linhas_calculadas_indicadores",
+      "breakpoints": true
     }
   ]
 }

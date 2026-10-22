@@ -1,5 +1,7 @@
 # Architecture rules
 
+- Calculated DRE cost components reuse indicator expressions with stable semantic keys and company-over-tenant precedence; visibility is presentation-only and never changes ledger totals or formula inputs.
+
 - Public demo routes reuse exported client BI screens and the BI query adapter, which substitutes allowlisted bundled fictional data and isolates query/storage keys; never execute private queries, auth, AI calls or mutations in demo mode, so client visual changes propagate without publishing real ledger data.
 
 - Statement exports receive a snapshot from StatementTable so visible columns, analysis, grouping and hierarchy match the consulted view; PDFs navigate between fixed detail views with internal links rather than viewer-dependent JavaScript.

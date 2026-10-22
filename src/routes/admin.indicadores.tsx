@@ -6,8 +6,9 @@ import { Card } from "@/components/ui/card";
 import { LineChart } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { IndicadoresGlobaisPanel } from "@/components/indicadores/indicadores-globais-panel";
+import { biHead } from "@/lib/bi-head";
 
-export const Route = createFileRoute("/admin/indicadores")({ component: Page });
+export const Route = createFileRoute("/admin/indicadores")({ head: () => biHead("Configuração de indicadores e fórmulas de custos"), component: Page });
 
 function Page() {
   const { profile } = useAuth();

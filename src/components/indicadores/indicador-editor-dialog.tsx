@@ -1,5 +1,8 @@
 // Dialog para criar/editar um indicador da empresa.
 import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { Switch } from "@/components/ui/switch";
+import { CATEGORIA_LINHAS, LINHAS_CALCULADAS, LINHAS_CUSTO_PROIBIDAS } from "@/lib/indicadores/linhas-calculadas";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -56,9 +59,21 @@ export function IndicadorEditorDialog({
   const [faixaAtencao, setFaixaAtencao] = useState("");
   const [direcao, setDirecao] = useState<"maior_melhor" | "menor_melhor">("maior_melhor");
   const [saving, setSaving] = useState(false);
+  const [linhaKey, setLinhaKey] = useState("");
+  const [exibir, setExibir] = useState(true);
+  const [empresaExcecao, setEmpresaExcecao] = useState("");
+  const ehLinha = categoria === CATEGORIA_LINHAS;
+  const escopoEmpresa = indicador?.id ? ((indicador as any).company_id ?? companyId ?? "") : (companyId ?? empresaExcecao);
+  const { data: empresas } = useQuery({ queryKey: ["empresas-linhas", tenantId], enabled: open && ehLinha,
+    queryFn: async () => { const { data, error } = await supabase.from("companies").select("id, name").eq("tenant_id", tenantId).order("name"); if (error) throw error; return data ?? []; } });
+  const { data: contasEspecificas } = useQuery({ queryKey: ["indic-contas-excecao", tenantId, escopoEmpresa], enabled: open && !!escopoEmpresa,
+    queryFn: async () => { const { data, error } = await supabase.from("plano_contas").select("codigo, classificacao, descricao, is_sintetica, is_participante, nivel").eq("tenant_id", tenantId).eq("company_id", escopoEmpresa).eq("is_participante", false).order("classificacao"); if (error) throw error; return data ?? []; } });
 
   useEffect(() => {
     if (!open) return;
+    setLinhaKey((indicador as any)?.linha_calculada_key ?? "");
+    setExibir((indicador as any)?.exibir_demonstracao !== false);
+    setEmpresaExcecao("");
     if (indicador) {
       setNome(indicador.nome);
       setCategoria(indicador.categoria || "Personalizado");
@@ -83,6 +98,8 @@ export function IndicadorEditorDialog({
     if (!nome.trim()) { toast.error("Informe o nome do indicador."); return; }
     const erros = validarExpressao(tokens);
     if (erros.length > 0) { toast.error(erros[0]); return; }
+    if (ehLinha && !linhaKey) { toast.error("Selecione a linha calculada."); return; }
+    if (ehLinha && tokens.some(t => t.tipo === "termo" && t.linha && LINHAS_CUSTO_PROIBIDAS.includes(t.linha))) { toast.error("Esta referência cria dependência circular."); return; }
 
     setSaving(true);
     try {
@@ -97,14 +114,16 @@ export function IndicadorEditorDialog({
         : null;
       const payload: Record<string, unknown> = {
         tenant_id: tenantId,
-        nome: nome.trim(),
+        nome: ehLinha ? (LINHAS_CALCULADAS.find(l => l.key === linhaKey)?.nome ?? nome.trim()) : nome.trim(),
         categoria,
         descricao: descricao.trim() || null,
-        modo_analise: modo,
+        modo_analise: ehLinha ? "reais" : modo,
         formula: { expressao: tokens },
         faixas,
+        linha_calculada_key: ehLinha ? linhaKey : null,
+        exibir_demonstracao: exibir,
       };
-      if (!indicador?.id) payload.visibilidade = "indicadores";
+      if (!indicador?.id) payload.visibilidade = ehLinha ? "invisivel" : "indicadores";
       if (indicador?.id) {
         // NÃO mandar `company_id` no update.
         //
@@ -130,7 +149,7 @@ export function IndicadorEditorDialog({
       } else {
         const { error } = await supabase
           .from("indicadores_empresa" as any)
-          .insert({ ...payload, company_id: companyId ?? null,
+          .insert({ ...payload, company_id: escopoEmpresa || null,
                     revisar_contas: false, is_padrao: false });
         if (error) throw error;
       }
@@ -173,6 +192,16 @@ export function IndicadorEditorDialog({
           </div>
         </div>
 
+        {ehLinha && <div className="grid gap-3 md:grid-cols-2">
+          <div><Label>Linha da DRE</Label><select className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm" value={linhaKey} disabled={somenteLeitura} onChange={e => { setLinhaKey(e.target.value); const l = LINHAS_CALCULADAS.find(x => x.key === e.target.value); if (l) setNome(l.nome); }}>
+            <option value="">Selecione</option>{LINHAS_CALCULADAS.map(l => <option key={l.key} value={l.key}>{l.nome}</option>)}
+          </select></div>
+          <div><Label>Exceção por empresa</Label><select className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm" value={escopoEmpresa} disabled={somenteLeitura || !!indicador?.id || !!companyId} onChange={e => { setEmpresaExcecao(e.target.value); }}>
+            <option value="">Padrão do escritório</option>{(empresas ?? []).map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+          </select></div>
+          <label className="flex items-center gap-2 text-sm"><Switch checked={exibir} disabled={somenteLeitura} onCheckedChange={setExibir} />Exibir linha na DRE</label>
+        </div>}
+
         <div>
           <Label className="text-xs">Descrição (opcional)</Label>
           <Textarea value={descricao} onChange={(e) => setDescricao(e.target.value)} rows={2} placeholder="Explicação em linguagem simples" disabled={somenteLeitura} />
@@ -182,11 +211,12 @@ export function IndicadorEditorDialog({
           <Label className="text-xs mb-1 block">Fórmula</Label>
           <div className={somenteLeitura ? "pointer-events-none opacity-90" : undefined}>
             <FormulaBuilder
-              plano={plano}
+              plano={[...plano, ...(contasEspecificas ?? [])]}
+              allowAnaliticas={ehLinha}
               tokens={tokens}
               onChange={setTokens}
               ocultarLinhas={
-                nomeBateIndicadorEbit(nome, "ebit")
+                ehLinha ? LINHAS_CUSTO_PROIBIDAS : nomeBateIndicadorEbit(nome, "ebit")
                   ? ["EBIT", "EBITDA"]
                   : nomeBateIndicadorEbit(nome, "ebitda")
                     ? ["EBITDA"]

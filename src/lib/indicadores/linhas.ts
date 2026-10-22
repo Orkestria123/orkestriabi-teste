@@ -599,6 +599,11 @@ export function resolverLinha(
   const est = estrutura ?? getEstruturaPadraoSync();
   const cat = LINHAS_CATALOGO.find((l) => l.key === key);
 
+  if (key === "CUSTO_PRODUTOS" || key === "CUSTO_MERCADORIA") {
+    const valor = valorDemoDre(demoDre, periodo, aliasesDaLinha(key, est), key);
+    if (valor !== null) return valor;
+  }
+
   // DRE: prefere o valor já montado na demonstração. Zero na conta .99
   // não conta — cai no cálculo por papel (bloco/corrido), igual à DRE.
   // EBIT / EBITDA: o valor é o dos indicadores Ebit / Ebitda, gravado

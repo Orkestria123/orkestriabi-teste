@@ -1591,10 +1591,12 @@ export type Database = {
           company_id: string | null
           created_at: string
           descricao: string | null
+          exibir_demonstracao: boolean
           faixas: Json | null
           formula: Json
           id: string
           is_padrao: boolean
+          linha_calculada_key: string | null
           modo_analise: string
           nome: string
           ordem: number
@@ -1608,10 +1610,12 @@ export type Database = {
           company_id?: string | null
           created_at?: string
           descricao?: string | null
+          exibir_demonstracao?: boolean
           faixas?: Json | null
           formula?: Json
           id?: string
           is_padrao?: boolean
+          linha_calculada_key?: string | null
           modo_analise?: string
           nome: string
           ordem?: number
@@ -1625,10 +1629,12 @@ export type Database = {
           company_id?: string | null
           created_at?: string
           descricao?: string | null
+          exibir_demonstracao?: boolean
           faixas?: Json | null
           formula?: Json
           id?: string
           is_padrao?: boolean
+          linha_calculada_key?: string | null
           modo_analise?: string
           nome?: string
           ordem?: number

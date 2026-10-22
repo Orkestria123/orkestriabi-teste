@@ -14,6 +14,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { formatBRL } from "@/lib/format";
 import { CONTA_AJUSTES_GERENCIAIS } from "@/lib/gerencial/ajustes";
 import { limparCacheDemonstracoes } from "@/lib/cache-demonstracoes";
+import { limparCachePlano } from "@/lib/diario/build-statements";
 
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -116,16 +117,16 @@ function termoBuscaSeguro(q: string): string {
   return q.replace(/[%_,()]/g, " ").replace(/\s+/g, " ").trim();
 }
 
-function invalidarDemonstracoes(qc: ReturnType<typeof useQueryClient>, companyId: string) {
+async function invalidarDemonstracoes(qc: ReturnType<typeof useQueryClient>, companyId: string) {
   // Lançamentos gerenciais não mudam o carimbo dos saldos contábeis, então o
   // cache local das demonstrações precisa ser descartado junto.
   limparCacheDemonstracoes();
-  qc.invalidateQueries({ queryKey: ["ajustes-gerenciais", companyId] });
-  qc.invalidateQueries({ queryKey: ["monthly-stmt"] });
-  qc.invalidateQueries({ queryKey: ["indic-engine-data"] });
-  qc.invalidateQueries({ queryKey: ["indic-demo-dre"] });
-  qc.invalidateQueries({ queryKey: ["indic-explicacao"] });
-  qc.invalidateQueries({ queryKey: ["cliente-indicadores"] });
+  limparCachePlano();
+  await qc.invalidateQueries({ predicate: ({ queryKey: key }) => {
+    if (key[0] === "ajustes-gerenciais" || key[0] === "monthly-stmt" || key[0] === "cliente-indicadores") return key[1] === companyId;
+    if (key[0] === "indic-engine-data" || key[0] === "indic-demo-dre") return key[2] === companyId;
+    return key[0] === "indic-explicacao" && key.includes(companyId);
+  } }, { throwOnError: true });
 }
 
 // ---------------------------------------------------------------------
@@ -143,6 +144,7 @@ export function AjustesGerenciaisPanel({ tenantId, companyId }: Props) {
   const [editando, setEditando] = useState<AjusteRow | null>(null);
   const [duplicando, setDuplicando] = useState(false);
   const [openConta, setOpenConta] = useState(false);
+  const [atualizando, setAtualizando] = useState(false);
 
   // ------- Contas do plano (estruturais) + contas gerenciais -------
   const { data: contas, isLoading: loadingContas } = useQuery({
@@ -291,12 +293,17 @@ export function AjustesGerenciaisPanel({ tenantId, companyId }: Props) {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => {
-              invalidarDemonstracoes(qc, companyId);
-              toast.success("Demonstrações atualizadas com os lançamentos gerenciais");
+            disabled={atualizando}
+            onClick={async () => {
+              setAtualizando(true);
+              try {
+                await invalidarDemonstracoes(qc, companyId);
+                toast.success("Demonstrações atualizadas com os lançamentos gerenciais");
+              } catch { toast.error("Não foi possível atualizar as demonstrações. Tente novamente."); }
+              finally { setAtualizando(false); }
             }}
           >
-            <RefreshCw className="h-4 w-4 mr-1" /> Atualizar Demonstrações
+            <RefreshCw className={cn("h-4 w-4 mr-1", atualizando && "animate-spin")} /> Atualizar Demonstrações
           </Button>
           <Button variant="outline" size="sm" onClick={() => setOpenConta(true)}>
             <Sparkles className="h-4 w-4 mr-1" /> Nova Conta Gerencial

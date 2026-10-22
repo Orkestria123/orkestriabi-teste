@@ -36,8 +36,10 @@ import { ContasNovasEmpresaPanel } from "@/components/plano/contas-novas-empresa
 import { DescartadasPlano } from "@/components/plano/descartadas-plano";
 import { getEscopoPlano } from "@/lib/plano/escopo";
 import { limparCacheDepara } from "@/lib/plano/depara";
+import { biHead } from "@/lib/bi-head";
 
 export const Route = createFileRoute("/admin/empresas/$id/dados")({
+  head: () => biHead("Dados contábeis e ajustes da empresa"),
   component: Page,
 });
 

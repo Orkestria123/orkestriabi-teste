@@ -11,7 +11,7 @@ import { possuiAjustesNoPeriodo } from "./comparativo";
 function agrupar(rows: FlatRow[], nivelMax: number): LinhaDemo[] {
   const map = new Map<string, LinhaDemo & { ordem: number }>();
   for (const r of rows) {
-    if (r.nivel > nivelMax) continue;
+    if (r.nivel > nivelMax || r.exibir_demonstracao === false) continue;
     const k = `${r.linha_ordem}|${r.descricao}`;
     if (!map.has(k)) map.set(k, { descricao: r.descricao, nivel: r.nivel, subtotal: r.is_subtotal, valores: {}, ordem: r.linha_ordem });
     const linha = map.get(k);

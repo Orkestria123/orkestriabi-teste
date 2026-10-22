@@ -128,11 +128,15 @@ export async function getAjustesGerenciais(
     );
     for (let i = 0; i < codes.length; i += 500) {
       const lote = codes.slice(i, i + 500);
-      const { data, error } = await escoparPlano(
+      const consulta = escopo.modoGlobal
+        ? supabase.from("plano_contas").select("codigo, classificacao, descricao")
+            .eq("tenant_id", tenantId).or(`company_id.is.null,company_id.eq.${companyId}`)
+        : escoparPlano(
         supabase.from("plano_contas").select("codigo, classificacao, descricao"),
         companyId,
         escopo.tenantId ? escopo : { ...escopo, tenantId },
-      ).in("codigo", lote);
+      );
+      const { data, error } = await consulta.in("codigo", lote);
       if (error) throw error;
       for (const r of (data ?? []) as any[]) {
         planoResolvido.set(r.codigo, {

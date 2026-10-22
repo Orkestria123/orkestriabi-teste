@@ -1,5 +1,10 @@
 # Roadmap — ajustes BI (25/09/2026)
 
+## Dal Mobile e fórmulas de custos — 22/10
+- [x] Validar e corrigir diferenças gerenciais de janeiro/fevereiro (R$ 310.300,00): conta específica resolvida, balanços reais equilibrados e botão Atualizar Demonstrações conferido
+- [x] Fórmulas editáveis de linhas calculadas, categoria própria e exceções por empresa com visibilidade; CPV específico da Dal Mobile incluído, fórmula salva pela tela e valores reais conferidos
+- [x] Reconferir Aquafast dezembro/2025: na prévia Ativo = Passivo + PL = R$ 80.460.082,24; diferença de R$ 383.613,28 não reproduzida na tela atual
+
 ## Percentuais — 19/10
 - [x] Padronizar indicadores percentuais com duas casas em todas as telas, Dashboard e exportações; sete testes e Dashboard/Indicadores reais conferidos sem erros
 

@@ -35,6 +35,7 @@ import { getFormulasEbitEbitda, type FormulasEbitEbitda } from "@/lib/indicadore
 import { avaliarExpressao, buildContext, type PlanoRowEng, type SaldoRow, type Token } from "@/lib/indicadores/engine";
 import { criarAcumulador, type AberturaConta } from "@/lib/diario/acumulador";
 import { getTradutor } from "@/lib/plano/depara";
+import { getFormulasLinhas, type FormulasLinhas } from "@/lib/indicadores/linhas-calculadas";
 
 /**
  * Rótulos aceitos para a última linha da DRE.
@@ -100,6 +101,7 @@ export interface FlatRow {
   is_subtotal: boolean;
   periodo: string;
   valor: number;
+  exibir_demonstracao?: boolean;
 }
 
 interface Plano {
@@ -995,13 +997,14 @@ async function buildDRE(
   modo: ModoDemonstracao = "contabil",
   gerData?: AjustesGerenciaisData,
 ): Promise<FlatRow[]> {
-  const [mapaInfo, saldosContabeisRaw, planoContabil, planoEbit, correcoesEncerr, formulasEbit] = await Promise.all([
+  const [mapaInfo, saldosContabeisRaw, planoContabil, planoEbit, correcoesEncerr, formulasEbit, formulasLinhas] = await Promise.all([
     getMapa(companyId, tenantId, modoGlobal, tipo, mascara),
     getSaldos(companyId, periodos),
     getPlanoPorTipo(companyId, tenantId, modoGlobal, ["3-DRE"]),
     getPlanoPorTipo(companyId, tenantId, modoGlobal, ["1-Ativo", "2-Passivo", "3-DRE"]),
     getCorrecoesEncerramento(companyId, periodos),
     getFormulasEbitEbitda(tenantId),
+    getFormulasLinhas(tenantId, companyId),
   ]);
   // Remove os lançamentos de encerramento do exercício dos saldos de contas
   // do grupo 3 (Resultado). Sem isso, dezembro fica com o negativo do
@@ -1159,6 +1162,7 @@ async function buildDRE(
   if (tipo === "DRE") {
     addAcumuladores(out, periodos, acumuladores, totalPorPrefixo, resultadoApurado, mascara, {
       formulasEbit,
+      formulasLinhas,
       ordemPrefixo: new Map(mapas.map((m) => [m.classificacao_prefixo, m.ordem])),
       somaClassifs: (classifs, p) => somaClassifsDre(classifs, p, saldos, planoMap, mascara),
       planoFormula: [...planoEbit, ...planoExtra],
@@ -1264,6 +1268,7 @@ function addAcumuladores(
   mascara: MascaraConfig,
   opts: {
     formulasEbit: FormulasEbitEbitda;
+    formulasLinhas: FormulasLinhas;
     ordemPrefixo?: Map<string, number>;
     somaClassifs: (classifs: string[], periodo: string) => number;
     planoFormula: Plano[];
@@ -1484,28 +1489,10 @@ function addAcumuladores(
     return (est?.ordem ?? fallback) * 1000 + 10;
   };
 
-  for (const p of periodos) {
-    rows.push({
-      linha_ordem: ordemDepoisDoPapel("CPV", 50),
-      descricao: ROTULO_CUSTO_PRODUTOS_SEM_MOD,
-      codigo_conta: null,
-      nivel: 0,
-      is_subtotal: true,
-      periodo: p,
-      valor: custoEstoqueSemMod("3.02", p),
-    });
-    rows.push({
-      linha_ordem: ordemDepoisDoPapel("CMV", 70),
-      descricao: ROTULO_CUSTO_MERCADORIAS_SEM_MOD,
-      codigo_conta: null,
-      nivel: 0,
-      is_subtotal: true,
-      periodo: p,
-      valor: custoEstoqueSemMod("3.03", p),
-    });
-  }
-
   const valorLinhaDre = (papel: string, periodo: string): number | null => {
+    if (papel === "CUSTO_PRODUTOS" || papel === "CUSTO_MERCADORIA") {
+      return rows.find(r => r.codigo_conta === papel && r.periodo === periodo)?.valor ?? null;
+    }
     if (papel === "CUSTOS") {
       const a = valorPapel("CPV", periodo) ?? 0;
       const b = valorPapel("CMV", periodo) ?? 0;
@@ -1540,6 +1527,20 @@ function addAcumuladores(
       (linha) => extraLinha?.(linha) ?? valorLinhaDre(linha, periodo),
     );
   };
+
+  for (const p of periodos) {
+    for (const linha of [
+      { key: "CUSTO_PRODUTOS" as const, papel: "CPV", ordem: 50, prefixo: "3.02", rotulo: ROTULO_CUSTO_PRODUTOS_SEM_MOD },
+      { key: "CUSTO_MERCADORIA" as const, papel: "CMV", ordem: 70, prefixo: "3.03", rotulo: ROTULO_CUSTO_MERCADORIAS_SEM_MOD },
+    ]) {
+      const formula = opts.formulasLinhas[linha.key];
+      const valor = formula ? avaliarFormula(formula.tokens, p) : custoEstoqueSemMod(linha.prefixo, p);
+      if (valor === null) throw new Error(`Fórmula inválida: ${linha.rotulo}`);
+      rows.push({ linha_ordem: ordemDepoisDoPapel(linha.papel, linha.ordem), descricao: linha.rotulo,
+        codigo_conta: linha.key, nivel: 0, is_subtotal: true, periodo: p, valor,
+        exibir_demonstracao: formula?.exibir ?? true });
+    }
+  }
 
   const ebitEstrutura = (periodo: string): number => {
     const doPapel = valorPapel("EBIT", periodo);

@@ -27,7 +27,7 @@ describe("Linhas calculadas de custos", () => {
     expect(formula?.exibir).toBe(false);
     expect(avaliarExpressao(formula?.tokens ?? [], "2026-01-01", ctx)).toBe(-310300);
     expect(avaliarExpressao(formula?.tokens ?? [], "2026-02-01", ctx)).toBe(310300);
-    const demo = indexarDemoDre([{ periodo: "2026-01-01", descricao: "(-) Custo de materiais dos produtos", codigo_conta: "CUSTO_PRODUTOS", valor: -310300, nivel: 0, is_subtotal: true }], []);
+    const demo = indexarDemoDre([{ periodo: "2026-01-01", descricao: "(-) Custo de materiais dos produtos", codigo_conta: "CUSTO_PRODUTOS", valor: -310300, is_subtotal: true }], []);
     expect(resolverLinha("CUSTO_PRODUTOS", "2026-01-01", ctx, demo, [])).toBe(-310300);
   });
   it("remover exceção restaura a fórmula do escritório", () => {

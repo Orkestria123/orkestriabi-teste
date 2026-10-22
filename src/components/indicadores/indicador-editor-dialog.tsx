@@ -63,7 +63,7 @@ export function IndicadorEditorDialog({
   const [exibir, setExibir] = useState(true);
   const [empresaExcecao, setEmpresaExcecao] = useState("");
   const ehLinha = categoria === CATEGORIA_LINHAS;
-  const escopoEmpresa = indicador ? ((indicador as any).company_id ?? "") : (companyId ?? empresaExcecao);
+  const escopoEmpresa = indicador?.id ? ((indicador as any).company_id ?? "") : (companyId ?? empresaExcecao);
   const { data: empresas } = useQuery({ queryKey: ["empresas-linhas", tenantId], enabled: open && ehLinha,
     queryFn: async () => { const { data, error } = await supabase.from("companies").select("id, name").eq("tenant_id", tenantId).order("name"); if (error) throw error; return data ?? []; } });
   const { data: contasEspecificas } = useQuery({ queryKey: ["indic-contas-excecao", tenantId, escopoEmpresa], enabled: open && !!escopoEmpresa,
@@ -196,7 +196,7 @@ export function IndicadorEditorDialog({
           <div><Label>Linha da DRE</Label><select className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm" value={linhaKey} disabled={somenteLeitura} onChange={e => { setLinhaKey(e.target.value); const l = LINHAS_CALCULADAS.find(x => x.key === e.target.value); if (l) setNome(l.nome); }}>
             <option value="">Selecione</option>{LINHAS_CALCULADAS.map(l => <option key={l.key} value={l.key}>{l.nome}</option>)}
           </select></div>
-          <div><Label>Exceção por empresa</Label><select className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm" value={escopoEmpresa} disabled={somenteLeitura || !!indicador || !!companyId} onChange={e => { setEmpresaExcecao(e.target.value); setTokens([]); }}>
+          <div><Label>Exceção por empresa</Label><select className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm" value={escopoEmpresa} disabled={somenteLeitura || !!indicador?.id || !!companyId} onChange={e => { setEmpresaExcecao(e.target.value); }}>
             <option value="">Padrão do escritório</option>{(empresas ?? []).map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
           </select></div>
           <label className="flex items-center gap-2 text-sm"><Switch checked={exibir} disabled={somenteLeitura} onCheckedChange={setExibir} />Exibir linha na DRE</label>

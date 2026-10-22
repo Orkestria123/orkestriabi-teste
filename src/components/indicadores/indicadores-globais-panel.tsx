@@ -31,6 +31,7 @@ import { tituloConta } from "@/lib/format";
 import { limparCacheFormulasEbit } from "@/lib/indicadores/ebit-fonte";
 import { limparCacheDemonstracoes } from "@/lib/cache-demonstracoes";
 import { compararCategoria } from "@/lib/indicadores/categorias";
+import { CATEGORIA_LINHAS, LINHAS_CALCULADAS } from "@/lib/indicadores/linhas-calculadas";
 
 const MODO_LABEL: Record<string, string> = {
   numero: "nº", reais: "R$", percentual: "%", ah_percent: "AH%", ah_valor: "AH$",
@@ -59,6 +60,7 @@ export function IndicadoresGlobaisPanel({ tenantId, onEditGlobal }: Props) {
   const [editando, setEditando] = useState<any>(null);
   const [somenteLeitura, setSomenteLeitura] = useState(false);
   const [busca, setBusca] = useState("");
+  const [categoriaFiltro, setCategoriaFiltro] = useState("");
   const [simulacao, setSimulacao] = useState<any>(null);
   const [ocupado, setOcupado] = useState(false);
 
@@ -148,7 +150,7 @@ export function IndicadoresGlobaisPanel({ tenantId, onEditGlobal }: Props) {
 
   const lista = useMemo(() => {
     const t = busca.trim().toLowerCase();
-    const base = globais ?? [];
+    const base = (globais ?? []).filter(g => !categoriaFiltro || g.categoria === categoriaFiltro);
     const filtrada = !t
       ? base
       : base.filter((g) =>
@@ -156,7 +158,7 @@ export function IndicadoresGlobaisPanel({ tenantId, onEditGlobal }: Props) {
     return [...filtrada].sort(
       (a, b) => compararCategoria(a.categoria ?? "", b.categoria ?? "") || a.nome.localeCompare(b.nome),
     );
-  }, [globais, busca]);
+  }, [globais, busca, categoriaFiltro]);
 
   const simular = async () => {
     setOcupado(true);
@@ -266,7 +268,7 @@ export function IndicadoresGlobaisPanel({ tenantId, onEditGlobal }: Props) {
   const nLocais = (locais ?? []).length;
   const locaisFiltrados = useMemo(() => {
     const t = busca.trim().toLowerCase();
-    const base = locais ?? [];
+    const base = (locais ?? []).filter(g => !categoriaFiltro || g.categoria === categoriaFiltro);
     const filtrada = !t
       ? base
       : base.filter((g) =>
@@ -275,7 +277,7 @@ export function IndicadoresGlobaisPanel({ tenantId, onEditGlobal }: Props) {
     return [...filtrada].sort(
       (a, b) => compararCategoria(a.categoria ?? "", b.categoria ?? "") || a.nome.localeCompare(b.nome),
     );
-  }, [locais, busca, empresas]);
+  }, [locais, busca, empresas, categoriaFiltro]);
 
   return (
     <div className="space-y-4">
@@ -361,6 +363,10 @@ export function IndicadoresGlobaisPanel({ tenantId, onEditGlobal }: Props) {
           value={busca}
           onChange={(e) => setBusca(e.target.value)}
         />
+        <select aria-label="Filtrar categoria" value={categoriaFiltro} onChange={e => setCategoriaFiltro(e.target.value)} className="h-8 rounded-md border border-input bg-background px-2 text-xs">
+          <option value="">Todas as categorias</option>{[...new Set([...(globais ?? []).map(g => g.categoria), CATEGORIA_LINHAS])].map(c => <option key={c} value={c}>{c}</option>)}
+        </select>
+        <Button size="sm" variant="outline" onClick={() => { const l = LINHAS_CALCULADAS.find(l => !(globais ?? []).some(g => (g as any).linha_calculada_key === l.key)) ?? LINHAS_CALCULADAS[0]; setEditando({ nome: l.nome, categoria: CATEGORIA_LINHAS, modo_analise: "reais", linha_calculada_key: l.key, formula: { expressao: [{ tipo: "termo", origem: "conta", contas: [...l.contas] }] }, exibir_demonstracao: true }); setSomenteLeitura(false); setEditorOpen(true); }}><Plus className="h-4 w-4 mr-1" /> Linha calculada</Button>
         <span className="ml-auto text-xs text-muted-foreground">
           {lista.length} de {(globais ?? []).length} definição(ões)
         </span>
@@ -395,7 +401,8 @@ export function IndicadoresGlobaisPanel({ tenantId, onEditGlobal }: Props) {
                       {MODO_LABEL[g.modo_analise] ?? g.modo_analise}
                     </Badge>
                   </td>
-                  <td className="px-2 py-2 w-[220px] text-right whitespace-nowrap">
+                  <td className="px-2 py-2 text-right">
+                    {g.categoria === CATEGORIA_LINHAS && <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => { setEditando({ ...g, id: undefined, company_id: null }); setSomenteLeitura(false); setEditorOpen(true); }}><Layers className="h-3.5 w-3.5 mr-1" /> Exceção por empresa</Button>}
                     <Button size="sm" variant="ghost" className="h-7 text-xs"
                       onClick={() => { setEditando(g); setSomenteLeitura(true); setEditorOpen(true); }}>
                       <Eye className="h-3.5 w-3.5 mr-1" /> Ver

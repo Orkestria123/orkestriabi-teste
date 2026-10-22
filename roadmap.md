@@ -1,5 +1,9 @@
 # Roadmap — ajustes BI (25/09/2026)
 
+## Dal Mobile e fórmulas de custos — 22/10
+- [ ] Validar e corrigir diferenças gerenciais de janeiro/fevereiro (R$ 310.300,00) e botão Atualizar Demonstrações
+- [ ] Fórmulas editáveis de linhas calculadas, categoria própria e exceções por empresa com visibilidade; incluir CPV específico da Dal Mobile
+
 ## Percentuais — 19/10
 - [x] Padronizar indicadores percentuais com duas casas em todas as telas, Dashboard e exportações; sete testes e Dashboard/Indicadores reais conferidos sem erros
 

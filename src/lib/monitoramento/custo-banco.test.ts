@@ -25,7 +25,9 @@ describe("custo estimado do banco", () => {
   });
 
   it("projeta um mês com o banco ativo só parte do dia", () => {
-    expect(custoHoras(8)).toBeCloseTo(40.8, 1);
+    expect(custoHoras(8)).toBeCloseTo(1.36, 2);
+    // 8 h por dia durante 30 dias = 240 h ativas
+    expect(custoHoras(8 * HORAS_MES / HORAS_DIA)).toBeCloseTo(40.8, 1);
     expect(custoHoras(0)).toBe(0);
   });
 });

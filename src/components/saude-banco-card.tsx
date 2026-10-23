@@ -3,8 +3,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Database } from "lucide-react";
 import {
+  CAMBIO_BRL,
   CUSTO_HORA_CREDITOS,
   TAMANHO_BANCO,
+  creditosParaBRL,
   custoPorDia,
   custoPorMes,
 } from "@/lib/monitoramento/custo-banco";
@@ -70,12 +72,12 @@ export function SaudeBancoCard() {
           <div className="text-[11px] text-muted-foreground">tamanho {TAMANHO_BANCO} · banco ligado o dia todo</div>
         </div>
         <div className="grid grid-cols-3 gap-3">
-          <Custo label="Por hora ativa" valor={`≈ ${num(CUSTO_HORA_CREDITOS)}`} unidade="crédito" />
-          <Custo label="Por dia (24 h)" valor={`≈ ${num(custoPorDia())}`} unidade="créditos" />
-          <Custo label="Por mês (30 dias)" valor={`≈ ${num(custoPorMes(), 0)}`} unidade="créditos" />
+          <Custo label="Por hora ativa" valor={`≈ ${num(CUSTO_HORA_CREDITOS)}`} unidade={`crédito · ≈ R$ ${num(creditosParaBRL(CUSTO_HORA_CREDITOS))}`} />
+          <Custo label="Por dia (24 h)" valor={`≈ ${num(custoPorDia())}`} unidade={`créditos · ≈ R$ ${num(creditosParaBRL(custoPorDia()))}`} />
+          <Custo label="Por mês (30 dias)" valor={`≈ ${num(custoPorMes(), 0)}`} unidade={`créditos · ≈ R$ ${num(creditosParaBRL(custoPorMes()), 0)}`} />
         </div>
         <div className="mt-2 text-[11px] text-muted-foreground">
-          Se o banco ficar ativo só parte do dia, o valor cai na mesma proporção: 8 h por dia dá ≈ {num(custoPorMes() / 3, 0)} créditos no mês.
+          Se o banco ficar ativo só parte do dia, o valor cai na mesma proporção: 8 h por dia dá ≈ {num(custoPorMes() / 3, 0)} créditos no mês (≈ R$ {num(creditosParaBRL(custoPorMes() / 3), 0)}). Conversão de referência: 1 crédito = US$ 0,30 × câmbio {num(CAMBIO_BRL, 2)}.
         </div>
       </div>
       {ultimos.length > 1 && (

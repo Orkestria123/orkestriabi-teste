@@ -3,8 +3,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Database } from "lucide-react";
 import {
+  CAMBIO_BRL,
   CUSTO_HORA_CREDITOS,
   TAMANHO_BANCO,
+  creditosParaBRL,
   custoPorDia,
   custoPorMes,
 } from "@/lib/monitoramento/custo-banco";

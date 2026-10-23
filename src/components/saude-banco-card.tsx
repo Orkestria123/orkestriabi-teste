@@ -2,9 +2,12 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Database } from "lucide-react";
-
-// Valor de referência do tamanho Small do Lovable Cloud (estimativa, não fatura).
-const CUSTO_HORA_CREDITOS = 0.17;
+import {
+  CUSTO_HORA_CREDITOS,
+  TAMANHO_BANCO,
+  custoPorDia,
+  custoPorMes,
+} from "@/lib/monitoramento/custo-banco";
 
 interface Metrica {
   coletado_em: string;
@@ -55,12 +58,25 @@ export function SaudeBancoCard() {
           Monitoramento: {status}
         </span>
       </div>
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
-        <Info label="Custo por hora ativa" value={`≈ ${num(CUSTO_HORA_CREDITOS)} crédito`} hint={`≈ ${num(CUSTO_HORA_CREDITOS * 720, 0)} créditos/mês (24h)`} />
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
         <Info label="Tamanho" value={a ? gb(a.tamanho_bytes) : "—"} hint={hist.length > 1 ? `${crescimento >= 0 ? "+" : ""}${gb(crescimento)} em ${Math.max(1, Math.round((Date.now() - new Date(inicio.coletado_em).getTime()) / 864e5))} dia(s)` : undefined} />
         <Info label="Conexões agora" value={a ? `${a.conexoes} de ${a.max_conexoes}` : "—"} hint={a ? `${a.conexoes_ativas} executando` : undefined} />
         <Info label="Pico de conexões" value={pico ? String(pico.conexoes) : "—"} hint={pico ? new Date(pico.coletado_em).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }) : undefined} />
         <Info label="Leituras da memória" value={data?.cache_hit != null ? `${num(data.cache_hit)}%` : "—"} hint="acima de 99% é saudável" />
+      </div>
+      <div className="mt-4 rounded-lg border bg-muted/40 p-3">
+        <div className="mb-2 flex items-center justify-between gap-3">
+          <div className="text-xs uppercase tracking-wider text-muted-foreground">Resumo do custo estimado</div>
+          <div className="text-[11px] text-muted-foreground">tamanho {TAMANHO_BANCO} · banco ligado o dia todo</div>
+        </div>
+        <div className="grid grid-cols-3 gap-3">
+          <Custo label="Por hora ativa" valor={`≈ ${num(CUSTO_HORA_CREDITOS)}`} unidade="crédito" />
+          <Custo label="Por dia (24 h)" valor={`≈ ${num(custoPorDia())}`} unidade="créditos" />
+          <Custo label="Por mês (30 dias)" valor={`≈ ${num(custoPorMes(), 0)}`} unidade="créditos" />
+        </div>
+        <div className="mt-2 text-[11px] text-muted-foreground">
+          Se o banco ficar ativo só parte do dia, o valor cai na mesma proporção: 8 h por dia dá ≈ {num(custoPorMes() / 3, 0)} créditos no mês.
+        </div>
       </div>
       {ultimos.length > 1 && (
         <div className="mt-4">
@@ -90,6 +106,16 @@ export function SaudeBancoCard() {
         Custo é estimativa do tamanho Small; valores reais e memória ficam no painel do Lovable Cloud. Medições registradas a cada hora.
       </p>
     </Card>
+  );
+}
+
+function Custo({ label, valor, unidade }: { label: string; valor: string; unidade: string }) {
+  return (
+    <div>
+      <div className="text-xs text-muted-foreground">{label}</div>
+      <div className="mt-0.5 text-lg font-semibold tabular-nums leading-tight">{valor}</div>
+      <div className="text-[11px] text-muted-foreground">{unidade}</div>
+    </div>
   );
 }
 

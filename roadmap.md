@@ -86,3 +86,7 @@
 - [x] DRE: linha calculada de Custo de Materiais/Mercadorias logo após a sintética de custos, antes das analíticas
 - [x] Aquafast 2025: encerramento da ECD sem diário (contrapartida em Lucros Acumulados) e reclassificações mensais
 - [x] Lançamentos gerenciais: botão "Atualizar Demonstrações" e marcação "Movimenta a DFC" (desmarcado = fora só da DFC); testes e painel conferidos na tela
+
+## Painel Banco de dados — 23/10
+- [x] Resumo do custo estimado no painel: por hora ativa, por dia (24 h) e por mês (30 dias), com cenário de uso parcial; testes e painel conferidos na tela
+- [ ] Publicar o painel do Dashboard (custo, consumo, picos e monitoramento) para valer em bi.orkestria.app.br

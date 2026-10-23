@@ -1,5 +1,9 @@
 # Roadmap — ajustes BI (25/09/2026)
 
+## Biamar — 23/10
+- [ ] Comparar levantamento 2021–2025 com o BI e localizar as diferenças
+- [ ] Validar BP, DRE e DFC e corrigir eventual erro de cálculo/importação comprovado
+
 ## Dal Mobile e fórmulas de custos — 22/10
 - [x] Validar e corrigir diferenças gerenciais de janeiro/fevereiro (R$ 310.300,00): conta específica resolvida, balanços reais equilibrados e botão Atualizar Demonstrações conferido
 - [x] Fórmulas editáveis de linhas calculadas, categoria própria e exceções por empresa com visibilidade; CPV específico da Dal Mobile incluído, fórmula salva pela tela e valores reais conferidos

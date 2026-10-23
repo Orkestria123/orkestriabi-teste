@@ -532,6 +532,33 @@ export type Database = {
           },
         ]
       }
+      db_metricas: {
+        Row: {
+          coletado_em: string
+          conexoes: number
+          conexoes_ativas: number
+          id: number
+          max_conexoes: number
+          tamanho_bytes: number
+        }
+        Insert: {
+          coletado_em?: string
+          conexoes: number
+          conexoes_ativas: number
+          id?: never
+          max_conexoes: number
+          tamanho_bytes: number
+        }
+        Update: {
+          coletado_em?: string
+          conexoes?: number
+          conexoes_ativas?: number
+          id?: never
+          max_conexoes?: number
+          tamanho_bytes?: number
+        }
+        Relationships: []
+      }
       depara_contas: {
         Row: {
           company_id: string
@@ -3282,6 +3309,7 @@ export type Database = {
         Args: { cls: string; prefixo: string }
         Returns: boolean
       }
+      coletar_metricas_db: { Args: never; Returns: undefined }
       competencias_do_upload: {
         Args: { _upload_id: string }
         Returns: string[]
@@ -3864,6 +3892,7 @@ export type Database = {
       }
       norm_busca: { Args: { _t: string }; Returns: string }
       norm_gasto: { Args: { s: string }; Returns: string }
+      obter_saude_db: { Args: never; Returns: Json }
       periodos_da_empresa: {
         Args: { _company_id: string }
         Returns: {

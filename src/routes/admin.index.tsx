@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/card";
 import { Building2, Users, HardDrive, Tags, ArrowRight, ScrollText } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import { SaudeBancoCard } from "@/components/saude-banco-card";
 
 export const Route = createFileRoute("/admin/")({ component: Page });
 
@@ -124,6 +125,10 @@ function Page() {
           items={data?.porPorte ?? []}
           total={data?.empresas ?? 0}
         />
+      </div>
+
+      <div className="mb-6">
+        <SaudeBancoCard />
       </div>
 
       <div className="mb-6">

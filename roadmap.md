@@ -2,7 +2,7 @@
 
 ## Biamar — 23/10
 - [x] Comparar levantamento 2021–2025: 2021–2023 conferem nos totais principais; despesa de R$ 29.533,33 omitida em 2024 corrigida e resultado R$ 14.937.019,72 conferido na tela; BP/DFC validados nos 60 meses
-- [ ] Concluir correção da ECD 2025 — depende do arquivo ECD original completo para recuperar diário posterior a 28/10 e distinguir encerramentos/reclassificações; diferença BP dezembro R$ 72.168.307,12; dividendos R$ 30 milhões em curto prazo versus longo prazo na planilha precisam confirmação
+- [x] Concluir ECD 2025: recuperadas 107.064 partidas (total 600.664), 12 meses reaplicados com encerramento integral excluído; BP dezembro R$ 190.579.648,77 equilibrado, lucro anual R$ 18.385.462,58 e DFC conciliada em 12 meses; dividendos R$ 30 milhões em BIA-0041 no não circulante. Tela real conferida. Diferenças planilha vs ECD explicadas: lucro R$ 174.934,40 e ativo R$ 2.769,98; não forçar igualdade documental.
 
 ## Dal Mobile e fórmulas de custos — 22/10
 - [x] Validar e corrigir diferenças gerenciais de janeiro/fevereiro (R$ 310.300,00): conta específica resolvida, balanços reais equilibrados e botão Atualizar Demonstrações conferido

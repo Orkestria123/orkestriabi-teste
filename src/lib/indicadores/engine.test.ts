@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildContext, calcularSerie, calcularSerieComBase, type IndicadorEmpresa, type ResolverLinha } from './engine';
+import { resultadoExercicioAte } from './linhas';
 
 const periods = ['2026-01-01', '2026-02-01', '2026-06-01'];
 const ctx = buildContext({ plano: [], saldos: [], aberturas: new Map() });
@@ -42,5 +43,21 @@ describe('Rentabilidade mensal sem lucro acumulado', () => {
     for (const base of ['rb', 'rl'] as const) {
       expect(calcularSerieComBase(ind, periods, ctx, resolver, base).map(point => point.valor)).toEqual([0.2, 0.2, 0.1]);
     }
+  });
+});
+
+describe('Biamar: despesa analítica com classificação terminada em 99', () => {
+  it('inclui R$ 29.533,33 de criação de imagens no resultado de 2024', () => {
+    const context = buildContext({
+      plano: [{ codigo: '4999', classificacao: '3.06.01.02.99', descricao: 'DESPESAS COM CRIAÇÃO DE IMAGENS', natureza: 'D', is_sintetica: false }],
+      saldos: [
+        { conta_codigo: '4999', competencia: '2024-10-01', total_debitos: 8000, total_creditos: 0 },
+        { conta_codigo: '4999', competencia: '2024-11-01', total_debitos: 12333.33, total_creditos: 0 },
+        { conta_codigo: '4999', competencia: '2024-12-01', total_debitos: 9200, total_creditos: 0 },
+      ],
+      aberturas: new Map(),
+    });
+    expect(resultadoExercicioAte(context, '2024-12-01')).toBeCloseTo(-29533.33, 2);
+    expect(14966553.05 + resultadoExercicioAte(context, '2024-12-01')).toBeCloseTo(14937019.72, 2);
   });
 });

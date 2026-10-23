@@ -159,7 +159,7 @@ function somaClassifsDre(
     if (s.competencia !== periodo) continue;
     const conta = planoMap.get(s.conta_codigo);
     if (!conta || conta.is_participante) continue;
-    if (isApuracao(conta.classificacao, mascara)) continue;
+    if (conta.is_sintetica === true && isApuracao(conta.classificacao, mascara)) continue;
     const cls = conta.classificacao;
     const bate = resolvidos.some((r) => {
       if (r.codigo && !r.sintetica) return s.conta_codigo === r.codigo;
@@ -744,7 +744,7 @@ function aplicarMapaESinal(
     const conta = planoMap.get(codigo);
     if (!conta) continue;
     if (conta.is_participante && !opts.incluirParticipantes) continue;
-    if (isApuracao(conta.classificacao, mascara)) continue;
+    if (conta.is_sintetica === true && isApuracao(conta.classificacao, mascara)) continue;
     const m = matcher(conta.classificacao);
     if (!m) continue;
     const v = m.inverter_sinal ? -valor : valor;
@@ -1152,7 +1152,7 @@ async function buildDRE(
         if (sal.competencia !== p) continue;
         const conta = planoMap.get(sal.conta_codigo);
         if (!conta || conta.is_participante) continue;
-        if (isApuracao(conta.classificacao, mascara)) continue;
+        if (conta.is_sintetica === true && isApuracao(conta.classificacao, mascara)) continue;
         soma += sal.total_debitos - sal.total_creditos;
       }
       resultadoApurado.set(p, -soma);

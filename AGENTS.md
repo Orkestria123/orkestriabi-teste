@@ -1,5 +1,7 @@
 # Architecture rules
 
+- Only synthetic accounts are classified as calculated closing totals by .98/.99 segments; analytical accounts retain their ledger movements, so ordinary expense codes cannot disappear from DRE or indicators.
+
 - Calculated DRE cost components reuse indicator expressions with stable semantic keys and company-over-tenant precedence; visibility is presentation-only and never changes ledger totals or formula inputs.
 
 - Public demo routes reuse exported client BI screens and the BI query adapter, which substitutes allowlisted bundled fictional data and isolates query/storage keys; never execute private queries, auth, AI calls or mutations in demo mode, so client visual changes propagate without publishing real ledger data.

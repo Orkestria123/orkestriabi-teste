@@ -475,8 +475,6 @@ function movimentoDreCorridoAte(
     if (vistos.has(p.classificacao)) continue;
     vistos.add(p.classificacao);
     if (dividir(p.classificacao, ctx.mascara)[0] !== raiz) continue;
-    const segs = dividir(p.classificacao, ctx.mascara);
-    if (segs.slice(1).some((x) => x === "98" || x === "99")) continue;
     if (compararClassificacao(p.classificacao, limite) >= 0) continue;
     const saldos = ctx.saldosByClass.get(p.classificacao);
     if (!saldos) continue;
@@ -503,6 +501,8 @@ function valorAcumuladorDre(
   const g = grupoDe(classificacao, ctx.mascara);
   if (g !== "receita" && g !== "despesa" && g !== "resultado") return null;
   const segs = dividir(classificacao, ctx.mascara);
+  const conta = ctx.planoByClass.get(classificacao);
+  if (conta?.is_sintetica === false) return null;
   const ehApur = segs.slice(1).some((x) => x === "98" || x === "99");
   const est = getEstruturaPadraoSync() ?? [];
   const def = est.find((e) => e.classificacao === classificacao && e.demonstracao === "DRE")

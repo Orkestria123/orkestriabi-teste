@@ -371,7 +371,6 @@ function valorDreAcumulado(
   limite: string,
   periodo: string,
   ctx: EngineContext,
-  ehApuracao: (c: string) => boolean,
 ): number {
   const raiz = limite.split(/[.\-/]/)[0];
   let total = 0;
@@ -381,7 +380,7 @@ function valorDreAcumulado(
     if (vistos.has(p.classificacao)) continue;
     vistos.add(p.classificacao);
     if (p.classificacao.split(/[.\-/]/)[0] !== raiz) continue;
-    if (ehApuracao(p.classificacao)) continue;
+    // Analíticas podem terminar em .98/.99: não são totalizadores.
     if (compararClassificacao(p.classificacao, limite) >= 0) continue;
     const s = saldoNoPeriodo(ctx.saldosByClass.get(p.classificacao), periodo);
     if (!s) continue;
@@ -409,7 +408,7 @@ function resolverPorPapel(
       // .98/.99 não têm saldo; se a estrutura marcou como detalhe, fecha o bloco pai.
       if (tipo === "detalhe" && ehApuracaoClass(e.classificacao)) tipo = "bloco";
       if (tipo === "corrido") {
-        total += valorDreAcumulado(e.classificacao, periodo, ctx, ehApuracaoClass);
+        total += valorDreAcumulado(e.classificacao, periodo, ctx);
       } else if (tipo === "bloco") {
         const partes = e.classificacao.split(".");
         const pai = partes.length > 1 ? partes.slice(0, -1).join(".") : e.classificacao;
@@ -507,7 +506,6 @@ export function resultadoExercicioAte(ctx: EngineContext, periodo: string): numb
     vistos.add(p.classificacao);
     const g = grupoDe(p.classificacao, ctx.mascara);
     if (g !== "receita" && g !== "despesa" && g !== "resultado") continue;
-    if (ehApuracaoClass(p.classificacao)) continue; // .98/.99 não têm lançamento
     const saldos = ctx.saldosByClass.get(p.classificacao);
     if (!saldos) continue;
     // Convenção da DRE, igual à do motor de demonstrações: crédito − débito,
@@ -539,7 +537,6 @@ export function valorCustosPorTipo(
     if (g === "receita") continue;
     const raiz = p.classificacao.split(/[.\-/]/)[0] ?? "";
     if ((raiz.charAt(0) || "") !== "3") continue;
-    if (ehApuracaoClass(p.classificacao)) continue;
     if (tipoCustoEfetivo(p.classificacao, ctx.plano) !== tipo) continue;
     if (classe) {
       const cg = classeGastoEfetivo(p.classificacao, ctx.plano);

@@ -51,9 +51,9 @@ describe('Biamar: despesa analítica com classificação terminada em 99', () =>
     const context = buildContext({
       plano: [{ codigo: '4999', classificacao: '3.06.01.02.99', descricao: 'DESPESAS COM CRIAÇÃO DE IMAGENS', natureza: 'D', is_sintetica: false }],
       saldos: [
-        { conta_codigo: '4999', competencia: '2024-10-01', total_debitos: 8000, total_creditos: 0 },
-        { conta_codigo: '4999', competencia: '2024-11-01', total_debitos: 12333.33, total_creditos: 0 },
-        { conta_codigo: '4999', competencia: '2024-12-01', total_debitos: 9200, total_creditos: 0 },
+        { conta_codigo: '3.06.01.02.99', competencia: '2024-10-01', total_debitos: 8000, total_creditos: 0 },
+        { conta_codigo: '3.06.01.02.99', competencia: '2024-11-01', total_debitos: 12333.33, total_creditos: 0 },
+        { conta_codigo: '3.06.01.02.99', competencia: '2024-12-01', total_debitos: 9200, total_creditos: 0 },
       ],
       aberturas: new Map(),
     });

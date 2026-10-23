@@ -371,7 +371,6 @@ function valorDreAcumulado(
   limite: string,
   periodo: string,
   ctx: EngineContext,
-  ehApuracao: (c: string) => boolean,
 ): number {
   const raiz = limite.split(/[.\-/]/)[0];
   let total = 0;
@@ -409,7 +408,7 @@ function resolverPorPapel(
       // .98/.99 não têm saldo; se a estrutura marcou como detalhe, fecha o bloco pai.
       if (tipo === "detalhe" && ehApuracaoClass(e.classificacao)) tipo = "bloco";
       if (tipo === "corrido") {
-        total += valorDreAcumulado(e.classificacao, periodo, ctx, ehApuracaoClass);
+        total += valorDreAcumulado(e.classificacao, periodo, ctx);
       } else if (tipo === "bloco") {
         const partes = e.classificacao.split(".");
         const pai = partes.length > 1 ? partes.slice(0, -1).join(".") : e.classificacao;

@@ -10,7 +10,8 @@ import { Label } from "@/components/ui/label";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Loader2, Pencil, Plus, Trash2 } from "lucide-react";
+import { Loader2, Pencil, Plus, Trash2, Upload } from "lucide-react";
+import { lerLinhasContas, type LinhaImportacao } from "@/lib/plano/importar-contas-empresa";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { limparCachePlano } from "@/lib/diario/build-statements";
@@ -32,6 +33,9 @@ export function ContasEspecificasEmpresa({ tenantId, podeEditar }: { tenantId: s
   const [busy, setBusy] = useState(false);
   // null = criando; objeto = editando uma conta existente.
   const [editando, setEditando] = useState<any | null>(null);
+  const [previa, setPrevia] = useState<LinhaImportacao[] | null>(null);
+  const [importando, setImportando] = useState(false);
+  const [progresso, setProgresso] = useState("");
 
   const { data: empresas } = useQuery({
     queryKey: ["empresas-tenant", tenantId],
@@ -152,6 +156,40 @@ export function ContasEspecificasEmpresa({ tenantId, podeEditar }: { tenantId: s
     } catch (e: any) { toast.error(e.message); }
   };
 
+  const lerArquivo = async (f: File) => {
+    try {
+      const XLSX = await import("xlsx");
+      const wb = XLSX.read(await f.arrayBuffer(), { type: "array" });
+      const rows = XLSX.utils.sheet_to_json<unknown[]>(wb.Sheets[wb.SheetNames[0]], { header: 1, raw: false });
+      const validas = new Set<string>();
+      (sinteticas ?? []).forEach((s) => { validas.add(s.codigo); validas.add(s.classificacao); });
+      const linhas = lerLinhasContas(rows, validas);
+      if (!linhas.length) { toast.error("Planilha vazia."); return; }
+      setPrevia(linhas);
+    } catch (e: any) { toast.error(`Não foi possível ler a planilha: ${e.message}`); }
+  };
+
+  const importar = async () => {
+    if (!previa) return;
+    const ok = previa.filter((l) => !l.erro);
+    setImportando(true);
+    let criadas = 0; const falhas: string[] = [];
+    for (const l of ok) {
+      setProgresso(`${criadas + falhas.length + 1}/${ok.length}`);
+      const s = (sinteticas ?? []).find((x) => x.codigo === l.sintetica || x.classificacao === l.sintetica);
+      const { error } = await (supabase as any).rpc("criar_conta_empresa_sintetica", {
+        _company_id: companyId, _sintetica: s?.codigo ?? l.sintetica, _descricao: l.nome,
+        _tipo_custo: null, _classe_gasto: null, _dfc_codigo: null,
+      });
+      if (error) falhas.push(`Linha ${l.linha}: ${error.message}`); else criadas++;
+    }
+    setImportando(false);
+    setPrevia(null);
+    aposMudar();
+    if (falhas.length) toast.error(`${criadas} criada(s), ${falhas.length} com erro. ${falhas.slice(0, 3).join(" · ")}`);
+    else toast.success(`${criadas} conta(s) criada(s).`);
+  };
+
   const mostraAlocacao = editando
     ? ehContaDeCustoDespesa(editando.classificacao ?? "")
     : sintSel ? ehContaDeCustoDespesa(sintSel.classificacao + ".1") : false;
@@ -243,13 +281,53 @@ export function ContasEspecificasEmpresa({ tenantId, podeEditar }: { tenantId: s
               </Select>
             </div>
           )}
-          <div className="md:col-span-2">
+          <div className="md:col-span-2 flex flex-wrap items-center gap-2">
             <Button onClick={criar} disabled={busy || (!editando && !sint) || !descricao.trim()}>
               {busy ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : editando
                 ? <Pencil className="h-4 w-4 mr-2" /> : <Plus className="h-4 w-4 mr-2" />}
               {editando ? "Salvar alterações" : "Criar conta"}
             </Button>
+            {!editando && (
+              <>
+                <input id="importar-contas-empresa" type="file" accept=".xls,.xlsx,.csv" className="hidden"
+                  onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) lerArquivo(f); }} />
+                <Button variant="outline" disabled={busy || importando}
+                  onClick={() => document.getElementById("importar-contas-empresa")?.click()}>
+                  <Upload className="h-4 w-4 mr-2" /> Importar planilha
+                </Button>
+                <span className="text-[11px] text-muted-foreground">
+                  .xls/.xlsx com colunas "Conta Sintética" e "Nome Atribuído"
+                </span>
+              </>
+            )}
           </div>
+          {previa && (
+            <div className="md:col-span-2 rounded-md border border-border p-2 text-xs space-y-2">
+              <div>
+                {previa.filter((l) => !l.erro).length} conta(s) prontas para criar
+                {previa.some((l) => l.erro) && `, ${previa.filter((l) => l.erro).length} com problema (serão ignoradas)`}.
+              </div>
+              <div className="max-h-48 overflow-auto">
+                <table className="w-full">
+                  <tbody>
+                    {previa.slice(0, 300).map((l) => (
+                      <tr key={l.linha} className={l.erro ? "text-destructive" : ""}>
+                        <td className="pr-2">{l.linha}</td><td className="pr-2 font-mono">{l.sintetica}</td>
+                        <td className="pr-2">{l.nome}</td><td>{l.erro ?? ""}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="flex gap-2">
+                <Button size="sm" onClick={importar} disabled={importando || !previa.some((l) => !l.erro)}>
+                  {importando && <Loader2 className="h-3.5 w-3.5 mr-2 animate-spin" />}
+                  {importando ? `Criando ${progresso}…` : "Criar contas"}
+                </Button>
+                <Button size="sm" variant="ghost" disabled={importando} onClick={() => setPrevia(null)}>Cancelar</Button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

@@ -67,6 +67,8 @@ export interface ContaPlano {
   natureza: string | null;
   nivel: number | null;
   is_sintetica: boolean;
+  /** Conta específica criada só para esta empresa. */
+  especifica?: boolean;
 }
 
 export interface DadosPlanilhaDepara {
@@ -79,21 +81,28 @@ export async function carregarPlanoDestino(companyId: string): Promise<ContaPlan
   const escopo = await getEscopoPlano(companyId);
   if (!escopo.tenant_id) return [];
   const escopoEmpresa = escopo.usa_plano_padrao ? null : companyId;
-  return await lerTudo<ContaPlano>(
+  const rows = await lerTudo<ContaPlano & { company_id: string | null }>(
     (de, ate) => {
       let q = supabase
         .from("plano_contas")
-        .select("codigo, classificacao, descricao, tipo, natureza, nivel, is_sintetica", countNaPrimeira(de))
+        .select("codigo, classificacao, descricao, tipo, natureza, nivel, is_sintetica, company_id", countNaPrimeira(de))
         .eq("tenant_id", escopo.tenant_id as string)
         .eq("ativo", true)
         .eq("is_participante", false)
         .order("classificacao")
         .range(de, ate);
-      q = escopoEmpresa === null ? q.is("company_id", null) : q.eq("company_id", escopoEmpresa);
+      // Plano padrão: inclui também as contas específicas desta empresa.
+      q = escopoEmpresa === null
+        ? q.or(`company_id.is.null,company_id.eq.${companyId}`)
+        : q.eq("company_id", escopoEmpresa);
       return q as any;
     },
     "plano_contas",
   );
+  return rows.map(({ company_id, ...r }) => ({
+    ...r,
+    especifica: escopoEmpresa === null && company_id === companyId,
+  }));
 }
 
 /**
@@ -207,14 +216,14 @@ export function montarWorkbookDepara(dados: DadosPlanilhaDepara): XLSX.WorkBook 
   XLSX.utils.book_append_sheet(wb, ws, "De-para");
 
   const wsPlano = XLSX.utils.aoa_to_sheet([
-    ["Código", "Classificação", "Descrição", "Tipo", "Natureza", "Nível", "Sintética"],
+    ["Código", "Classificação", "Descrição", "Tipo", "Natureza", "Nível", "Sintética", "Específica da empresa"],
     ...dados.plano.map((p) => [
       p.codigo, p.classificacao, p.descricao, p.tipo ?? "", p.natureza ?? "",
-      p.nivel ?? "", p.is_sintetica ? "sim" : "não",
+      p.nivel ?? "", p.is_sintetica ? "sim" : "não", p.especifica ? "sim" : "",
     ]),
   ]);
   wsPlano["!cols"] = [
-    { wch: 14 }, { wch: 22 }, { wch: 48 }, { wch: 8 }, { wch: 10 }, { wch: 7 }, { wch: 10 },
+    { wch: 14 }, { wch: 22 }, { wch: 48 }, { wch: 8 }, { wch: 10 }, { wch: 7 }, { wch: 10 }, { wch: 12 },
   ];
   wsPlano["!freeze"] = { xSplit: 0, ySplit: 1 };
   XLSX.utils.book_append_sheet(wb, wsPlano, "Plano padrão");

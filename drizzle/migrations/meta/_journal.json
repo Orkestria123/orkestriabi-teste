@@ -470,6 +470,13 @@
       "when": 1792771056864,
       "tag": "0066_monitor_banco",
       "breakpoints": true
+    },
+    {
+      "idx": 67,
+      "version": "7",
+      "when": 1793208385050,
+      "tag": "0067_participantes_grupo_unico",
+      "breakpoints": true
     }
   ]
 }

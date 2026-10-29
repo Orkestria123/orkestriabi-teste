@@ -6,7 +6,8 @@
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Loader2, Plus, Pencil, Trash2, Sparkles, Copy, RefreshCw } from "lucide-react";
+import { Loader2, Plus, Pencil, Trash2, Sparkles, Copy, RefreshCw, Download, Upload } from "lucide-react";
+import { COLUNAS_AJUSTES, lerLinhasAjustes, referenciasContas, type LinhaAjusteImport } from "@/lib/gerencial/planilha-ajustes";
 
 import { supabase } from "@/integrations/supabase/client";
 import { escoparPlano, getEscopoConsulta } from "@/lib/plano/consulta";
@@ -139,6 +140,9 @@ export function AjustesGerenciaisPanel({ tenantId, companyId }: Props) {
 
   const hojeYM = useMemo(() => new Date().toISOString().slice(0, 7), []);
   const [competencia, setCompetencia] = useState<string>(hojeYM);
+  const [competenciaFim, setCompetenciaFim] = useState<string>(hojeYM);
+  const [previa, setPrevia] = useState<LinhaAjusteImport[] | null>(null);
+  const [importando, setImportando] = useState(false);
 
   const [openAjuste, setOpenAjuste] = useState(false);
   const [editando, setEditando] = useState<AjusteRow | null>(null);
@@ -208,15 +212,17 @@ export function AjustesGerenciaisPanel({ tenantId, companyId }: Props) {
 
   // ------- Ajustes da competência selecionada -------
   const { data: ajustes, isLoading: loadingAjustes } = useQuery({
-    queryKey: ["ajustes-gerenciais", companyId, competencia],
+    queryKey: ["ajustes-gerenciais", companyId, competencia, competenciaFim],
     queryFn: async (): Promise<AjusteRow[]> => {
-      const comp = primeiroDiaDoMes(competencia);
       const { data, error } = await supabase
         .from("ajustes_gerenciais")
         .select("id, competencia, descricao, justificativa, conta_debito, conta_credito, valor, movimenta_dfc, criado_por, created_at")
         .eq("company_id", companyId)
-        .eq("competencia", comp)
-        .order("created_at", { ascending: false });
+        .gte("competencia", primeiroDiaDoMes(competencia))
+        .lte("competencia", primeiroDiaDoMes(competenciaFim))
+        .order("competencia", { ascending: true })
+        .order("created_at", { ascending: false })
+        .range(0, 9999);
       if (error) throw error;
       const rows = (data ?? []) as any[];
       const autores = Array.from(new Set(rows.map((r) => r.criado_por).filter(Boolean)));
@@ -281,14 +287,145 @@ export function AjustesGerenciaisPanel({ tenantId, companyId }: Props) {
     invalidarDemonstracoes(qc, companyId);
   };
 
+  // ------- Planilha: exportar layout / lançamentos, importar -------
+  const exportarPlanilha = async (comLancamentos: boolean) => {
+    const XLSX = await import("xlsx");
+    const linhas: unknown[][] = [[...COLUNAS_AJUSTES]];
+    if (comLancamentos) {
+      for (const a of ajustes ?? []) {
+        const [y, m] = a.competencia.split("-");
+        linhas.push([`${m}/${y}`, a.conta_debito, a.conta_credito, a.valor, a.descricao, a.justificativa ?? "", a.movimenta_dfc ? "Sim" : "Não"]);
+      }
+    } else {
+      const [y, m] = competencia.split("-");
+      linhas.push([`${m}/${y}`, "", "", 0, "Exemplo — apague esta linha", "", "Sim"]);
+    }
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet(linhas);
+    ws["!cols"] = [{ wch: 12 }, { wch: 16 }, { wch: 16 }, { wch: 14 }, { wch: 40 }, { wch: 40 }, { wch: 14 }];
+    XLSX.utils.book_append_sheet(wb, ws, "Lançamentos");
+    const ref = [["Código", "Classificação", "Descrição", "Origem"],
+      ...(contas ?? []).map((c) => [c.codigo, c.classificacao, c.descricao, c.origem === "gerencial" ? "Gerencial" : c.origem === "participante" ? "Cliente/Fornecedor" : "Plano"])];
+    const ws2 = XLSX.utils.aoa_to_sheet(ref);
+    ws2["!cols"] = [{ wch: 12 }, { wch: 22 }, { wch: 50 }, { wch: 18 }];
+    XLSX.utils.book_append_sheet(wb, ws2, "Contas");
+    const sufixo = comLancamentos ? `${competencia}_a_${competenciaFim}` : "layout";
+    XLSX.writeFile(wb, `lancamentos_gerenciais_${sufixo}.xlsx`);
+  };
+
+  const lerPlanilha = async (f: File) => {
+    try {
+      const XLSX = await import("xlsx");
+      const wb = XLSX.read(await f.arrayBuffer(), { type: "array" });
+      const rows = XLSX.utils.sheet_to_json<unknown[]>(wb.Sheets[wb.SheetNames[0]], { header: 1, raw: true });
+      const mapa = new Map<string, string>();
+      for (const c of contas ?? []) mapa.set(c.codigo, c.codigo);
+      for (const c of contas ?? []) if (c.classificacao && !mapa.has(c.classificacao)) mapa.set(c.classificacao, c.codigo);
+      const faltam = referenciasContas(rows).filter((r) => !mapa.has(r));
+      if (faltam.length) {
+        const escopo = await getEscopoConsulta(companyId);
+        for (let i = 0; i < faltam.length; i += 200) {
+          const lote = faltam.slice(i, i + 200);
+          const [porCod, porCls] = await Promise.all([
+            escoparPlano(supabase.from("plano_contas").select("codigo, classificacao"), companyId, escopo).in("codigo", lote),
+            escoparPlano(supabase.from("plano_contas").select("codigo, classificacao"), companyId, escopo).in("classificacao", lote),
+          ]);
+          for (const r of (porCod.data ?? []) as any[]) mapa.set(r.codigo, r.codigo);
+          for (const r of (porCls.data ?? []) as any[]) if (!mapa.has(r.classificacao)) mapa.set(r.classificacao, r.codigo);
+        }
+      }
+      const ls = lerLinhasAjustes(rows, (r) => mapa.get(r) ?? null);
+      if (!ls.length) return toast.error("Planilha vazia.");
+      setPrevia(ls);
+    } catch (e: any) {
+      toast.error(`Não foi possível ler a planilha: ${e.message}`);
+    }
+  };
+
+  const confirmarImportacao = async () => {
+    const validas = (previa ?? []).filter((l) => !l.erro);
+    if (!validas.length) return;
+    setImportando(true);
+    try {
+      for (let i = 0; i < validas.length; i += 500) {
+        const { error } = await supabase.from("ajustes_gerenciais").insert(
+          validas.slice(i, i + 500).map((l) => ({
+            tenant_id: tenantId, company_id: companyId, competencia: l.competencia,
+            descricao: l.descricao, justificativa: l.justificativa,
+            conta_debito: l.conta_debito, conta_credito: l.conta_credito,
+            valor: l.valor, movimenta_dfc: l.movimenta_dfc, criado_por: userId,
+          })),
+        );
+        if (error) throw error;
+      }
+      toast.success(`${validas.length} lançamento(s) importado(s)`);
+      const comps = validas.map((l) => l.competencia.slice(0, 7)).sort();
+      setCompetencia(comps[0]);
+      setCompetenciaFim(comps[comps.length - 1]);
+      setPrevia(null);
+      invalidarDemonstracoes(qc, companyId);
+    } catch (e: any) {
+      toast.error(e.message ?? String(e));
+    } finally {
+      setImportando(false);
+    }
+  };
+
   return (
     <div className="space-y-4">
+      <Dialog open={!!previa} onOpenChange={(v) => !v && setPrevia(null)}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Importar lançamentos gerenciais</DialogTitle>
+            <DialogDescription>
+              {(previa ?? []).filter((l) => !l.erro).length} lançamento(s) prontos
+              {(previa ?? []).some((l) => l.erro) && `, ${(previa ?? []).filter((l) => l.erro).length} com problema (serão ignorados)`}.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="max-h-[50vh] overflow-auto text-xs border border-border rounded-md">
+            <table className="w-full">
+              <thead className="sticky top-0 bg-background">
+                <tr className="text-left text-muted-foreground">
+                  <th className="p-1.5">Linha</th><th className="p-1.5">Comp.</th><th className="p-1.5">Débito</th>
+                  <th className="p-1.5">Crédito</th><th className="p-1.5 text-right">Valor</th><th className="p-1.5">Descrição</th><th className="p-1.5">DFC</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(previa ?? []).map((l) => (
+                  <tr key={l.linha} className={cn("border-t border-border", l.erro && "text-destructive")}>
+                    <td className="p-1.5">{l.linha}</td>
+                    <td className="p-1.5">{l.competencia ? labelMes(l.competencia.slice(0, 7)) : "—"}</td>
+                    <td className="p-1.5 font-mono">{l.conta_debito}</td>
+                    <td className="p-1.5 font-mono">{l.conta_credito}</td>
+                    <td className="p-1.5 text-right">{Number.isFinite(l.valor) ? formatBRL(l.valor) : "—"}</td>
+                    <td className="p-1.5">{l.erro ?? l.descricao}</td>
+                    <td className="p-1.5">{l.movimenta_dfc ? "Sim" : "Não"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPrevia(null)}>Cancelar</Button>
+            <Button disabled={importando || !(previa ?? []).some((l) => !l.erro)} onClick={confirmarImportacao}>
+              {importando && <Loader2 className="h-4 w-4 mr-1 animate-spin" />} Importar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       {/* Cabeçalho: competência + ações */}
       <Card className="p-4 flex flex-wrap items-end gap-3">
         <div>
-          <Label className="text-xs">Competência</Label>
-          <CompetenciaPicker value={competencia} onChange={setCompetencia} />
+          <Label className="text-xs">De</Label>
+          <CompetenciaPicker value={competencia} onChange={(v) => { setCompetencia(v); if (v > competenciaFim) setCompetenciaFim(v); }} />
         </div>
+        <div>
+          <Label className="text-xs">Até</Label>
+          <CompetenciaPicker value={competenciaFim} onChange={(v) => { setCompetenciaFim(v); if (v < competencia) setCompetencia(v); }} />
+        </div>
+        {competenciaFim !== competencia && (
+          <Button variant="ghost" size="sm" onClick={() => setCompetenciaFim(competencia)}>Só o mês inicial</Button>
+        )}
         <div className="ml-auto flex gap-2">
           <Button
             variant="outline"
@@ -304,6 +441,18 @@ export function AjustesGerenciaisPanel({ tenantId, companyId }: Props) {
             }}
           >
             <RefreshCw className={cn("h-4 w-4 mr-1", atualizando && "animate-spin")} /> Atualizar Demonstrações
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => exportarPlanilha(false)} title="Planilha modelo com as colunas e a lista de contas">
+            <Download className="h-4 w-4 mr-1" /> Baixar layout
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => exportarPlanilha(true)} disabled={!(ajustes?.length)} title="Exporta os lançamentos do período no layout de importação">
+            <Download className="h-4 w-4 mr-1" /> Exportar lançamentos
+          </Button>
+          <input id="importar-ajustes-ger" type="file" accept=".xls,.xlsx,.csv" className="hidden"
+            onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) lerPlanilha(f); }} />
+          <Button variant="outline" size="sm" disabled={importando}
+            onClick={() => document.getElementById("importar-ajustes-ger")?.click()}>
+            <Upload className="h-4 w-4 mr-1" /> Importar planilha
           </Button>
           <Button variant="outline" size="sm" onClick={() => setOpenConta(true)}>
             <Sparkles className="h-4 w-4 mr-1" /> Nova Conta Gerencial
@@ -324,9 +473,13 @@ export function AjustesGerenciaisPanel({ tenantId, companyId }: Props) {
       {/* Lista */}
       <Card className="p-0 overflow-hidden">
         <div className="p-3 border-b border-border flex items-center justify-between">
-          <div className="text-sm font-medium">Ajustes de {labelMes(competencia)}</div>
+          <div className="text-sm font-medium">
+            Ajustes de {labelMes(competencia)}{competenciaFim !== competencia && ` a ${labelMes(competenciaFim)}`}
+          </div>
           <div className="text-xs text-muted-foreground">
-            {loadingAjustes ? "carregando…" : `${ajustes?.length ?? 0} lançamento(s)`}
+            {loadingAjustes
+              ? "carregando…"
+              : `${ajustes?.length ?? 0} lançamento(s) · ${formatBRL((ajustes ?? []).reduce((s, a) => s + a.valor, 0))}`}
           </div>
         </div>
         {loadingAjustes ? (
@@ -347,7 +500,12 @@ export function AjustesGerenciaisPanel({ tenantId, companyId }: Props) {
               return (
                 <div key={a.id} className="p-3 grid grid-cols-12 gap-3 items-center text-sm hover:bg-accent/30">
                   <div className="col-span-12 md:col-span-4">
-                    <div className="font-medium">{a.descricao}</div>
+                    <div className="font-medium">
+                      {competenciaFim !== competencia && (
+                        <Badge variant="secondary" className="mr-1 text-[10px]">{labelMes(ymDeCompetencia(a.competencia))}</Badge>
+                      )}
+                      {a.descricao}
+                    </div>
                     {a.justificativa && (
                       <div className="text-xs text-muted-foreground line-clamp-1">{a.justificativa}</div>
                     )}

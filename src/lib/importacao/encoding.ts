@@ -8,11 +8,41 @@
 export type EncodingArquivo = "utf-8" | "utf-8-bom" | "windows-1252";
 
 function latin1(buf: ArrayBuffer): string {
+  let t: string;
   try {
-    return new TextDecoder("windows-1252").decode(buf);
+    t = new TextDecoder("windows-1252").decode(buf);
   } catch {
-    return new TextDecoder("iso-8859-1").decode(buf);
+    t = new TextDecoder("iso-8859-1").decode(buf);
   }
+  // Exportações DOS (CP850) lidas como Windows-1252 viram "CONSTRU€ÇO".
+  return pareceCp850(t) ? corrigirCp850(t) : t;
+}
+
+const CP1252_ALTO =
+  "€\u0081‚ƒ„…†‡ˆ‰Š‹Œ\u008DŽ\u008F\u0090‘’“”•–—˜™š›œ\u009DžŸ" +
+  Array.from({ length: 96 }, (_, i) => String.fromCharCode(0xa0 + i)).join("");
+const CP850_ALTO =
+  "ÇüéâäàåçêëèïîìÄÅÉæÆôöòûùÿÖÜø£Ø×ƒáíóúñÑªº¿®¬½¼¡«»░▒▓│┤ÁÂÀ©╣║╗╝¢¥┐└┴┬├─┼ãÃ╚╔╩╦╠═╬¤ðÐÊËÈıÍÎÏ┘┌█▄¦Ì▀ÓßÔÒõÕµþÞÚÛÙýÝ¯´\u00AD±‗¾¶§÷¸°¨·¹³²■\u00A0";
+const MAPA_850 = new Map<string, string>();
+for (let i = 0; i < 128; i++) MAPA_850.set(CP1252_ALTO[i], CP850_ALTO[i]);
+MAPA_850.set("\uFFFD", "É");
+
+const MARCAS_850 = /[€‚‡Æµåäˆƒ“¢£¡…\u0081\u008D\u008F\u0090\u009D\uFFFD]/g;
+const ACENTOS_OK = /[çãõáéíóúâêôàÇÃÕÁÉÍÓÚÂÊÔ]/g;
+
+/** Texto CP850 decodificado como Windows-1252? */
+export function pareceCp850(t: string): boolean {
+  const marcas = t.match(MARCAS_850)?.length ?? 0;
+  if (marcas === 0) return false;
+  const ok = t.match(ACENTOS_OK)?.length ?? 0;
+  return marcas >= ok;
+}
+
+/** Converte "CONSTRU€ÇO" → "CONSTRUÇÃO" (bytes CP850 lidos como Windows-1252). */
+export function corrigirCp850(t: string): string {
+  let out = "";
+  for (const ch of t) out += ch.charCodeAt(0) < 0x80 ? ch : (MAPA_850.get(ch) ?? ch);
+  return out;
 }
 
 export async function textoDoArquivo(file: File): Promise<{ text: string; encoding: EncodingArquivo }> {

@@ -1,7 +1,7 @@
 # Roadmap — ajustes BI (25/09/2026)
 
 ## Ludfor Energia Gestora — 31/10
-- [ ] Conferir encerramentos de dezembro/2024, corrigir a DRE e validar o resultado anual contra a ECD e na tela
+- [x] Reaplicar dezembro/2024 com o diário completo: encerramento excluído da DRE; lucro dezembro R$ 3.299.811,29 e anual R$ 46.593.061,82 conferidos na ECD e tela; BP fecha em R$ 14.776.147,86. Sem alterar contas/vínculos ou regras globais.
 
 ## Biamar — 23/10
 - [x] Comparar levantamento 2021–2025: 2021–2023 conferem nos totais principais; despesa de R$ 29.533,33 omitida em 2024 corrigida e resultado R$ 14.937.019,72 conferido na tela; BP/DFC validados nos 60 meses

@@ -1,5 +1,6 @@
 // Estrutura da DRE/Balanço e alocação da DFC — editáveis no Plano Padrão.
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
+import { ReestruturarPlanoCard } from "@/components/plano/reestruturar-plano-card";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -16,7 +17,7 @@ import { lerTudo, countNaPrimeira } from "@/lib/supabase-paginado";
 import { tituloConta } from "@/lib/format";
 import { PlanilhaDfcBotoes } from "@/components/dfc/planilha-dfc-botoes";
 import {
-  getEstruturaPadrao, limparCacheEstrutura, type PapelEstrutura, type TipoLinha,
+  getEstruturaPadrao, limparCacheEstrutura, compararClassificacao, type PapelEstrutura, type TipoLinha,
   type DemonstracaoEstrutura,
 } from "@/lib/plano/estrutura";
 
@@ -203,13 +204,21 @@ export function EstruturaDemonstracaoPanel({
 
   return (
     <div className="space-y-4">
-      <Card className="p-4 text-sm bg-muted/30">
-        <p className="text-muted-foreground text-xs leading-relaxed">
-          Papéis das contas <strong>deste</strong> Plano Padrão: detalhe, subtotal de bloco,
-          acumulado corrido, ou tag para indicador. O <strong>papel</strong> é o nome
-          estável que os indicadores procuram (Receita Bruta, Lucro Líquido, Ativo Circulante…).
-        </p>
-      </Card>
+      <section className="space-y-2">
+        <h3 className="text-sm font-semibold">1. Reorganizar o plano</h3>
+        <ReestruturarPlanoCard tenantId={tenantId} podeEditar={podeEditar} />
+      </section>
+
+      <section className="space-y-2">
+        <h3 className="text-sm font-semibold">2. Linhas das demonstrações</h3>
+        <Card className="p-4 text-xs text-muted-foreground bg-muted/30 grid gap-2 md:grid-cols-4">
+          <div><strong className="text-foreground">Detalhe</strong> — linha comum, soma as contas abaixo.</div>
+          <div><strong className="text-foreground">Bloco</strong> — subtotal só do próprio grupo (ex.: total do CPV).</div>
+          <div><strong className="text-foreground">Corrido</strong> — resultado acumulado até ali (ex.: Lucro Bruto).</div>
+          <div><strong className="text-foreground">Tag</strong> — não aparece; só marca a conta para indicadores.</div>
+          <div className="md:col-span-4">O <strong className="text-foreground">papel</strong> é o nome fixo que os indicadores procuram; o rótulo é o texto exibido.</div>
+        </Card>
+      </section>
 
       <div className="flex flex-wrap items-end gap-2">
         <div className="relative flex-1 min-w-[200px] max-w-sm">
@@ -336,17 +345,31 @@ export function EstruturaDemonstracaoPanel({
             </tr>
           </thead>
           <tbody>
-            {visiveis.map((e) => (
-              <LinhaEstrutura
-                key={`${e.classificacao}|${e.papel}`}
-                row={e}
-                nomePlano={nomes?.get(e.classificacao) ?? e.rotulo ?? e.papel}
-                podeEditar={podeEditar}
-                busy={busy === `${e.classificacao}|${e.papel}`}
-                onSave={(next) => salvar({ ...next, papelAnterior: e.papel })}
-                onDelete={() => apagar(e.classificacao, e.papel)}
-              />
-            ))}
+            {[...DEMOS.map((d) => ({ id: d.id as string | null, rotulo: d.rotulo })), { id: null, rotulo: "Sem demonstração" }]
+              .map((g) => {
+                const itens = visiveis
+                  .filter((e) => (e.demonstracao ?? null) === g.id)
+                  .sort((a, b) => compararClassificacao(a.classificacao, b.classificacao));
+                if (itens.length === 0) return null;
+                return (
+                  <Fragment key={g.rotulo}>
+                    <tr className="bg-muted/50">
+                      <td colSpan={7} className="px-3 py-1.5 text-xs font-semibold">{g.rotulo} ({itens.length})</td>
+                    </tr>
+                    {itens.map((e) => (
+                      <LinhaEstrutura
+                        key={`${e.classificacao}|${e.papel}`}
+                        row={e}
+                        nomePlano={nomes?.get(e.classificacao) ?? e.rotulo ?? e.papel}
+                        podeEditar={podeEditar}
+                        busy={busy === `${e.classificacao}|${e.papel}`}
+                        onSave={(next) => salvar({ ...next, papelAnterior: e.papel })}
+                        onDelete={() => apagar(e.classificacao, e.papel)}
+                      />
+                    ))}
+                  </Fragment>
+                );
+              })}
             {visiveis.length === 0 && (
               <tr>
                 <td colSpan={7} className="px-3 py-10 text-center text-muted-foreground">

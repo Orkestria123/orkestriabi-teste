@@ -484,6 +484,13 @@
       "when": 1793735075058,
       "tag": "0068_reestruturar_plano_padrao",
       "breakpoints": true
+    },
+    {
+      "idx": 69,
+      "version": "7",
+      "when": 1793735273721,
+      "tag": "0069_ecd_materializar_sem_encerramento",
+      "breakpoints": true
     }
   ]
 }

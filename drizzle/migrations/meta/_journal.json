@@ -498,6 +498,13 @@
       "when": 1793735500110,
       "tag": "0070_revisar_hierarquia_pai_qualquer_conta",
       "breakpoints": true
+    },
+    {
+      "idx": 71,
+      "version": "7",
+      "when": 1793735808508,
+      "tag": "0071_revisar_hierarquia_rapida",
+      "breakpoints": true
     }
   ]
 }

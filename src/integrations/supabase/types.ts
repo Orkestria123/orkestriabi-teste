@@ -3890,6 +3890,15 @@ export type Database = {
         Args: { _company_id: string }
         Returns: number
       }
+      mover_grupo_plano: {
+        Args: {
+          _aplicar?: boolean
+          _de: string
+          _para: string
+          _tenant_id: string
+        }
+        Returns: Json
+      }
       norm_busca: { Args: { _t: string }; Returns: string }
       norm_gasto: { Args: { s: string }; Returns: string }
       obter_saude_db: { Args: never; Returns: Json }
@@ -3970,6 +3979,10 @@ export type Database = {
           _tenant_id: string
           _todos_escopos?: boolean
         }
+        Returns: Json
+      }
+      revisar_hierarquia_plano: {
+        Args: { _aplicar?: boolean; _tenant_id: string }
         Returns: Json
       }
       salvar_estrutura_padrao: {

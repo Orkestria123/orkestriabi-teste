@@ -1782,6 +1782,12 @@ async function buildBP(
 
   // Contas que existem: com movimento ou com abertura.
   const contasComDados = acumulador.contas();
+  const contaLucrosAcum =
+    tipo === "BP_PASSIVO"
+      ? (planoContabil.find(
+          (p) => !p.is_participante && /lucros?\s+acumulad/i.test(p.descricao ?? "") && codigosComSaldo.has(p.codigo),
+        )?.codigo ?? planoContabil.find((p) => !p.is_participante && /lucros?\s+acumulad/i.test(p.descricao ?? ""))?.codigo)
+      : undefined;
 
   for (const ref of periodosOrd) {
     // O acumulador resolve por conta: pega a abertura vigente naquela
@@ -1789,6 +1795,24 @@ async function buildBP(
     const snapshot = new Map<string, number>();
     for (const codigo of contasComDados) {
       snapshot.set(codigo, acumulador.saldoAte(codigo, ref));
+    }
+    // Resultado de exercícios ANTERIORES que nunca chegou ao PL.
+    // Quando um ano veio da ECD (encerramento retirado nas duas pernas) e o
+    // seguinte do diário, o lucro daquele ano ficava fora de Lucros
+    // Acumulados: o resultado do exercício reinicia em janeiro e as
+    // distribuições do ano deixavam a conta negativa — o Passivo não fechava.
+    // Σ saldo das contas de resultado até o fim do ano anterior é zero quando
+    // o encerramento foi mantido; o que sobrar é lucro não transferido e entra
+    // em Lucros Acumulados.
+    if (tipo === "BP_PASSIVO" && contaLucrosAcum) {
+      const fimAnterior = `${Number(ref.slice(0, 4)) - 1}-12-31`;
+      let somaDre = 0;
+      for (const codigo of contasComDados) {
+        if (dreCodigos.has(codigo)) somaDre += acumulador.saldoAte(codigo, fimAnterior);
+      }
+      if (Math.abs(somaDre) >= 0.005) {
+        snapshot.set(contaLucrosAcum, (snapshot.get(contaLucrosAcum) ?? 0) + somaDre);
+      }
     }
     const pontos = aplicarMapaESinal(snapshot, planoMap, matcher, mascara, { incluirParticipantes: true });
     const pontosConsolidados = pontos.map((pt) => ({

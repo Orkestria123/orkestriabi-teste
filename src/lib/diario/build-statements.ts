@@ -440,9 +440,24 @@ async function getMapa(
     nivelCobertura = melhor;
   }
 
-  const estruturais = candidatas
-    .filter((r) => r.nivel === nivelCobertura)
-    .sort((a, b) => compararClassificacao(a.classificacao, b.classificacao));
+  // Linhas "detalhe" do estrutura_padrao mais fundas que o nível da
+  // demonstração viram linha própria (ex.: 3.01.01.90 Devoluções e
+  // Cancelamentos ao lado das Deduções). O matcher prefere o prefixo mais
+  // longo, então o saldo sai do grupo pai sem mudar o total corrido.
+  const promovidas = candidatas.filter(
+    (r) =>
+      r.nivel > nivelCobertura &&
+      estrutura.some(
+        (e) =>
+          e.classificacao === r.classificacao &&
+          e.demonstracao === tipo &&
+          e.tipo_linha === "detalhe",
+      ),
+  );
+  const estruturais = [
+    ...candidatas.filter((r) => r.nivel === nivelCobertura),
+    ...promovidas,
+  ].sort((a, b) => compararClassificacao(a.classificacao, b.classificacao));
 
   // A ordem das linhas é a ordem do plano. Linhas de saldo e acumuladores
   // entram na mesma sequência, cada um na posição em que o plano o coloca —

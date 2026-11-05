@@ -241,6 +241,7 @@ function prefixoAteNivel(
 // gerencial). Com um plano padrão de centenas de milhares de linhas cada
 // leitura custava segundos; aqui ela acontece uma vez por sessão.
 const _planoCache = new Map<string, Promise<(Plano & { tipo: string })[]>>();
+const _planoCacheEm = new Map<string, number>();
 
 async function getPlanoEstrutural(
   companyId: string,
@@ -252,8 +253,12 @@ async function getPlanoEstrutural(
   // plano estrutural inteiro (com o `tipo`) e filtramos em memória, em
   // vez de repetir a paginação para cada combinação de tipos.
   const key = `${tenantId}|${companyId}|${modoGlobal ? "global" : "proprio"}`;
+  // Expira em 60 s: edições do Plano Padrão feitas em outra tela/aba
+  // precisam aparecer nas demonstrações sem recarregar a página.
+  if (Date.now() - (_planoCacheEm.get(key) ?? 0) > 60_000) _planoCache.delete(key);
   let p = _planoCache.get(key);
   if (!p) {
+    _planoCacheEm.set(key, Date.now());
     p = fetchAllPaginated<Plano & { tipo: string }>((from, to) => {
       const q = supabase
         .from("plano_contas")

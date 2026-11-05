@@ -505,6 +505,13 @@
       "when": 1793735808508,
       "tag": "0071_revisar_hierarquia_rapida",
       "breakpoints": true
+    },
+    {
+      "idx": 72,
+      "version": "7",
+      "when": 1793888058230,
+      "tag": "0072_plano_pai_vira_sintetica",
+      "breakpoints": true
     }
   ]
 }

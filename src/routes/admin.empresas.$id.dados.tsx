@@ -721,7 +721,8 @@ function SaldoInicialTab({ tenantId, companyId }: { tenantId: string; companyId:
       });
       toast.success(`Saldo inicial importado: ${parsed.total} contas`);
       limparCacheDemonstracoes();
-      qc.invalidateQueries({ queryKey: ["carimbo-dados", companyId] });
+      qc.invalidateQueries({ queryKey: ["carimbo-empresa", companyId] });
+      qc.invalidateQueries({ queryKey: ["monthly-stmt", companyId] });
       qc.invalidateQueries({ queryKey: ["available-periods"] });
       setParsed(null);
       setFilename("");
@@ -741,7 +742,8 @@ function SaldoInicialTab({ tenantId, companyId }: { tenantId: string; companyId:
       await removerSaldoInicialUpload(uploadId, companyId);
       toast.success("Saldo inicial removido");
       limparCacheDemonstracoes();
-      qc.invalidateQueries({ queryKey: ["carimbo-dados", companyId] });
+      qc.invalidateQueries({ queryKey: ["carimbo-empresa", companyId] });
+      qc.invalidateQueries({ queryKey: ["monthly-stmt", companyId] });
       qc.invalidateQueries({ queryKey: ["saldo-inicial-uploads", companyId] });
     } catch (e: any) {
       toast.error(e.message ?? String(e));

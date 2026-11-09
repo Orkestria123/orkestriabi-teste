@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { aberturaPatrimonial, participantePorCodigo } from "./validacao-contas";
+import { aberturaPatrimonial, participantePorCodigo, validarAlocacao } from "./validacao-contas";
 describe("faixas do diário", () => {
   it("cliente de 100000 a 499999", () => {
     expect(participantePorCodigo("100000")).toBe("Cliente");
@@ -11,6 +11,13 @@ describe("faixas do diário", () => {
     expect(participantePorCodigo("1000000")).toBe("Fornecedor");
     expect(participantePorCodigo("ABC500000")).toBeNull();
   });
+});
+it("valida a sintética de clientes e fornecedores sem ocultar pendências", () => {
+  expect(validarAlocacao("100000", "1.01.02.01.01.01")).toBe("Grupo correto");
+  expect(validarAlocacao("500000", "2.01.01.01.01.01")).toBe("Grupo correto");
+  expect(validarAlocacao("500000", "1.01.02.01.01.01")).toBe("Grupo divergente");
+  expect(validarAlocacao("100000", null)).toBe("Sem alocação");
+  expect(validarAlocacao("100000", null, true)).toBe("Ignorada");
 });
 it("abertura da Rota Inox não transfere novamente o resultado de 2018", () => {
   expect(aberturaPatrimonial({ upload_id: "csv", classificacao: "3.01.01.01.01" })).toBe(false);

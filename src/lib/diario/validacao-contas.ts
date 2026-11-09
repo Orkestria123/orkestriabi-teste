@@ -7,6 +7,15 @@ export function participantePorCodigo(codigo: string): "Cliente" | "Fornecedor" 
   return null;
 }
 
+export function validarAlocacao(codigo: string, classificacao: string | null, ignorada = false): string {
+  if (ignorada) return "Ignorada";
+  if (!classificacao) return "Sem alocação";
+  const esperado = participantePorCodigo(codigo);
+  if (!esperado) return "Alocada";
+  const prefixo = esperado === "Cliente" ? "1.01.02.01" : "2.01.01.01";
+  return classificacao === prefixo || classificacao.startsWith(`${prefixo}.`) ? "Grupo correto" : "Grupo divergente";
+}
+
 /** Balancetes CSV de abertura já incluem o resultado anterior no PL.
  * As contas de resultado são auditáveis, mas não reabrem o exercício encerrado.
  * Aberturas da ECD seguem sua própria regra. */

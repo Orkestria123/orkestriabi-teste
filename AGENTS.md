@@ -1,5 +1,8 @@
 # Architecture rules
 
+- Diary account inspection uses company-authorized paginated aggregates and resolves company mappings before tenant defaults; ECD codes are excluded from diary range inference to avoid reclassifying unrelated charts.
+- Imported CSV opening trial balances contribute only patrimonial rows to accumulated statements because their prior result is already in equity; retained source rows remain available for audit, while ECD openings retain their own semantics.
+
 - Only synthetic accounts are classified as calculated closing totals by .98/.99 segments; analytical accounts retain their ledger movements, so ordinary expense codes cannot disappear from DRE or indicators.
 
 - Calculated DRE cost components reuse indicator expressions with stable semantic keys and company-over-tenant precedence; visibility is presentation-only and never changes ledger totals or formula inputs.

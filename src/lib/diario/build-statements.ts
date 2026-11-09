@@ -12,6 +12,7 @@
 //  - DRE: movimento do período. BP: abertura + Σ movimento até a competência.
 
 import { supabase } from "@/integrations/supabase/client";
+import { aberturaPatrimonial } from "@/lib/diario/validacao-contas";
 import { lerTudo, countNaPrimeira } from "@/lib/supabase-paginado";
 import {
   descendeDe,

@@ -1,5 +1,10 @@
 # Roadmap — ajustes BI (25/09/2026)
 
+## Diário e abertura — 09/11
+- [ ] Conferir e corrigir saldo inicial da Rota Inox (Beltrami)
+- [ ] Classificar clientes 100000–499999 e fornecedores a partir de 500000
+- [ ] Validar clientes/fornecedores e visualizar alocação das contas do diário
+
 ## Ludfor Energia Gestora — 31/10
 - [x] Reaplicar dezembro/2024 com o diário completo: encerramento excluído da DRE; lucro dezembro R$ 3.299.811,29 e anual R$ 46.593.061,82 conferidos na ECD e tela; BP fecha em R$ 14.776.147,86. Sem alterar contas/vínculos ou regras globais.
 

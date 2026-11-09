@@ -12,6 +12,7 @@
 //  - DRE: movimento do período. BP: abertura + Σ movimento até a competência.
 
 import { supabase } from "@/integrations/supabase/client";
+import { aberturaPatrimonial } from "@/lib/diario/validacao-contas";
 import { lerTudo, countNaPrimeira } from "@/lib/supabase-paginado";
 import {
   descendeDe,
@@ -709,7 +710,7 @@ async function getAberturas(companyId: string): Promise<AberturaConta[]> {
   const data = await fetchAllPaginated<any>((from, to) =>
     supabase
       .from("saldos_abertura")
-      .select("conta_codigo, data_referencia, saldo", countNaPrimeira(from))
+      .select("conta_codigo, data_referencia, saldo, classificacao, upload_id", countNaPrimeira(from))
       .eq("company_id", companyId)
       .order("conta_codigo")
       .order("data_referencia")
@@ -717,7 +718,7 @@ async function getAberturas(companyId: string): Promise<AberturaConta[]> {
     "saldos de abertura",
   );
   const trad = await getTradutor(companyId);
-  const linhas: AberturaConta[] = data.map((r: any) => ({
+  const linhas: AberturaConta[] = data.filter(aberturaPatrimonial).map((r: any) => ({
     conta_codigo: trad ? trad.traduzir(r.conta_codigo) : r.conta_codigo,
     data_referencia: String(r.data_referencia),
     saldo: Number(r.saldo) || 0,

@@ -3314,6 +3314,28 @@ export type Database = {
         Args: { _upload_id: string }
         Returns: string[]
       }
+      conferir_contas_diario: {
+        Args: {
+          _busca?: string
+          _company_id: string
+          _fim?: string
+          _inicio?: string
+          _offset?: number
+        }
+        Returns: {
+          codigo: string
+          creditos: number
+          debitos: number
+          destino_classificacao: string
+          destino_codigo: string
+          destino_nome: string
+          ignorada: boolean
+          lancamentos: number
+          nome: string
+          tipo_esperado: string
+          total: number
+        }[]
+      }
       contas_novas_da_empresa: {
         Args: { _company_id: string; _limite?: number; _tenant_id: string }
         Returns: {
@@ -4025,6 +4047,7 @@ export type Database = {
         }[]
       }
       sou_cliente: { Args: never; Returns: boolean }
+      tipo_participante_diario: { Args: { _codigo: string }; Returns: string }
       unaccent_simples: { Args: { _s: string }; Returns: string }
       uploads_incompletos: {
         Args: { _company_id: string }

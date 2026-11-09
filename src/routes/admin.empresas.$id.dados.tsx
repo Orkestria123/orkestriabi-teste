@@ -33,6 +33,8 @@ import { OrcamentoConfigPanel } from "@/components/orcamento/orcamento-config-pa
 import { PlanilhaDfcBotoes } from "@/components/dfc/planilha-dfc-botoes";
 import { DeParaPanel } from "@/components/plano/depara-panel";
 import { ContasNovasEmpresaPanel } from "@/components/plano/contas-novas-empresa";
+import { ConferenciaDiario } from "@/components/plano/conferencia-diario";
+import { limparCacheDemonstracoes } from "@/lib/cache-demonstracoes";
 import { DescartadasPlano } from "@/components/plano/descartadas-plano";
 import { getEscopoPlano } from "@/lib/plano/escopo";
 import { limparCacheDepara } from "@/lib/plano/depara";
@@ -548,6 +550,7 @@ function DiariosTab({ companyId, tenantId, sistemaId }: { companyId: string; ten
   return (
     <div className="space-y-4">
       {/* Contas novas do diário e descartadas — não ficam mais no Plano Padrão */}
+      <ConferenciaDiario companyId={companyId} />
       <ContasNovasEmpresaPanel tenantId={tenantId} companyId={companyId} podeEditar={podeEditar} />
       <div>
         <h3 className="text-sm font-medium mb-2">Descartadas</h3>
@@ -717,6 +720,10 @@ function SaldoInicialTab({ tenantId, companyId }: { tenantId: string; companyId:
         onProgress: (loaded, total) => setProgress(Math.round((loaded / total) * 100)),
       });
       toast.success(`Saldo inicial importado: ${parsed.total} contas`);
+      limparCacheDemonstracoes();
+      qc.invalidateQueries({ queryKey: ["carimbo-empresa", companyId] });
+      qc.invalidateQueries({ queryKey: ["monthly-stmt", companyId] });
+      qc.invalidateQueries({ queryKey: ["available-periods"] });
       setParsed(null);
       setFilename("");
       qc.invalidateQueries({ queryKey: ["saldo-inicial-uploads", companyId] });
@@ -734,6 +741,9 @@ function SaldoInicialTab({ tenantId, companyId }: { tenantId: string; companyId:
       const { removerSaldoInicialUpload } = await import("@/lib/saldo-inicial/uploader");
       await removerSaldoInicialUpload(uploadId, companyId);
       toast.success("Saldo inicial removido");
+      limparCacheDemonstracoes();
+      qc.invalidateQueries({ queryKey: ["carimbo-empresa", companyId] });
+      qc.invalidateQueries({ queryKey: ["monthly-stmt", companyId] });
       qc.invalidateQueries({ queryKey: ["saldo-inicial-uploads", companyId] });
     } catch (e: any) {
       toast.error(e.message ?? String(e));

@@ -512,6 +512,13 @@
       "when": 1793888058230,
       "tag": "0072_plano_pai_vira_sintetica",
       "breakpoints": true
+    },
+    {
+      "idx": 73,
+      "version": "7",
+      "when": 1794251707310,
+      "tag": "0073_diario_conferencia_abertura",
+      "breakpoints": true
     }
   ]
 }

@@ -1,6 +1,8 @@
 # Roadmap — ajustes BI (25/09/2026)
 
 ## Diário e abertura — 09/11
+- [x] Incluir filtros Clientes/Fornecedores e somente divergentes antes da paginação, com alteração direta por empresa no Diário; gravação e releitura pela tela conferidas, seis testes aprovados
+- [x] Validar Rota Inox dezembro/2025: 17 fornecedores realocados só nesta empresa, diferença R$ 166.442,35; Clientes Nacionais R$ 5.221.853,40, Fornecedores Nacionais R$ 3.395.796,50; motor do BP fecha em R$ 28.110.079,28
 - [x] Conferir e corrigir saldo inicial da Rota Inox (Beltrami): abertura CSV sem resultado já encerrado no PL; carimbo inclui aberturas e planos; BP janeiro/2019 fecha em R$ 5.022.493,62 e dezembro/2025 em R$ 27.942.783,53, sem alterar saldos de origem
 - [x] Classificar clientes 100000–499999 e fornecedores a partir de 500000 nas sugestões do diário, preservando códigos ECD; limites testados
 - [x] Validar clientes/fornecedores e visualizar alocação das contas do diário: período, busca, destino, débitos/créditos, divergências e paginação; conferência real da Rota Inox e fornecedor 506941/2025 testados; sete testes aprovados

@@ -519,6 +519,13 @@
       "when": 1794251707310,
       "tag": "0073_diario_conferencia_abertura",
       "breakpoints": true
+    },
+    {
+      "idx": 74,
+      "version": "7",
+      "when": 1794321976629,
+      "tag": "0074_diario_filtros_alocacao",
+      "breakpoints": true
     }
   ]
 }

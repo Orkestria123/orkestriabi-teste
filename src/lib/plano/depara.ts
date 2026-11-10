@@ -157,13 +157,14 @@ export async function getTradutor(companyId: string): Promise<Tradutor | null> {
     .select("plano_tipo")
     .eq("id", companyId)
     .maybeSingle();
-  if (eErr || !empresa || (empresa as any).plano_tipo !== "proprio") {
+  if (eErr) throw eErr;
+  if (!empresa) {
     limparCacheDepara(companyId);
     return null;
   }
   let p = cache.get(companyId);
   if (!p) {
-    p = carregar(companyId).catch((e) => {
+    p = ((empresa as any).plano_tipo === "proprio" ? carregar(companyId) : carregarExatos(companyId)).catch((e) => {
       cache.delete(companyId);
       cacheLinhas.delete(companyId);
       throw e;
@@ -171,6 +172,20 @@ export async function getTradutor(companyId: string): Promise<Tradutor | null> {
     cache.set(companyId, p);
   }
   return p;
+}
+
+/** Plano Padrão admite exceções por empresa sem aplicar regras de planos ECD. */
+async function carregarExatos(companyId: string): Promise<Tradutor | null> {
+  const linhas = await lerRpcKeyset<LinhaTraducao>("conta_codigo", async (depois) => {
+    let q = supabase.from("depara_contas").select("conta_codigo, conta_padrao_codigo, ignorada").eq("company_id", companyId).order("conta_codigo").limit(1000);
+    if (depois) q = q.gt("conta_codigo", depois);
+    const { data, error } = await q;
+    return { data: data?.map(l => ({ ...l, origem: "exato" as const })), error };
+  }, "alocacoes-diario");
+  cacheLinhas.set(companyId, linhas);
+  if (!linhas.length) return null;
+  const mapa = new Map(linhas.filter(l => !l.ignorada && l.conta_padrao_codigo).map(l => [l.conta_codigo, l.conta_padrao_codigo as string]));
+  return { traduzir: codigo => mapa.get(codigo) ?? codigo, naoMapeadas: [], ignoradas: new Set(linhas.filter(l => l.ignorada).map(l => l.conta_codigo)) };
 }
 
 async function carregar(companyId: string): Promise<Tradutor | null> {

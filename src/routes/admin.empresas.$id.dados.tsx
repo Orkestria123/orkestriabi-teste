@@ -550,7 +550,7 @@ function DiariosTab({ companyId, tenantId, sistemaId }: { companyId: string; ten
   return (
     <div className="space-y-4">
       {/* Contas novas do diário e descartadas — não ficam mais no Plano Padrão */}
-      <ConferenciaDiario companyId={companyId} />
+      <ConferenciaDiario companyId={companyId} tenantId={tenantId} podeEditar={podeEditar} />
       <ContasNovasEmpresaPanel tenantId={tenantId} companyId={companyId} podeEditar={podeEditar} />
       <div>
         <h3 className="text-sm font-medium mb-2">Descartadas</h3>

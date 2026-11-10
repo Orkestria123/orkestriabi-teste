@@ -51,7 +51,7 @@ export function ConferenciaDiario({ companyId, tenantId, podeEditar }: { company
       const { error } = await supabase.rpc("alocar_conta_diario", { _company_id: companyId, _codigo: codigo, _destino: destino });
       if (error) throw error;
       limparCacheDepara(companyId); limparCachePlano();
-      await limparCacheDemonstracoes(companyId);
+      await limparCacheDemonstracoes();
       await qc.invalidateQueries({ queryKey: ["conferencia-diario", companyId] });
       await qc.invalidateQueries({ queryKey: ["bi"] });
       toast.success("Alocação salva para esta empresa");

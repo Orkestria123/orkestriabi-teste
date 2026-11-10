@@ -180,7 +180,7 @@ async function carregarExatos(companyId: string): Promise<Tradutor | null> {
     let q = supabase.from("depara_contas").select("conta_codigo, conta_padrao_codigo, ignorada").eq("company_id", companyId).order("conta_codigo").limit(1000);
     if (depois) q = q.gt("conta_codigo", depois);
     const { data, error } = await q;
-    return { data: data?.map(l => ({ ...l, origem: "exato" as const })), error };
+    return { data: data?.map(l => ({ ...l, origem: "exato" as const })) ?? null, error };
   }, "alocacoes-diario");
   cacheLinhas.set(companyId, linhas);
   if (!linhas.length) return null;

@@ -3247,6 +3247,10 @@ export type Database = {
         Args: { _upload_id: string }
         Returns: undefined
       }
+      alocar_conta_diario: {
+        Args: { _codigo: string; _company_id: string; _destino: string }
+        Returns: undefined
+      }
       alternar_tenant_ativo: {
         Args: { _tenant_id: string }
         Returns: undefined
@@ -3833,6 +3837,30 @@ export type Database = {
         Returns: Json
       }
       fechar_upload_diario: { Args: { _upload_id: string }; Returns: Json }
+      filtrar_contas_diario: {
+        Args: {
+          _busca?: string
+          _company_id: string
+          _divergentes?: boolean
+          _fim?: string
+          _inicio?: string
+          _offset?: number
+          _tipo?: string
+        }
+        Returns: {
+          codigo: string
+          creditos: number
+          debitos: number
+          destino_classificacao: string
+          destino_codigo: string
+          destino_nome: string
+          ignorada: boolean
+          lancamentos: number
+          nome: string
+          tipo_esperado: string
+          total: number
+        }[]
+      }
       finalizar_upload_diario: { Args: { _upload_id: string }; Returns: Json }
       garantir_contas_agregadoras: {
         Args: { _tenant_id: string }

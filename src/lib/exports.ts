@@ -21,13 +21,13 @@ function formatted(cell: ViewCell, thousands: boolean) {
 }
 export function exportStatementXLSX(rows: StatementRow[], periods: string[], filename: string, title: string, view?: StatementView) {
   const model = view ?? fallback(rows, periods);
-  const ws = XLSX.utils.aoa_to_sheet([[title], [model.thousands ? 'Valores em R$ mil' : 'Valores em R$'], ['Descrição', ...model.headers],
-    ...model.rows.map(r => [r.source.descricao, ...r.cells.map(c => c.value == null ? null : c.value / (c.format === 'percent' ? 100 : model.thousands ? 1000 : 1))])]);
-  ws['!cols'] = [{ wch: 55 }, ...model.headers.map(() => ({ wch: 23 }))];
+  const ws = XLSX.utils.aoa_to_sheet([[title], [model.thousands ? 'Valores em R$ mil' : 'Valores em R$'], ['Código', 'Descrição', ...model.headers],
+    ...model.rows.map(r => [r.source.codigo_conta ?? '', r.source.descricao, ...r.cells.map(c => c.value == null ? null : c.value / (c.format === 'percent' ? 100 : model.thousands ? 1000 : 1))])]);
+  ws['!cols'] = [{ wch: 16 }, { wch: 55 }, ...model.headers.map(() => ({ wch: 23 }))];
   ws['!rows'] = [{}, {}, {}, ...model.rows.map(r => ({ level: Math.min(7, r.source.nivel), hidden: !r.visible }))];
   ws['!outline'] = { above: true, left: true };
   model.rows.forEach((r, i) => r.cells.forEach((c, j) => {
-    const cell = ws[XLSX.utils.encode_cell({ r: i + 3, c: j + 1 })];
+    const cell = ws[XLSX.utils.encode_cell({ r: i + 3, c: j + 2 })];
     if (cell) cell.z = c.format === 'percent' ? '0.00%;[Red](0.00%);"—"' : c.difference ? '[Red]#,##0.00;[Red](#,##0.00);"—"' : '#,##0.00;(#,##0.00);"—"';
   }));
   const wb = XLSX.utils.book_new();
@@ -49,27 +49,27 @@ export function exportStatementPDF(rows: StatementRow[], periods: string[], file
     if (modeIndex > 0) doc.addPage();
     starts.push(doc.getNumberOfPages());
     const selected = model.rows.filter(mode.accept);
-    const numericWidth = (pageWidth - 280) / Math.max(1, model.headers.length);
+    const numericWidth = (pageWidth - 350) / Math.max(1, model.headers.length);
     autoTable(doc, {
       startY: 112, margin: { top: 112, bottom: 32, left: 30, right: 30 }, tableWidth: pageWidth - 60,
-      head: [['Descrição', ...model.headers]],
-      body: selected.map(r => [r.source.descricao, ...r.cells.map(c => formatted(c, model.thousands))]),
+      head: [['Código', 'Descrição', ...model.headers]],
+      body: selected.map(r => [r.source.codigo_conta ?? '', r.source.descricao, ...r.cells.map(c => formatted(c, model.thousands))]),
       styles: { fontSize: 8, cellPadding: 4, overflow: 'linebreak' },
       headStyles: { fillColor: primary, fontStyle: 'bold' },
-      columnStyles: { 0: { cellWidth: 220 }, ...Object.fromEntries(model.headers.map((_, i) => [i + 1, { cellWidth: numericWidth, halign: 'center' }])) },
+      columnStyles: { 0: { cellWidth: 60 }, 1: { cellWidth: 200 }, ...Object.fromEntries(model.headers.map((_, i) => [i + 2, { cellWidth: numericWidth, halign: 'center' }])) },
       didParseCell: data => {
         // Column styles do not reach AutoTable headers: align both sections
         // on the same axis, with wrapping and inset space inside every cell.
-        data.cell.styles.halign = data.column.index === 0 ? 'left' : 'center';
+        data.cell.styles.halign = data.column.index <= 1 ? 'left' : 'center';
         data.cell.styles.valign = 'middle';
         data.cell.styles.overflow = 'linebreak';
-        if (data.column.index > 0) data.cell.styles.cellPadding = { top: 4, bottom: 4, left: 8, right: 8 };
+        if (data.column.index > 1) data.cell.styles.cellPadding = { top: 4, bottom: 4, left: 8, right: 8 };
         if (data.section !== 'body') return;
         const row = selected[data.row.index];
         if (!row) return;
         if (row.source.is_subtotal) { data.cell.styles.fontStyle = 'bold'; data.cell.styles.fillColor = '#F3F4F6'; }
-        if (data.column.index === 0) data.cell.styles.cellPadding = { top: 4, bottom: 4, left: 4 + row.source.nivel * 8, right: 4 };
-        const cell = row.cells[data.column.index - 1];
+        if (data.column.index === 1) data.cell.styles.cellPadding = { top: 4, bottom: 4, left: 4 + row.source.nivel * 8, right: 4 };
+        const cell = row.cells[data.column.index - 2];
         if (cell?.difference && cell.value != null && Math.abs(cell.value) > 0.005) data.cell.styles.textColor = '#DC2626';
       },
       didDrawPage: () => { pages.push({ page: doc.getNumberOfPages(), mode: modeIndex }); },

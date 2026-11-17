@@ -47,27 +47,11 @@ function buildRows(data: any[]): { rows: StatementRow[]; periods: string[] } {
     periodSet.add(r.periodo);
   }
   return {
-    rows: aninharDeducoes(
-      Array.from(map.values()).sort((a, b) => a.linha_ordem - b.linha_ordem),
-    ),
+    // Receita Bruta, Devoluções e Deduções ficam no mesmo nível (só
+    // visual): Devoluções não fazem parte da Receita Bruta nem das Deduções.
+    rows: Array.from(map.values()).sort((a, b) => a.linha_ordem - b.linha_ordem),
     periods: Array.from(periodSet).sort(),
   };
-}
-
-/**
- * Só visual: o bloco "(-) Deduções da Receita Bruta" aparece DENTRO da
- * Receita Bruta (um nível abaixo). Valores e cálculos não mudam.
- */
-function aninharDeducoes(rows: StatementRow[]): StatementRow[] {
-  const iRB = rows.findIndex((r) => r.nivel === 0 && /receita bruta/i.test(r.descricao ?? "") && !/dedu/i.test(r.descricao ?? ""));
-  const iDed = rows.findIndex((r) => r.nivel === 0 && /dedu[cç][oõ]es da receita/i.test(r.descricao ?? ""));
-  if (iRB < 0 || iDed < 0 || iDed < iRB) return rows;
-  const out = rows.map((r) => ({ ...r }));
-  for (let j = iDed; j < out.length; j++) {
-    if (j > iDed && out[j].nivel === 0) break;
-    out[j].nivel = out[j].nivel + 1;
-  }
-  return out;
 }
 
 /** "2026-07-01" -> "Jul/26" */

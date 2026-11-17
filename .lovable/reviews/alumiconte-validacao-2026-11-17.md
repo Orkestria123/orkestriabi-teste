@@ -43,4 +43,6 @@ ECD Resultado Financeiro: (2.728.664,34), versus BI (3.125.342,84): diferença (
 A organização Open separa devoluções de deduções; para comparar com a ECD, considerar os dois blocos conjuntamente. Há diferenças adicionais de subclasses dentro do CPV e entre CMV/CPV por uso do plano padronizado. Vínculos mantidos: revisão da classificação é uma decisão contábil distinta da correção do motor.
 
 ## Limites
+Conferência adicional: DRE renderizada em computador (1280 px) e celular (390 px), temas claro e escuro, sem erros de execução. Botão de recalcular mantém as receitas e navegação seguinte ao Balanço carrega os valores, inclusive pelo menu do celular. Tabelas mantêm rolagem horizontal para os meses.
+
 Conferência contra registros ECD persistidos (I050/I155/I250), sem novo TXT/J150 anexado nesta solicitação. Aplicação 2025 conferida conta/mês; fechamento anual conferido para todos os anos importados. Alteração ainda não publicada no endereço de produção.

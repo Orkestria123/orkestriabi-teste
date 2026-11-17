@@ -36,6 +36,7 @@ import { getFormulasEbitEbitda, type FormulasEbitEbitda } from "@/lib/indicadore
 import { avaliarExpressao, buildContext, type PlanoRowEng, type SaldoRow, type Token } from "@/lib/indicadores/engine";
 import { criarAcumulador, type AberturaConta } from "@/lib/diario/acumulador";
 import { getTradutor } from "@/lib/plano/depara";
+import { codigoSaldo } from "./codigo-saldo";
 import { getFormulasLinhas, type FormulasLinhas } from "@/lib/indicadores/linhas-calculadas";
 
 /**
@@ -188,7 +189,7 @@ function agregarSaldosTraduzidos(
 ): Saldo[] {
   const idx = new Map<string, Saldo>();
   for (const r of rows) {
-    const codigo = traduzir ? traduzir(r.conta_codigo) : r.conta_codigo;
+    const codigo = codigoSaldo(r, traduzir);
     const competencia = r.competencia;
     const k = `${codigo}|${competencia}`;
     const d = Number(r.total_debitos) || 0;
@@ -565,7 +566,7 @@ async function getSaldos(
   const rows = await fetchAllPaginated<any>((from, to) =>
     supabase
       .from("saldos_mensais")
-      .select("conta_codigo, competencia, total_debitos, total_creditos, movimento", countNaPrimeira(from))
+      .select("conta_codigo, competencia, total_debitos, total_creditos, movimento, origem_ecd", countNaPrimeira(from))
       .eq("company_id", companyId)
       .in("competencia", periodos)
       .order("conta_codigo")
@@ -669,7 +670,7 @@ async function getSaldosAteData(
   const rows = await fetchAllPaginated<any>((from, to) =>
     supabase
       .from("saldos_mensais")
-      .select("conta_codigo, competencia, total_debitos, total_creditos, movimento", countNaPrimeira(from))
+      .select("conta_codigo, competencia, total_debitos, total_creditos, movimento, origem_ecd", countNaPrimeira(from))
       .eq("company_id", companyId)
       .lte("competencia", ateData)
       .order("conta_codigo")
@@ -710,7 +711,7 @@ async function getAberturas(companyId: string): Promise<AberturaConta[]> {
   const data = await fetchAllPaginated<any>((from, to) =>
     supabase
       .from("saldos_abertura")
-      .select("conta_codigo, data_referencia, saldo, classificacao, upload_id", countNaPrimeira(from))
+      .select("conta_codigo, data_referencia, saldo, classificacao, upload_id, origem_ecd", countNaPrimeira(from))
       .eq("company_id", companyId)
       .order("conta_codigo")
       .order("data_referencia")
@@ -719,7 +720,7 @@ async function getAberturas(companyId: string): Promise<AberturaConta[]> {
   );
   const trad = await getTradutor(companyId);
   const linhas: AberturaConta[] = data.filter(aberturaPatrimonial).map((r: any) => ({
-    conta_codigo: trad ? trad.traduzir(r.conta_codigo) : r.conta_codigo,
+    conta_codigo: codigoSaldo(r, trad ? (codigo) => trad.traduzir(codigo) : null),
     data_referencia: String(r.data_referencia),
     saldo: Number(r.saldo) || 0,
   }));

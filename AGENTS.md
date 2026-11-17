@@ -1,5 +1,7 @@
 # Architecture rules
 
+- ECD-applied monthly and opening balances already store destination codes; use origem_ecd to bypass diary de-para translation, preventing numeric code collisions and double reclassification.
+
 - Diary account inspection uses company-authorized paginated aggregates and resolves company mappings before tenant defaults; ECD codes are excluded from diary range inference to avoid reclassifying unrelated charts.
 - Diary discrepancy filters run before pagination; direct edits require tenant management and save company-scoped exact mappings, including for standard-plan companies, so corrections never change other companies' charts.
 - Imported CSV opening trial balances contribute only patrimonial rows to accumulated statements because their prior result is already in equity; retained source rows remain available for audit, while ECD openings retain their own semantics.

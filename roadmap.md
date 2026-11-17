@@ -1,5 +1,9 @@
 # Roadmap — ajustes BI (25/09/2026)
 
+## Alumiconte — 17/11
+- [ ] Investigar receitas ausentes após releitura da ECD e corrigir a causa
+- [ ] Conferir resultado anual e valores dos grupos da DRE contra a ECD, com leitura na tela
+
 ## Diário e abertura — 09/11
 - [x] Incluir filtros Clientes/Fornecedores e somente divergentes antes da paginação, com alteração direta por empresa no Diário; gravação e releitura pela tela conferidas, seis testes aprovados
 - [x] Validar Rota Inox dezembro/2025: 17 fornecedores realocados só nesta empresa, diferença R$ 166.442,35; Clientes Nacionais R$ 5.221.853,40, Fornecedores Nacionais R$ 3.395.796,50; motor do BP fecha em R$ 28.110.079,28

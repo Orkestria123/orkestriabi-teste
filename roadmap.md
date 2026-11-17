@@ -1,8 +1,8 @@
 # Roadmap — ajustes BI (25/09/2026)
 
 ## Alumiconte — 17/11
-- [ ] Investigar receitas ausentes após releitura da ECD e corrigir a causa
-- [ ] Conferir resultado anual e valores dos grupos da DRE contra a ECD, com leitura na tela
+- [x] Corrigir tradução duplicada dos saldos ECD e aberturas pelo de-para do Diário, usando origem_ecd; oito testes aprovados, receita 2025 R$ 235.452.711,27 conferida na tela
+- [x] Conferir 2020–2025: resultados DRE iguais à ECD e Balanços de dezembro equilibrados. Em 2025, lucro R$ 7.032.027,94, BP R$ 123.625.030,78; saldos aplicados iguais ao diário ECD sem encerramento. Diferenças de alocação entre grupos documentadas, sem alterar o plano/vínculos do usuário
 
 ## Diário e abertura — 09/11
 - [x] Incluir filtros Clientes/Fornecedores e somente divergentes antes da paginação, com alteração direta por empresa no Diário; gravação e releitura pela tela conferidas, seis testes aprovados

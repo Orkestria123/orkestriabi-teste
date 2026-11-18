@@ -1,5 +1,8 @@
 # Roadmap — ajustes BI (25/09/2026)
 
+## Gebb Work — arquivos 18/11
+- [x] Entregar julho, agosto e setembro/2026 da ECD em três planilhas com códigos e descrições do de-para, preservando a origem; 260/261/263 contas, todos os vínculos e valores conferidos, sem alterar a contabilidade.
+
 ## Supriaço — 18/11
 - [x] Corrigir criação individual nas ferramentas do Diário/conferência e 131 vínculos da Supriaço; gravação, lote idempotente, contas individuais e 12 testes conferidos
 - [x] Exceções 556653/556654/551481 confirmadas e reclassificadas como Clientes Nacionais somente na Supriaço; Fornecedores outubro/2026 R$ 540.505,22 conferidos na tela, BP equilibrado em R$ 5.790.558,32; cinco testes aprovados

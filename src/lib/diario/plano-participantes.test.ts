@@ -9,3 +9,8 @@ it("resolves a company client exception before filtering suppliers", () => {
   expect(resolverParticipantes(rows,["5-For. Nac."])).toEqual([]);
   expect(resolverParticipantes(rows,["4-Cli. Nac."])).toHaveLength(1);
 });
+it.each(["556653", "556654", "551481"])("keeps confirmed Supriaço client %s out of suppliers", codigo => {
+  const rows = [{ codigo, company_id: null, tipo: "5-For. Nac." }, { codigo, company_id: "supriaco", tipo: "4-Cli. Nac." }];
+  expect(resolverParticipantes(rows, ["5-For. Nac."])).toEqual([]);
+  expect(resolverParticipantes(rows, ["4-Cli. Nac."]).map(r => r.codigo)).toEqual([codigo]);
+});

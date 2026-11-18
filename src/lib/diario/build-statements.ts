@@ -37,6 +37,7 @@ import { avaliarExpressao, buildContext, type PlanoRowEng, type SaldoRow, type T
 import { criarAcumulador, type AberturaConta } from "@/lib/diario/acumulador";
 import { getTradutor } from "@/lib/plano/depara";
 import { codigoSaldo } from "./codigo-saldo";
+import { resolverParticipantes } from "./plano-participantes";
 import { getFormulasLinhas, type FormulasLinhas } from "@/lib/indicadores/linhas-calculadas";
 
 /**
@@ -321,16 +322,16 @@ async function getPlanoPorTipo(
 
   // .in("codigo", ...) em lotes para evitar URLs gigantescas
   const CHUNK = 500;
-  const participantes: Plano[] = [];
+  const participantes: (Plano & { company_id: string | null; tipo: string })[] = [];
   for (let i = 0; i < codigos.length; i += CHUNK) {
     const lote = codigos.slice(i, i + CHUNK);
-    const rows = await fetchAllPaginated<Plano>((from, to) => {
+    const rows = await fetchAllPaginated<Plano & { company_id: string | null; tipo: string }>((from, to) => {
       const q = supabase
         .from("plano_contas")
-        .select("codigo, classificacao, descricao, nivel, is_participante, is_sintetica", countNaPrimeira(from))
+        .select("codigo, classificacao, descricao, nivel, is_participante, is_sintetica, company_id, tipo", countNaPrimeira(from))
         .eq("tenant_id", tenantId)
         .eq("ativo", true)
-        .in("tipo", tiposParticipantes)
+        .eq("is_participante", true)
         .in("codigo", lote)
         .order("codigo")
         .range(from, to);
@@ -338,7 +339,7 @@ async function getPlanoPorTipo(
     }, "plano participantes");
     participantes.push(...rows);
   }
-  return [...estruturais, ...participantes];
+  return [...estruturais, ...resolverParticipantes(participantes, tiposParticipantes)];
 }
 
 // AJUSTE 12 — a estrutura da demonstração É a hierarquia do plano.

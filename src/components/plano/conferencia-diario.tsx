@@ -77,7 +77,7 @@ export function ConferenciaDiario({ companyId, tenantId, podeEditar }: { company
           <table className="w-full text-sm min-w-[900px]">
             <thead className="sticky top-0 bg-background"><tr className="border-b border-border">{["Conta / Nome no diário", "Tipo pela faixa", "Conta de destino / Sintética", "Débitos", "Créditos", "Movimento D−C", "Validação"].map(h => <th key={h} className="px-3 py-2 text-left">{h}</th>)}</tr></thead>
             <tbody>{q.data?.map(r => {
-              const status = validarAlocacao(r.codigo, r.destino_classificacao, r.ignorada);
+              const status = validarAlocacao(r.codigo, r.destino_classificacao, r.ignorada, r.destino_codigo);
               return <tr key={r.codigo} className="border-b border-border">
                 <td className="p-3"><span className="font-mono">{r.codigo}</span><div>{r.nome}</div><small className="text-muted-foreground">{r.lancamentos} partidas</small></td>
                 <td className="p-3">{r.tipo_esperado?.startsWith("4-") ? "Cliente" : r.tipo_esperado ? "Fornecedor" : "—"}</td>

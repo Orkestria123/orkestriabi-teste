@@ -25,6 +25,9 @@ import {
 import { AlertTriangle, CheckCircle2, Loader2, Search, Trash2, Layers } from "lucide-react";
 import { toast } from "sonner";
 import { formatBRL } from "@/lib/format";
+import { limparCacheDepara } from "@/lib/plano/depara";
+import { limparCachePlano } from "@/lib/diario/build-statements";
+import { limparCacheDemonstracoes } from "@/lib/cache-demonstracoes";
 
 interface ContaNova {
   codigo: string;
@@ -85,7 +88,11 @@ export function ContasNovasEmpresaPanel({
     },
   });
 
-  const invalidar = () => {
+  const invalidar = async () => {
+    limparCacheDepara(companyId); limparCachePlano();
+    await limparCacheDemonstracoes();
+    qc.invalidateQueries({ queryKey: ["conferencia-diario", companyId] });
+    qc.invalidateQueries({ queryKey: ["bi"] });
     qc.invalidateQueries({ queryKey: ["contas-novas-empresa", tenantId, companyId] });
     qc.invalidateQueries({ queryKey: ["plano-padrao-resumo", tenantId] });
     qc.invalidateQueries({ queryKey: ["sinteticas-plano-padrao", tenantId] });
@@ -133,9 +140,9 @@ export function ContasNovasEmpresaPanel({
     if (itens.length === 0) return;
     setBusy(true);
     try {
-      const { data, error } = await supabase.rpc("aprovar_contas_novas_lote", {
-        _tenant_id: tenantId, _itens: itens as any,
-      });
+      const { data, error } = companyId
+        ? await supabase.rpc("aprovar_contas_diario_empresa", { _company_id: companyId, _itens: itens })
+        : await supabase.rpc("aprovar_contas_novas_lote", { _tenant_id: tenantId, _itens: itens });
       if (error) throw error;
       const r = data as any;
       toast.success(
@@ -159,9 +166,9 @@ export function ContasNovasEmpresaPanel({
       const itens = sugeridas.map((c) => ({
         codigo: c.codigo, descricao: nomeDe(c), tipo: c.tipo_sugerido, classificacao_pai: c.pai_sugerido,
       }));
-      const { data, error } = await supabase.rpc("aprovar_contas_novas_lote", {
-        _tenant_id: tenantId, _itens: itens as any,
-      });
+      const { data, error } = companyId
+        ? await supabase.rpc("aprovar_contas_diario_empresa", { _company_id: companyId, _itens: itens })
+        : await supabase.rpc("aprovar_contas_novas_lote", { _tenant_id: tenantId, _itens: itens });
       if (error) throw error;
       const r = data as any;
       toast.success(`${r.inseridas} cliente(s)/fornecedor(es) cadastrado(s)`);
@@ -231,7 +238,7 @@ export function ContasNovasEmpresaPanel({
         <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
         <div className="flex-1">
           <strong className="text-sm">
-            {novas!.length} conta(s) do diário não existem no Plano Padrão
+            {(novas ?? []).length} conta(s) do diário não existem no Plano Padrão
           </strong>
           <p className="text-xs text-muted-foreground mt-1">
             Os lançamentos dessas contas ficam fora das demonstrações até serem incorporados. O

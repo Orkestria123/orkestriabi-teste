@@ -526,6 +526,13 @@
       "when": 1794321976629,
       "tag": "0074_diario_filtros_alocacao",
       "breakpoints": true
+    },
+    {
+      "idx": 75,
+      "version": "7",
+      "when": 1795020919848,
+      "tag": "0075_diario_participantes_individuais",
+      "breakpoints": true
     }
   ]
 }

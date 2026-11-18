@@ -1,5 +1,9 @@
 # Roadmap — ajustes BI (25/09/2026)
 
+## Supriaço — 18/11
+- [x] Corrigir criação individual nas ferramentas do Diário/conferência e 131 vínculos da Supriaço; gravação, lote idempotente, contas individuais e 12 testes conferidos
+- [ ] Confirmar exceções 556653/556654/551481 como clientes: saldo R$ 78.973,34 explica exatamente R$ 461.531,88 → R$ 540.505,22; aguarda resposta do usuário antes de reclassificar. BP outubro equilibrado em R$ 5.711.584,98
+
 ## Alumiconte — 17/11
 - [x] Corrigir tradução duplicada dos saldos ECD e aberturas pelo de-para do Diário, usando origem_ecd; oito testes aprovados, receita 2025 R$ 235.452.711,27 conferida na tela
 - [x] Conferir 2020–2025: resultados DRE iguais à ECD e Balanços de dezembro equilibrados. Em 2025, lucro R$ 7.032.027,94, BP R$ 123.625.030,78; saldos aplicados iguais ao diário ECD sem encerramento. Diferenças de alocação entre grupos documentadas, sem alterar o plano/vínculos do usuário

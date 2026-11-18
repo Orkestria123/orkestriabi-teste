@@ -3279,6 +3279,10 @@ export type Database = {
         }
         Returns: Json
       }
+      aprovar_contas_diario_empresa: {
+        Args: { _company_id: string; _itens: Json }
+        Returns: Json
+      }
       aprovar_contas_novas: {
         Args: { _itens: Json; _tenant_id: string }
         Returns: Json

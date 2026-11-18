@@ -1,5 +1,7 @@
 # Architecture rules
 
+- Diary participant allocation creates company-scoped individual accounts and identity mappings; resolve company participants before tenant defaults across both balance-sheet sides so shared numeric codes cannot inherit another company's group.
+
 - ECD-applied monthly and opening balances already store destination codes; use origem_ecd to bypass diary de-para translation, preventing numeric code collisions and double reclassification.
 
 - Diary account inspection uses company-authorized paginated aggregates and resolves company mappings before tenant defaults; ECD codes are excluded from diary range inference to avoid reclassifying unrelated charts.

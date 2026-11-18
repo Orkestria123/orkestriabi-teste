@@ -13,6 +13,7 @@ describe("faixas do diário", () => {
   });
 });
 it("valida a sintética de clientes e fornecedores sem ocultar pendências", () => {
+  expect(validarAlocacao("500131", "2.01.01.01.01.01", false, "AGG-2.01.01.01.01.01")).toBe("Consolidada · sem conta individual");
   expect(validarAlocacao("100000", "1.01.02.01.01.01")).toBe("Grupo correto");
   expect(validarAlocacao("500000", "2.01.01.01.01.01")).toBe("Grupo correto");
   expect(validarAlocacao("500000", "1.01.02.01.01.01")).toBe("Grupo divergente");

@@ -23,46 +23,52 @@ export interface FormulasEbitEbitda {
 const inflight = new Map<string, Promise<FormulasEbitEbitda>>();
 
 export function limparCacheFormulasEbit(tenantId?: string) {
-  if (tenantId) inflight.delete(tenantId);
+  if (tenantId) {
+    for (const key of inflight.keys()) if (key.startsWith(`${tenantId}:`)) inflight.delete(key);
+  }
   else inflight.clear();
 }
 
 const VAZIO: FormulasEbitEbitda = { ebit: [], ebitda: [], ebitId: null, ebitdaId: null };
 
-export async function getFormulasEbitEbitda(tenantId: string): Promise<FormulasEbitEbitda> {
-  const pending = inflight.get(tenantId);
+export function selecionarFormulasEbit(rows: { id: string; nome: string; company_id: string | null; formula: Parameters<typeof tokensDaFormula>[0] }[], companyId?: string): FormulasEbitEbitda {
+  const out = { ...VAZIO };
+  for (const alvo of ["ebit", "ebitda"] as const) {
+    const candidatos = rows.filter(r => nomeBateIndicadorEbit(r.nome, alvo));
+    const row = (companyId ? candidatos.find(r => r.company_id === companyId) : undefined)
+      ?? candidatos.find(r => r.company_id === null);
+    if (row) {
+      out[alvo] = tokensDaFormula(row.formula);
+      out[`${alvo}Id`] = row.id;
+    }
+  }
+  return out;
+}
+
+export async function getFormulasEbitEbitda(tenantId: string, companyId?: string): Promise<FormulasEbitEbitda> {
+  const key = `${tenantId}:${companyId ?? "global"}`;
+  const pending = inflight.get(key);
   if (pending) return pending;
 
   const job = (async (): Promise<FormulasEbitEbitda> => {
-    const { data, error } = await supabase
+    let query = supabase
       .from("indicadores_empresa")
-      .select("id, nome, formula")
-      .eq("tenant_id", tenantId)
-      .is("company_id", null);
+      .select("id, nome, formula, company_id")
+      .eq("tenant_id", tenantId);
+    query = companyId ? query.or(`company_id.is.null,company_id.eq.${companyId}`) : query.is("company_id", null);
+    const { data, error } = await query;
     if (error) {
       console.warn("[ebit-fonte] indicadores:", error.message);
       return { ...VAZIO };
     }
-    const out: FormulasEbitEbitda = { ...VAZIO };
-    for (const r of data ?? []) {
-      const toks = tokensDaFormula((r as any).formula);
-      const id = String((r as any).id);
-      if (nomeBateIndicadorEbit(String((r as any).nome), "ebitda")) {
-        out.ebitda = toks;
-        out.ebitdaId = id;
-      } else if (nomeBateIndicadorEbit(String((r as any).nome), "ebit")) {
-        out.ebit = toks;
-        out.ebitId = id;
-      }
-    }
-    return out;
+    return selecionarFormulasEbit((data ?? []).map(r => ({ ...r, formula: r.formula as Parameters<typeof tokensDaFormula>[0] })), companyId);
   })();
 
-  inflight.set(tenantId, job);
+  inflight.set(key, job);
   try {
     return await job;
   } finally {
-    inflight.delete(tenantId);
+    inflight.delete(key);
   }
 }
 

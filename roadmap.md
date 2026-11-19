@@ -1,5 +1,10 @@
 # Roadmap — ajustes BI (25/09/2026)
 
+## Alumiconte — 19/11
+- [x] Incluir ALU-0039 no EBITDA somente da Alumiconte; fórmula, quatro testes e EBITDA dezembro/2025 R$ 1.412.679,76 conferidos na tela.
+- [x] Conferir Ativo e Passivo de 2020 a 2025: todos fecham, mas ALU-0005 e ALU-0006 estão nos lados opostos à ECD. Diferenças: 2020 R$ 103.176,64; 2021 R$ 220.697,07; 2022 R$ 386.510,20; 2023 R$ 147.209,70; 2024 R$ 256.919,82; 2025 R$ 222.134,50.
+- [ ] Reclassificar ALU-0005 para Ativo e ALU-0006 para Passivo — aguarda confirmação do usuário para preservar os vínculos existentes.
+
 ## Gebb Work — arquivos 18/11
 - [x] Entregar julho, agosto e setembro/2026 da ECD em três planilhas com códigos e descrições do de-para, preservando a origem; 260/261/263 contas, todos os vínculos e valores conferidos, sem alterar a contabilidade.
 

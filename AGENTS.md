@@ -1,5 +1,7 @@
 # Architecture rules
 
+- EBIT/EBITDA formulas resolve company overrides before tenant defaults, with company-isolated request caches, so account-specific addbacks never change other companies.
+
 - Diary participant allocation creates company-scoped individual accounts and identity mappings; resolve company participants before tenant defaults across both balance-sheet sides so shared numeric codes cannot inherit another company's group.
 
 - ECD-applied monthly and opening balances already store destination codes; use origem_ecd to bypass diary de-para translation, preventing numeric code collisions and double reclassification.

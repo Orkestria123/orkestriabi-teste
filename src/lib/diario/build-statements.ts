@@ -1026,7 +1026,7 @@ async function buildDRE(
     getPlanoPorTipo(companyId, tenantId, modoGlobal, ["3-DRE"]),
     getPlanoPorTipo(companyId, tenantId, modoGlobal, ["1-Ativo", "2-Passivo", "3-DRE"]),
     getCorrecoesEncerramento(companyId, periodos),
-    getFormulasEbitEbitda(tenantId),
+    getFormulasEbitEbitda(tenantId, companyId),
     getFormulasLinhas(tenantId, companyId),
   ]);
   // Remove os lançamentos de encerramento do exercício dos saldos de contas

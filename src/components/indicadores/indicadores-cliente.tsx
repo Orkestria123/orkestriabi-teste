@@ -40,6 +40,7 @@ import { Card } from "@/components/ui/card";
 import { IndicadorCardCliente } from "./indicador-card-cliente";
 import { useVisaoGerencial } from "@/hooks/use-visao-gerencial";
 import { compararCategoria } from "@/lib/indicadores/categorias";
+import { indicadoresEbitEfetivos } from "@/lib/indicadores/ebit-fonte";
 
 type BaseAV = "rb" | "rl";
 
@@ -104,7 +105,7 @@ export function IndicadoresClienteGrid({
       });
       if (error) throw error;
       const vis = new Set(visibilidade);
-      return ((data ?? []) as any[])
+      return indicadoresEbitEfetivos((data ?? []) as any[])
         .filter((i) => vis.has(i.visibilidade))
         .sort((a, b) =>
           compararCategoria(a.categoria ?? "", b.categoria ?? "") ||

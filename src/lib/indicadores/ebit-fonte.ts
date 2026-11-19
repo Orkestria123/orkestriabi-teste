@@ -31,6 +31,12 @@ export function limparCacheFormulasEbit(tenantId?: string) {
 
 const VAZIO: FormulasEbitEbitda = { ebit: [], ebitda: [], ebitId: null, ebitdaId: null };
 
+export function indicadoresEbitEfetivos<T extends { nome: string; escopo: string }>(rows: T[]): T[] {
+  return rows.filter(row => row.escopo === "empresa" || !(["ebit", "ebitda"] as const).some(alvo =>
+    nomeBateIndicadorEbit(row.nome, alvo) && rows.some(local => local.escopo === "empresa" && nomeBateIndicadorEbit(local.nome, alvo)),
+  ));
+}
+
 export function selecionarFormulasEbit(rows: { id: string; nome: string; company_id: string | null; formula: Parameters<typeof tokensDaFormula>[0] }[], companyId?: string): FormulasEbitEbitda {
   const out = { ...VAZIO };
   for (const alvo of ["ebit", "ebitda"] as const) {

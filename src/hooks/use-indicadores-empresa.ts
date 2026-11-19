@@ -14,7 +14,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { compararCategoria } from "@/lib/indicadores/categorias";
-import { nomeBateIndicadorEbit } from "@/lib/indicadores/ebit-fonte";
+import { indicadoresEbitEfetivos } from "@/lib/indicadores/ebit-fonte";
 
 export interface IndicadorDaEmpresa {
   id: string;
@@ -47,9 +47,7 @@ export function useIndicadoresDaEmpresa(companyId: string | null | undefined) {
       });
       if (error) throw error;
       const rows = (data ?? []) as IndicadorDaEmpresa[];
-      const efetivos = rows.filter(row => row.escopo === "empresa" || !(["ebit", "ebitda"] as const).some(alvo =>
-        nomeBateIndicadorEbit(row.nome, alvo) && rows.some(local => local.escopo === "empresa" && nomeBateIndicadorEbit(local.nome, alvo)),
-      ));
+      const efetivos = indicadoresEbitEfetivos(rows);
       return efetivos.sort(
         (a, b) =>
           compararCategoria(a.categoria ?? "", b.categoria ?? "") ||

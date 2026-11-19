@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 vi.mock("@/integrations/supabase/client", () => ({ supabase: {} }));
-import { selecionarFormulasEbit } from "./ebit-fonte";
+import { indicadoresEbitEfetivos, selecionarFormulasEbit } from "./ebit-fonte";
 import type { Token } from "./engine";
 
 describe("EBITDA por empresa", () => {
@@ -14,5 +14,9 @@ describe("EBITDA por empresa", () => {
     expect(selecionarFormulasEbit(rows, "alumiconte").ebitda).toEqual(alumiconte);
     expect(selecionarFormulasEbit(rows, "outra").ebitda).toEqual(global);
     expect(selecionarFormulasEbit(rows).ebitda).toEqual(global);
+  });
+  it("exibe apenas o EBITDA da empresa quando há exceção, preservando os demais indicadores", () => {
+    const indicadores = [{ nome: "Ebitda", escopo: "global" }, { nome: "Ebitda", escopo: "empresa" }, { nome: "Margem Ebitda", escopo: "global" }];
+    expect(indicadoresEbitEfetivos(indicadores)).toEqual(indicadores.slice(1));
   });
 });

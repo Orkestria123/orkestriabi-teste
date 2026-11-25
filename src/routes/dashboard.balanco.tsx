@@ -9,6 +9,9 @@ import { ExportMenu } from "@/components/export-menu";
 import { Button } from "@/components/ui/button";
 import { useMemo, useState } from "react";
 import { VisaoBadge } from "@/components/visao-toggle";
+import { useVisaoGerencial } from "@/hooks/use-visao-gerencial";
+import { conferirTotaisBalanco } from "@/lib/diario/consistencia-balanco";
+import { ConsistenciaBalanco } from "@/components/consistencia-balanco";
 
 function buildRows(data: any[]): StatementRow[] {
   const map = new Map<string, StatementRow>();
@@ -44,6 +47,7 @@ export function Page() {
   const [exportView, setExportView] = useState<StatementView>();
   const { companyId, company } = useDashboardCompany();
   const { periodos } = useFilters();
+  const { visao } = useVisaoGerencial();
   const [showAV, setShowAV] = usePersistente("bp:av", false);
   const [showAH, setShowAH] = usePersistente("bp:ah", false);
   // O balanço é uma foto da empresa numa data, não um acumulado do período.
@@ -56,10 +60,16 @@ export function Page() {
     [periodos, todosMeses],
   );
 
-  const { data: ativo } = useMonthlyStatement(companyId, "BP_ATIVO", periodosBp);
-  const { data: passivo } = useMonthlyStatement(companyId, "BP_PASSIVO", periodosBp);
-  const ativoRows = useMemo(() => buildRows(ativo ?? []), [ativo]);
-  const passivoRows = useMemo(() => buildRows(passivo ?? []), [passivo]);
+  const ativoQuery = useMonthlyStatement(companyId, "BP_ATIVO", periodos);
+  const passivoQuery = useMonthlyStatement(companyId, "BP_PASSIVO", periodos);
+  const ativo = ativoQuery.data;
+  const passivo = passivoQuery.data;
+  const ativoRows = useMemo(() => buildRows((ativo ?? []).filter((r) => periodosBp.includes(r.periodo))), [ativo, periodosBp]);
+  const passivoRows = useMemo(() => buildRows((passivo ?? []).filter((r) => periodosBp.includes(r.periodo))), [passivo, periodosBp]);
+  const consistencia = useMemo(() => visao === "comparativo"
+    ? [...conferirTotaisBalanco(ativo ?? [], passivo ?? [], periodos, "contabil"),
+       ...conferirTotaisBalanco(ativo ?? [], passivo ?? [], periodos, "gerencial", "valor_gerencial")]
+    : conferirTotaisBalanco(ativo ?? [], passivo ?? [], periodos, visao), [ativo, passivo, periodos, visao]);
   const bpRows = useMemo(() => {
     const desloc = 1_000_000;
     return [
@@ -112,6 +122,8 @@ export function Page() {
           />
         </div>
       </div>
+
+      <ConsistenciaBalanco resultados={consistencia} carregando={ativoQuery.isPending || passivoQuery.isPending} erro={ativoQuery.isError || passivoQuery.isError} />
 
       <StatementTable
             onViewChange={setExportView}

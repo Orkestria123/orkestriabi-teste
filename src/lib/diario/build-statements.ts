@@ -34,7 +34,7 @@ import {
 import { getEstruturaPadrao, getEstruturaPadraoSync, compararClassificacao } from "@/lib/plano/estrutura";
 import { getFormulasEbitEbitda, type FormulasEbitEbitda } from "@/lib/indicadores/ebit-fonte";
 import { avaliarExpressao, buildContext, type PlanoRowEng, type SaldoRow, type Token } from "@/lib/indicadores/engine";
-import { criarAcumulador, type AberturaConta } from "@/lib/diario/acumulador";
+import { criarAcumulador, criarAcumuladorComAjustes, type AberturaConta } from "@/lib/diario/acumulador";
 import { getTradutor } from "@/lib/plano/depara";
 import { codigoSaldo } from "./codigo-saldo";
 import { resolverParticipantes } from "./plano-participantes";
@@ -1057,7 +1057,8 @@ async function buildDRE(
     saldos = [...saldos, ...virtuais];
     // Plano virtual para contas gerenciais (afeta apenas quando classificadas
     // em grupo 3 — improvável para DRE, mas mantemos por simetria).
-    planoExtra = contasGerenciaisToPlanoVirtual(ger.contasGerenciais, mascara.separador || ".");
+    planoExtra = contasGerenciaisToPlanoVirtual(ger.contasGerenciais, mascara.separador || ".")
+      .filter((p) => dividir(p.classificacao, mascara)[0] === "3");
   }
 
   const planoMap = new Map<string, Plano>();
@@ -1718,7 +1719,7 @@ async function buildBP(
   // quando o encerramento já tinha sido retirado — dezembro deixava de fechar
   // pelo lucro do ano inteiro.
   void encerramentos;
-  const dreCodigos = new Set<string>([...planoDRE, ...planoExtra].map((p) => p.codigo));
+  const dreCodigos = new Set<string>([...planoDRE, ...planoExtra.filter((p) => dividir(p.classificacao, mascara)[0] === "3")].map((p) => p.codigo));
   const resultadoExercicioPorRef = new Map<string, number>();
   if (tipo === "BP_PASSIVO" && dreCodigos.size > 0) {
     for (const ref of periodos) {
@@ -1777,13 +1778,14 @@ async function buildBP(
   // CORREÇÃO DE ACÚMULO — abertura + movimento POSTERIOR a ela, por conta.
   // Antes era `new Map(abertura)` + soma de todo o movimento por cima,
   // o que contava duas vezes o histórico já embutido na abertura.
-  const acumulador = criarAcumulador(
-    saldosAcum.map((x) => ({
+  const acumulador = criarAcumuladorComAjustes(
+    saldosAcumContabil.map((x) => ({
       conta_codigo: x.conta_codigo,
       competencia: x.competencia,
       movimento: x.movimento,
     })),
     abertura,
+    saldosAcum.slice(saldosAcumContabil.length),
   );
 
   // Fase 1: coleta pontos consolidados por (linha mapeada, ref) — assim como

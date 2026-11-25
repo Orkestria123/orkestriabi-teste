@@ -24,3 +24,6 @@
 - The executive PDF renderer uses locally bundled approved-reference fonts and client-side generation, preserving editable drafts and avoiding native server PDF dependencies.- Users may belong to several tenants via tenant_usuarios; profiles.tenant_id is the active tenant switched by alternar_tenant_ativo, so existing RLS (get_my_tenant_id) keeps isolating data unchanged.
 - ECD encerramento entries are dropped whole (result and equity legs) both in saldos_mensais and in the materialized diário; the year's result reaches PL only through the Balance Sheet calculation, so December always balances.
 - Plano Padrão reclassification goes through mover_grupo_plano (moves descendants, DFC links, de-para rules and opening balances together) and revisar_hierarquia_plano (parent/level derived from classificação).
+
+- Accounting opening snapshots reset only accounting movements; managerial adjustments accumulate separately without openings, so ECD refreshes never erase either adjustment leg or prior-year managerial results.
+- Balance consistency validates every available month and each view independently using the displayed statement engine; missing or invalid totals never count as balanced and cent-level discrepancies cannot cancel across months.

@@ -22,7 +22,13 @@ import { resolverLinha } from "@/lib/indicadores/linhas";
 import { buildContext } from "@/lib/indicadores/engine";
 import { MASCARA_DEFAULT } from "@/lib/mascara/interpretar";
 
-export const Route = createFileRoute("/admin/diagnostico")({ component: Page });
+export const Route = createFileRoute("/admin/diagnostico")({ head: () => ({ meta: [
+    { title: "Diagnóstico contábil — Orkestria BI" },
+    { name: "description", content: "Confira a integridade dos dados e da estrutura contábil do escritório." },
+    { property: "og:title", content: "Diagnóstico contábil — Orkestria BI" },
+    { property: "og:description", content: "Confira a integridade dos dados e da estrutura contábil do escritório." },
+    { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" },
+  ] }), component: Page });
 
 interface Linha {
   rotulo: string;

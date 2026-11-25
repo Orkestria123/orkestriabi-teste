@@ -18,7 +18,13 @@ import { deleteSpedFile } from "@/lib/api/orkestria.functions";
 import { Upload as UploadIcon, FileText, CheckCircle2, AlertCircle, Trash2, Receipt, BookOpen } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
-export const Route = createFileRoute("/admin/upload")({ component: Page });
+export const Route = createFileRoute("/admin/upload")({ head: () => ({ meta: [
+    { title: "Importação de arquivos — Orkestria BI" },
+    { name: "description", content: "Importe arquivos contábeis e acompanhe seu processamento no Orkestria BI." },
+    { property: "og:title", content: "Importação de arquivos — Orkestria BI" },
+    { property: "og:description", content: "Importe arquivos contábeis e acompanhe seu processamento no Orkestria BI." },
+    { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" },
+  ] }), component: Page });
 
 function Page() {
   const { profile } = useAuth();

@@ -48,6 +48,20 @@ export interface Acumulador {
   contas(): string[];
 }
 
+/** A fotografia ECD contém só a contabilidade, nunca os ajustes do BI. */
+export function criarAcumuladorComAjustes(
+  movimentos: MovimentoConta[],
+  aberturas: AberturaConta[],
+  ajustes: MovimentoConta[],
+): Acumulador {
+  const contabil = criarAcumulador(movimentos, aberturas);
+  const gerencial = criarAcumulador(ajustes, []);
+  return {
+    saldoAte: (conta, data) => contabil.saldoAte(conta, data) + gerencial.saldoAte(conta, data),
+    contas: () => Array.from(new Set([...contabil.contas(), ...gerencial.contas()])),
+  };
+}
+
 /** Soma dos movimentos com competencia <= data, via busca binária. */
 function somaAte(s: SerieConta, data: string): number {
   const { datas, prefixo } = s;

@@ -29,7 +29,13 @@ function downloadCSV(filename: string, rows: Record<string, any>[]) {
   URL.revokeObjectURL(url);
 }
 
-export const Route = createFileRoute("/dashboard/notas-fiscais")({ component: Page });
+export const Route = createFileRoute("/dashboard/notas-fiscais")({ head: () => ({ meta: [
+    { title: "Notas fiscais — Orkestria BI" },
+    { name: "description", content: "Consulte as notas fiscais e os valores de entradas e saídas da empresa." },
+    { property: "og:title", content: "Notas fiscais — Orkestria BI" },
+    { property: "og:description", content: "Consulte as notas fiscais e os valores de entradas e saídas da empresa." },
+    { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" },
+  ] }), component: Page });
 
 const PAGE_SIZE = 50;
 

@@ -21,7 +21,13 @@ import { toast } from "sonner";
 import { createUsuario, updateUsuario, deleteUserAccount } from "@/lib/api/orkestria.functions";
 import { useAuth } from "@/hooks/use-auth";
 
-export const Route = createFileRoute("/admin/usuarios")({ component: Page });
+export const Route = createFileRoute("/admin/usuarios")({ head: () => ({ meta: [
+    { title: "Usuários do escritório — Orkestria BI" },
+    { name: "description", content: "Gerencie os usuários e os acessos às empresas do escritório." },
+    { property: "og:title", content: "Usuários do escritório — Orkestria BI" },
+    { property: "og:description", content: "Gerencie os usuários e os acessos às empresas do escritório." },
+    { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" },
+  ] }), component: Page });
 
 type Tipo = "admin_escritorio" | "cliente";
 

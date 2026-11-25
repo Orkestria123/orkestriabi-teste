@@ -177,7 +177,7 @@ export function useMonthlyStatement(
   });
 }
 
-async function calcularMonthlyStatement(
+export async function calcularMonthlyStatement(
   companyId: string,
   tipo: string,
   periodos: string[],

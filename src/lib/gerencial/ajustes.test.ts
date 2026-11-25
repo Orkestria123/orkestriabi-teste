@@ -21,12 +21,15 @@ vi.mock("@/lib/plano/depara", () => ({ getTradutor: async () => null }));
 vi.mock("@/lib/plano/consulta", () => ({ getEscopoConsulta: async () => ({ modoGlobal: true, tenantId: "open" }) }));
 vi.mock("@/integrations/supabase/client", () => ({ supabase: { from: (t: keyof typeof consulta.rows) => {
   let data = [...consulta.rows[t]];
+  let count: number | undefined;
   const q = {
-    select: () => q, eq: () => q,
+    select: (_s: string, options?: { count?: string }) => { if (options?.count === "exact") count = data.length; return q; },
+    eq: () => q, order: () => q,
+    range: (from: number, to: number) => { data = data.slice(from, Math.min(to + 1, from + 1000)); return q; },
     is: () => { data = data.filter(r => !("company_id" in r) || r.company_id === null); return q; },
     or: (f: string) => { consulta.filtros[t] = f; data = data.filter(r => !("company_id" in r) || r.company_id === null || f.includes(`company_id.eq.${r.company_id}`)); return q; },
     in: (_c: string, codes: string[]) => { data = data.filter(r => "codigo" in r && codes.includes(r.codigo)); return q; },
-    then: (resolve: (r: unknown) => unknown) => Promise.resolve({ data, error: null }).then(resolve),
+    then: (resolve: (r: unknown) => unknown) => Promise.resolve({ data, error: null, count }).then(resolve),
   }; return q;
 } } }));
 
@@ -65,5 +68,21 @@ describe("ajustesToSaldosVirtuais — marcação DFC", () => {
     const semDfc = { ...base, id: "a2", movimenta_dfc: false };
     const saldos = ajustesToSaldosVirtuais([base, semDfc], () => true);
     expect(saldos).toHaveLength(4);
+  });
+  it("não confirma consistência descartando ajuste com uma conta removida", () => {
+    expect(() => ajustesToSaldosVirtuais([{ ...base, credito: null }], () => true)).toThrow("conta não encontrada");
+  });
+  it("lê todos os 1.002 ajustes, sem perder a segunda página", async () => {
+    const anterior = [...consulta.rows.ajustes_gerenciais];
+    consulta.rows.ajustes_gerenciais = Array.from({ length: 1002 }, (_, i) => ({
+      id: String(i), competencia: "2026-01-01", conta_debito: "DAL-0002", conta_credito: "303", valor: 1,
+    }));
+    try {
+      const { ajustes } = await getAjustesGerenciais("dal", "open");
+      expect(ajustes).toHaveLength(1002);
+      expect(ajustesToSaldosVirtuais(ajustes, () => true).filter((s) => s.conta_codigo === "DAL-0002").reduce((t, s) => t + s.movimento, 0)).toBe(1002);
+    } finally {
+      consulta.rows.ajustes_gerenciais = anterior;
+    }
   });
 });

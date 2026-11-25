@@ -18,6 +18,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { getTradutor } from "@/lib/plano/depara";
 import { escoparPlano, getEscopoConsulta } from "@/lib/plano/consulta";
+import { lerTudo, countNaPrimeira } from "@/lib/supabase-paginado";
 
 /** Competência do ajuste/saldo no mesmo formato do filtro (YYYY-MM-01). */
 export function competenciaPadrao(c: string): string {
@@ -83,20 +84,18 @@ export async function getAjustesGerenciais(
   companyId: string,
   tenantId: string,
 ): Promise<AjustesGerenciaisData> {
-  const [ajustesRes, gerRes] = await Promise.all([
-    supabase
+  const [ajustesRows, gerRows] = await Promise.all([
+    lerTudo<any>((from, to) => supabase
       .from("ajustes_gerenciais")
-      .select("id, competencia, descricao, conta_debito, conta_credito, valor, movimenta_dfc")
-      .eq("company_id", companyId),
-    supabase
+      .select("id, competencia, descricao, conta_debito, conta_credito, valor, movimenta_dfc", countNaPrimeira(from))
+      .eq("company_id", companyId).order("id").range(from, to), "ajustes gerenciais"),
+    lerTudo<any>((from, to) => supabase
       .from("contas_gerenciais")
-      .select("codigo, descricao, classificacao")
-      .eq("company_id", companyId),
+      .select("codigo, descricao, classificacao", countNaPrimeira(from))
+      .eq("company_id", companyId).order("codigo").range(from, to), "contas gerenciais"),
   ]);
-  if (ajustesRes.error) throw ajustesRes.error;
-  if (gerRes.error) throw gerRes.error;
 
-  const contasGerenciais: ContaGerencial[] = ((gerRes.data ?? []) as any[]).map(
+  const contasGerenciais: ContaGerencial[] = gerRows.map(
     (r) => ({
       codigo: r.codigo,
       descricao: r.descricao,
@@ -106,7 +105,7 @@ export async function getAjustesGerenciais(
   const gerMap = new Map<string, ContaGerencial>();
   for (const c of contasGerenciais) gerMap.set(c.codigo, c);
 
-  const rows = (ajustesRes.data ?? []) as any[];
+  const rows = ajustesRows;
   // Descobrir contas contábeis referenciadas (todo código que não é gerencial)
   const codigosContabeis = new Set<string>();
   for (const a of rows) {
@@ -219,7 +218,9 @@ export function ajustesToSaldosVirtuais(
     if (paraDfc && !a.movimenta_dfc) continue;
     const comp = competenciaPadrao(a.competencia);
     if (!filter(comp) && !filter(a.competencia)) continue;
-    if (!a.debito || !a.credito) continue; // conta removida — ignora
+    if (!a.debito || !a.credito) {
+      throw new Error(`Ajuste gerencial com conta não encontrada: ${a.conta_debito} / ${a.conta_credito} (${comp.slice(0, 7)}).`);
+    }
     out.push({
       conta_codigo: a.debito.codigo,
       competencia: comp,

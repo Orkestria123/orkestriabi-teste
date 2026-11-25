@@ -15,7 +15,13 @@ import { toast } from "sonner";
 import { createTenant, deleteTenant } from "@/lib/api/orkestria.functions";
 
 
-export const Route = createFileRoute("/orkestria-admin/tenants")({ component: Page });
+export const Route = createFileRoute("/orkestria-admin/tenants")({ head: () => ({ meta: [
+    { title: "Escritórios Orkestria — Orkestria BI" },
+    { name: "description", content: "Gerencie os escritórios e seus cadastros na plataforma Orkestria BI." },
+    { property: "og:title", content: "Escritórios Orkestria — Orkestria BI" },
+    { property: "og:description", content: "Gerencie os escritórios e seus cadastros na plataforma Orkestria BI." },
+    { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" },
+  ] }), component: Page });
 
 interface TenantRow {
   id: string;

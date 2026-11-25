@@ -124,7 +124,7 @@ async function invalidarDemonstracoes(qc: ReturnType<typeof useQueryClient>, com
   limparCacheDemonstracoes();
   limparCachePlano();
   await qc.invalidateQueries({ predicate: ({ queryKey: key }) => {
-    if (key[0] === "ajustes-gerenciais" || key[0] === "monthly-stmt" || key[0] === "cliente-indicadores") return key[1] === companyId;
+    if (key[0] === "ajustes-gerenciais" || key[0] === "monthly-stmt" || key[0] === "cliente-indicadores" || key[0] === "balanco-fecha") return key[1] === companyId;
     if (key[0] === "indic-engine-data" || key[0] === "indic-demo-dre") return key[2] === companyId;
     return key[0] === "indic-explicacao" && key.includes(companyId);
   } }, { throwOnError: true });

@@ -9,7 +9,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { SaudeBancoCard } from "@/components/saude-banco-card";
 
-export const Route = createFileRoute("/admin/")({ component: Page });
+export const Route = createFileRoute("/admin/")({ head: () => ({ meta: [
+    { title: "Painel do escritório — Orkestria BI" },
+    { name: "description", content: "Acompanhe empresas, importações e atividades do escritório no Orkestria BI." },
+    { property: "og:title", content: "Painel do escritório — Orkestria BI" },
+    { property: "og:description", content: "Acompanhe empresas, importações e atividades do escritório no Orkestria BI." },
+    { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" },
+  ] }), component: Page });
 
 const ACAO_LABEL: Record<string, string> = {
   login: "Login",

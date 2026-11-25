@@ -16,7 +16,13 @@ import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
 import { registrarExclusao } from "@/lib/api/auditoria.functions";
 
-export const Route = createFileRoute("/admin/grupos")({ component: Page });
+export const Route = createFileRoute("/admin/grupos")({ head: () => ({ meta: [
+    { title: "Grupos econômicos — Orkestria BI" },
+    { name: "description", content: "Organize as empresas por grupo econômico no Orkestria BI." },
+    { property: "og:title", content: "Grupos econômicos — Orkestria BI" },
+    { property: "og:description", content: "Organize as empresas por grupo econômico no Orkestria BI." },
+    { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" },
+  ] }), component: Page });
 
 interface Grupo {
   id: string;

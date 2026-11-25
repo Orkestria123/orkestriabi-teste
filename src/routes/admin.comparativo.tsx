@@ -38,7 +38,13 @@ import {
   type EmpresaComparada,
 } from "@/lib/comparativo/indices-empresa";
 
-export const Route = createFileRoute("/admin/comparativo")({ component: Page });
+export const Route = createFileRoute("/admin/comparativo")({ head: () => ({ meta: [
+    { title: "Comparativo de empresas — Orkestria BI" },
+    { name: "description", content: "Compare os resultados e indicadores das empresas do escritório." },
+    { property: "og:title", content: "Comparativo de empresas — Orkestria BI" },
+    { property: "og:description", content: "Compare os resultados e indicadores das empresas do escritório." },
+    { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" },
+  ] }), component: Page });
 
 const PORTES = ["MEI", "Micro", "Pequena", "Média", "Grande"];
 const PADRAO_VISIVEIS = ["margBruta", "margEbitda", "margLiq", "lc", "ls", "endivPL", "roe"];

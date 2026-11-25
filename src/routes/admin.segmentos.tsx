@@ -16,7 +16,13 @@ import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
 import { registrarExclusao } from "@/lib/api/auditoria.functions";
 
-export const Route = createFileRoute("/admin/segmentos")({ component: Page });
+export const Route = createFileRoute("/admin/segmentos")({ head: () => ({ meta: [
+    { title: "Segmentos de empresas — Orkestria BI" },
+    { name: "description", content: "Gerencie os segmentos das empresas para as análises comparativas." },
+    { property: "og:title", content: "Segmentos de empresas — Orkestria BI" },
+    { property: "og:description", content: "Gerencie os segmentos das empresas para as análises comparativas." },
+    { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" },
+  ] }), component: Page });
 
 interface Segmento {
   id: string;

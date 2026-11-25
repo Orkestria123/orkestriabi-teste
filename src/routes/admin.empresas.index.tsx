@@ -26,7 +26,13 @@ import { PerfilImagens } from "@/components/perfil-imagens";
 import { enviarImagemPerfil } from "@/lib/perfil-imagens";
 
 
-export const Route = createFileRoute("/admin/empresas/")({ component: Page });
+export const Route = createFileRoute("/admin/empresas/")({ head: () => ({ meta: [
+    { title: "Empresas do escritório — Orkestria BI" },
+    { name: "description", content: "Gerencie o cadastro e os dados contábeis das empresas no Orkestria BI." },
+    { property: "og:title", content: "Empresas do escritório — Orkestria BI" },
+    { property: "og:description", content: "Gerencie o cadastro e os dados contábeis das empresas no Orkestria BI." },
+    { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" },
+  ] }), component: Page });
 
 interface FormEmpresa {
   name: string;

@@ -13,6 +13,13 @@ import { claimOrkestriaAdmin } from "@/lib/api/orkestria.functions";
 import logoAsset from "@/assets/orkestria-logo.png.asset.json";
 
 export const Route = createFileRoute("/auth")({
+  head: () => ({ meta: [
+    { title: "Entrar no Orkestria BI" },
+    { name: "description", content: "Entre com segurança para consultar as demonstrações e relatórios das suas empresas." },
+    { property: "og:title", content: "Entrar no Orkestria BI" },
+    { property: "og:description", content: "Entre com segurança para consultar as demonstrações e relatórios das suas empresas." },
+    { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" },
+  ] }),
   component: AuthPage,
 });
 

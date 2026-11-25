@@ -11,7 +11,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { formatBytes } from "@/lib/importacao/ler-arquivo";
 
-export const Route = createFileRoute("/admin/saude")({ component: Page });
+export const Route = createFileRoute("/admin/saude")({ head: () => ({ meta: [
+    { title: "Saúde dos dados — Orkestria BI" },
+    { name: "description", content: "Acompanhe o volume de dados e o funcionamento do Orkestria BI." },
+    { property: "og:title", content: "Saúde dos dados — Orkestria BI" },
+    { property: "og:description", content: "Acompanhe o volume de dados e o funcionamento do Orkestria BI." },
+    { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" },
+  ] }), component: Page });
 
 interface TabelaStat {
   tabela: string;

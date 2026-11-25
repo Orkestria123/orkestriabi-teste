@@ -5,7 +5,13 @@ import { Cable } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { SistemasPanel } from "@/components/sistemas/sistemas-panel";
 
-export const Route = createFileRoute("/admin/sistemas")({ component: Page });
+export const Route = createFileRoute("/admin/sistemas")({ head: () => ({ meta: [
+    { title: "Sistemas e layouts — Orkestria BI" },
+    { name: "description", content: "Configure os layouts de importação dos sistemas contábeis no Orkestria BI." },
+    { property: "og:title", content: "Sistemas e layouts — Orkestria BI" },
+    { property: "og:description", content: "Configure os layouts de importação dos sistemas contábeis no Orkestria BI." },
+    { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" },
+  ] }), component: Page });
 
 function Page() {
   const { profile, role } = useAuth();

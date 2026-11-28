@@ -35,6 +35,7 @@ import { getEstruturaPadrao, getEstruturaPadraoSync, compararClassificacao } fro
 import { getFormulasEbitEbitda, type FormulasEbitEbitda } from "@/lib/indicadores/ebit-fonte";
 import { avaliarExpressao, buildContext, type PlanoRowEng, type SaldoRow, type Token } from "@/lib/indicadores/engine";
 import { criarAcumulador, criarAcumuladorComAjustes, type AberturaConta } from "@/lib/diario/acumulador";
+import { resultadoDesdeAbertura } from "@/lib/diario/resultado-abertura";
 import { getTradutor } from "@/lib/plano/depara";
 import { codigoSaldo } from "./codigo-saldo";
 import { resolverParticipantes } from "./plano-participantes";
@@ -1708,31 +1709,19 @@ async function buildBP(
   // já estão em saldosAcum e portanto propagam automaticamente para o resultado
   // — mantendo Ativo = Passivo + PL na visão gerencial.
   //
-  // A acumulação começa SEMPRE em janeiro do exercício. Funciona nos dois
-  // estados possíveis do encerramento:
-  //  - encerramento mantido nos saldos: a DRE do ano soma zero e o lucro
-  //    já está em Lucros Acumulados;
-  //  - encerramento retirado (regra atual da ECD, que tira também a
-  //    contrapartida em Lucros Acumulados): a DRE traz o lucro do ano e
-  //    Lucros Acumulados não.
-  // Reiniciar a soma no mês do zeramento zerava o Resultado justamente
-  // quando o encerramento já tinha sido retirado — dezembro deixava de fechar
-  // pelo lucro do ano inteiro.
+  // Encerramento removido não reinicia a DRE. Uma nova fotografia ECD
+  // no meio do exercício, porém, já incorpora o resultado anterior no PL.
+  // Nesse caso soma apenas o saldo DRE da fotografia e movimentos posteriores;
+  // ajustes gerenciais permanecem independentes da fotografia contábil.
   void encerramentos;
   const dreCodigos = new Set<string>([...planoDRE, ...planoExtra.filter((p) => dividir(p.classificacao, mascara)[0] === "3")].map((p) => p.codigo));
   const resultadoExercicioPorRef = new Map<string, number>();
   if (tipo === "BP_PASSIVO" && dreCodigos.size > 0) {
     for (const ref of periodos) {
-      const refYm = ref.slice(0, 7);
-      const inicioExerc = `${refYm.slice(0, 4)}-01`;
-      let soma = 0;
-      for (const s of saldosAcum) {
-        const cYm = s.competencia.slice(0, 7);
-        if (cYm >= inicioExerc && cYm <= refYm && dreCodigos.has(s.conta_codigo)) {
-          soma += s.movimento;
-        }
-      }
-      resultadoExercicioPorRef.set(ref, -soma);
+      resultadoExercicioPorRef.set(ref, resultadoDesdeAbertura(
+        ref, dreCodigos, saldosAcumContabil, abertura,
+        saldosAcum.slice(saldosAcumContabil.length),
+      ));
     }
   }
 

@@ -1,5 +1,10 @@
 # Roadmap — ajustes BI (25/09/2026)
 
+## Participantes ECD e Natursuc — 28/11
+- [x] Revisadas 52 ECDs de 17 empresas; 30.435 contas preservadas individualmente em 12 empresas, nenhum vínculo analítico ECD para AGG e nenhuma colisão restante; classificações individuais preservadas. Rotina idempotente com código de origem completo; 26 testes aprovados.
+- [x] Natursuc: abertura de 31/07/2025 já incorpora resultado jan–jul; corrigido resultado duplicado de R$ 2.523.556,86 sem alterar originais. Reaplicados 36 meses, todos equilibrados nas duas visões; dezembro R$ 66.355.062,20, conta individual e celular conferidos, sem erros de execução.
+- [ ] Concluir atualização e releitura de saldos/diários das demais empresas corrigidas — chamadas de atualização ultrapassaram o prazo do serviço; operação conjunta de diário não foi confirmada e foi interrompida sem resultado. Natursuc concluída; saldos Alumiconte reaplicados em 72 meses, mas conferência final das demais não concluída. Não declarar todas as empresas conciliadas.
+
 ## Dalmobile e consistência de balanços — 25/11
 - [x] Dalmobile ECD: corrigidas as contrapartidas derivadas de encerramento de dezembro/2024 (R$ 9.678.261,52) e dezembro/2025 (R$ 6.862.505,16); registros originais preservados, diário e saldos fechados.
 - [x] Dalmobile Gerencial 2026: abertura ECD não descarta ajustes anteriores; os 34 meses de 2024–2026 fecham em ambas as visões, dezembro/2025 e outubro/2026 conferidos na tela.

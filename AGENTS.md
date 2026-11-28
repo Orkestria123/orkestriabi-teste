@@ -27,3 +27,5 @@
 
 - Accounting opening snapshots reset only accounting movements; managerial adjustments accumulate separately without openings, so ECD refreshes never erase either adjustment leg or prior-year managerial results.
 - Balance consistency validates every available month and each view independently using the displayed statement engine; missing or invalid totals never count as balanced and cent-level discrepancies cannot cancel across months.
+- Intra-year accounting opening snapshots replace the preceding accounting result in BP; include any result retained in that snapshot and subsequent movements, while managerial adjustments remain independent, preventing duplicate profit after split ECD files.
+- ECD participants use company-scoped identities preserving the full source code; preserve explicit mappings and source analytical granularity, so suffix collisions and shared aggregate templates cannot merge unrelated participants.

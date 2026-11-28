@@ -7,8 +7,9 @@
 // 135.000 contas de cliente/fornecedor do plano do escritório.
 //
 // O universo real de destino é pequeno (~950 contas da ESTRUTURA).
-// Cliente e fornecedor não são destino individual: entram pela conta
-// agregadora ("CLIENTES NACIONAIS (consolidado)"), via regra em volume.
+// O seletor estrutural não carrega participantes do escritório inteiro.
+// Participantes ECD preservam contas individuais no escopo da empresa;
+// agregadoras legadas continuam disponíveis para outros vínculos existentes.
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { grupoDoDestino, type ContaDestino } from "@/lib/contas/busca";
@@ -24,12 +25,13 @@ export function useContasDestino(tenantId: string | null | undefined, companyId?
     // consulta a cada foco de janela no meio de um de-para longo.
     staleTime: 5 * 60 * 1000,
     queryFn: async () => {
+      if (!tenantId) return [];
       const out = await lerTudo<ContaDestino>(
         (de, ate) =>
           supabase
             .from("plano_contas")
             .select("codigo, classificacao, descricao, tipo", countNaPrimeira(de))
-            .eq("tenant_id", tenantId!)
+            .eq("tenant_id", tenantId)
             .is("company_id", null)
             .eq("is_sintetica", false)
             .eq("is_participante", false)
@@ -95,7 +97,7 @@ export function useContasDestino(tenantId: string | null | undefined, companyId?
                 supabase
                   .from("plano_contas")
                   .select("codigo, classificacao, descricao, tipo", countNaPrimeira(de))
-                  .eq("tenant_id", tenantId!)
+                  .eq("tenant_id", tenantId)
                   .eq("company_id", companyId)
                   .eq("is_sintetica", false)
                   .eq("ativo", true)
